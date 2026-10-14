@@ -1,0 +1,365 @@
+slug: combination-sum-ii
+lc: 40
+
+concept:
+  problem_it_solves: >-
+    "Which groups of items add up to exactly this total, if each item can be picked at most
+    once and some items are identical?" You must list every answer, so you have to explore
+    choices, but identical items create identical-looking branches. The pattern explores each
+    *distinct* choice once per decision, so duplicate answers are never built in the first
+    place.
+  brute_force: >-
+    Generate all 2^N subsets, keep those whose sum is target, sort each one and throw it into
+    a set to remove duplicates. It wastes work twice: it keeps extending subsets long after
+    their sum has passed target, and with input [1,1,1,1,1] it builds the same [1,1,1]
+    ten different ways (C(5,3) = 10) only to throw nine of them away at the end.
+  brute_force_complexity: >-
+    O(2^N · N) time, O(2^N · N) space for the dedupe set — N = 100 means 2^100 ≈ 10^30
+    subsets, which will never finish.
+  key_insight: >-
+    Sort first, so equal values sit next to each other and big values sit at the end. Then,
+    at every level of the recursion, the loop picks "which value goes into the combination
+    next". Picking the second 1 at the same level as the first 1 would start exactly the same
+    subtree again, so skip it: `if i > start and nums[i] == nums[i - 1]: continue`. Deeper
+    levels may still use the second 1 (that's how [1,1,6] is built), because `i > start`
+    only blocks repeats *within* one loop. Recurse with `i + 1` because each element is used
+    once, and `break` as soon as a candidate exceeds the remaining sum: the array is sorted,
+    so every later candidate is too big too.
+  real_world: >-
+    Payment reconciliation (Razorpay, Stripe, Tally exports) has to explain a bank credit as
+    an exact set of open invoices, where several invoices have the same amount and each can
+    be settled once. Coupon and gift-card stacking engines at e-commerce checkouts enumerate
+    distinct sets of vouchers that hit a cart total, and ad-break fillers pick distinct sets
+    of ad spots that fill an exact number of seconds.
+
+statement:
+  clean: |
+    Given a collection of candidate numbers `candidates` and a target number `target`, find
+    all **unique combinations** in `candidates` where the candidate numbers sum to `target`.
+
+    Each number in `candidates` may **only be used once** in the combination. The collection
+    can contain repeated values.
+
+    **Note:** the solution set **must not contain duplicate combinations**. Return the
+    combinations in any order; the numbers inside a combination can also be in any order.
+  oa_story: |
+    **BudgetBhai Fintech — OA Round 2**
+
+    BudgetBhai is a Bengaluru expense-tracking app used by flatmates in Bellandur and
+    Whitefield. When someone pays the monthly maintenance bill of exactly `target` rupees,
+    the app suggests which of their pending reimbursement slips could cover it. Each slip
+    has an amount, many slips share the same amount (everybody splits the same ₹2 chai or
+    ₹5 parking fee), and a slip can be settled only once.
+
+    Return every distinct suggestion: a set of slips whose amounts total exactly `target`.
+    Two suggestions that use the same amounts are the same suggestion, even if they use
+    different physical slips, and the app must not show the same suggestion twice. A user
+    has at most 100 pending slips, each between ₹1 and ₹50, and bills are at most ₹30.
+    Suggestions and the amounts inside them may be listed in any order.
+  trigger_keywords: ["unique combinations", "only be used once", "must not contain duplicate combinations"]
+  examples:
+    - input: "candidates = [10,1,2,7,6,1,5], target = 8"
+      output: "[[1,1,6],[1,2,5],[1,7],[2,6]]"
+      explanation: "The two 1s may be used together in [1,1,6], but [1,7] appears only once even though there are two 1s that could start it."
+    - input: "candidates = [2,5,2,1,2], target = 5"
+      output: "[[1,2,2],[5]]"
+      explanation: "There are three 2s, but every way of picking two of them gives the same [1,2,2]."
+  constraints:
+    - "1 <= candidates.length <= 100"
+    - "1 <= candidates[i] <= 50"
+    - "1 <= target <= 30"
+
+constraint_quiz:
+  prompt: >-
+    candidates.length can be 100, but target is at most 30 and every candidate is at least 1.
+    What actually bounds the work of a good solution?
+  options:
+    - "All 2^100 subsets must be checked, there is no way around it"
+    - "Backtracking with pruning: a combination has at most 30 numbers, and branches die as soon as the sum passes target"
+    - "O(N log N): sort and pick numbers greedily"
+    - "O(N · target) dynamic programming, which also lists every combination for free"
+  answer: 1
+  explanation: >-
+    Checking 2^100 subsets is about 10^30 steps, hopeless. Greedy picking can't enumerate
+    every answer, and it misses combinations that skip a small number. A DP over (index, sum)
+    can count combinations in O(N · target), but you must *list* them, and the output itself
+    can be exponential, so the DP doesn't make listing cheaper. Backtracking only walks
+    prefixes whose sum is still at most target; since each number is at least 1, no path is
+    deeper than 30, and sorting plus `break` cuts every branch the moment it overshoots.
+
+pattern_quiz:
+  prompt: >-
+    Find all combinations summing to a target, each element used at most once, and the input
+    contains duplicate values but the output must not. Which pattern fits?
+  options:
+    - "Two pointers on the sorted array"
+    - "Backtracking from a start index (i + 1), sorted input, skip equal values at the same level"
+    - "Backtracking that allows reusing the same index (recurse with i)"
+    - "Sliding window over the sorted array"
+  answer: 1
+  explanation: >-
+    "All combinations" means enumerate, so backtracking. "Only be used once" means the next
+    level starts at i + 1, not i (recursing with i is Combination Sum, where reuse is allowed).
+    "Must not contain duplicate combinations" with repeated values means sort and skip equal
+    values within the same loop. Two pointers and windows find pairs or contiguous ranges,
+    not arbitrary subsets.
+
+function:
+  name: combinationSum2
+  params: [{name: candidates}, {name: target}]
+  compare: unordered_nested
+
+starter_code: |
+  class Solution:
+      def combinationSum2(self, candidates: List[int], target: int) -> List[List[int]]:
+          pass
+
+tests:
+  - {args: [[10, 1, 2, 7, 6, 1, 5], 8], expected: [[1, 1, 6], [1, 2, 5], [1, 7], [2, 6]]}
+  - {args: [[2, 5, 2, 1, 2], 5], expected: [[1, 2, 2], [5]]}
+  - {args: [[2], 1], expected: [], note: "no combination: return an empty list"}
+  - {args: [[1], 1], expected: [[1]], note: single element equals target}
+  - {args: [[1, 1, 1, 1, 1], 3], expected: [[1, 1, 1]], note: "all duplicates: one answer, not C(5,3) = 10 copies"}
+  - {args: [[3, 1, 3, 5, 1, 1], 8], expected: [[1, 1, 1, 5], [1, 1, 3, 3], [3, 5]], note: "two groups of duplicates, used together in [1,1,3,3]"}
+  - {args: [[4, 4, 2, 1, 4, 2, 2, 1, 3], 6], expected: [[1, 1, 2, 2], [1, 1, 4], [1, 2, 3], [2, 2, 2], [2, 4]]}
+  - {args: [[5, 6, 7], 3], expected: [], note: "every candidate is bigger than target: break immediately"}
+  - {args: [[1, 2, 3, 4, 5], 15], expected: [[1, 2, 3, 4, 5]], note: the only answer uses every element}
+visualize_test: 1
+
+drills:
+  - title: Each element once means i + 1
+    skill: setup
+    goal: Write the start-index backtracking template where each element can be used at most once.
+    instructions: |
+      `nums` has **distinct** positive numbers. Return every combination of them that sums to
+      `target`, using each number at most once.
+
+      Write a nested `dfs(start, remain)` with `path` and `res` in the outer scope: record a
+      copy of `path` when `remain == 0`; otherwise loop `i` from `start`, choose `nums[i]`,
+      recurse with **`i + 1`**, then pop. Recursing with `i` (as in Combination Sum) would let
+      `nums[i]` be picked again; `i + 1` is what "only be used once" means in code. Starting
+      the loop at `start` (not 0) is what stops [2,5] and [5,2] both appearing.
+    function:
+      name: combineOnce
+      params: [{name: nums}, {name: target}]
+      compare: unordered_nested
+    starter_code: |
+      class Solution:
+          def combineOnce(self, nums: List[int], target: int) -> List[List[int]]:
+              pass
+    tests:
+      - {args: [[2, 3, 5, 7], 7], expected: [[2, 5], [7]]}
+      - {args: [[1, 2, 3], 3], expected: [[1, 2], [3]]}
+      - {args: [[4], 3], expected: [], note: nothing fits}
+      - {args: [[1, 2, 3, 4], 10], expected: [[1, 2, 3, 4]], note: "uses everything, each once"}
+    solution: |
+      class Solution:
+          def combineOnce(self, nums: List[int], target: int) -> List[List[int]]:
+              res, path = [], []
+
+              def dfs(start, remain):
+                  if remain == 0:
+                      res.append(path[:])
+                      return
+                  for i in range(start, len(nums)):
+                      if nums[i] <= remain:
+                          path.append(nums[i])
+                          dfs(i + 1, remain - nums[i])
+                          path.pop()
+
+              dfs(0, target)
+              return res
+    hint: "The recursive call is `dfs(i + 1, remain - nums[i])`; append `path[:]`, not `path`."
+
+  - title: Skip duplicates at the same level only
+    skill: core
+    goal: Apply `i > start and nums[i] == nums[i - 1]` to see which indices one loop level actually branches on.
+    instructions: |
+      `nums` is sorted. Return the indices `i` (from `start` to the end) that a single level
+      of the recursion loop would **choose**, skipping any index whose value equals the
+      previous index's value **within this loop**.
+
+      The condition is `i > start`, not `i > 0`. With `nums = [1,1,2,2,2,3]` and `start = 1`,
+      index 1 is the *first* choice of this level, so it must be tried even though
+      `nums[1] == nums[0]`: that's the branch that builds [1, 1, ...]. Writing `i > 0` would
+      silently delete every combination that uses a duplicated value twice.
+    function:
+      name: levelChoices
+      params: [{name: nums}, {name: start}]
+    starter_code: |
+      class Solution:
+          def levelChoices(self, nums: List[int], start: int) -> List[int]:
+              pass
+    tests:
+      - {args: [[1, 1, 2, 2, 2, 3], 0], expected: [0, 2, 5]}
+      - {args: [[1, 1, 2, 2, 2, 3], 1], expected: [1, 2, 5], note: "index 1 opens this level, so it is tried"}
+      - {args: [[1, 1, 2, 2, 2, 3], 3], expected: [3, 5]}
+      - {args: [[5, 5, 5], 0], expected: [0], note: all equal}
+      - {args: [[1, 2, 3], 2], expected: [2]}
+    solution: |
+      class Solution:
+          def levelChoices(self, nums: List[int], start: int) -> List[int]:
+              picks = []
+              for i in range(start, len(nums)):
+                  if i > start and nums[i] == nums[i - 1]:
+                      continue
+                  picks.append(i)
+              return picks
+    hint: "Compare with the previous index only when it belongs to the same loop, i.e. `i > start`."
+
+  - title: Sort first, then break on the first value that's too big
+    skill: edge
+    goal: Sort unsorted input so duplicates are adjacent, and stop the loop with break once a value exceeds the budget.
+    instructions: |
+      `candidates` is **unsorted**. Return the distinct values the **top level** of the
+      recursion would branch on: sort, skip a value equal to the one before it, and stop
+      completely at the first value greater than `target`.
+
+      Two things people get wrong here. Without sorting, equal values aren't neighbours, so
+      the `nums[i] == nums[i - 1]` check misses them and duplicate combinations come back.
+      And after sorting, a value bigger than the remaining sum means *every* later value is
+      bigger too, so `break` (not `continue`) is both correct and the main pruning that keeps
+      the search fast.
+    function:
+      name: topLevelBranches
+      params: [{name: candidates}, {name: target}]
+    starter_code: |
+      class Solution:
+          def topLevelBranches(self, candidates: List[int], target: int) -> List[int]:
+              pass
+    tests:
+      - {args: [[10, 1, 2, 7, 6, 1, 5], 8], expected: [1, 2, 5, 6, 7]}
+      - {args: [[2, 5, 2, 1, 2], 5], expected: [1, 2, 5]}
+      - {args: [[9, 9], 5], expected: [], note: "everything too big: break on the first value"}
+      - {args: [[3, 1, 3], 3], expected: [1, 3], note: the duplicates only become neighbours after sorting}
+    solution: |
+      class Solution:
+          def topLevelBranches(self, candidates: List[int], target: int) -> List[int]:
+              nums = sorted(candidates)
+              starts = []
+              for i, x in enumerate(nums):
+                  if x > target:
+                      break
+                  if i > 0 and x == nums[i - 1]:
+                      continue
+                  starts.append(x)
+              return starts
+    hint: "Sort into a new list first; inside the loop, `break` when `x > target`."
+
+hints:
+  - >-
+    Picture the decision tree: each level decides "which number joins the combination next?".
+    If the input has two 1s, what is the difference between the subtree that starts with the
+    first 1 and the subtree that starts with the second 1? Do you need both?
+  - >-
+    Sort the candidates. dfs(start, remain): if remain is 0, record a copy of path. Otherwise
+    loop i from start; skip i if it isn't the first index of this loop and equals the previous
+    value; stop the loop once candidates[i] > remain; choose it, recurse with i + 1 and
+    remain − candidates[i], then un-choose.
+  - |
+    sort candidates
+    dfs(start, remain):
+        if remain == 0: record copy of path; return
+        for i from start to n - 1:
+            if i > start and candidates[i] == candidates[i - 1]: skip
+            if candidates[i] > remain: stop the loop
+            push candidates[i]; dfs(i + 1, remain - candidates[i]); pop
+    dfs(0, target)
+
+solution:
+  code: |
+    class Solution:
+        def combinationSum2(self, candidates: List[int], target: int) -> List[List[int]]:
+            candidates.sort()  # duplicates become neighbours, big values move to the end
+            res, path = [], []
+
+            def dfs(start, remain):
+                if remain == 0:
+                    res.append(path[:])  # copy: path keeps changing after this
+                    return
+                for i in range(start, len(candidates)):
+                    if i > start and candidates[i] == candidates[i - 1]:
+                        continue  # this value already opened a branch at this level
+                    if candidates[i] > remain:
+                        break  # sorted: every later candidate is too big as well
+                    path.append(candidates[i])  # choose
+                    dfs(i + 1, remain - candidates[i])  # explore; i + 1 = each element once
+                    path.pop()  # un-choose
+
+            dfs(0, target)
+            return res
+  explanation: |
+    This is the choose → explore → un-choose template from Combination Sum with two changes,
+    and each change answers one sentence of the statement.
+
+    **"Only be used once" → recurse with `i + 1`.** In Combination Sum the call is
+    `dfs(i, ...)` so the same index can be picked again. Here the next level starts after the
+    element just used. Starting every loop at `start` (rather than 0) also means a
+    combination is always built in sorted order, so [1,7] and [7,1] can't both appear.
+
+    **"No duplicate combinations" → sort, then skip equal values at the same level.** One
+    loop iteration decides which *value* comes next. In sorted `[1,1,2,5,6,7,10]`, choosing
+    index 0 or index 1 as the first number leads to exactly the same subtree, so only the
+    first occurrence opens a branch. The check is `i > start`, not `i > 0`: deeper down, after
+    choosing the first 1, the loop starts at index 1, and choosing the second 1 there is a
+    new decision (it builds [1,1,6]). Duplicates are prevented at the moment of choice, so
+    there is no set and no post-processing.
+
+    **Pruning.** Because the array is sorted, the first candidate bigger than `remain` ends
+    the loop with `break`. Every number is at least 1, so `remain` drops on each level and a
+    path is never deeper than `target` (≤ 30).
+
+    Recording `path[:]` matters: `path` is one shared list that is popped back to empty by
+    the end, so appending `path` itself would leave `res` full of empty lists.
+  time: >-
+    O(2^N · N) in the worst case — up to 2^N distinct subsets are visited and copying one
+    costs O(N); the sort adds O(N log N). Pruning by target ≤ 30 keeps real runs far smaller.
+  space: O(N) — recursion depth and path (at most min(N, target) deep), excluding the output
+  brute_force_code: |
+    class Solution:
+        def combinationSum2(self, candidates: List[int], target: int) -> List[List[int]]:
+            n = len(candidates)
+            found = set()
+            for mask in range(1 << n):
+                picked = [candidates[i] for i in range(n) if mask >> i & 1]
+                if sum(picked) == target:
+                    found.add(tuple(sorted(picked)))
+            return [list(t) for t in found]
+
+pitch_script: |
+  **(Clarify)** "So each element can be used once, but the input can contain repeated values,
+  and I must not return the same combination twice, where [1,7] built from the first 1 and
+  from the second 1 count as the same. Order doesn't matter, and all numbers are positive,
+  right?"
+
+  **(Brute force)** "The naive way is to try all 2^N subsets, keep the ones that hit the
+  target, sort each and deduplicate with a set. That's O(2^N · N), and with N up to 100 it's
+  hopeless. It also builds the same combination many times only to throw copies away."
+
+  **(Trigger)** "'Find all unique combinations' says backtracking. 'Each number used once'
+  says the recursion moves to i + 1. And 'duplicates in the input but not in the output' is
+  the classic sort-and-skip-at-the-same-level signal."
+
+  **(Optimal)** "I sort the candidates, then run dfs(start, remain) with a shared path. When
+  remain hits zero I record a copy. Otherwise I loop from start: if this value equals the
+  previous one and it isn't the first choice in this loop, I skip it, because it would open
+  an identical subtree. If the value is bigger than remain I break, since everything after it
+  is bigger too. Otherwise I push it, recurse with i + 1, and pop."
+
+  **(Complexity)** "Worst case it's exponential, O(2^N · N), since the output itself can be
+  that large, but the target bound of 30 and the break prune almost everything in practice.
+  Extra space is O(N) for the recursion and the path, plus the output."
+
+twist:
+  lc: 77
+  title: Combinations
+  why: >-
+    Strip the problem down: choose k numbers from 1..n, no target sum and no duplicates in the
+    input. The start-index template with i + 1 stays exactly the same; the skip-duplicates check
+    disappears and the stopping rule becomes len(path) == k. Good for checking that you can
+    rebuild the template from scratch, plus the pruning 'not enough numbers left to reach k'.
+
+viz:
+  arrays: [candidates, path]
+  pointers: [i, start]
+  watch: [remain, res]

@@ -1,0 +1,365 @@
+slug: 3sum
+lc: 15
+
+concept:
+  problem_it_solves: >-
+    "Which groups of three values cancel out to zero, each group listed once?" Fixing one
+    value turns the question into "which pairs in the rest sum to −nums[i]?", and on sorted
+    data that pair search is a linear squeeze from both ends. Sorting also lines duplicates
+    up next to each other, so skipping repeats becomes a cheap neighbour comparison instead
+    of a set of seen triplets.
+  brute_force: >-
+    Try every triple (i, j, k) with three nested loops, sort each matching triple and put it
+    in a set to remove duplicates. For each fixed pair (i, j) the inner loop rescans the
+    whole remainder looking for one specific value, and the same value triplet gets
+    discovered again and again whenever a number appears more than once.
+  brute_force_complexity: >-
+    O(N³) time, O(K) space for the set of K distinct triplets — 3000 elements means about
+    4.5 × 10⁹ triples.
+  key_insight: >-
+    Sort once, then fix the smallest element nums[i] and look for a pair to its right that
+    sums to −nums[i]. Because the remainder is sorted, a pair sum that is too small can only
+    be fixed by moving l right and one that is too big only by moving r left, so each fixed
+    i costs O(N) instead of O(N²). Duplicates are handled at exactly two places: skip an i
+    whose value equals the previous i, and after recording a triplet, skip l past every copy
+    of the value just used.
+  real_world: >-
+    Reconciliation jobs at payment companies (Razorpay, Juspay) look for small groups of
+    ledger entries that net to zero to auto-close disputes. Ad and pricing engines search
+    sorted price lists for bundles that hit an exact budget, and the "sort once, then squeeze
+    with two pointers" step is how query engines evaluate band joins on sorted columns.
+
+statement:
+  clean: |
+    Given an integer array `nums`, return all the **triplets** `[nums[i], nums[j], nums[k]]`
+    such that `i != j`, `i != k`, `j != k`, and `nums[i] + nums[j] + nums[k] == 0`, i.e. the
+    three values **sum to zero**.
+
+    Notice that the solution set must not contain **duplicate triplets**. The triplets, and
+    the values inside each triplet, may be returned in any order.
+  oa_story: |
+    **CricStream Fantasy — OA Round 2**
+
+    CricStream runs a fantasy-cricket app out of Indiranagar. After every IPL match, the
+    scoring engine issues integer point corrections to players: positive when a catch was
+    missed in the live feed, negative when a run-out was wrongly credited. The integrity
+    team has noticed that rigged corrections tend to come in threes that cancel each other
+    out exactly, so the league's total stays unchanged and nobody notices.
+
+    Given the list of corrections for a match (each correction belongs to a different
+    player), report every distinct combination of three correction values whose total is
+    exactly zero. A combination is identified by its values, not by which players issued
+    them, and reporting the same combination twice clutters the dashboard. Matches can have
+    up to 3000 corrections, and the audit runs for every match on the night's schedule.
+  trigger_keywords: ["triplets", "sum to zero", "duplicate triplets"]
+  examples:
+    - input: "nums = [-1,0,1,2,-1,-4]"
+      output: "[[-1,-1,2],[-1,0,1]]"
+      explanation: "(-1) + 0 + 1 and (-1) + (-1) + 2 are zero. [-1,0,1] can be built two ways (either -1) but is listed once."
+    - input: "nums = [0,1,1]"
+      output: "[]"
+      explanation: "The only triplet sums to 2."
+    - input: "nums = [0,0,0]"
+      output: "[[0,0,0]]"
+  constraints:
+    - "3 <= nums.length <= 3000"
+    - "-10^5 <= nums[i] <= 10^5"
+
+constraint_quiz:
+  prompt: With N up to 3000, what time complexity should you aim for?
+  options: ["O(N³)", "O(N² log N)", "O(N²)", "O(N log N)"]
+  answer: 2
+  explanation: >-
+    O(N³) is about 4.5 × 10⁹ triples, far too slow. Fixing two values and binary searching
+    for the third is O(N² log N), roughly 5 × 10⁷ steps, which can pass but does extra work
+    and makes duplicate handling messier. Sort plus a two-pointer pair search per fixed
+    element is O(N²), about 4.5 × 10⁶ pair checks. O(N log N) is not realistic: there can
+    be Θ(N²) distinct answer triplets, so just writing the output can take quadratic time.
+
+pattern_quiz:
+  prompt: >-
+    Find all unique triplets that sum to zero, with values returned (not indices). Which
+    pattern fits?
+  options:
+    - "Hash map of value → index, like Two Sum, for every pair"
+    - "Sort, fix one element, then two pointers from both ends on the rest"
+    - "Sliding window of size 3"
+    - "Prefix sums with a count map"
+  answer: 1
+  explanation: >-
+    A hash map per pair works in O(N²) but needs extra memory and a set of tuples to remove
+    duplicate triplets. Because the answer is values, not indices, sorting is free to use,
+    and sorted data gives you both the two-pointer pair search and adjacent duplicates that
+    are trivial to skip. A size-3 window only sees contiguous triples, and prefix sums are
+    for contiguous subarray sums, not arbitrary picks.
+
+function:
+  name: threeSum
+  params: [{name: nums}]
+  compare: unordered_nested
+
+starter_code: |
+  class Solution:
+      def threeSum(self, nums: List[int]) -> List[List[int]]:
+          pass
+
+tests:
+  - {args: [[-1, 0, 1, 2, -1, -4]], expected: [[-1, -1, 2], [-1, 0, 1]]}
+  - {args: [[0, 1, 1]], expected: []}
+  - {args: [[0, 0, 0]], expected: [[0, 0, 0]]}
+  - {args: [[0, 0, 0, 0]], expected: [[0, 0, 0]], note: "repeated fixed value, listed once"}
+  - {args: [[-2, 0, 1, 1, 2]], expected: [[-2, 0, 2], [-2, 1, 1]], note: two triplets for the same fixed value}
+  - {args: [[-1, -1, -1, 2, 2]], expected: [[-1, -1, 2]], note: duplicates on both sides of the pair}
+  - {args: [[1, 2, 3]], expected: [], note: "all positive, so the early break fires"}
+  - {args: [[-2, -1, 0, 1, 2, 3]], expected: [[-2, -1, 3], [-2, 0, 2], [-1, 0, 1]]}
+  - {args: [[-4, -1, -1, 0, 1, 2, 2, -1, 3]], expected: [[-4, 1, 3], [-4, 2, 2], [-1, -1, 2], [-1, 0, 1]], note: many duplicates}
+visualize_test: 0
+
+drills:
+  - title: Fix each first value once
+    skill: setup
+    goal: Sort, then loop over the fixed element, skipping a value equal to the previous one and stopping once it is positive.
+    instructions: |
+      Sort `nums`, then return the list of values the outer loop of 3Sum actually uses as
+      the fixed first element `nums[i]`, in order.
+
+      Rules: `i` runs from 0 to `n - 3` (two slots must remain for the pair). Skip `i` when
+      `i > 0` and `nums[i] == nums[i - 1]`: the same first value would only rediscover the
+      same triplets. Stop as soon as `nums[i] > 0`: if the smallest of three sorted values is
+      positive, no sum can reach zero.
+
+      Compare with the **previous** element, not the next one. Skipping when
+      `nums[i] == nums[i + 1]` would throw away the first -1 in `[-1, -1, 2]` and lose that
+      triplet entirely.
+    function:
+      name: fixedValues
+      params: [{name: nums}]
+    starter_code: |
+      class Solution:
+          def fixedValues(self, nums: List[int]) -> List[int]:
+              pass
+    tests:
+      - {args: [[-1, 0, 1, 2, -1, -4]], expected: [-4, -1, 0]}
+      - {args: [[0, 0, 0, 0]], expected: [0]}
+      - {args: [[1, 2, 3]], expected: [], note: first value already positive}
+      - {args: [[3, -1, -1, -1, 0]], expected: [-1]}
+      - {args: [[-3, -2, -2, 5]], expected: [-3, -2]}
+    solution: |
+      class Solution:
+          def fixedValues(self, nums: List[int]) -> List[int]:
+              nums.sort()
+              used = []
+              for i in range(len(nums) - 2):
+                  if nums[i] > 0:
+                      break
+                  if i > 0 and nums[i] == nums[i - 1]:
+                      continue
+                  used.append(nums[i])
+              return used
+    hint: "Check `nums[i] > 0` to break and `nums[i] == nums[i - 1]` to continue, in that loop over `range(n - 2)`."
+
+  - title: Squeeze a sorted pair toward the target
+    skill: core
+    goal: Move l right when the pair sum is too small and r left when it is too big.
+    instructions: |
+      `nums` is sorted in ascending order. Return `[nums[l], nums[r]]` for a pair `l < r`
+      whose values sum to `target`, or `[]` if there is none. Each test has at most one such
+      pair.
+
+      Start with `l = 0` and `r = n - 1`. If the sum is too small, the only way to grow it is
+      to replace the smaller value, so `l += 1`. If it's too big, `r -= 1`. Each comparison
+      rules out one index for good, which is why this inner search is O(N) and 3Sum is
+      O(N²) overall.
+    function:
+      name: pairWithSum
+      params: [{name: nums}, {name: target}]
+    starter_code: |
+      class Solution:
+          def pairWithSum(self, nums: List[int], target: int) -> List[int]:
+              pass
+    tests:
+      - {args: [[-4, -1, 0, 3, 5], 2], expected: [-1, 3]}
+      - {args: [[1, 2, 3, 4, 6], 10], expected: [4, 6]}
+      - {args: [[1, 2, 3], 7], expected: [], note: no pair exists}
+      - {args: [[-3, -3, 0, 6], 3], expected: [-3, 6]}
+      - {args: [[2, 2], 4], expected: [2, 2], note: equal values at different indices}
+    solution: |
+      class Solution:
+          def pairWithSum(self, nums: List[int], target: int) -> List[int]:
+              l, r = 0, len(nums) - 1
+              while l < r:
+                  total = nums[l] + nums[r]
+                  if total == target:
+                      return [nums[l], nums[r]]
+                  if total < target:
+                      l += 1
+                  else:
+                      r -= 1
+              return []
+    hint: "Too small means the left value is too small for every remaining partner, so it can go."
+
+  - title: After a match, step past the copies
+    skill: edge
+    goal: Collect every distinct pair, skipping repeated values after each match without looping forever.
+    instructions: |
+      `nums` is sorted. Return **all distinct** value pairs `[a, b]` (with `a` from a smaller
+      index than `b`) that sum to `target`, in any order.
+
+      When you find a match, record it, then move **both** pointers inward (the pair is used
+      up), and keep moving `l` while it sits on the same value as before. If you forget to
+      move after a match the loop never ends; if you forget the skip, `[-2, -2, 0, 0, 2, 2]`
+      reports `[-2, 2]` twice. Skipping on `l` alone is enough: once `l` holds a new, larger
+      value, a repeated value at `r` makes the sum too big and `r` moves on its own.
+    function:
+      name: uniquePairs
+      params: [{name: nums}, {name: target}]
+      compare: unordered_nested
+    starter_code: |
+      class Solution:
+          def uniquePairs(self, nums: List[int], target: int) -> List[List[int]]:
+              pass
+    tests:
+      - {args: [[-2, -2, 0, 0, 2, 2], 0], expected: [[-2, 2], [0, 0]]}
+      - {args: [[1, 1, 1, 1], 2], expected: [[1, 1]], note: one distinct pair from many copies}
+      - {args: [[1, 1, 1, 1], 3], expected: []}
+      - {args: [[-1, 0, 0, 1, 1, 2], 1], expected: [[-1, 2], [0, 1]]}
+      - {args: [[3], 6], expected: [], note: "a single element can't pair with itself"}
+    solution: |
+      class Solution:
+          def uniquePairs(self, nums: List[int], target: int) -> List[List[int]]:
+              l, r, out = 0, len(nums) - 1, []
+              while l < r:
+                  total = nums[l] + nums[r]
+                  if total < target:
+                      l += 1
+                  elif total > target:
+                      r -= 1
+                  else:
+                      out.append([nums[l], nums[r]])
+                      l, r = l + 1, r - 1
+                      while l < r and nums[l] == nums[l - 1]:
+                          l += 1
+              return out
+    hint: "After `l += 1; r -= 1`, loop `while l < r and nums[l] == nums[l - 1]: l += 1`."
+
+hints:
+  - >-
+    If you fix one number x, what do the other two have to add up to? And if the array were
+    sorted, which problem you already know does that become?
+  - >-
+    Sort. For each i, set l = i + 1 and r = n − 1 and squeeze: total too small means l moves
+    right, too big means r moves left, a match is recorded and both move. Where exactly can
+    the same triplet be produced twice, and what neighbour comparison prevents it?
+  - |
+    sort nums
+    for i from 0 to n - 3:
+        if nums[i] > 0: stop
+        if i > 0 and nums[i] equals nums[i - 1]: skip this i
+        l = i + 1, r = n - 1
+        while l < r:
+            total = nums[i] + nums[l] + nums[r]
+            if total < 0: l += 1
+            else if total > 0: r -= 1
+            else:
+                record [nums[i], nums[l], nums[r]]
+                l += 1, r -= 1
+                while l < r and nums[l] equals nums[l - 1]: l += 1
+
+solution:
+  code: |
+    class Solution:
+        def threeSum(self, nums: List[int]) -> List[List[int]]:
+            nums.sort()
+            n = len(nums)
+            result = []
+            for i in range(n - 2):
+                if nums[i] > 0:
+                    break  # smallest of the three is positive: no zero sum left
+                if i > 0 and nums[i] == nums[i - 1]:
+                    continue  # same fixed value as last time: same triplets
+                l, r = i + 1, n - 1
+                while l < r:
+                    total = nums[i] + nums[l] + nums[r]
+                    if total < 0:
+                        l += 1
+                    elif total > 0:
+                        r -= 1
+                    else:
+                        result.append([nums[i], nums[l], nums[r]])
+                        l += 1
+                        r -= 1
+                        while l < r and nums[l] == nums[l - 1]:
+                            l += 1  # step past copies of the value just used
+            return result
+  explanation: |
+    Sorting does two jobs. It makes the pair search monotonic: with `nums[i]` fixed, a sum
+    that's too small can only grow by moving `l` right, and one that's too big can only
+    shrink by moving `r` left, so each comparison discards one index and the inner loop is
+    O(N). And it puts equal values next to each other, so duplicates can be skipped with a
+    single neighbour comparison.
+
+    There are exactly two places a duplicate triplet could come from:
+
+    1. **The fixed element.** If `nums[i] == nums[i - 1]`, every triplet starting with this
+       value was already found in the previous iteration (which had an even larger range to
+       search), so skip it. Compare with `i - 1`, not `i + 1`: looking ahead would skip the
+       first `-1` in `[-1, -1, 2]`, and that `-1` is the one that needs its twin as `l`.
+    2. **The pair, right after a match.** After recording `[nums[i], nums[l], nums[r]]`,
+       move both pointers in and keep moving `l` while it equals the value just used.
+       Otherwise `[-1, -1, -1, 2, 2]` would report `[-1, -1, 2]` twice. `r` needs no skip of
+       its own: once `l` holds a new, larger value, a repeated `nums[r]` makes the sum too
+       big and the normal `r -= 1` branch walks past it.
+
+    The `break` when `nums[i] > 0` is a safe shortcut: all three values would be positive.
+  time: O(N²) — O(N log N) sort plus an O(N) two-pointer scan for each of the N fixed values
+  space: O(1) extra beyond the output (Python's sort itself uses up to O(N) internally)
+  brute_force_code: |
+    class Solution:
+        def threeSum(self, nums: List[int]) -> List[List[int]]:
+            n = len(nums)
+            found = set()
+            for i in range(n):
+                for j in range(i + 1, n):
+                    for k in range(j + 1, n):
+                        if nums[i] + nums[j] + nums[k] == 0:
+                            found.add(tuple(sorted((nums[i], nums[j], nums[k]))))
+            return [list(t) for t in found]
+
+pitch_script: |
+  **(Clarify)** "I return values, not indices, each distinct triplet once, in any order.
+  The same value can appear in a triplet more than once if it appears more than once in
+  the array, like [-1, -1, 2]. Is it fine for me to sort the input in place?"
+
+  **(Brute force)** "The naive way is three nested loops, sorting each matching triple and
+  putting it in a set to drop duplicates. That's O(N³), which is about 4.5 billion triples
+  at N = 3000, so that won't work."
+
+  **(Trigger)** "If I fix one number, I need a pair summing to its negative, and that's Two
+  Sum. Since I'm returning values, I'm free to sort, and on sorted data the pair search is
+  two pointers from both ends. Sorting also lines up duplicates so I can skip them by
+  comparing neighbours."
+
+  **(Optimal)** "I sort, then for each i I run l from i plus one and r from the end. If the
+  sum is too small I move l, too big I move r, and on a match I record it and move both.
+  To avoid duplicates I skip an i whose value equals the previous i, and after a match I
+  keep moving l past copies of the same value. I can also stop the outer loop once nums[i]
+  is positive."
+
+  **(Complexity)** "The sort is O(N log N) and each of the N fixed values does an O(N)
+  scan, so O(N²) total. Extra space is O(1) apart from the output and whatever the sort
+  uses internally."
+
+twist:
+  lc: 16
+  title: 3Sum Closest
+  why: >-
+    Now there is exactly one answer, the sum closest to a target, rather than all exact
+    matches. Same sort, fix i, squeeze l and r, but instead of recording equal sums you
+    keep the sum with the smallest |total − target| and move l or r by comparing with the
+    target. Duplicate skipping and the positive-number break both disappear: duplicates
+    can't produce a wrong answer, and the target can be anything.
+
+viz:
+  arrays: [nums]
+  pointers: [i, l, r]
+  watch: [total]

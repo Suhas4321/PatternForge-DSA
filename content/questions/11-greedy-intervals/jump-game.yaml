@@ -1,0 +1,301 @@
+slug: jump-game
+lc: 55
+
+concept:
+  problem_it_solves: >-
+    "Can I get from the start to the end when each position lets me move up to some
+    distance?" Exploring every path branches wildly. But the set of positions you can reach
+    is always one unbroken block from index 0 up to some farthest index, so a single number,
+    the farthest reach, captures everything you need to know.
+  brute_force: >-
+    Mark index 0 reachable, then for every reachable index mark all indices it can jump to
+    (or, equivalently, work backward with a DP asking "can index i reach a good index?"). It
+    wastes work because it marks the same indices over and over from different sources, when
+    all that matters is how far right the reachable block extends.
+  brute_force_complexity: >-
+    O(N · K) time where K is the largest jump, i.e. O(N²) in the worst case, plus O(N)
+    space — 10⁴ elements means up to ~5 × 10⁷ markings. Plain recursion over all paths
+    without memoisation is exponential.
+  key_insight: >-
+    If you can reach index j, you can reach every index before it too: any jump that flies
+    over k could have stopped at k instead, because you may jump *up to* nums[i]. So the
+    reachable set is always the prefix [0 .. farthest]. Scan left to right, extend farthest
+    with i + nums[i] for every index inside the prefix, and fail the moment i steps past
+    farthest.
+  real_world: >-
+    Network and CDN engineers reason the same way about multi-hop reachability: each relay
+    has a range, and you only track how far the signal has got. Video players buffering
+    chunks, and build systems checking whether a chain of incremental snapshots covers up to
+    the latest version, keep a single "covered up to here" watermark the same way.
+
+statement:
+  clean: |
+    You are given an integer array `nums`. You are initially positioned at the array's
+    **first index**, and each element in the array represents your **maximum jump length**
+    at that position.
+
+    Return `true` if you **can reach the last index**, or `false` otherwise.
+  oa_story: |
+    **SlotSarthi — OA Round 1**
+
+    SlotSarthi books service slots for two-wheeler garages along Hosur Road. A rider's bike
+    is towed in for a breakdown and must be passed down a line of partner garages, in a
+    fixed order, to the one at the end of the line that stocks the part. Each garage, from
+    the dispatch data, can forward the bike to any garage up to a certain number of places
+    further down the line (zero if it has no tow van free today).
+
+    Given that list of forwarding ranges, with the bike starting at the first garage, return
+    whether the bike can make it to the final garage. Some lines have 10,000 garages and the
+    check runs every time a dispatcher refreshes the board, so it must be linear.
+  trigger_keywords: ["maximum jump length", "can reach the last index"]
+  examples:
+    - input: "nums = [2,3,1,1,4]"
+      output: "true"
+      explanation: "Jump 1 step from index 0 to 1, then 3 steps to the last index."
+    - input: "nums = [3,2,1,0,4]"
+      output: "false"
+      explanation: "Every path lands on index 3, whose maximum jump length is 0, so index 4 is unreachable."
+  constraints:
+    - "1 <= nums.length <= 10^4"
+    - "0 <= nums[i] <= 10^5"
+
+constraint_quiz:
+  prompt: >-
+    N can be 10⁴ and each jump can be up to 10⁵. What time complexity should you aim for?
+  options: ["Exponential (try every path)", "O(N²)", "O(N log N)", "O(N)"]
+  answer: 3
+  explanation: >-
+    Trying every path is exponential. The marking/DP approach is O(N²) in the worst case,
+    ~5 × 10⁷ operations: it might squeak through in C++ but is slow in Python and not what
+    the interviewer wants. Nothing needs sorting, so O(N log N) isn't natural. Tracking a
+    single farthest-reach value is one pass, O(N).
+
+pattern_quiz:
+  prompt: >-
+    Each position lets you jump any distance up to nums[i] to the right. Can you reach the
+    end? Which pattern fits?
+  options:
+    - "Greedy: track the farthest index reachable so far"
+    - "Two pointers from both ends"
+    - "Monotonic stack of jump lengths"
+    - "Binary search on the number of jumps"
+  answer: 0
+  explanation: >-
+    "Can you reach" with "maximum jump length" (any distance up to) is the farthest-reach
+    trigger. Because shorter jumps are always allowed, reachable indices form a prefix, so
+    one number summarises the whole state. Two pointers and monotonic stacks don't model
+    reachability, and binary search on jump count answers a different question.
+
+function:
+  name: canJump
+  params: [{name: nums}]
+
+starter_code: |
+  class Solution:
+      def canJump(self, nums: List[int]) -> bool:
+          pass
+
+tests:
+  - {args: [[2, 3, 1, 1, 4]], expected: true}
+  - {args: [[3, 2, 1, 0, 4]], expected: false}
+  - {args: [[0]], expected: true, note: already standing on the last index}
+  - {args: [[0, 1]], expected: false, note: stuck at the start}
+  - {args: [[2, 0, 0]], expected: true, note: a zero at the last index doesn't matter}
+  - {args: [[1, 2, 0, 0, 1]], expected: false, note: two zeros in a row form a wall}
+  - {args: [[5, 0, 0, 0, 0, 0]], expected: true, note: one big jump clears every zero}
+  - {args: [[1, 1, 1, 1]], expected: true}
+  - {args: [[2, 0, 1, 0, 1]], expected: false, note: farthest stalls at index 3}
+visualize_test: 1
+
+drills:
+  - title: Track the farthest reach
+    skill: setup
+    goal: Maintain a running farthest = max(farthest, i + nums[i]) while scanning left to right.
+    instructions: |
+      Assume for now that every index is reachable. Return a list where position `i` holds
+      the farthest index you could reach using any of the positions `0..i`.
+
+      This one number is the whole state of the greedy: everything from `0` to `farthest`
+      is reachable, so you never need to remember *which* path got you there.
+    function:
+      name: farthestAfterEach
+      params: [{name: nums}]
+    starter_code: |
+      class Solution:
+          def farthestAfterEach(self, nums: List[int]) -> List[int]:
+              pass
+    tests:
+      - {args: [[2, 3, 1, 1, 4]], expected: [2, 4, 4, 4, 8]}
+      - {args: [[3, 2, 1, 0, 4]], expected: [3, 3, 3, 3, 8]}
+      - {args: [[0]], expected: [0]}
+      - {args: [[1, 0, 2]], expected: [1, 1, 4]}
+    solution: |
+      class Solution:
+          def farthestAfterEach(self, nums: List[int]) -> List[int]:
+              farthest = 0
+              out = []
+              for i, jump in enumerate(nums):
+                  farthest = max(farthest, i + jump)
+                  out.append(farthest)
+              return out
+    hint: "From index `i` the farthest you can land is `i + nums[i]`; keep the running max."
+
+  - title: Spot where you get stuck
+    skill: core
+    goal: Detect the first index that lies beyond the farthest reach, which is exactly when the greedy fails.
+    instructions: |
+      Return the first index `i` that you **cannot** reach from index 0, or `-1` if every
+      index is reachable.
+
+      Check `i > farthest` **before** using `nums[i]`. An unreachable index must not extend
+      your reach, otherwise `[0, 5]` would wrongly look solvable.
+    function:
+      name: firstStuckIndex
+      params: [{name: nums}]
+    starter_code: |
+      class Solution:
+          def firstStuckIndex(self, nums: List[int]) -> int:
+              pass
+    tests:
+      - {args: [[3, 2, 1, 0, 4]], expected: 4}
+      - {args: [[2, 3, 1, 1, 4]], expected: -1}
+      - {args: [[0, 5]], expected: 1}
+      - {args: [[1, 2, 0, 0, 1]], expected: 4}
+      - {args: [[0]], expected: -1}
+    solution: |
+      class Solution:
+          def firstStuckIndex(self, nums: List[int]) -> int:
+              farthest = 0
+              for i in range(len(nums)):
+                  if i > farthest:
+                      return i
+                  farthest = max(farthest, i + nums[i])
+              return -1
+    hint: "The first line inside the loop is `if i > farthest: return i`."
+
+  - title: How much of the line can you cover?
+    skill: edge
+    goal: Stop at the stuck point and clamp an overshooting reach to the array's last index.
+    instructions: |
+      Return **how many** indices are reachable from index 0.
+
+      Two edges matter. Reach can overshoot the array (`[5, 0, 0]` has farthest 5 but only
+      3 indices), so clamp it to `len(nums) - 1`. And once you're stuck, stop: a zero isn't
+      automatically a wall (you can fly over it), but an index past `farthest` is.
+    function:
+      name: countReachable
+      params: [{name: nums}]
+    starter_code: |
+      class Solution:
+          def countReachable(self, nums: List[int]) -> int:
+              pass
+    tests:
+      - {args: [[2, 3, 1, 1, 4]], expected: 5}
+      - {args: [[3, 2, 1, 0, 4]], expected: 4}
+      - {args: [[0]], expected: 1}
+      - {args: [[0, 5]], expected: 1}
+      - {args: [[5, 0, 0]], expected: 3, note: reach overshoots the end}
+      - {args: [[2, 0, 0, 0]], expected: 3}
+    solution: |
+      class Solution:
+          def countReachable(self, nums: List[int]) -> int:
+              farthest = 0
+              for i in range(len(nums)):
+                  if i > farthest:
+                      break
+                  farthest = max(farthest, i + nums[i])
+              return min(farthest, len(nums) - 1) + 1
+    hint: "Reachable indices are `0..farthest`, so the count is `farthest + 1` once clamped to the array."
+
+hints:
+  - >-
+    Suppose you know you can reach index 7. Can you also reach index 5? Why? What does that
+    tell you about the shape of the set of reachable indices?
+  - >-
+    The reachable indices are always a prefix 0..farthest. Walk left to right: if the
+    current index is beyond farthest you're stuck; otherwise it's reachable, so extend
+    farthest with i + nums[i].
+  - |
+    farthest = 0
+    for i from 0 to n - 1:
+        if i > farthest: return false
+        farthest = max(farthest, i + nums[i])
+    return true
+
+solution:
+  code: |
+    class Solution:
+        def canJump(self, nums: List[int]) -> bool:
+            farthest = 0  # every index in 0..farthest is reachable
+            for i in range(len(nums)):
+                if i > farthest:
+                    return False  # i is past the reachable prefix: stuck
+                farthest = max(farthest, i + nums[i])
+            return True
+  explanation: |
+    `farthest` is the right edge of the reachable block. At each index, first check it's
+    inside the block (`i <= farthest`); if it isn't, nothing at or after `i` can ever be
+    reached, because every index that could have launched you there is already behind you
+    and was counted. If it is inside, it's a legal launch point, so extend the block with
+    `i + nums[i]`. Surviving the whole loop means the last index was inside the block.
+
+    **Why the greedy is safe.** The claim is that the reachable set is always a prefix.
+    Any path to index `j` makes a jump from some `a` to some `b` with `a <= k < b` for
+    every `k` before `j`, and since jumps are "up to" `nums[a]`, that jump could have
+    stopped at `k`. So you never need to choose *which* jump to take; you only need to know
+    how far right any jump can get you, and taking the max loses nothing.
+
+    The check comes **before** the update: an unreachable index must never extend the
+    reach. A zero is only fatal when it's the end of the block (`[3, 2, 1, 0, 4]`); zeros
+    you can fly over (`[5, 0, 0, 0, 0, 0]`) or a zero at the last index (`[2, 0, 0]`) are
+    harmless. You could also return `True` early once `farthest >= len(nums) - 1`.
+  time: O(N) — one pass, O(1) per index
+  space: O(1) — a single integer
+  brute_force_code: |
+    class Solution:
+        def canJump(self, nums: List[int]) -> bool:
+            n = len(nums)
+            good = [False] * n  # good[i]: the last index is reachable from i
+            good[n - 1] = True
+            for i in range(n - 2, -1, -1):
+                for j in range(i + 1, min(n, i + nums[i] + 1)):
+                    if good[j]:
+                        good[i] = True
+                        break
+            return good[0]
+
+pitch_script: |
+  **(Clarify)** "I start at index 0, each value is the maximum jump, so I can jump any
+  distance from 0 up to it, and I just return whether the last index is reachable? A
+  single-element array is trivially true?"
+
+  **(Brute force)** "A DP from the right works: index i is good if it can jump to some good
+  index. That's O(N²) in the worst case, around 5 × 10⁷ steps for 10⁴ elements, and it
+  keeps rechecking the same indices."
+
+  **(Trigger)** "The key observation is that if I can reach index j, I can reach everything
+  before j, because a jump over k could have stopped at k. So the reachable set is always a
+  prefix, and I only need to track its right edge: the farthest reachable index."
+
+  **(Optimal)** "I scan left to right. If the current index is beyond farthest, I'm stuck and
+  return false. Otherwise it's reachable, so I update farthest to the max of farthest and i
+  plus nums[i]. If I finish the loop, the last index was reachable. The greedy is safe
+  because taking the max reach never rules anything out; shorter jumps are always still
+  available."
+
+  **(Complexity)** "One pass, O(N) time and O(1) space."
+
+twist:
+  lc: 1306
+  title: Jump Game III
+  why: >-
+    Now you jump exactly arr[i] steps, left or right, from a given start, and want to land on
+    any zero. "Up to" becomes "exactly", so the reachable set is no longer a prefix and a
+    single farthest value can't describe it: from index 2 you might reach 5 and 0 but not 3
+    or 4. The greedy breaks, and you fall back to BFS or DFS over indices with a visited
+    set, which is still O(N) because each index is expanded once.
+
+viz:
+  arrays: [nums]
+  pointers: [i, farthest]
+  watch: [farthest]

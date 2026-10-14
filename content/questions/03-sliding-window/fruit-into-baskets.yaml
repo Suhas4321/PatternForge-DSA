@@ -1,0 +1,344 @@
+slug: fruit-into-baskets
+lc: 904
+
+concept:
+  problem_it_solves: >-
+    "What is the longest contiguous stretch that contains at most 2 different values?" The
+    story about baskets hides a variable window whose rule depends on *how many distinct
+    values* are inside it. A count map tells you that number at any moment, and lets the
+    left edge drop elements one at a time without losing track.
+  brute_force: >-
+    For every starting tree l, walk right adding fruit types to a set until a third type
+    appears, and keep the longest walk. The next start l + 1 re-walks almost the same
+    stretch and rebuilds the same set from scratch, even though only one fruit left the
+    window.
+  brute_force_complexity: >-
+    O(N²) time, O(1) extra space (the set never holds more than 3 types) — 10⁵ trees means up
+    to about 5 × 10⁹ steps when the array has only two types.
+  key_insight: >-
+    Strip the story: you pick a contiguous run of trees, and the run may contain at most 2
+    fruit types. That is the same longest-window template as Max Consecutive Ones III,
+    except the rule is "distinct types <= 2" instead of "zeros <= k". Counting distinct
+    values needs a map of type → count inside the window: when a count drops to zero, delete
+    the key, so len(map) is always the number of distinct types.
+  real_world: >-
+    Log and analytics pipelines look for the longest burst of requests that touched at most
+    K distinct backend services or shards, so a batch can reuse a small number of
+    connections. Recommendation teams (Flipkart, Swiggy) measure the longest browsing session
+    that stayed within K categories, and a cache that holds K entries is reused for exactly
+    as long as consecutive requests stay within K distinct keys.
+
+statement:
+  clean: |
+    You are visiting a farm with a single row of fruit trees arranged from left to right. The
+    trees are given as an integer array `fruits`, where `fruits[i]` is the **type** of fruit
+    the `i`th tree produces.
+
+    You want to collect as much fruit as possible, but the owner has strict rules:
+
+    - You only have **two baskets**, and each basket can hold only a **single type** of
+      fruit. There is no limit on how many fruits a basket can hold.
+    - Starting from any tree you choose, you must pick exactly one fruit from **every tree**
+      (including the starting tree) while **moving to the right**. Every picked fruit must
+      fit in one of your baskets.
+    - As soon as you reach a tree whose fruit doesn't fit in either basket, you must stop.
+
+    Given the integer array `fruits`, return the **maximum number of fruits** you can pick.
+  oa_story: |
+    **VidyaVerse — OA Round 1**
+
+    VidyaVerse is an edtech app used by engineering students across Bengaluru colleges. A
+    course playlist is a list of short video lessons in a fixed order, and each lesson is
+    tagged with a subject ID. The new "Focus Sprint" mode lets a student start at any lesson
+    and then watch every lesson after it, in order, with no skipping.
+
+    The sprint's side panel can keep notes open for only two subjects at a time, and a sprint
+    ends the moment a lesson from a third subject comes up. Given the playlist's subject IDs,
+    return the largest number of lessons a single Focus Sprint can contain. Playlists can
+    hold up to 100,000 lessons, and the app suggests the best sprint instantly when a
+    playlist is opened.
+  trigger_keywords: ["two baskets", "single type", "moving to the right", "maximum number of fruits"]
+  examples:
+    - input: "fruits = [1,2,1]"
+      output: "3"
+      explanation: "Only two types exist, so you can pick from all three trees."
+    - input: "fruits = [0,1,2,2]"
+      output: "3"
+      explanation: "Pick from trees [1,2,2]. Starting at tree 0 you could only pick [0,1] before type 2 forces a stop."
+    - input: "fruits = [1,2,3,2,2]"
+      output: "4"
+      explanation: "Pick from trees [2,3,2,2]. Starting at tree 0 you could only pick [1,2]."
+  constraints:
+    - "1 <= fruits.length <= 10^5"
+    - "0 <= fruits[i] < fruits.length"
+
+constraint_quiz:
+  prompt: With up to 10⁵ trees, what time complexity should you aim for?
+  options: ["O(N²)", "O(N · number of types)", "O(N log N)", "O(N)"]
+  answer: 3
+  explanation: >-
+    Trying every starting tree is O(N²), about 5 × 10⁹ steps on a two-type array. Looping
+    over every pair of types and scanning for each pair is O(N · T²) and T can be close to N.
+    O(N log N) would pass but there's nothing to sort, and sorting destroys the left-to-right
+    order. A variable sliding window with a count map is O(N): each tree enters the window
+    once and leaves at most once.
+
+pattern_quiz:
+  prompt: >-
+    Strip away the story: you want the longest contiguous run containing at most 2 distinct
+    values. Which pattern fits?
+  options:
+    - "Find the two most frequent types in the whole array and add their counts"
+    - "Variable sliding window with a count map, shrinking while it holds more than 2 types"
+    - "Fixed-size sliding window of length 2"
+    - "Sort the fruits by type and take the two biggest groups"
+  answer: 1
+  explanation: >-
+    The two most frequent types overall are usually not next to each other, and sorting
+    loses the order: both ignore "every tree while moving to the right", which means
+    contiguous. A fixed window has the wrong shape because the answer's length is what
+    you're searching for. "Longest contiguous run" plus "at most K distinct" is the variable
+    window trigger, and "distinct" means you need counts, not just a set.
+
+function:
+  name: totalFruit
+  params: [{name: fruits}]
+
+starter_code: |
+  class Solution:
+      def totalFruit(self, fruits: List[int]) -> int:
+          pass
+
+tests:
+  - {args: [[1, 2, 1]], expected: 3}
+  - {args: [[0, 1, 2, 2]], expected: 3}
+  - {args: [[1, 2, 3, 2, 2]], expected: 4}
+  - {args: [[3, 3, 3, 1, 2, 1, 1, 2, 3, 3, 4]], expected: 5, note: "best run [1,2,1,1,2] sits in the middle"}
+  - {args: [[5]], expected: 1, note: single tree}
+  - {args: [[4, 4, 4, 4]], expected: 4, note: "one type only: the second basket stays empty"}
+  - {args: [[1, 2, 1, 3, 3, 3, 1]], expected: 5, note: best run is at the end}
+  - {args: [[0, 1, 6, 6, 4, 4, 6]], expected: 5, note: "two shrinks, each dropping a type"}
+  - {args: [[1, 2, 1, 2, 1, 3, 3]], expected: 5, note: "one shrink removes four fruits before a type reaches zero"}
+visualize_test: 7
+
+drills:
+  - title: Add the right fruit to a count map
+    skill: setup
+    goal: Maintain a dict of value → count while expanding the window to the right.
+    instructions: |
+      Walk `fruits` from left to right, keeping a dictionary from fruit type to how many times
+      it has appeared so far. Return, for every position, the count of that position's type
+      **right after** adding it.
+
+      This is the "expand" half of the window. A set can tell you a type is present, but
+      only a count can tell you whether it is *still* present after one fruit leaves, which
+      is what the shrink step will need.
+    function:
+      name: typeCountSoFar
+      params: [{name: fruits}]
+    starter_code: |
+      class Solution:
+          def typeCountSoFar(self, fruits: List[int]) -> List[int]:
+              pass
+    tests:
+      - {args: [[1, 2, 1, 1]], expected: [1, 1, 2, 3]}
+      - {args: [[3, 3, 3]], expected: [1, 2, 3]}
+      - {args: [[5]], expected: [1]}
+      - {args: [[0, 1, 0, 1]], expected: [1, 1, 2, 2]}
+    solution: |
+      class Solution:
+          def typeCountSoFar(self, fruits: List[int]) -> List[int]:
+              count = {}
+              out = []
+              for f in fruits:
+                  count[f] = count.get(f, 0) + 1
+                  out.append(count[f])
+              return out
+    hint: "`count[f] = count.get(f, 0) + 1` handles a type you've never seen before."
+
+  - title: Shrink until only two types remain
+    skill: core
+    goal: Move l right, decrementing counts, while the window holds more than two distinct types.
+    instructions: |
+      Run the full window: add `fruits[r]` to the count map, then **while** the map has more
+      than 2 keys, remove `fruits[l]` (decrement, delete the key at zero) and move `l` right.
+      Return the value of `l` after the shrink, for every `r`.
+
+      The shrink may need several steps: the window only becomes valid once some type's count
+      hits zero, and that can take more than one removal (see `[1,2,1,2,1,3,3]`).
+    function:
+      name: leftBoundsTwoTypes
+      params: [{name: fruits}]
+    starter_code: |
+      class Solution:
+          def leftBoundsTwoTypes(self, fruits: List[int]) -> List[int]:
+              pass
+    tests:
+      - {args: [[0, 1, 6, 6, 4, 4, 6]], expected: [0, 0, 1, 1, 2, 2, 2]}
+      - {args: [[1, 2, 3, 2, 2]], expected: [0, 0, 1, 1, 1]}
+      - {args: [[3, 3, 3]], expected: [0, 0, 0]}
+      - {args: [[1, 2, 1, 2, 1, 3, 3]], expected: [0, 0, 0, 0, 0, 4, 4], note: "the shrink takes four steps"}
+    solution: |
+      class Solution:
+          def leftBoundsTwoTypes(self, fruits: List[int]) -> List[int]:
+              count, l, out = {}, 0, []
+              for r in range(len(fruits)):
+                  count[fruits[r]] = count.get(fruits[r], 0) + 1
+                  while len(count) > 2:
+                      count[fruits[l]] -= 1
+                      if count[fruits[l]] == 0:
+                          del count[fruits[l]]
+                      l += 1
+                  out.append(l)
+              return out
+    hint: "Loop `while len(count) > 2`, and only `del` the key when its count reaches 0."
+
+  - title: Delete keys at zero, or len() lies
+    skill: edge
+    goal: Remove a key the moment its count hits zero so len(count) equals the number of distinct values.
+    instructions: |
+      Using a fixed window of size `k` (as in Maximum Average Subarray), return the number of
+      **distinct** values in every window, from left to right.
+
+      When an element leaves the window, decrement its count, and if the count reaches `0`,
+      **delete the key**. If you leave a zero-count key behind, `len(count)` still counts a
+      value that is no longer in the window: in `[1, 2, 3, 4]` with `k = 2`, the window
+      `[2, 3]` would report 3 distinct values. In Fruit Into Baskets the same bug makes the
+      shrink loop think there are still three types and drain the window too far.
+    function:
+      name: distinctInWindows
+      params: [{name: nums}, {name: k}]
+    starter_code: |
+      class Solution:
+          def distinctInWindows(self, nums: List[int], k: int) -> List[int]:
+              pass
+    tests:
+      - {args: [[1, 2, 1, 3, 4], 3], expected: [2, 3, 3]}
+      - {args: [[1, 2, 3, 4], 2], expected: [2, 2, 2], note: every leaving value must be deleted}
+      - {args: [[1, 1, 1], 2], expected: [1, 1]}
+      - {args: [[1, 2, 3], 1], expected: [1, 1, 1]}
+      - {args: [[4, 4, 5, 4], 2], expected: [1, 2, 2]}
+    solution: |
+      class Solution:
+          def distinctInWindows(self, nums: List[int], k: int) -> List[int]:
+              count, out = {}, []
+              for r, x in enumerate(nums):
+                  count[x] = count.get(x, 0) + 1
+                  if r >= k:  # nums[r - k] leaves the window
+                      old = nums[r - k]
+                      count[old] -= 1
+                      if count[old] == 0:
+                          del count[old]
+                  if r >= k - 1:
+                      out.append(len(count))
+              return out
+    hint: "After `count[old] -= 1`, check `if count[old] == 0: del count[old]` before reading `len(count)`."
+
+hints:
+  - >-
+    Forget the baskets for a moment. The trees you pick from are a contiguous stretch, and
+    the only rule is about how many different types that stretch contains. What exactly is
+    the question, in one sentence?
+  - >-
+    Grow a window on the right and keep a map from fruit type to its count inside the
+    window. When the map has three keys, shrink from the left. When can a type actually be
+    removed from the map, and why is a plain set not enough to know that?
+  - |
+    count = empty map, l = 0, best = 0
+    for r from 0 to n-1:
+        count[fruits[r]] = count[fruits[r]] + 1
+        while number of keys in count > 2:
+            count[fruits[l]] = count[fruits[l]] - 1
+            if count[fruits[l]] is 0: remove that key
+            l = l + 1
+        best = max(best, r - l + 1)
+    return best
+
+solution:
+  code: |
+    class Solution:
+        def totalFruit(self, fruits: List[int]) -> int:
+            count = {}  # fruit type -> how many of it are inside fruits[l..r]
+            l = 0
+            best = 0
+            for r in range(len(fruits)):
+                count[fruits[r]] = count.get(fruits[r], 0) + 1
+                while len(count) > 2:  # a third type: shrink until one type is gone
+                    left_fruit = fruits[l]
+                    count[left_fruit] -= 1
+                    if count[left_fruit] == 0:
+                        del count[left_fruit]  # keep len(count) == distinct types
+                    l += 1
+                best = max(best, r - l + 1)
+            return best
+  explanation: |
+    "Pick from every tree while moving right, stop when a fruit doesn't fit" means the trees
+    you pick from form a **contiguous window**, and "two baskets, one type each" means the
+    window may contain **at most 2 distinct types**. So the answer is the longest window with
+    at most 2 distinct values.
+
+    It's the same three-step template as Max Consecutive Ones III: **expand** with `r`,
+    **shrink** with `l` while the window is invalid, then **score** `r - l + 1`. Only the
+    window's state changed: instead of one zero counter, it's a map from type to count, and
+    "invalid" means `len(count) > 2`.
+
+    Why counts and not a set? When `fruits[l]` leaves, the window may still contain other
+    fruits of that type, and only a count tells you whether that type is truly gone. When a
+    count hits `0` we **delete the key**; otherwise `len(count)` keeps counting a type that
+    isn't in the window anymore, and the shrink loop never stops at the right place.
+
+    The window rule is monotonic (extending a window can only add types), so `l` never moves
+    back, and each tree enters and leaves the window at most once: O(N) in total. The map
+    never holds more than 3 keys, so space is O(1).
+  time: O(N) — every tree is added once and removed at most once
+  space: O(1) — the count map holds at most 3 fruit types at any time
+  brute_force_code: |
+    class Solution:
+        def totalFruit(self, fruits: List[int]) -> int:
+            best = 0
+            for l in range(len(fruits)):
+                types = set()
+                for r in range(l, len(fruits)):
+                    types.add(fruits[r])
+                    if len(types) > 2:
+                        break
+                    best = max(best, r - l + 1)
+            return best
+
+pitch_script: |
+  **(Clarify)** "So I pick from a contiguous run of trees going right, the run can contain at
+  most two fruit types, and I return the length of the longest such run? There's always at
+  least one tree?"
+
+  **(Brute force)** "The simple approach tries every starting tree and walks right with a set
+  until a third type appears. That's O(N²) time, which is billions of steps at 10⁵ trees."
+
+  **(Trigger)** "Once I remove the story, it's the longest contiguous subarray with at most
+  two distinct values. 'Longest contiguous' with an 'at most K' rule is a variable sliding
+  window, and because the rule is about distinct values, I'll track the window with a count
+  map."
+
+  **(Optimal)** "I move r to the right and increment the count of fruits[r]. If the map now
+  has three types, I shrink from the left: decrement fruits[l], delete the key when its count
+  hits zero, and move l, until only two types remain. Then r minus l plus one is a valid
+  window and I update the best. Deleting zero-count keys is what keeps the map's size equal
+  to the number of types in the window."
+
+  **(Complexity)** "Each tree enters and leaves the window at most once, so it's O(N) time.
+  The map never holds more than three keys, so the extra space is O(1)."
+
+twist:
+  lc: 992
+  title: Subarrays with K Different Integers
+  why: >-
+    Now you count subarrays with exactly K distinct values instead of finding the longest
+    one with at most 2. "Exactly" doesn't shrink cleanly, so reuse this window as a helper:
+    atMost(K) adds r − l + 1 at every step (all the valid windows ending at r), and the
+    answer is atMost(K) − atMost(K − 1). Same count map, same delete-at-zero rule.
+
+viz:
+  arrays: [fruits]
+  pointers: [l, r]
+  window: [l, r]
+  maps: [count]
+  watch: [best, left_fruit]

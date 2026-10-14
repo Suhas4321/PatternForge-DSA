@@ -1,0 +1,330 @@
+slug: find-minimum-in-rotated-sorted-array
+lc: 153
+
+concept:
+  problem_it_solves: >-
+    "Where is the smallest value in a sorted list that was cut and swapped around?" A rotated
+    sorted array is two sorted runs, and the minimum is where the second run starts, right
+    after the one "drop". The array isn't sorted overall, but the yes/no question "is
+    nums[i] <= the last element?" is still no, no, then yes, yes, so binary search still works.
+  brute_force: >-
+    Scan every element and keep the smallest, or scan for the one index where nums[i] <
+    nums[i − 1]. Both ignore that each sorted run already orders its values, so one comparison
+    against the end of the range can tell you which side of the drop you are on.
+  brute_force_complexity: O(N) time, O(1) space — 5000 elements means up to 5000 reads instead of about 13.
+  key_insight: >-
+    Compare nums[mid] with nums[hi]. If nums[mid] > nums[hi], the drop is somewhere in
+    (mid, hi], so the minimum is strictly right of mid: lo = mid + 1. Otherwise mid..hi is
+    sorted and the minimum is mid or to its left: hi = mid. That's the lower-bound template
+    with the invariant "the minimum is always inside [lo, hi]", and when lo == hi you're
+    standing on it. Comparing with nums[lo] doesn't work, because a range that isn't rotated
+    and a range that is can give the same lo comparison.
+  real_world: >-
+    Ring buffers and circular logs are rotated sorted arrays: entries are in order but the
+    write head wrapped around. Embedded firmware storing readings in a circular flash log finds
+    the oldest record after a reboot by binary searching the sequence numbers this way.
+    Consistent-hash rings (Cassandra, DynamoDB-style partitioning) read from an arbitrary node
+    give the same shape, sorted tokens rotated at the starting point.
+
+statement:
+  clean: |
+    Suppose an array of length `n`, **sorted in ascending order**, is **rotated** between `1`
+    and `n` times. For example, `[0,1,2,4,5,6,7]` might become `[4,5,6,7,0,1,2]` if it was
+    rotated 4 times, or `[0,1,2,4,5,6,7]` again if it was rotated 7 times.
+
+    Rotating an array `[a[0], a[1], ..., a[n-1]]` once gives
+    `[a[n-1], a[0], a[1], ..., a[n-2]]`.
+
+    Given the sorted rotated array `nums` of **unique** elements, return the
+    **minimum element** of this array.
+
+    You must write an algorithm that runs in O(log n) time.
+  oa_story: |
+    **SuryaSolar — OA Round 2**
+
+    SuryaSolar installs rooftop solar on apartment blocks in Whitefield and Sarjapur. Each
+    inverter has a lifetime energy counter that only ever goes up, and it logs counter readings
+    into a fixed-size memory buffer. Once the buffer is full, new readings overwrite the
+    oldest slot and the write position moves on, so after a while the stored list starts
+    somewhere in the middle of time and wraps around. No two readings are equal.
+
+    When a technician plugs in, the diagnostics tool reads the buffer slot by slot (from slot
+    0) and needs the smallest counter reading stored, which marks the oldest surviving record.
+    Given the buffer contents, return that reading. Buffers hold up to 5,000 readings and every
+    slot read goes over a slow serial link, so the tool must read only a handful of slots, not
+    the whole buffer.
+  trigger_keywords: ["sorted in ascending order", "rotated", "minimum element", "O(log n) time"]
+  examples:
+    - input: "nums = [3,4,5,1,2]"
+      output: "1"
+      explanation: "The original array was [1,2,3,4,5], rotated 3 times."
+    - input: "nums = [4,5,6,7,0,1,2]"
+      output: "0"
+      explanation: "The original array was [0,1,2,4,5,6,7], rotated 4 times."
+    - input: "nums = [11,13,15,17]"
+      output: "11"
+      explanation: "Rotated 4 times, which is the original array: no drop at all."
+  constraints:
+    - "n == nums.length"
+    - "1 <= n <= 5000"
+    - "-5000 <= nums[i] <= 5000"
+    - "All the integers of nums are unique."
+    - "nums is sorted and rotated between 1 and n times."
+
+constraint_quiz:
+  prompt: >-
+    n is at most 5000 and the statement demands O(log n). What complexity should you aim for?
+  options: ["O(N)", "O(log N)", "O(N log N)", "O(1)"]
+  answer: 1
+  explanation: >-
+    min(nums) or scanning for the drop is O(N): fast enough on the clock at 5000, but the
+    statement forbids it and the interviewer is testing whether you can binary search an
+    array that isn't fully sorted. O(N log N) is sorting, which is worse than the scan. O(1)
+    would only work if you knew the rotation count, which is exactly what you're finding. Each
+    comparison against nums[hi] halves the range, so O(log N) is about 13 probes.
+
+pattern_quiz:
+  prompt: >-
+    Rotated sorted array, unique values, find the minimum in O(log n). Which approach is
+    correct without special cases?
+  options:
+    - "Binary search comparing nums[mid] with nums[lo]"
+    - "Binary search comparing nums[mid] with nums[hi]"
+    - "Linear scan for the index where nums[i] < nums[i - 1]"
+    - "Sort a copy and return its first element"
+  answer: 1
+  explanation: >-
+    "Rotated" plus "O(log n)" means binary search on which side of the drop mid is. Comparing
+    with nums[hi] gives a clean answer: bigger means the drop is to the right, smaller means
+    mid..hi is sorted. Comparing with nums[lo] is ambiguous: in [3,4,5,1,2] and in [1,2,3,4,5]
+    you get nums[mid] > nums[lo] both times, yet the minimum is right of mid in the first and
+    at lo in the second. The scan and the sort are O(N) and O(N log N).
+
+function:
+  name: findMin
+  params: [{name: nums}]
+
+starter_code: |
+  class Solution:
+      def findMin(self, nums: List[int]) -> int:
+          pass
+
+tests:
+  - {args: [[3, 4, 5, 1, 2]], expected: 1}
+  - {args: [[4, 5, 6, 7, 0, 1, 2]], expected: 0}
+  - {args: [[11, 13, 15, 17]], expected: 11, note: "rotated n times: not rotated at all"}
+  - {args: [[1]], expected: 1, note: single element (loop never runs)}
+  - {args: [[2, 1]], expected: 1, note: "two elements: mid == lo, so comparing with lo would compare 2 with itself"}
+  - {args: [[1, 2]], expected: 1, note: two elements and not rotated}
+  - {args: [[5, 1, 2, 3, 4]], expected: 1, note: minimum right after index 0}
+  - {args: [[2, 3, 4, 5, 1]], expected: 1, note: minimum at the last index}
+  - {args: [[-1, 4, 9, -5000, -10]], expected: -5000, note: negatives and the extreme value}
+visualize_test: 1
+
+drills:
+  - title: Find the yes/no question that flips once
+    skill: setup
+    goal: See that "is nums[i] <= nums[-1]?" is false then true along a rotated array, which makes it binary-searchable.
+    instructions: |
+      Return a list of booleans: for each index `i`, whether `nums[i] <= nums[-1]` (the last
+      element).
+
+      A rotated array is two sorted runs: a high run, then a low run that ends at
+      `nums[-1]`. Every element of the high run is bigger than `nums[-1]` and every element
+      of the low run is at most `nums[-1]`, so the list looks like `F, F, …, T, T`. The
+      minimum is the **first `True`**, which is exactly the lower-bound template you already
+      know. Seeing that shape is what makes this problem binary-searchable.
+    function:
+      name: pastTheDrop
+      params: [{name: nums}]
+    starter_code: |
+      class Solution:
+          def pastTheDrop(self, nums: List[int]) -> List[bool]:
+              pass
+    tests:
+      - {args: [[4, 5, 6, 7, 0, 1, 2]], expected: [false, false, false, false, true, true, true]}
+      - {args: [[3, 4, 5, 1, 2]], expected: [false, false, false, true, true]}
+      - {args: [[11, 13, 15]], expected: [true, true, true], note: not rotated}
+      - {args: [[1]], expected: [true]}
+      - {args: [[2, 1]], expected: [false, true]}
+    solution: |
+      class Solution:
+          def pastTheDrop(self, nums: List[int]) -> List[bool]:
+              last = nums[-1]
+              flags = []
+              for x in nums:
+                  flags.append(x <= last)  # low run: at most the last element
+              return flags
+    hint: "Store `last = nums[-1]`, then append `x <= last` for every `x`."
+
+  - title: One step, compared against hi
+    skill: core
+    goal: Make the single decision of the search, comparing nums[mid] with nums[hi] and moving lo or hi.
+    instructions: |
+      Given `nums` and a current range `lo < hi` that contains the minimum, perform **one**
+      step of the search and return the new `[lo, hi]`.
+
+      Compute `mid = lo + (hi - lo) // 2`. If `nums[mid] > nums[hi]`, mid is in the high run
+      and the drop is to its right: the new range is `[mid + 1, hi]`. Otherwise mid..hi is
+      sorted, so mid might be the minimum and must stay: `[lo, mid]`. Because `mid < hi`
+      whenever `lo < hi`, you're always comparing two different elements.
+    function:
+      name: nextRange
+      params: [{name: nums}, {name: lo}, {name: hi}]
+    starter_code: |
+      class Solution:
+          def nextRange(self, nums: List[int], lo: int, hi: int) -> List[int]:
+              pass
+    tests:
+      - {args: [[4, 5, 6, 7, 0, 1, 2], 0, 6], expected: [4, 6]}
+      - {args: [[4, 5, 6, 7, 0, 1, 2], 4, 6], expected: [4, 5]}
+      - {args: [[3, 4, 5, 1, 2], 0, 4], expected: [3, 4]}
+      - {args: [[11, 13, 15, 17], 0, 3], expected: [0, 1], note: "sorted range: keep the left half including mid"}
+      - {args: [[2, 1], 0, 1], expected: [1, 1]}
+    solution: |
+      class Solution:
+          def nextRange(self, nums: List[int], lo: int, hi: int) -> List[int]:
+              mid = lo + (hi - lo) // 2
+              if nums[mid] > nums[hi]:
+                  return [mid + 1, hi]  # mid is in the high run; the minimum is right of it
+              return [lo, mid]  # mid..hi is sorted; mid may be the minimum
+    hint: "`if nums[mid] > nums[hi]` go right past mid, else keep mid with `hi = mid`."
+
+  - title: Count the rotation, including zero
+    skill: edge
+    goal: Run the full loop and return the index of the minimum, correct for unrotated and tiny arrays.
+    instructions: |
+      Return **how many positions the array was rotated** to the right, which is the index of
+      the minimum. An unrotated array (rotated `n` times) gives `0`.
+
+      The cases that break home-made versions are the unrotated array, where there's no drop
+      at all, and arrays of one or two elements, where `mid == lo`. Comparing with `nums[hi]`
+      and looping `while lo < hi` handles all of them with no special cases. When the loop
+      ends, `lo == hi` is the answer.
+    function:
+      name: rotationCount
+      params: [{name: nums}]
+    starter_code: |
+      class Solution:
+          def rotationCount(self, nums: List[int]) -> int:
+              pass
+    tests:
+      - {args: [[3, 4, 5, 1, 2]], expected: 3}
+      - {args: [[11, 13, 15, 17]], expected: 0, note: not rotated}
+      - {args: [[1]], expected: 0}
+      - {args: [[2, 1]], expected: 1}
+      - {args: [[1, 2]], expected: 0}
+    solution: |
+      class Solution:
+          def rotationCount(self, nums: List[int]) -> int:
+              lo, hi = 0, len(nums) - 1
+              while lo < hi:
+                  mid = lo + (hi - lo) // 2
+                  if nums[mid] > nums[hi]:
+                      lo = mid + 1
+                  else:
+                      hi = mid
+              return lo  # index of the minimum
+    hint: "Same loop as the main problem, but return the index `lo` instead of `nums[lo]`."
+
+hints:
+  - >-
+    A rotated sorted array is two sorted pieces. If you look at the middle element and the
+    last element of the range, what does "middle is bigger than last" tell you about where
+    the drop is?
+  - >-
+    Keep the minimum inside [lo, hi]. If nums[mid] > nums[hi], the minimum is strictly right
+    of mid. Otherwise mid..hi is sorted and the minimum is mid or left of it, so mid must stay
+    in the range. Loop while lo < hi. Why compare with hi and not lo?
+  - |
+    lo = 0, hi = len(nums) - 1
+    while lo < hi:
+        mid = lo + (hi - lo) // 2
+        if nums[mid] > nums[hi]: lo = mid + 1   # drop is right of mid
+        else:                    hi = mid       # mid..hi sorted, mid may be the min
+    return nums[lo]                             # lo == hi
+
+solution:
+  code: |
+    class Solution:
+        def findMin(self, nums: List[int]) -> int:
+            lo, hi = 0, len(nums) - 1  # invariant: the minimum is inside nums[lo..hi]
+            while lo < hi:
+                mid = lo + (hi - lo) // 2  # mid < hi, so nums[mid] and nums[hi] are different elements
+                if nums[mid] > nums[hi]:
+                    lo = mid + 1  # mid is in the high run: the drop (and the minimum) is right of mid
+                else:
+                    hi = mid  # mid..hi is sorted: the minimum is mid or to its left
+            return nums[lo]  # lo == hi
+  explanation: |
+    A rotated sorted array is a high sorted run followed by a low sorted run, and the minimum
+    is the first element of the low run. The invariant is *the minimum is always inside
+    `[lo, hi]`*: true at the start, and both moves keep it.
+
+    - If `nums[mid] > nums[hi]`, the values go down somewhere between mid and hi, so the drop
+      is in `(mid, hi]`. Mid is bigger than something to its right, so it isn't the minimum:
+      `lo = mid + 1`.
+    - Otherwise `nums[mid] < nums[hi]` (values are unique), so `nums[mid..hi]` is sorted with
+      no drop inside. Nothing right of mid can beat it, but mid itself might be the minimum,
+      so keep it: `hi = mid`.
+
+    **Why `hi` and not `lo`?** Comparing with `nums[lo]` doesn't decide the side. In
+    `[3,4,5,1,2]` (lo = 0, mid = 2) and in `[1,2,3,4,5]` you get `nums[mid] > nums[lo]` both
+    times, yet the minimum is right of mid in the first and at lo in the second. You'd need an
+    extra "is this range already sorted?" check. The right end always belongs to the low run,
+    so comparing with it is never ambiguous. There's also a mechanical reason: `mid` rounds
+    down, so `mid` can equal `lo` (as in `[2, 1]`) but never `hi` while `lo < hi`, so the
+    `hi` comparison always looks at two different elements.
+
+    This is the lower-bound template: the predicate `nums[i] <= nums[hi]` is false along the
+    high run and true along the low run, and we find its first true. `hi` starts at
+    `len(nums) - 1` rather than `len(nums)` because a minimum always exists. Unrotated input
+    needs no special case: every comparison goes left and `lo` stays at 0.
+  time: O(log N) — the range halves every iteration, about 13 probes for 5000 elements
+  space: O(1) — three integer indices
+  brute_force_code: |
+    class Solution:
+        def findMin(self, nums: List[int]) -> int:
+            smallest = nums[0]
+            for x in nums:
+                if x < smallest:
+                    smallest = x
+            return smallest
+
+pitch_script: |
+  **(Clarify)** "The array was sorted ascending, then rotated some number of times, possibly
+  back to the original order. The values are unique, there's at least one element, I return
+  the minimum value, and I need O(log n)."
+
+  **(Brute force)** "Taking the min, or scanning for the one place where a value is smaller
+  than the one before it, is O(N) time and O(1) space. Correct, but it doesn't use the fact
+  that each piece is sorted."
+
+  **(Trigger)** "Rotated sorted plus log n says binary search. The array is a high run and a
+  low run, and the minimum is where the low run starts. The last element of my range always
+  belongs to the low run, so comparing mid against it tells me which run mid is in."
+
+  **(Optimal)** "I keep lo and hi with the invariant that the minimum is between them, and
+  loop while lo is less than hi. If nums[mid] is greater than nums[hi], mid is in the high run
+  and the minimum is strictly to its right, so lo becomes mid plus one. Otherwise mid to hi is
+  sorted, so the minimum is mid or to its left, and hi becomes mid. When they meet, that's
+  the minimum. I compare with hi rather than lo because the lo comparison gives the same
+  result for a rotated range and an already-sorted one, so it can't decide the direction."
+
+  **(Complexity)** "O(log N) time, about 13 steps for 5000 elements, and O(1) space."
+
+twist:
+  lc: 154
+  title: Find Minimum in Rotated Sorted Array II
+  why: >-
+    Duplicates are allowed now, so nums[mid] == nums[hi] can happen, and then you genuinely
+    can't tell which side the drop is on: [1,1,1,0,1] and [1,0,1,1,1] look the same at
+    lo, mid and hi. The fix is hi -= 1. It's safe because nums[hi] has an equal copy at mid,
+    so dropping hi can't lose the minimum's value. The other two branches are unchanged, but
+    the worst case degrades to O(N) on inputs like that, and no algorithm can do better on
+    them.
+
+viz:
+  arrays: [nums]
+  pointers: [lo, hi, mid]
+  window: [lo, hi]

@@ -1,0 +1,356 @@
+slug: number-of-provinces
+lc: 547
+
+concept:
+  problem_it_solves: >-
+    "How many separate groups are there, when membership spreads through friends of friends?" It is
+    Number of Islands again, but the graph is no longer drawn as a grid. The nodes are cities
+    0..n-1 and the edges are listed in an n × n adjacency matrix. Counting provinces is counting
+    connected components, and the same "for each unvisited node: count it, then traverse its whole
+    component" loop answers it.
+  brute_force: >-
+    Work out, for every pair of cities, whether one can reach the other through any chain of roads,
+    by repeatedly asking "can i reach j through some middle city k?" for every i, j and k
+    (Floyd–Warshall transitive closure). Then count the cities that no smaller-numbered city can
+    reach. It computes the full n × n reachability table even though you only need to know which
+    group each city falls into.
+  brute_force_complexity: >-
+    O(n³) time, O(n²) space — n = 200 is 8 × 10⁶ steps, which passes here, but it is a factor of n
+    slower than reading the matrix once, and at n = 10⁴ it would be 10¹² steps.
+  key_insight: >-
+    A province is just a connected component, so you don't need all-pairs reachability: a single DFS
+    from any city reaches exactly its province. Keep one `visited` set for the whole run. Scan cities
+    0..n-1; whenever you find one that isn't visited, it's in a province you haven't seen, so count
+    it and DFS from it, marking everything reachable. Each city is visited once and each matrix row
+    is read once, so the work is O(n²), the size of the input. The only real change from the grid
+    problems is how you find a node's neighbours: "every j with isConnected[i][j] == 1" instead of
+    "the 4 cells around (r, c)".
+  real_world: >-
+    Telecom and cloud teams run this after an outage to find how many isolated network segments
+    exist (which routers can still reach each other). Social platforms count friend clusters, payment
+    fraud teams group accounts linked by shared devices or cards into rings, and Kubernetes network
+    policy tools find which pods can talk to each other. At scale, these systems usually use
+    Union-Find, because links arrive one at a time.
+
+statement:
+  clean: |
+    There are `n` cities. Some of them are connected, while some are not. If city `a` is connected
+    directly with city `b`, and city `b` is connected directly with city `c`, then city `a` is
+    **connected indirectly** with city `c`.
+
+    A **province** is a group of directly or indirectly connected cities, with no other cities
+    outside the group.
+
+    You are given an `n x n` **adjacency matrix** `isConnected`, where `isConnected[i][j] = 1` if
+    the `i`th city and the `j`th city are directly connected, and `isConnected[i][j] = 0` otherwise.
+
+    Return the **total number of provinces**.
+  oa_story: |
+    **StateLink Telecom — OA Round 1**
+
+    StateLink operates microwave towers across Karnataka, from Bengaluru Urban to Mysuru and
+    Hubballi. After a cyclone warning, the network team needs to plan backup satellite uplinks. Two
+    towers with a working direct link can relay traffic to each other, and traffic can hop through
+    any number of towers, so a group of towers that can all reach each other only needs one uplink
+    between them.
+
+    The link status is reported as an `n x n` table: entry `[i][j]` is `1` if towers `i` and `j`
+    currently have a direct link and `0` otherwise (the table is symmetric and every tower is linked
+    to itself). With up to 200 towers, return the minimum number of satellite uplinks
+    needed so that every tower has a path to one.
+  trigger_keywords: ["connected indirectly", "province", "adjacency matrix", "total number of provinces"]
+  examples:
+    - input: "isConnected = [[1,1,0],[1,1,0],[0,0,1]]"
+      output: "2"
+      explanation: "Cities 0 and 1 form one province; city 2 is alone in the other."
+    - input: "isConnected = [[1,0,0],[0,1,0],[0,0,1]]"
+      output: "3"
+      explanation: "No two cities are connected, so each city is its own province."
+  constraints:
+    - "1 <= n <= 200"
+    - "n == isConnected.length"
+    - "n == isConnected[i].length"
+    - "isConnected[i][j] is 1 or 0"
+    - "isConnected[i][i] == 1"
+    - "isConnected[i][j] == isConnected[j][i]"
+
+constraint_quiz:
+  prompt: >-
+    n is at most 200, and the input is an n × n matrix. What is the best time complexity you can
+    aim for?
+  options:
+    - "O(n) — one step per city"
+    - "O(n log n) — sort the cities"
+    - "O(n²) — read each matrix entry a constant number of times"
+    - "O(n³) — compute reachability for every pair"
+  answer: 2
+  explanation: >-
+    The input itself has n² = 4 × 10⁴ entries, and any one of them could be the link that joins two
+    groups, so you must read them all: O(n) and O(n log n) are impossible. O(n³) Floyd–Warshall
+    (8 × 10⁶ steps) would pass at this size, but it does n times more work than needed. A DFS (or
+    Union-Find) over the matrix reads each row once: O(n²).
+
+pattern_quiz:
+  prompt: >-
+    Cities are linked directly or through chains of other cities, and you must count the separate
+    groups. Which approach fits?
+  options:
+    - "Count rows of the matrix that contain a 1"
+    - "Count connected components: DFS/BFS from each unvisited city, or Union-Find"
+    - "Sort the cities by number of direct connections and group greedily"
+    - "Dijkstra from city 0"
+  answer: 1
+  explanation: >-
+    "Directly or indirectly connected" is the definition of a connected component, so this is the
+    count-components template. Every row has a 1 (the diagonal), so counting rows says nothing.
+    Grouping by degree ignores who is connected to whom. Dijkstra finds weighted distances from one
+    source; it would only tell you city 0's province, and there are no weights.
+
+function:
+  name: findCircleNum
+  params: [{name: isConnected}]
+
+starter_code: |
+  class Solution:
+      def findCircleNum(self, isConnected: List[List[int]]) -> int:
+          pass
+
+tests:
+  - {args: [[[1, 1, 0], [1, 1, 0], [0, 0, 1]]], expected: 2}
+  - {args: [[[1, 0, 0], [0, 1, 0], [0, 0, 1]]], expected: 3}
+  - {args: [[[1]]], expected: 1, note: "single city"}
+  - {args: [[[1, 1], [1, 1]]], expected: 1}
+  - {args: [[[1, 1, 1, 1], [1, 1, 1, 1], [1, 1, 1, 1], [1, 1, 1, 1]]], expected: 1, note: "everyone directly connected"}
+  - {args: [[[1, 1, 0, 0], [1, 1, 1, 0], [0, 1, 1, 1], [0, 0, 1, 1]]], expected: 1, note: "chain: 0 and 3 are only indirectly connected"}
+  - {args: [[[1, 0, 0, 1], [0, 1, 0, 1], [0, 0, 1, 0], [1, 1, 0, 1]]], expected: 2, note: "city 1 is reached through city 3, a higher number"}
+  - {args: [[[1, 0, 0, 0, 1], [0, 1, 1, 0, 0], [0, 1, 1, 0, 0], [0, 0, 0, 1, 0], [1, 0, 0, 0, 1]]], expected: 3, note: "groups {0, 4}, {1, 2}, {3}"}
+visualize_test: 7
+
+drills:
+  - title: From matrix to neighbour lists
+    skill: setup
+    goal: Convert an adjacency matrix into adjacency lists, skipping the diagonal.
+    instructions: |
+      Return `adj`, where `adj[i]` lists (in increasing order) every city `j != i` with
+      `isConnected[i][j] == 1`.
+
+      Graphs show up in three shapes: grids, adjacency matrices and edge lists. Your traversal code
+      only ever asks one question, "what are this node's neighbours?", so converting the input into
+      neighbour lists first lets you reuse the same DFS everywhere. Skip `j == i`: the diagonal is
+      always 1, and a city listing itself as a neighbour is a self-loop that only wastes work.
+    function:
+      name: matrixToAdj
+      params: [{name: isConnected}]
+    starter_code: |
+      class Solution:
+          def matrixToAdj(self, isConnected: List[List[int]]) -> List[List[int]]:
+              pass
+    tests:
+      - {args: [[[1, 1, 0], [1, 1, 0], [0, 0, 1]]], expected: [[1], [0], []]}
+      - {args: [[[1]]], expected: [[]], note: "the diagonal is not a neighbour"}
+      - {args: [[[1, 0, 1], [0, 1, 1], [1, 1, 1]]], expected: [[2], [2], [0, 1]]}
+    solution: |
+      class Solution:
+          def matrixToAdj(self, isConnected: List[List[int]]) -> List[List[int]]:
+              n = len(isConnected)
+              adj = []
+              for i in range(n):
+                  adj.append([j for j in range(n) if j != i and isConnected[i][j] == 1])
+              return adj
+    hint: "For row `i`, keep every column `j` with a 1, except `j == i`."
+
+  - title: Everyone in my province
+    skill: core
+    goal: DFS over node ids with a visited set to collect one connected component.
+    instructions: |
+      Return the sorted list of every city in the same province as `start` (including `start`).
+
+      This is the traversal inside the province count. Nodes are plain integers now, so the visited
+      mark is a `set` of city numbers instead of overwriting grid cells. Add a city to `visited`
+      **before** exploring its neighbours, because the roads go both ways: city 1 lists city 0 as a
+      neighbour, and without the mark the DFS would bounce between them forever.
+    function:
+      name: provinceOf
+      params: [{name: isConnected}, {name: start}]
+    starter_code: |
+      class Solution:
+          def provinceOf(self, isConnected: List[List[int]], start: int) -> List[int]:
+              pass
+    tests:
+      - {args: [[[1, 1, 0], [1, 1, 0], [0, 0, 1]], 1], expected: [0, 1]}
+      - {args: [[[1, 1, 0], [1, 1, 0], [0, 0, 1]], 2], expected: [2], note: "alone in its province"}
+      - {args: [[[1, 1, 0, 0], [1, 1, 1, 0], [0, 1, 1, 1], [0, 0, 1, 1]], 3], expected: [0, 1, 2, 3], note: "reach 0 through a chain"}
+      - {args: [[[1, 0, 0, 1], [0, 1, 0, 1], [0, 0, 1, 0], [1, 1, 0, 1]], 0], expected: [0, 1, 3]}
+    solution: |
+      class Solution:
+          def provinceOf(self, isConnected: List[List[int]], start: int) -> List[int]:
+              n = len(isConnected)
+              visited = set()
+              def dfs(city):
+                  visited.add(city)
+                  for nxt in range(n):
+                      if isConnected[city][nxt] == 1 and nxt not in visited:
+                          dfs(nxt)
+              dfs(start)
+              return sorted(visited)
+    hint: "`visited.add(city)` first, then recurse into every `nxt` with a 1 that isn't visited yet."
+
+  - title: Union-Find counts only real merges
+    skill: edge
+    goal: Count components with Union-Find, decrementing the count only when a union joins two different sets.
+    instructions: |
+      Count the provinces using **Union-Find** instead of DFS: start with `n` groups, give every city
+      a `parent` (itself), and for every 1 above the diagonal, union the two cities.
+
+      The edge case that breaks naive counting: links are redundant. In a triangle 0-1-2 there are
+      three links but only two merges are needed, so `n - number_of_links` would say 0 provinces.
+      Only decrement the count when `find(i) != find(j)`, i.e. the union actually joined two groups.
+      Use path compression in `find` (point each node straight at its root on the way back), which
+      keeps the trees flat so each operation is nearly O(1).
+    function:
+      name: provincesUnionFind
+      params: [{name: isConnected}]
+    starter_code: |
+      class Solution:
+          def provincesUnionFind(self, isConnected: List[List[int]]) -> int:
+              pass
+    tests:
+      - {args: [[[1, 1, 1], [1, 1, 1], [1, 1, 1]]], expected: 1, note: "triangle: 3 links, only 2 real merges"}
+      - {args: [[[1, 1, 0], [1, 1, 0], [0, 0, 1]]], expected: 2}
+      - {args: [[[1, 0], [0, 1]]], expected: 2}
+      - {args: [[[1, 1, 0, 1], [1, 1, 0, 1], [0, 0, 1, 0], [1, 1, 0, 1]]], expected: 2}
+      - {args: [[[1]]], expected: 1}
+    solution: |
+      class Solution:
+          def provincesUnionFind(self, isConnected: List[List[int]]) -> int:
+              n = len(isConnected)
+              parent = list(range(n))
+              def find(x):
+                  if parent[x] != x:
+                      parent[x] = find(parent[x])  # path compression
+                  return parent[x]
+              groups = n
+              for i in range(n):
+                  for j in range(i + 1, n):
+                      if isConnected[i][j] == 1 and find(i) != find(j):
+                          parent[find(i)] = find(j)
+                          groups -= 1
+              return groups
+    hint: "Decrement `groups` only inside `if find(i) != find(j):`."
+
+hints:
+  - >-
+    This is Number of Islands with a different picture. What plays the role of a land cell, and what
+    plays the role of "the 4 neighbours"? How did you make sure each island was counted only once?
+  - >-
+    Cities are nodes; city i's neighbours are every j with isConnected[i][j] == 1. Keep a visited
+    set. Scan cities in order: each unvisited city starts a new province, so count it and DFS from it
+    to mark its entire province visited.
+  - |
+    visited = empty set;  provinces = 0
+    dfs(city):
+        add city to visited
+        for each other city nxt with isConnected[city][nxt] == 1:
+            if nxt not visited: dfs(nxt)
+    for city in 0..n-1:
+        if city not visited:
+            provinces += 1
+            dfs(city)
+    return provinces
+
+solution:
+  code: |
+    class Solution:
+        def findCircleNum(self, isConnected: List[List[int]]) -> int:
+            n = len(isConnected)
+            # neighbour lists: the same "who are my neighbours?" question as the grid problems
+            adj = [[j for j in range(n) if j != i and isConnected[i][j] == 1] for i in range(n)]
+            visited = set()
+
+            def dfs(node):
+                visited.add(node)  # mark before exploring: links go both ways
+                for nxt in adj[node]:
+                    if nxt not in visited:
+                        dfs(nxt)
+
+            provinces = 0
+            for city in range(n):
+                if city not in visited:  # not reached by any earlier DFS: a new province
+                    provinces += 1
+                    dfs(city)
+            return provinces
+  explanation: |
+    **One thing changed: the shape of the graph.** In the island problems a node was a cell `(r, c)`
+    and its neighbours were the 4 cells around it. Here a node is a city number and its neighbours
+    are the columns with a 1 in its row. The counting loop is identical to Number of Islands: scan
+    the nodes, and every node not yet visited starts a new component.
+
+    **Why a visited set instead of overwriting.** There's no grid cell to "sink", and the matrix is
+    symmetric: if 0 lists 1, then 1 lists 0. The `visited` set is what stops the DFS from bouncing
+    back. Adding the city at the *start* of `dfs` (before looping over neighbours) is what makes
+    that work.
+
+    **Why order doesn't matter.** In the test where city 1 is only linked to city 3, the scan reaches
+    city 0, and the DFS goes 0 → 3 → 1, so city 1 is already visited when the scan gets there. A
+    traversal follows edges in any direction; you never need to "look ahead" in the scan.
+
+    **Union-Find alternative.** Give each city a parent pointer (itself), and for every 1 above the
+    diagonal, union the two cities; the answer is `n` minus the number of unions that joined two
+    *different* roots. With path compression (and optionally union by rank), each operation is
+    almost O(1) (inverse Ackermann), so it's O(n²) overall too. Union-Find is the better tool when
+    links arrive one by one and you need the group count after each one.
+
+    Building `adj` costs O(n²) once. You could skip it and loop `for nxt in range(n)` inside the DFS;
+    the complexity is the same.
+  time: O(n²) — building adj reads the matrix once, and the DFS visits each city once and each neighbour list once
+  space: O(n²) — the adjacency lists in the worst case (everyone connected), plus O(n) for visited and the recursion stack
+  brute_force_code: |
+    class Solution:
+        def findCircleNum(self, isConnected: List[List[int]]) -> int:
+            n = len(isConnected)
+            reach = [row[:] for row in isConnected]
+            for k in range(n):  # can i reach j through middle city k?
+                for i in range(n):
+                    for j in range(n):
+                        if reach[i][k] and reach[k][j]:
+                            reach[i][j] = 1
+            # count cities that no smaller-numbered city can reach: one per province
+            return sum(1 for j in range(n) if not any(reach[i][j] for i in range(j)))
+
+pitch_script: |
+  **(Clarify)** "So isConnected is a symmetric n by n matrix with 1s on the diagonal, a province is a
+  group of cities connected directly or through other cities, and I return how many provinces there
+  are. n is at most 200."
+
+  **(Brute force)** "One way is to compute full reachability with Floyd–Warshall: for every middle
+  city k, mark i reaches j if i reaches k and k reaches j, then count groups. That's O(n³). It would
+  pass at 200, but it computes much more than I need."
+
+  **(Trigger)** "'Directly or indirectly connected' is just a connected component. So this is the
+  same as counting islands: cities are nodes, a 1 in the matrix is an edge, and I count components."
+
+  **(Optimal)** "I'll convert the matrix into neighbour lists, keep a visited set, and scan the
+  cities. Each time I find an unvisited city, I increment the count and DFS from it, adding every
+  reachable city to visited. Since links are two-way, I mark a city visited as soon as I enter it so
+  the DFS doesn't bounce back. Union-Find with path compression would work equally well: union
+  every linked pair and count n minus the successful unions."
+
+  **(Complexity)** "Reading the matrix is O(n²), and each city is visited once, so O(n²) time overall.
+  Space is O(n²) for the neighbour lists in the worst case, and O(n) for the visited set and the
+  recursion."
+
+twist:
+  lc: 684
+  title: Redundant Connection
+  why: >-
+    Now the input is an edge list for a graph that is a tree plus one extra edge, and you must return
+    the edge that creates the cycle. This is Union-Find's home turf: process edges in order, and the
+    first edge whose two endpoints already have the same root is the redundant one, because they were
+    already connected. It's exactly the "find(i) == find(j) means no real merge" check from the
+    Union-Find drill, used as the answer instead of being skipped.
+
+viz:
+  graph: adj
+  visited: [visited]
+  node: node
+  watch: [provinces, city]

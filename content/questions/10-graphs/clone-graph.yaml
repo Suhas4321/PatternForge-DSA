@@ -1,0 +1,366 @@
+slug: clone-graph
+lc: 133
+
+concept:
+  problem_it_solves: >-
+    "How do I copy a structure whose pointers loop back on themselves?" Copying one node is easy;
+    the hard part is that its neighbours point back to it, so a naive copier keeps meeting nodes it
+    has already copied. A hash map from each original node to its copy answers the question "have I
+    already made a copy of this node, and where is it?", which both stops the infinite loop and makes
+    every edge in the copy point at the one and only copy of each node.
+  brute_force: >-
+    Copy a node, then recursively copy each neighbour, with no memory of what has already been
+    copied. In an undirected graph every edge goes both ways: copying node 1 copies its neighbour 2,
+    which lists 1 as a neighbour, so it copies 1 again, which copies 2 again, forever. Even if you
+    somehow stopped the loop, a node reachable along two different paths would be copied twice, and
+    the copy would no longer have the same shape as the original.
+  brute_force_complexity: >-
+    Doesn't terminate on any graph with at least one edge (every undirected edge is a 2-cycle);
+    there is no correct "simpler" version, only the memoised one.
+  key_insight: >-
+    Keep a dictionary `copies` from original node to its clone, and treat it as the visited set. To
+    clone a node: if it's already in `copies`, return that clone. Otherwise create the clone,
+    **store it in the map before touching the neighbours**, then clone each neighbour and append the
+    result. Registering first is what breaks cycles: when the recursion comes back around to this
+    node, it finds the half-built clone in the map and just links to it. Each node is cloned once and
+    each edge is followed once, so the copy costs O(V + E).
+  real_world: >-
+    Deep-copying object graphs is everyday work: Python's `copy.deepcopy` keeps exactly this "memo"
+    dictionary from id(original) to copy so cyclic objects don't recurse forever, and Java/Kotlin
+    serialisation frameworks keep a handle table for the same reason. Infra teams clone service
+    topologies or network meshes into staging environments, and garbage collectors that copy live
+    objects (Cheney's algorithm) leave a forwarding pointer from each old object to its new copy.
+
+statement:
+  clean: |
+    Given a reference to a node in a **connected undirected graph**, return a **deep copy** (clone)
+    of the graph.
+
+    Each node has an integer `val` and a list of its `neighbors`:
+
+    ```python
+    class Node:
+        def __init__(self, val = 0, neighbors = None):
+            self.val = val
+            self.neighbors = neighbors if neighbors is not None else []
+    ```
+
+    The test cases describe the graph as a 1-indexed **adjacency list**: entry `i` lists the values
+    of the neighbours of the node with `val = i + 1`. The given node is always the node with
+    `val = 1` (or `None` for an empty graph). Return a reference to the copy of the given node.
+    Every node of the copy must be newly created: no node of the original graph may appear in it.
+  oa_story: |
+    **MeshMitra Networks — OA Round 1**
+
+    MeshMitra builds Wi-Fi mesh networks for apartment complexes in Whitefield and Electronic City.
+    Each router in a complex knows only which routers it has a direct radio link to, and links work
+    both ways. Before pushing a risky firmware update, the SRE team wants a perfect replica of a
+    complex's live topology in their simulator, so they can break things there instead.
+
+    You get a handle to router 1 of a complex, where each router object carries its ID and the list
+    of routers it links to. Build the simulator's replica: brand-new router objects with the same IDs
+    and the same links, and return the handle to the replica of router 1. The replica must never
+    reference a live router object, or a test in the simulator could take down a real network. A
+    complex can have no routers at all, and has at most 100.
+  trigger_keywords: ["deep copy", "connected undirected graph", "neighbors"]
+  examples:
+    - input: "adjList = [[2,4],[1,3],[2,4],[1,3]]"
+      output: "[[2,4],[1,3],[2,4],[1,3]]"
+      explanation: >-
+        Four nodes in a square: 1 links to 2 and 4, 2 links to 1 and 3, 3 links to 2 and 4, and 4
+        links to 1 and 3. The copy has the same links between brand-new nodes.
+    - input: "adjList = [[]]"
+      output: "[[]]"
+      explanation: "A single node with no neighbours."
+    - input: "adjList = []"
+      output: "[]"
+      explanation: "An empty graph: the given node is None, so return None."
+  constraints:
+    - "The number of nodes in the graph is in the range [0, 100]"
+    - "1 <= Node.val <= 100"
+    - "Node.val is unique for each node"
+    - "There are no repeated edges and no self-loops"
+    - "The graph is connected and all nodes can be visited starting from the given node"
+
+constraint_quiz:
+  prompt: >-
+    The graph has V nodes and E edges (at most 100 nodes here). What time complexity should a clone
+    aim for?
+  options:
+    - "O(V + E) — create each node once and follow each edge once"
+    - "O(V²) — for every node, scan all nodes to find its copied neighbours"
+    - "O(V · E) — re-traverse the graph once per node"
+    - "O(2^V) — every path from node 1 must be explored"
+  answer: 0
+  explanation: >-
+    The output itself has V nodes and E edges, so O(V + E) is the floor, and a hash map from original
+    to copy achieves it with O(1) lookups. Scanning a list of copies to find "the copy of node x"
+    makes each lookup O(V), giving O(V²) or worse. Re-traversing per node repeats work for nothing.
+    Exploring every path is what happens without the visited map: exponential at best, infinite with
+    cycles.
+
+pattern_quiz:
+  prompt: >-
+    You must copy a structure of nodes whose pointers can form cycles, so that the copy has exactly
+    the same shape. Which approach fits?
+  options:
+    - "Recursively copy each node's neighbours with no extra memory"
+    - "DFS/BFS with a hash map from original node to its copy"
+    - "Sort the nodes by value and copy them in order"
+    - "Two pointers walking the original and the copy in lockstep"
+  answer: 1
+  explanation: >-
+    "Deep copy" of anything with cycles or shared nodes is the old → new hash-map trigger. The map is
+    both the visited set (it stops the infinite recursion) and the lookup table that lets every edge
+    point to the single copy of its target. Copying without memory loops forever. Sorting by value
+    tells you nothing about the links, and two pointers only make sense for linear structures.
+
+function:
+  name: cloneGraph
+  params: [{name: node, type: GraphNode}]
+  returns: GraphNode
+
+starter_code: |
+  """
+  # Definition for a Node.
+  class Node:
+      def __init__(self, val = 0, neighbors = None):
+          self.val = val
+          self.neighbors = neighbors if neighbors is not None else []
+  """
+
+  class Solution:
+      def cloneGraph(self, node: Optional['Node']) -> Optional['Node']:
+          pass
+
+tests:
+  - {args: [[[2, 4], [1, 3], [2, 4], [1, 3]]], expected: [[2, 4], [1, 3], [2, 4], [1, 3]]}
+  - {args: [[[]]], expected: [[]], note: "single node, no neighbours"}
+  - {args: [[]], expected: [], note: "empty graph: node is None"}
+  - {args: [[[2], [1]]], expected: [[2], [1]], note: "one edge is already a 2-cycle"}
+  - {args: [[[2, 3], [1, 3], [1, 2]]], expected: [[2, 3], [1, 3], [1, 2]], note: "triangle: a cycle of length 3"}
+  - {args: [[[2, 3, 4, 5], [1], [1], [1], [1]]], expected: [[2, 3, 4, 5], [1], [1], [1], [1]], note: "star"}
+  - {args: [[[2], [1, 3], [2, 4], [3, 5], [4]]], expected: [[2], [1, 3], [2, 4], [3, 5], [4]], note: "path: deepest recursion"}
+  - {args: [[[2, 3, 4], [1, 3, 4], [1, 2, 4], [1, 2, 3]]], expected: [[2, 3, 4], [1, 3, 4], [1, 2, 4], [1, 2, 3]], note: "complete graph: every node reached many ways"}
+visualize_test: 0
+
+drills:
+  - title: Visit every node once, despite cycles
+    skill: setup
+    goal: Traverse a graph of node objects with a visited set and read back its adjacency list.
+    instructions: |
+      Return the graph's adjacency list: entry `v - 1` is the list of `val`s of the neighbours of the
+      node with `val = v`, in the order they are stored in `neighbors`. Return `[]` if `node` is
+      `None`.
+
+      Before you can copy a graph you must be able to *walk* it. Unlike a tree, a graph has no
+      "children only" direction: node 1's neighbour 2 lists 1 again. A `visited` set of node objects
+      (an explicit `stack` works well here) makes sure each node is expanded exactly once. You also
+      need to find every node, because only node 1 is handed to you.
+    function:
+      name: adjacencyOf
+      params: [{name: node, type: GraphNode}]
+    starter_code: |
+      class Solution:
+          def adjacencyOf(self, node: Optional['Node']) -> List[List[int]]:
+              pass
+    tests:
+      - {args: [[[2, 4], [1, 3], [2, 4], [1, 3]]], expected: [[2, 4], [1, 3], [2, 4], [1, 3]]}
+      - {args: [[[]]], expected: [[]]}
+      - {args: [[]], expected: [], note: "no node at all"}
+      - {args: [[[2, 3], [1, 3], [1, 2]]], expected: [[2, 3], [1, 3], [1, 2]], note: "a cycle must not loop forever"}
+    solution: |
+      class Solution:
+          def adjacencyOf(self, node: Optional['Node']) -> List[List[int]]:
+              if node is None:
+                  return []
+              visited, stack = {node}, [node]
+              while stack:
+                  cur = stack.pop()
+                  for nb in cur.neighbors:
+                      if nb not in visited:
+                          visited.add(nb)
+                          stack.append(nb)
+              ordered = sorted(visited, key=lambda n: n.val)
+              return [[nb.val for nb in n.neighbors] for n in ordered]
+    hint: "Add a neighbour to `visited` when you push it; nodes are hashable, so a set of nodes works."
+
+  - title: One object per node, wired through a lookup table
+    skill: core
+    goal: Build nodes from an adjacency list by creating each node exactly once and wiring edges through a table.
+    instructions: |
+      Build the graph described by `adjList` (1-indexed, as in the tests) out of `Node` objects and
+      return the node with `val = 1`, or `None` if the list is empty.
+
+      This is the lookup-table half of Clone Graph. If you write `Node(v)` every time you meet `v` in
+      a neighbour list, you get many different objects all claiming to be node `v`, and the edges
+      point at the wrong ones. Instead, create every node once, keep them in a table (`nodes[v - 1]`),
+      and wire each edge by **looking up** the existing object. In Clone Graph, the `copies` map plays
+      exactly this role, keyed by the original node instead of an index.
+    function:
+      name: buildGraph
+      params: [{name: adjList}]
+      returns: GraphNode
+    starter_code: |
+      class Solution:
+          def buildGraph(self, adjList: List[List[int]]) -> Optional['Node']:
+              pass
+    tests:
+      - {args: [[[2, 4], [1, 3], [2, 4], [1, 3]]], expected: [[2, 4], [1, 3], [2, 4], [1, 3]]}
+      - {args: [[[2], [1]]], expected: [[2], [1]]}
+      - {args: [[[]]], expected: [[]]}
+      - {args: [[]], expected: [], note: "empty list: return None"}
+    solution: |
+      class Solution:
+          def buildGraph(self, adjList: List[List[int]]) -> Optional['Node']:
+              if not adjList:
+                  return None
+              nodes = [Node(i + 1) for i in range(len(adjList))]  # each node created once
+              for i, neighbor_vals in enumerate(adjList):
+                  for v in neighbor_vals:
+                      nodes[i].neighbors.append(nodes[v - 1])  # look up, never re-create
+              return nodes[0]
+    hint: "Create all nodes first, then a second loop appends `nodes[v - 1]` to each neighbour list."
+
+  - title: Clone breadth-first, creating copies on discovery
+    skill: edge
+    goal: Clone with BFS, creating each copy the moment a node is first seen so no node is copied twice.
+    instructions: |
+      Clone the graph again, but **iteratively with a queue** (BFS) instead of recursion. Return the
+      copy of `node`, or `None`.
+
+      The edge case lives in the timing. Create a node's copy (and put it in `copies`) the moment you
+      first **discover** it as someone's neighbour, then enqueue it. If you wait until it's popped to
+      create the copy, a node discovered by two neighbours is enqueued twice and copied twice, and
+      half of the edges point at a duplicate. With the copy created on discovery, every edge can be
+      wired immediately: `copies[cur].neighbors.append(copies[nb])`.
+    function:
+      name: cloneGraphBFS
+      params: [{name: node, type: GraphNode}]
+      returns: GraphNode
+    starter_code: |
+      class Solution:
+          def cloneGraphBFS(self, node: Optional['Node']) -> Optional['Node']:
+              pass
+    tests:
+      - {args: [[[2, 4], [1, 3], [2, 4], [1, 3]]], expected: [[2, 4], [1, 3], [2, 4], [1, 3]]}
+      - {args: [[[2, 3, 4], [1, 3, 4], [1, 2, 4], [1, 2, 3]]], expected: [[2, 3, 4], [1, 3, 4], [1, 2, 4], [1, 2, 3]], note: "every node discovered several times"}
+      - {args: [[[]]], expected: [[]]}
+      - {args: [[]], expected: []}
+    solution: |
+      class Solution:
+          def cloneGraphBFS(self, node: Optional['Node']) -> Optional['Node']:
+              if node is None:
+                  return None
+              copies = {node: Node(node.val)}
+              queue = deque([node])
+              while queue:
+                  cur = queue.popleft()
+                  for nb in cur.neighbors:
+                      if nb not in copies:
+                          copies[nb] = Node(nb.val)  # copy on discovery
+                          queue.append(nb)
+                      copies[cur].neighbors.append(copies[nb])
+              return copies[node]
+    hint: "Seed `copies` with the start node's copy before the loop, and wire the edge whether or not `nb` was new."
+
+hints:
+  - >-
+    Copying a node means copying its neighbours, whose neighbours include the node you started with.
+    What do you need to remember so you never copy the same node twice, and so an edge can point at
+    a copy that already exists?
+  - >-
+    Keep a map from original node → its copy. clone(n): if n is in the map, return its copy.
+    Otherwise create the copy, put it in the map *right away*, then append clone(neighbour) for each
+    neighbour. Why does the order of those last two steps matter on a cycle?
+  - |
+    copies = empty map (original -> clone)
+    clone(cur):
+        if cur in copies: return copies[cur]
+        twin = new Node(cur.val)
+        copies[cur] = twin                  (register before visiting neighbours)
+        for each nb in cur.neighbors:
+            twin.neighbors.append(clone(nb))
+        return twin
+    return None if node is None else clone(node)
+
+solution:
+  code: |
+    class Solution:
+        def cloneGraph(self, node: Optional['Node']) -> Optional['Node']:
+            if node is None:
+                return None
+            copies = {}  # original node -> its clone; doubles as the visited set
+
+            def clone(cur):
+                if cur in copies:
+                    return copies[cur]  # already copied (or being copied): just link to it
+                twin = Node(cur.val)
+                copies[cur] = twin  # register BEFORE recursing, so cycles find this copy
+                for nb in cur.neighbors:
+                    twin.neighbors.append(clone(nb))
+                return twin
+
+            return clone(node)
+  explanation: |
+    **One thing changed from the earlier lessons: the DFS builds something.** It's still a DFS with a
+    visited mark, but the mark is a dictionary that also stores *what you built* for each node:
+    `copies[original] = clone`.
+
+    **Why register before recursing.** Take the 2-node graph 1 ↔ 2. `clone(1)` creates `1'` and
+    stores it, then calls `clone(2)`. That creates `2'` and stores it, then looks at 2's neighbour,
+    node 1. Node 1 is already in `copies`, so `clone(1)` immediately returns `1'` (still half-built,
+    which is fine: it's the right object) and `2'` links to it. Back in the first call, `1'` links to
+    `2'`. If you stored `1'` only *after* the loop, `clone(2)` would not find it, would call
+    `clone(1)` again, and the recursion would never end.
+
+    **Why a map and not a set.** A visited set would stop the loop, but when you meet an
+    already-visited neighbour you'd have no way to find *its copy* to link to. The map answers both
+    "seen it?" and "where's its copy?".
+
+    **Keyed by node, not by value.** `copies` uses the node objects as keys. Here values happen to be
+    unique, so `val` would also work, but keying by identity is what generalises to deep-copying any
+    object graph.
+
+    The harness checks that no original node appears in your answer; returning `node` itself, or
+    linking a clone to an original neighbour, fails. BFS works equally well (see the edge drill).
+  time: O(V + E) — each node is cloned once, and each adjacency entry (2 per undirected edge) is followed once
+  space: O(V) — the copies map plus the recursion stack (up to V deep on a path-shaped graph), not counting the clone itself
+
+pitch_script: |
+  **(Clarify)** "I get a reference to node 1 of a connected undirected graph, or None for an empty
+  graph, and I return node 1 of a brand-new copy, with no original nodes reused. Values are unique,
+  and there are at most 100 nodes."
+
+  **(Brute force)** "If I just copy a node and recursively copy its neighbours, it never terminates:
+  an undirected edge means node 2 lists node 1 back, so I'd copy 1 again, then 2 again, forever.
+  So the real question is how to remember what I've already copied."
+
+  **(Trigger)** "'Deep copy' of a structure with cycles is the hash-map-from-old-to-new pattern. The
+  map is my visited set, and it also tells me where each node's copy is so edges can point to it."
+
+  **(Optimal)** "I'll do a DFS. clone(cur) first checks the map; if cur is already there, it returns
+  the existing copy. Otherwise it creates a new node with the same value, stores it in the map
+  immediately, and then for each neighbour appends clone(neighbour) to the new node's list. Storing
+  before recursing is what lets a cycle come back around and find the half-built copy instead of
+  recursing forever. I return clone(node), or None if the input is None."
+
+  **(Complexity)** "Each node is created once and each edge is followed once from each side, so
+  O(V + E) time, and O(V) extra space for the map and the recursion stack. If the graph were huge
+  I'd switch to BFS with a queue, creating each copy when the node is first discovered."
+
+twist:
+  lc: 138
+  title: Copy List with Random Pointer
+  why: >-
+    Now the structure is a linked list where each node also has a `random` pointer to any node (or
+    null), so it's a graph with out-degree 2. The same old → new map does it: create the copy of
+    every node in a first pass, then wire `copy.next = copies[old.next]` and
+    `copy.random = copies[old.random]` in a second (exactly the buildGraph drill). The follow-up is
+    O(1) extra space: interleave each copy right after its original (A → A' → B → B'), set
+    `A'.random = A.random.next`, then unweave the two lists.
+
+viz:
+  node: cur
+  visited: [copies]
+  watch: [twin]

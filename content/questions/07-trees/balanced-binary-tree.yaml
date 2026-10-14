@@ -1,0 +1,341 @@
+slug: balanced-binary-tree
+lc: 110
+
+concept:
+  problem_it_solves: >-
+    "Is every node's left side roughly as tall as its right side?" Each node needs two facts
+    from each child: how tall is it, and is it balanced inside? Asking those separately means
+    measuring the same subtrees again and again. Packing both facts into one return value lets
+    a single bottom-up pass answer the question for the whole tree.
+  brute_force: >-
+    Visit every node and, at each one, call a separate height() on its left and right child,
+    checking that the two heights differ by at most 1. Every height() call walks its whole
+    subtree from scratch, so a node at depth d is measured once for each of its d ancestors,
+    even though its height never changes.
+  brute_force_complexity: >-
+    O(N²) time in the worst case, O(H) space — measuring at every node of a 5000-node chain-like
+    tree adds up to about 5000² / 2 ≈ 1.25 × 10⁷ node visits. (On a balanced tree it's
+    O(N log N).)
+  key_insight: >-
+    Ask each call to return its subtree's height, *or* -1 as a sentinel meaning "something in
+    here is unbalanced". A real height is never negative, so -1 can't be confused with one. At a
+    node: if either child returned -1, return -1 immediately; if the two heights differ by more
+    than 1, return -1; otherwise return 1 + max(left, right). The parent gets both facts from
+    one number, each node is visited once, and the first imbalance short-circuits all the way
+    up.
+  real_world: >-
+    AVL trees store a height (or balance factor) in every node and re-check |left − right| <= 1
+    after each insert, rotating when it breaks; that check is what keeps lookups O(log N).
+    Red-black trees (Linux's scheduler and memory maps, Java's TreeMap) use a looser balance rule
+    for the same reason. Sentinel return values are everywhere in systems code too: POSIX read()
+    returns a byte count or -1 for an error, one int carrying two facts.
+
+statement:
+  clean: |
+    Given a binary tree, determine if it is **height-balanced**.
+
+    A height-balanced binary tree is a binary tree in which the depth of the two subtrees of
+    **every node** **never differs by more than one**. An empty tree is height-balanced.
+  oa_story: |
+    **KulCloud — OA Round 1**
+
+    KulCloud is a Bengaluru infra startup that pushes configuration updates to thousands of edge
+    servers through a relay hierarchy. The update starts at a root relay, and every relay
+    forwards it to at most two downstream relays: a primary and a secondary. Rollout speed
+    depends on the longest chain of relays below each link.
+
+    The SRE team flags a hierarchy as "lopsided" if there is *any* relay where the longest chain
+    of relays below its primary link and the longest chain below its secondary link differ by
+    more than one relay (a missing link counts as a chain of 0). Write a function that takes the
+    hierarchy from its root relay and returns `true` if it is not lopsided anywhere. A hierarchy
+    has up to 5000 relays, and an empty hierarchy is fine.
+  trigger_keywords: ["height-balanced", "every node", "never differs by more than one"]
+  examples:
+    - input: "root = [3,9,20,null,null,15,7]"
+      output: "true"
+    - input: "root = [1,2,2,3,3,null,null,4,4]"
+      output: "false"
+      explanation: "At the root, the left subtree has height 3 and the right subtree has height 1."
+    - input: "root = []"
+      output: "true"
+  constraints:
+    - "The number of nodes in the tree is in the range [0, 5000]."
+    - "-10^4 <= Node.val <= 10^4"
+
+constraint_quiz:
+  prompt: >-
+    The tree has up to 5000 nodes. Measuring both heights from scratch at every node works. What
+    should you aim for instead?
+  options:
+    - "O(N²) — it's only 5000 nodes, re-measuring is fine"
+    - "O(N) — one post-order pass that returns heights"
+    - "O(N log N) — sort the subtree heights first"
+    - "O(log N) — balanced trees have logarithmic height"
+  answer: 1
+  explanation: >-
+    O(N²) is about 1.25 × 10⁷ node visits on a chain-like tree; it may squeak by in Python, but
+    it recomputes the same heights over and over, and the interviewer is asking whether you can
+    avoid that. Nothing here benefits from sorting. O(log N) is impossible: you don't know the
+    tree is balanced (that's the question), and you must inspect every node. A post-order pass
+    computes every height exactly once: O(N).
+
+pattern_quiz:
+  prompt: >-
+    Every node must compare its two subtree heights, and the parent also needs to know whether
+    the children were balanced. Which approach fits?
+  options:
+    - "Post-order DFS returning the height, with -1 as an \"unbalanced\" sentinel"
+    - "Compare height(root.left) and height(root.right) only"
+    - "BFS: check that all leaves are within one level of each other"
+    - "Count the nodes in each subtree and compare the counts"
+  answer: 0
+  explanation: >-
+    "Height-balanced" at "every node" means each node needs its children's heights (bottom-up,
+    post-order) plus their verdicts, which the sentinel packs into one return value. Checking
+    only the root misses imbalance deeper down. Leaf depths are a different property: a
+    height-balanced tree can have leaves two levels apart (see the 12-node test). Node counts
+    aren't heights: a 3-node chain and a 3-node perfect tree have the same count.
+
+function:
+  name: isBalanced
+  params: [{name: root, type: TreeNode}]
+
+starter_code: |
+  class Solution:
+      def isBalanced(self, root: Optional[TreeNode]) -> bool:
+          pass
+
+tests:
+  - {args: [[3, 9, 20, null, null, 15, 7]], expected: true}
+  - {args: [[1, 2, 2, 3, 3, null, null, 4, 4]], expected: false}
+  - {args: [[]], expected: true, note: "empty tree is balanced"}
+  - {args: [[1]], expected: true, note: single node}
+  - {args: [[1, 2, 2, 3, null, null, 3, 4, null, null, 4]], expected: false, note: "the root's sides are equal (3 and 3), but both 2s are lopsided: check every node"}
+  - {args: [[1, 2, 3, 4]], expected: true, note: "heights 2 and 1 differ by exactly one: still fine"}
+  - {args: [[1, 2, null, 3]], expected: false, note: "3-node chain: heights 2 and 0 at the root"}
+  - {args: [[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, null, 11, null, null, null, 12]], expected: true, note: "balanced even though leaves sit at depths 3 and 5: the rule is about subtree heights"}
+visualize_test: 1
+
+drills:
+  - title: Measure both sides of the root
+    skill: setup
+    goal: Compute the heights of a node's two subtrees and the gap between them.
+    instructions: |
+      Return `abs(height(root.left) - height(root.right))` for the **root only**, where height
+      counts nodes and an empty subtree has height 0. An empty tree has gap 0.
+
+      This is the check every node performs in the full problem. Doing it only at the root is
+      a common wrong answer (look at the third test: a gap of 0 at the root, yet the tree is
+      not balanced), and doing it at every node with a fresh height() each time is the O(N²)
+      brute force. You'll fix both in the next two drills.
+    function:
+      name: rootGap
+      params: [{name: root, type: TreeNode}]
+    starter_code: |
+      class Solution:
+          def rootGap(self, root: Optional[TreeNode]) -> int:
+              pass
+    tests:
+      - {args: [[1, 2, 2, 3, 3, null, null, 4, 4]], expected: 2}
+      - {args: [[3, 9, 20, null, null, 15, 7]], expected: 1}
+      - {args: [[1, 2, 2, 3, null, null, 3, 4, null, null, 4]], expected: 0, note: "gap 0 at the root, yet unbalanced inside"}
+      - {args: [[]], expected: 0}
+    solution: |
+      class Solution:
+          def rootGap(self, root: Optional[TreeNode]) -> int:
+              def height(node):
+                  if node is None:
+                      return 0
+                  return 1 + max(height(node.left), height(node.right))
+
+              if root is None:
+                  return 0
+              return abs(height(root.left) - height(root.right))
+    hint: "Write a height() helper; guard the empty tree before reading root.left."
+
+  - title: Check every node in one pass
+    skill: core
+    goal: Check the balance rule at every node using heights returned from below, with no re-measuring.
+    instructions: |
+      Return the **number of nodes where the two subtree heights differ by more than 1**,
+      in a single pass.
+
+      The trick that makes the real problem O(N): a post-order helper returns each subtree's
+      height, so when a node runs its check, both children's heights are already in hand. No
+      height is ever computed twice. Count the violations with a `nonlocal` counter. A tree is
+      balanced exactly when this count is 0.
+    function:
+      name: countUnbalanced
+      params: [{name: root, type: TreeNode}]
+    starter_code: |
+      class Solution:
+          def countUnbalanced(self, root: Optional[TreeNode]) -> int:
+              pass
+    tests:
+      - {args: [[1, 2, 2, 3, null, null, 3, 4, null, null, 4]], expected: 2, note: "both 2s, not the root"}
+      - {args: [[3, 9, 20, null, null, 15, 7]], expected: 0}
+      - {args: [[1, 2, null, 3, null, 4]], expected: 2, note: "in a chain, every node with a grandchild (1 and 2) is unbalanced"}
+      - {args: [[]], expected: 0}
+    solution: |
+      class Solution:
+          def countUnbalanced(self, root: Optional[TreeNode]) -> int:
+              bad = 0
+
+              def height(node):
+                  nonlocal bad
+                  if node is None:
+                      return 0
+                  left, right = height(node.left), height(node.right)
+                  if abs(left - right) > 1:
+                      bad += 1
+                  return 1 + max(left, right)
+
+              height(root)
+              return bad
+    hint: "Compute both child heights first, then check them, then return 1 + max."
+
+  - title: Return two facts at once
+    skill: edge
+    goal: Return [balanced, height] from every call and propagate a child's failure to its parent.
+    instructions: |
+      Return `[is_balanced, height]` for the whole tree, where `height` is the real height
+      (in nodes, even when the tree is unbalanced). Compute it with one recursion where every
+      call returns that pair for its own subtree.
+
+      The edge case people miss: a node is balanced only if its own gap is at most 1 *and* both
+      children are balanced. In the third test the root's two heights are equal, but a child is
+      lopsided, so the answer must still be `False`. The `-1` sentinel in the main solution is a
+      compact encoding of exactly this pair: "-1" means `[False, anything]`.
+    function:
+      name: balanceAndHeight
+      params: [{name: root, type: TreeNode}]
+    starter_code: |
+      class Solution:
+          def balanceAndHeight(self, root: Optional[TreeNode]) -> List:
+              pass
+    tests:
+      - {args: [[]], expected: [true, 0], note: "empty: balanced, height 0"}
+      - {args: [[3, 9, 20, null, null, 15, 7]], expected: [true, 3]}
+      - {args: [[1, 2, 2, 3, null, null, 3, 4, null, null, 4]], expected: [false, 4], note: "root looks fine; the failure comes from below"}
+      - {args: [[1, 2, null, 3]], expected: [false, 3]}
+    solution: |
+      class Solution:
+          def balanceAndHeight(self, root: Optional[TreeNode]) -> List:
+              if root is None:
+                  return [True, 0]
+              left_ok, lh = self.balanceAndHeight(root.left)
+              right_ok, rh = self.balanceAndHeight(root.right)
+              ok = left_ok and right_ok and abs(lh - rh) <= 1
+              return [ok, 1 + max(lh, rh)]
+    hint: "`ok` needs three things: the left child's verdict, the right child's verdict, and this node's gap."
+
+hints:
+  - >-
+    To decide whether a node is balanced, what do you need from each child? Can one return
+    value carry both "how tall are you?" and "are you balanced?"
+  - >-
+    Return the height for a balanced subtree and -1 for an unbalanced one (a real height is
+    never negative). At a node: if a child returned -1, pass -1 up; if the two heights differ
+    by more than 1, return -1; otherwise return 1 + max. The tree is balanced if the root's
+    call doesn't return -1.
+  - |
+    check(node):
+        if node is empty: return 0
+        left = check(node.left);   if left == -1: return -1
+        right = check(node.right); if right == -1: return -1
+        if |left - right| > 1: return -1
+        return 1 + larger of (left, right)
+    answer = check(root) != -1
+
+solution:
+  code: |
+    class Solution:
+        def isBalanced(self, root: Optional[TreeNode]) -> bool:
+            def check(node):
+                # returns this subtree's height, or -1 if it is unbalanced anywhere inside
+                if node is None:
+                    return 0
+                left = check(node.left)
+                if left == -1:
+                    return -1  # a lopsided child makes this subtree lopsided: stop early
+                right = check(node.right)
+                if right == -1:
+                    return -1
+                if abs(left - right) > 1:
+                    return -1  # this node itself breaks the rule
+                return 1 + max(left, right)
+
+            return check(root) != -1
+  explanation: |
+    **What does each call return to its parent?** Two facts squeezed into one int: the height
+    of its subtree if that subtree is balanced everywhere, or `-1` if it isn't. Heights are
+    always `>= 0`, so `-1` is a safe sentinel.
+
+    **Why the parent needs both facts.** A node is balanced only if (a) its two subtree heights
+    differ by at most 1 *and* (b) both subtrees are balanced themselves. Test
+    `[1,2,2,3,null,null,3,4,null,null,4]` shows why (b) matters: the root's sides both have
+    height 3, but each 2 has a chain of height 2 on one side and nothing on the other. The `-1`
+    from those nodes travels straight up to the root.
+
+    **Why it's O(N).** The brute force asks for heights at every node with fresh height() calls,
+    so lower nodes are measured again by every ancestor. Here each node's height is computed
+    once, in post-order, and handed upward. Checking `left == -1` before even computing `right`
+    also means the first imbalance ends the search early.
+
+    **Watch it in the visualizer.** On the default test, follow the call stack down the left
+    side: the lower 3 gets heights 1 and 1 (returns 2), the left 2 gets heights 2 and 1 (fine,
+    returns 3), and the root then sees 3 vs 1 and returns -1.
+
+    **Alternatives.** Returning a pair `(balanced, height)` (the edge drill) is equally O(N) and
+    a bit more readable; a `nonlocal` flag set to False on violation also works. An iterative
+    post-order traversal with a stack and a dict of heights avoids recursion for very deep
+    trees.
+  time: O(N) — every node's height is computed exactly once; an imbalance can end the walk early
+  space: O(H) — the recursion stack; O(log N) for a balanced tree, O(N) for a skewed one
+  brute_force_code: |
+    class Solution:
+        def isBalanced(self, root: Optional[TreeNode]) -> bool:
+            def height(node):  # walks the whole subtree, every single time
+                if node is None:
+                    return 0
+                return 1 + max(height(node.left), height(node.right))
+
+            if root is None:
+                return True
+            gap_ok = abs(height(root.left) - height(root.right)) <= 1
+            return self.isBalanced(root.left) and self.isBalanced(root.right) and gap_ok
+
+pitch_script: |
+  **(Clarify)** "Balanced means at every node, not just the root, the left and right subtree
+  heights differ by at most one. And an empty tree counts as balanced, right?"
+
+  **(Brute force)** "The direct way is to check every node by calling a height function on its
+  two children. But that height function re-walks the subtree each time, so lower nodes get
+  measured once per ancestor: O(N squared) in the worst case."
+
+  **(Trigger)** "Heights are naturally computed bottom-up, and the balance check only needs
+  the two child heights. So in one post-order DFS I can compute each height once and check the
+  rule at the same time. I just need a way to report failure upward."
+
+  **(Optimal)** "My helper returns the subtree's height, or minus one if anything inside it is
+  unbalanced, which is safe because real heights are never negative. At a node, if either
+  child returned minus one I return minus one immediately; if the heights differ by more than
+  one I return minus one; otherwise one plus the max. The tree is balanced if the root's call
+  isn't minus one."
+
+  **(Complexity)** "Each node is processed once, so O(N) time, with an early exit at the first
+  imbalance, and O(H) recursion space: log N balanced, N skewed."
+
+twist:
+  lc: 1382
+  title: Balance a Binary Search Tree
+  why: >-
+    Instead of checking balance, you must *produce* a balanced tree with the same values. The
+    height reasoning from this lesson tells you what "balanced" requires; the construction
+    comes from the BST property: an in-order DFS lists the values in sorted order, and building
+    recursively from the middle element of each range (left half → left subtree, right half →
+    right subtree) gives sides whose sizes differ by at most one at every node, which keeps the
+    heights within one.
+
+viz:
+  watch: [left, right]

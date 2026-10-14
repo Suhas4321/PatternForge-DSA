@@ -1,0 +1,288 @@
+slug: daily-temperatures
+lc: 739
+
+concept:
+  problem_it_solves: >-
+    "For every element, what is the next element to its right that beats it?" Asking that
+    question separately for each element means scanning forward again and again. A monotonic
+    stack keeps only the elements still waiting for an answer, and resolves several of them
+    the moment a bigger value shows up.
+  brute_force: >-
+    For each day i, walk forward j = i+1, i+2, … until temperatures[j] > temperatures[i].
+    On a falling sequence like [90, 89, 88, …] every day scans to the end, re-reading the same
+    days over and over.
+  brute_force_complexity: O(N²) time, O(1) extra space — 10⁵ days means up to 5 × 10⁹ comparisons.
+  key_insight: >-
+    Flip the direction of the question. Instead of each day looking forward for its answer,
+    let each new day *answer the waiting days*. Keep a stack of indices whose answer is still
+    unknown; their temperatures are decreasing from bottom to top. When a warmer day arrives,
+    pop every colder day off the stack: today is their answer. Each index is pushed once and
+    popped once, so the whole scan is O(N).
+  real_world: >-
+    Stock tickers and trading dashboards use the same "next greater / previous greater" scan for
+    span and breakout indicators. Monitoring systems use it to find "how long until this metric
+    was exceeded", and browsers use stacks of pending elements while parsing nested HTML.
+
+statement:
+  clean: |
+    Given an array of integers `temperatures` representing the daily temperatures, return an
+    array `answer` such that `answer[i]` is the **number of days you have to wait** after the
+    `i`th day to get a **warmer temperature**.
+
+    If there is no future day for which this is possible, keep `answer[i] == 0` instead.
+  oa_story: |
+    **ChaiCloud Energy — OA Round 1**
+
+    ChaiCloud runs smart thermostats in co-working spaces across Koramangala and HSR Layout.
+    The ops dashboard receives one reading per day for a building, in order. For each day, the
+    facilities team wants to know how many days they'll wait until a reading that is strictly
+    higher than that day's, so they can schedule AC servicing before the heat arrives.
+
+    Write a function that takes the list of daily readings and returns, for each day, the
+    number of days until a strictly higher reading. If no later day is higher, report 0 for
+    that day. Buildings can have up to 100,000 days of history, so the report must be fast.
+  trigger_keywords: ["number of days you have to wait", "warmer temperature"]
+  examples:
+    - input: "temperatures = [73,74,75,71,69,72,76,73]"
+      output: "[1,1,4,2,1,1,0,0]"
+      explanation: "Day 2 (75) waits until day 6 (76): 4 days. Days 3 and 4 are both answered by day 5 (72)."
+    - input: "temperatures = [30,40,50,60]"
+      output: "[1,1,1,0]"
+    - input: "temperatures = [30,60,90]"
+      output: "[1,1,0]"
+  constraints:
+    - "1 <= temperatures.length <= 10^5"
+    - "30 <= temperatures[i] <= 100"
+
+constraint_quiz:
+  prompt: With up to 10⁵ days, what time complexity do you need?
+  options: ["O(N²)", "O(N log N)", "O(N)", "O(N · 100)"]
+  answer: 2
+  explanation: >-
+    O(N²) is up to 10¹⁰ steps on a decreasing input, which is far too slow. O(N log N) would
+    pass but nothing needs sorting here. O(N) is achievable because each index enters and
+    leaves the stack once. O(N · 100) (scanning by temperature value) also technically passes
+    because temperatures are bounded, but it is a trick that breaks if the range grows; the
+    stack works for any values.
+
+pattern_quiz:
+  prompt: >-
+    For each element you need the next element to the right that is strictly greater.
+    Which pattern fits?
+  options:
+    - "Sliding window"
+    - "Monotonic decreasing stack of indices"
+    - "Binary search on each suffix"
+    - "Two pointers from both ends"
+  answer: 1
+  explanation: >-
+    "Next greater element" is the textbook monotonic-stack trigger. Unresolved days form a
+    decreasing sequence, so the newest one is always on top; a warmer day pops and answers them
+    in order. A window doesn't fit because the answer isn't about contiguous ranges, and
+    suffixes aren't sorted, so binary search doesn't apply.
+
+function:
+  name: dailyTemperatures
+  params: [{name: temperatures}]
+
+starter_code: |
+  class Solution:
+      def dailyTemperatures(self, temperatures: List[int]) -> List[int]:
+          pass
+
+tests:
+  - {args: [[73, 74, 75, 71, 69, 72, 76, 73]], expected: [1, 1, 4, 2, 1, 1, 0, 0]}
+  - {args: [[30, 40, 50, 60]], expected: [1, 1, 1, 0], note: strictly increasing}
+  - {args: [[30, 60, 90]], expected: [1, 1, 0]}
+  - {args: [[90, 80, 70, 60]], expected: [0, 0, 0, 0], note: "strictly decreasing: nothing ever resolves"}
+  - {args: [[50]], expected: [0], note: single day}
+  - {args: [[70, 70, 70, 71]], expected: [3, 2, 1, 0], note: equal is not warmer}
+  - {args: [[55, 38, 53, 81, 61, 93, 97, 32, 43, 78]], expected: [3, 1, 1, 2, 1, 1, 0, 1, 1, 0]}
+visualize_test: 0
+
+drills:
+  - title: Push indices, not values
+    skill: setup
+    goal: Loop over the array and keep a stack of indices that are still waiting for a warmer day.
+    instructions: |
+      Walk the array. Before pushing index `i`, pop indices while the temperature at the top of
+      the stack is **strictly less** than `temperatures[i]`. Return the stack that is left at
+      the end.
+
+      Store **indices**, not temperatures: later you need the distance `i - index`, and you
+      can always read the temperature back with `temperatures[index]`.
+    function:
+      name: remainingStack
+      params: [{name: temperatures}]
+    starter_code: |
+      class Solution:
+          def remainingStack(self, temperatures: List[int]) -> List[int]:
+              pass
+    tests:
+      - {args: [[73, 74, 75, 71, 69, 72, 76, 73]], expected: [6, 7]}
+      - {args: [[90, 80, 70]], expected: [0, 1, 2]}
+      - {args: [[30, 40, 50]], expected: [2]}
+      - {args: [[70, 70]], expected: [0, 1]}
+    solution: |
+      class Solution:
+          def remainingStack(self, temperatures: List[int]) -> List[int]:
+              stack = []
+              for i, t in enumerate(temperatures):
+                  while stack and temperatures[stack[-1]] < t:
+                      stack.pop()
+                  stack.append(i)
+              return stack
+    hint: "`while stack and temperatures[stack[-1]] < t: stack.pop()` then `stack.append(i)`."
+
+  - title: Answer the days you pop
+    skill: core
+    goal: Every index popped by day i gets its answer at that moment, i − index.
+    instructions: |
+      Same loop as before, but now each time you pop an index `j` because day `i` is warmer,
+      record `answer[j] = i - j`. Return `answer` (start it as all zeros).
+
+      This is the whole trick: the warmer day resolves everyone waiting below it.
+    function:
+      name: waitDays
+      params: [{name: temperatures}]
+    starter_code: |
+      class Solution:
+          def waitDays(self, temperatures: List[int]) -> List[int]:
+              pass
+    tests:
+      - {args: [[73, 74, 75, 71, 69, 72, 76, 73]], expected: [1, 1, 4, 2, 1, 1, 0, 0]}
+      - {args: [[30, 40, 50, 60]], expected: [1, 1, 1, 0]}
+      - {args: [[60, 50, 40, 70]], expected: [3, 2, 1, 0]}
+    solution: |
+      class Solution:
+          def waitDays(self, temperatures: List[int]) -> List[int]:
+              answer = [0] * len(temperatures)
+              stack = []
+              for i, t in enumerate(temperatures):
+                  while stack and temperatures[stack[-1]] < t:
+                      j = stack.pop()
+                      answer[j] = i - j
+                  stack.append(i)
+              return answer
+    hint: "Pop into a variable: `j = stack.pop()`, then `answer[j] = i - j`."
+
+  - title: Equal isn't warmer, and leftovers need a default
+    skill: edge
+    goal: Use a strict comparison and give unresolved days a default answer.
+    instructions: |
+      Return, for each day, the **index** of the next strictly warmer day, or `-1` if there is
+      none.
+
+      Two details decide correctness: an equal temperature must **not** pop (use `<`, not
+      `<=`), and days still on the stack at the end never get resolved, so the result has to
+      start filled with the default (`-1` here, `0` in the real problem).
+    function:
+      name: nextWarmerIndex
+      params: [{name: temperatures}]
+    starter_code: |
+      class Solution:
+          def nextWarmerIndex(self, temperatures: List[int]) -> List[int]:
+              pass
+    tests:
+      - {args: [[70, 70, 70]], expected: [-1, -1, -1], note: equal is not warmer}
+      - {args: [[73, 74, 75, 71, 69, 72, 76, 73]], expected: [1, 2, 6, 5, 5, 6, -1, -1]}
+      - {args: [[30, 40]], expected: [1, -1]}
+      - {args: [[50]], expected: [-1]}
+      - {args: [[60, 60, 61]], expected: [2, 2, -1]}
+    solution: |
+      class Solution:
+          def nextWarmerIndex(self, temperatures: List[int]) -> List[int]:
+              result = [-1] * len(temperatures)
+              stack = []
+              for i, t in enumerate(temperatures):
+                  while stack and temperatures[stack[-1]] < t:
+                      result[stack.pop()] = i
+                  stack.append(i)
+              return result
+    hint: "Start with `[-1] * n`; when day `i` pops index `j`, set `result[j] = i`."
+
+hints:
+  - >-
+    When a warm day arrives, which earlier days does it answer? Is it ever useful to keep a
+    colder day around once a warmer day has appeared after it?
+  - >-
+    Keep the unresolved days on a stack, so their temperatures decrease from bottom to top.
+    For each new day, pop while the top is colder and record the distance; then push today.
+  - |
+    answer = all zeros
+    stack = empty  (holds indices)
+    for i, t in temperatures:
+        while stack not empty and temperatures[top] < t:
+            j = pop; answer[j] = i - j
+        push i
+    return answer
+
+solution:
+  code: |
+    class Solution:
+        def dailyTemperatures(self, temperatures: List[int]) -> List[int]:
+            answer = [0] * len(temperatures)
+            stack = []  # indices still waiting for a warmer day; temperatures decrease upward
+            for i, t in enumerate(temperatures):
+                while stack and temperatures[stack[-1]] < t:
+                    j = stack.pop()
+                    answer[j] = i - j
+                stack.append(i)
+            return answer
+  explanation: |
+    The stack holds the days that haven't found a warmer day yet, and their temperatures are
+    decreasing from bottom to top (a warmer day would have popped the colder ones beneath it).
+
+    When day `i` arrives, every day on top that is strictly colder has found its answer: it's
+    `i - j`. Pop them all, then push `i`, because day `i` is now waiting too. Days left on the
+    stack at the end never get warmer, so their answer stays 0.
+
+    Each index is pushed once and popped at most once, so even though there's a `while` inside
+    the `for`, the total work is O(N).
+  time: O(N) — every index is pushed and popped at most once
+  space: O(N) — the stack can hold every index on a decreasing input
+  brute_force_code: |
+    class Solution:
+        def dailyTemperatures(self, temperatures: List[int]) -> List[int]:
+            n = len(temperatures)
+            answer = [0] * n
+            for i in range(n):
+                for j in range(i + 1, n):
+                    if temperatures[j] > temperatures[i]:
+                        answer[i] = j - i
+                        break
+            return answer
+
+pitch_script: |
+  **(Clarify)** "So for each day I return how many days until a strictly warmer one, and 0 if
+  there's none. Equal temperatures don't count as warmer, right?"
+
+  **(Brute force)** "The direct way is, for each day, scan forward until I find something
+  warmer. That's O(N²) in the worst case, like a strictly decreasing list, and with 10⁵ days
+  that's too slow."
+
+  **(Trigger)** "This is a 'next greater element' question, which tells me a monotonic stack
+  should work. The days still waiting for an answer always have decreasing temperatures, so the
+  most recent one is the first to get resolved."
+
+  **(Optimal)** "I keep a stack of indices. For each new day, while the day on top of the stack
+  is colder than today, I pop it and set its answer to today's index minus its index. Then I
+  push today. Anything left at the end keeps 0."
+
+  **(Complexity)** "Each index is pushed and popped at most once, so it's O(N) time, even with
+  the inner while loop, and O(N) space for the stack in the worst case."
+
+twist:
+  lc: 901
+  title: Online Stock Span
+  why: >-
+    Now the question looks backward ("how many consecutive previous days were ≤ today?") and
+    the data arrives as a stream. Same monotonic stack, but you store (price, span) pairs and
+    pop the smaller-or-equal ones, folding their spans into today's.
+
+viz:
+  arrays: [temperatures, answer]
+  pointers: [i]
+  stacks: [stack]
+  stack_values: {stack: temperatures}
+  watch: [t, j]

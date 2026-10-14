@@ -1,0 +1,215 @@
+{
+  "worlds": [
+    {
+      "id": 1, "slug": "arrays-hashing", "name": "Arrays & Hashing",
+      "tagline": "Trade memory for speed: remember what you've seen.",
+      "core_idea": "A hash map / set turns 'search the rest of the array' (O(N)) into an O(1) lookup, collapsing nested loops into a single pass.",
+      "triggers": ["seen before", "duplicate", "frequency / count", "pair that sums to", "group by", "anagram"],
+      "questions": [
+        {"slug": "contains-duplicate", "lc": 217, "title": "Contains Duplicate", "difficulty": "Easy", "visualizer": "array_pointer", "patterns": ["hash-set"]},
+        {"slug": "valid-anagram", "lc": 242, "title": "Valid Anagram", "difficulty": "Easy", "visualizer": "array_pointer", "patterns": ["frequency-count"]},
+        {"slug": "two-sum", "lc": 1, "title": "Two Sum", "difficulty": "Easy", "visualizer": "array_pointer", "patterns": ["hash-map-complement"]},
+        {"slug": "majority-element", "lc": 169, "title": "Majority Element", "difficulty": "Easy", "visualizer": "array_pointer", "patterns": ["frequency-count", "boyer-moore-voting"]},
+        {"slug": "group-anagrams", "lc": 49, "title": "Group Anagrams", "difficulty": "Medium", "visualizer": "array_pointer", "patterns": ["hash-map-grouping", "canonical-key"]},
+        {"slug": "top-k-frequent-elements", "lc": 347, "title": "Top K Frequent Elements", "difficulty": "Medium", "visualizer": "array_pointer", "patterns": ["frequency-count", "bucket-sort"]},
+        {"slug": "product-of-array-except-self", "lc": 238, "title": "Product of Array Except Self", "difficulty": "Medium", "visualizer": "array_pointer", "patterns": ["prefix-suffix"]},
+        {"slug": "longest-consecutive-sequence", "lc": 128, "title": "Longest Consecutive Sequence", "difficulty": "Medium", "visualizer": "array_pointer", "patterns": ["hash-set", "sequence-start"]},
+        {"slug": "subarray-sum-equals-k", "lc": 560, "title": "Subarray Sum Equals K", "difficulty": "Medium", "visualizer": "array_pointer", "patterns": ["prefix-sum", "hash-map-complement"]},
+        {"slug": "next-permutation", "lc": 31, "title": "Next Permutation", "difficulty": "Medium", "visualizer": "array_pointer", "patterns": ["array-scan-from-right", "in-place-reverse"]}
+      ]
+    },
+    {
+      "id": 2, "slug": "two-pointers", "name": "Two Pointers",
+      "tagline": "Two indices moving with a rule beat one index checking everything.",
+      "core_idea": "On sorted data (or when you can process from both ends), each comparison lets you safely discard one end, so the search space shrinks every step: O(N) instead of O(N^2).",
+      "triggers": ["sorted array", "pair / triplet", "in-place", "palindrome", "from both ends", "partition"],
+      "questions": [
+        {"slug": "valid-palindrome", "lc": 125, "title": "Valid Palindrome", "difficulty": "Easy", "visualizer": "array_pointer", "patterns": ["opposite-ends"]},
+        {"slug": "move-zeroes", "lc": 283, "title": "Move Zeroes", "difficulty": "Easy", "visualizer": "array_pointer", "patterns": ["read-write-pointers"]},
+        {"slug": "two-sum-ii-input-array-is-sorted", "lc": 167, "title": "Two Sum II - Input Array Is Sorted", "difficulty": "Medium", "visualizer": "array_pointer", "patterns": ["opposite-ends"]},
+        {"slug": "rearrange-array-elements-by-sign", "lc": 2149, "title": "Rearrange Array Elements by Sign", "difficulty": "Medium", "visualizer": "array_pointer", "patterns": ["read-write-pointers"]},
+        {"slug": "sort-colors", "lc": 75, "title": "Sort Colors", "difficulty": "Medium", "visualizer": "array_pointer", "patterns": ["dutch-national-flag"]},
+        {"slug": "3sum", "lc": 15, "title": "3Sum", "difficulty": "Medium", "visualizer": "array_pointer", "patterns": ["sort-then-opposite-ends", "skip-duplicates"]},
+        {"slug": "container-with-most-water", "lc": 11, "title": "Container With Most Water", "difficulty": "Medium", "visualizer": "array_pointer", "patterns": ["opposite-ends", "greedy-discard"]},
+        {"slug": "trapping-rain-water", "lc": 42, "title": "Trapping Rain Water", "difficulty": "Hard", "visualizer": "array_pointer", "patterns": ["opposite-ends", "running-max"]}
+      ]
+    },
+    {
+      "id": 3, "slug": "sliding-window", "name": "Sliding Window",
+      "tagline": "Don't recompute the window, update it.",
+      "core_idea": "For contiguous subarrays/substrings, add the element entering on the right and remove the one leaving on the left, turning O(N*K) or O(N^2) into O(N).",
+      "triggers": ["contiguous subarray / substring", "longest / shortest window", "at most K", "window of size K", "without repeating"],
+      "questions": [
+        {"slug": "maximum-average-subarray-i", "lc": 643, "title": "Maximum Average Subarray I", "difficulty": "Easy", "visualizer": "array_pointer", "patterns": ["fixed-window"]},
+        {"slug": "best-time-to-buy-and-sell-stock", "lc": 121, "title": "Best Time to Buy and Sell Stock", "difficulty": "Easy", "visualizer": "array_pointer", "patterns": ["running-min", "variable-window"]},
+        {"slug": "max-consecutive-ones-iii", "lc": 1004, "title": "Max Consecutive Ones III", "difficulty": "Medium", "visualizer": "array_pointer", "patterns": ["variable-window", "at-most-k"]},
+        {"slug": "fruit-into-baskets", "lc": 904, "title": "Fruit Into Baskets", "difficulty": "Medium", "visualizer": "array_pointer", "patterns": ["variable-window", "at-most-k-distinct"]},
+        {"slug": "longest-substring-without-repeating-characters", "lc": 3, "title": "Longest Substring Without Repeating Characters", "difficulty": "Medium", "visualizer": "array_pointer", "patterns": ["variable-window", "hash-set"]},
+        {"slug": "longest-repeating-character-replacement", "lc": 424, "title": "Longest Repeating Character Replacement", "difficulty": "Medium", "visualizer": "array_pointer", "patterns": ["variable-window", "frequency-count"]},
+        {"slug": "permutation-in-string", "lc": 567, "title": "Permutation in String", "difficulty": "Medium", "visualizer": "array_pointer", "patterns": ["fixed-window", "frequency-count"]},
+        {"slug": "minimum-window-substring", "lc": 76, "title": "Minimum Window Substring", "difficulty": "Hard", "visualizer": "array_pointer", "patterns": ["variable-window", "need-have-counter"]}
+      ]
+    },
+    {
+      "id": 4, "slug": "stack-monotonic-stack", "name": "Stack & Monotonic Stack",
+      "tagline": "The most recent unresolved thing is the one that matters.",
+      "core_idea": "A stack keeps pending items in LIFO order; a monotonic stack keeps them sorted so each element is pushed and popped once, answering 'next greater/smaller' in O(N).",
+      "triggers": ["matching brackets", "next greater / smaller", "previous smaller", "evaluate expression", "undo / collapse", "nearest"],
+      "questions": [
+        {"slug": "valid-parentheses", "lc": 20, "title": "Valid Parentheses", "difficulty": "Easy", "visualizer": "stack_queue", "patterns": ["matching-stack"]},
+        {"slug": "next-greater-element-i", "lc": 496, "title": "Next Greater Element I", "difficulty": "Easy", "visualizer": "stack_queue", "patterns": ["monotonic-stack"]},
+        {"slug": "min-stack", "lc": 155, "title": "Min Stack", "difficulty": "Medium", "visualizer": "stack_queue", "patterns": ["auxiliary-stack", "design"]},
+        {"slug": "evaluate-reverse-polish-notation", "lc": 150, "title": "Evaluate Reverse Polish Notation", "difficulty": "Medium", "visualizer": "stack_queue", "patterns": ["operand-stack"]},
+        {"slug": "daily-temperatures", "lc": 739, "title": "Daily Temperatures", "difficulty": "Medium", "visualizer": "stack_queue", "patterns": ["monotonic-stack"]},
+        {"slug": "asteroid-collision", "lc": 735, "title": "Asteroid Collision", "difficulty": "Medium", "visualizer": "stack_queue", "patterns": ["collapse-stack"]},
+        {"slug": "car-fleet", "lc": 853, "title": "Car Fleet", "difficulty": "Medium", "visualizer": "stack_queue", "patterns": ["sort-then-stack"]},
+        {"slug": "largest-rectangle-in-histogram", "lc": 84, "title": "Largest Rectangle in Histogram", "difficulty": "Hard", "visualizer": "stack_queue", "patterns": ["monotonic-stack", "previous-next-smaller"]}
+      ]
+    },
+    {
+      "id": 5, "slug": "binary-search", "name": "Binary Search & BS on Answer",
+      "tagline": "If you can tell which half is wrong, throw it away.",
+      "core_idea": "Any monotonic yes/no condition can be binary searched: on a sorted array, on a rotated array's sorted half, or on the answer range itself ('can we finish with speed k?').",
+      "triggers": ["sorted", "O(log N) required", "minimum maximum / maximum minimum", "rotated", "find first / last", "capacity / speed / days"],
+      "questions": [
+        {"slug": "binary-search", "lc": 704, "title": "Binary Search", "difficulty": "Easy", "visualizer": "array_pointer", "patterns": ["classic-binary-search"]},
+        {"slug": "search-insert-position", "lc": 35, "title": "Search Insert Position", "difficulty": "Easy", "visualizer": "array_pointer", "patterns": ["lower-bound"]},
+        {"slug": "search-a-2d-matrix", "lc": 74, "title": "Search a 2D Matrix", "difficulty": "Medium", "visualizer": "array_pointer", "patterns": ["flattened-index"]},
+        {"slug": "find-first-and-last-position-of-element-in-sorted-array", "lc": 34, "title": "Find First and Last Position of Element in Sorted Array", "difficulty": "Medium", "visualizer": "array_pointer", "patterns": ["lower-bound", "upper-bound"]},
+        {"slug": "find-minimum-in-rotated-sorted-array", "lc": 153, "title": "Find Minimum in Rotated Sorted Array", "difficulty": "Medium", "visualizer": "array_pointer", "patterns": ["rotated-array"]},
+        {"slug": "search-in-rotated-sorted-array", "lc": 33, "title": "Search in Rotated Sorted Array", "difficulty": "Medium", "visualizer": "array_pointer", "patterns": ["rotated-array", "sorted-half"]},
+        {"slug": "koko-eating-bananas", "lc": 875, "title": "Koko Eating Bananas", "difficulty": "Medium", "visualizer": "array_pointer", "patterns": ["binary-search-on-answer"]},
+        {"slug": "capacity-to-ship-packages-within-d-days", "lc": 1011, "title": "Capacity To Ship Packages Within D Days", "difficulty": "Medium", "visualizer": "array_pointer", "patterns": ["binary-search-on-answer"]},
+        {"slug": "split-array-largest-sum", "lc": 410, "title": "Split Array Largest Sum (Allocate Books)", "difficulty": "Hard", "visualizer": "array_pointer", "patterns": ["binary-search-on-answer", "minimize-maximum"]},
+        {"slug": "median-of-two-sorted-arrays", "lc": 4, "title": "Median of Two Sorted Arrays", "difficulty": "Hard", "visualizer": "array_pointer", "patterns": ["partition-binary-search"]}
+      ]
+    },
+    {
+      "id": 6, "slug": "linked-lists", "name": "Linked Lists",
+      "tagline": "Never lose the next node before you rewire.",
+      "core_idea": "Linked list problems are pointer bookkeeping: dummy heads remove edge cases, fast/slow pointers find middles and cycles, and saving `next` before rewiring prevents losing the list.",
+      "triggers": ["reverse", "cycle", "middle", "nth from end", "merge sorted lists", "O(1) extra space on a list"],
+      "questions": [
+        {"slug": "reverse-linked-list", "lc": 206, "title": "Reverse Linked List", "difficulty": "Easy", "visualizer": "linked_list", "patterns": ["pointer-reversal"]},
+        {"slug": "merge-two-sorted-lists", "lc": 21, "title": "Merge Two Sorted Lists", "difficulty": "Easy", "visualizer": "linked_list", "patterns": ["dummy-head", "merge"]},
+        {"slug": "middle-of-the-linked-list", "lc": 876, "title": "Middle of the Linked List", "difficulty": "Easy", "visualizer": "linked_list", "patterns": ["fast-slow-pointers"]},
+        {"slug": "linked-list-cycle", "lc": 141, "title": "Linked List Cycle", "difficulty": "Easy", "visualizer": "linked_list", "patterns": ["fast-slow-pointers"]},
+        {"slug": "remove-nth-node-from-end-of-list", "lc": 19, "title": "Remove Nth Node From End of List", "difficulty": "Medium", "visualizer": "linked_list", "patterns": ["gap-pointers", "dummy-head"]},
+        {"slug": "reorder-list", "lc": 143, "title": "Reorder List", "difficulty": "Medium", "visualizer": "linked_list", "patterns": ["fast-slow-pointers", "pointer-reversal", "merge"]},
+        {"slug": "copy-list-with-random-pointer", "lc": 138, "title": "Copy List with Random Pointer", "difficulty": "Medium", "visualizer": "linked_list", "patterns": ["hash-map-old-to-new"]},
+        {"slug": "lru-cache", "lc": 146, "title": "LRU Cache", "difficulty": "Medium", "visualizer": "linked_list", "patterns": ["doubly-linked-list", "hash-map", "design"]},
+        {"slug": "reverse-nodes-in-k-group", "lc": 25, "title": "Reverse Nodes in k-Group", "difficulty": "Hard", "visualizer": "linked_list", "patterns": ["pointer-reversal", "dummy-head"]}
+      ]
+    },
+    {
+      "id": 7, "slug": "trees", "name": "Trees — BFS & DFS",
+      "tagline": "Trust the recursion: solve it for one node, assume children are solved.",
+      "core_idea": "DFS answers 'what does each subtree return to its parent?'; BFS answers 'what happens level by level?'. Pick what each call returns and the whole tree follows.",
+      "triggers": ["depth / height", "level by level", "left / right view", "ancestor", "valid BST", "path sum"],
+      "questions": [
+        {"slug": "maximum-depth-of-binary-tree", "lc": 104, "title": "Maximum Depth of Binary Tree", "difficulty": "Easy", "visualizer": "tree_recursion", "patterns": ["dfs-return-value"]},
+        {"slug": "invert-binary-tree", "lc": 226, "title": "Invert Binary Tree", "difficulty": "Easy", "visualizer": "tree_recursion", "patterns": ["dfs-transform"]},
+        {"slug": "same-tree", "lc": 100, "title": "Same Tree", "difficulty": "Easy", "visualizer": "tree_recursion", "patterns": ["parallel-dfs"]},
+        {"slug": "subtree-of-another-tree", "lc": 572, "title": "Subtree of Another Tree", "difficulty": "Easy", "visualizer": "tree_recursion", "patterns": ["parallel-dfs"]},
+        {"slug": "diameter-of-binary-tree", "lc": 543, "title": "Diameter of Binary Tree", "difficulty": "Easy", "visualizer": "tree_recursion", "patterns": ["dfs-return-height-track-global"]},
+        {"slug": "balanced-binary-tree", "lc": 110, "title": "Balanced Binary Tree", "difficulty": "Easy", "visualizer": "tree_recursion", "patterns": ["dfs-return-height-track-global"]},
+        {"slug": "binary-tree-level-order-traversal", "lc": 102, "title": "Binary Tree Level Order Traversal", "difficulty": "Medium", "visualizer": "tree_recursion", "patterns": ["bfs-levels"]},
+        {"slug": "binary-tree-right-side-view", "lc": 199, "title": "Binary Tree Right Side View", "difficulty": "Medium", "visualizer": "tree_recursion", "patterns": ["bfs-levels"]},
+        {"slug": "lowest-common-ancestor-of-a-binary-search-tree", "lc": 235, "title": "Lowest Common Ancestor of a Binary Search Tree", "difficulty": "Medium", "visualizer": "tree_recursion", "patterns": ["bst-property"]},
+        {"slug": "count-good-nodes-in-binary-tree", "lc": 1448, "title": "Count Good Nodes in Binary Tree", "difficulty": "Medium", "visualizer": "tree_recursion", "patterns": ["dfs-pass-state-down"]},
+        {"slug": "validate-binary-search-tree", "lc": 98, "title": "Validate Binary Search Tree", "difficulty": "Medium", "visualizer": "tree_recursion", "patterns": ["dfs-pass-bounds-down"]},
+        {"slug": "binary-tree-maximum-path-sum", "lc": 124, "title": "Binary Tree Maximum Path Sum", "difficulty": "Hard", "visualizer": "tree_recursion", "patterns": ["dfs-return-height-track-global"]}
+      ]
+    },
+    {
+      "id": 8, "slug": "heaps", "name": "Heaps / Priority Queue",
+      "tagline": "Always know the best item right now, cheaply.",
+      "core_idea": "A heap gives the min (or max) in O(1) and insert/remove in O(log N). Keep a heap of size K for 'top K', or two heaps for a running median.",
+      "triggers": ["kth largest / smallest", "top K", "closest K", "streaming data", "median", "schedule by priority"],
+      "questions": [
+        {"slug": "kth-largest-element-in-a-stream", "lc": 703, "title": "Kth Largest Element in a Stream", "difficulty": "Easy", "visualizer": "tree_recursion", "patterns": ["size-k-min-heap", "design"]},
+        {"slug": "last-stone-weight", "lc": 1046, "title": "Last Stone Weight", "difficulty": "Easy", "visualizer": "tree_recursion", "patterns": ["max-heap-simulation"]},
+        {"slug": "kth-largest-element-in-an-array", "lc": 215, "title": "Kth Largest Element in an Array", "difficulty": "Medium", "visualizer": "tree_recursion", "patterns": ["size-k-min-heap", "quickselect"]},
+        {"slug": "k-closest-points-to-origin", "lc": 973, "title": "K Closest Points to Origin", "difficulty": "Medium", "visualizer": "tree_recursion", "patterns": ["size-k-max-heap"]},
+        {"slug": "task-scheduler", "lc": 621, "title": "Task Scheduler", "difficulty": "Medium", "visualizer": "tree_recursion", "patterns": ["max-heap-simulation", "greedy-counting"]},
+        {"slug": "merge-k-sorted-lists", "lc": 23, "title": "Merge k Sorted Lists", "difficulty": "Hard", "visualizer": "tree_recursion", "patterns": ["k-way-merge-heap"]},
+        {"slug": "find-median-from-data-stream", "lc": 295, "title": "Find Median from Data Stream", "difficulty": "Hard", "visualizer": "tree_recursion", "patterns": ["two-heaps", "design"]}
+      ]
+    },
+    {
+      "id": 9, "slug": "backtracking", "name": "Backtracking & Recursion",
+      "tagline": "Choose, explore, un-choose.",
+      "core_idea": "Build candidates one decision at a time; recurse; undo the decision. Prune branches that can't succeed. Small N (≤ 20) is the giveaway.",
+      "triggers": ["all combinations / subsets / permutations", "generate all", "N ≤ 20", "place N items", "partition into"],
+      "questions": [
+        {"slug": "subsets", "lc": 78, "title": "Subsets", "difficulty": "Medium", "visualizer": "tree_recursion", "patterns": ["include-exclude"]},
+        {"slug": "subsets-ii", "lc": 90, "title": "Subsets II", "difficulty": "Medium", "visualizer": "tree_recursion", "patterns": ["include-exclude", "skip-duplicates"]},
+        {"slug": "permutations", "lc": 46, "title": "Permutations", "difficulty": "Medium", "visualizer": "tree_recursion", "patterns": ["used-array"]},
+        {"slug": "combination-sum", "lc": 39, "title": "Combination Sum", "difficulty": "Medium", "visualizer": "tree_recursion", "patterns": ["start-index-reuse"]},
+        {"slug": "combination-sum-ii", "lc": 40, "title": "Combination Sum II", "difficulty": "Medium", "visualizer": "tree_recursion", "patterns": ["start-index", "skip-duplicates"]},
+        {"slug": "palindrome-partitioning", "lc": 131, "title": "Palindrome Partitioning", "difficulty": "Medium", "visualizer": "tree_recursion", "patterns": ["partition-backtracking"]},
+        {"slug": "word-search", "lc": 79, "title": "Word Search", "difficulty": "Medium", "visualizer": "graph_grid", "patterns": ["grid-backtracking"]},
+        {"slug": "n-queens", "lc": 51, "title": "N-Queens", "difficulty": "Hard", "visualizer": "tree_recursion", "patterns": ["constraint-sets"]}
+      ]
+    },
+    {
+      "id": 10, "slug": "graphs", "name": "Graphs — BFS, DFS, Topo Sort, Shortest Path",
+      "tagline": "Every grid is a graph; every dependency list is a DAG.",
+      "core_idea": "Model cells or items as nodes and relations as edges. DFS/BFS for connectivity, multi-source BFS for 'minutes to spread', Kahn's algorithm for ordering, Dijkstra for weighted shortest paths.",
+      "triggers": ["islands / connected regions", "spread / minutes", "prerequisites / order", "shortest path", "network delay", "transform word by word"],
+      "questions": [
+        {"slug": "flood-fill", "lc": 733, "title": "Flood Fill", "difficulty": "Easy", "visualizer": "graph_grid", "patterns": ["grid-dfs"]},
+        {"slug": "number-of-islands", "lc": 200, "title": "Number of Islands", "difficulty": "Medium", "visualizer": "graph_grid", "patterns": ["grid-dfs", "count-components"]},
+        {"slug": "max-area-of-island", "lc": 695, "title": "Max Area of Island", "difficulty": "Medium", "visualizer": "graph_grid", "patterns": ["grid-dfs"]},
+        {"slug": "rotting-oranges", "lc": 994, "title": "Rotting Oranges", "difficulty": "Medium", "visualizer": "graph_grid", "patterns": ["multi-source-bfs"]},
+        {"slug": "number-of-provinces", "lc": 547, "title": "Number of Provinces", "difficulty": "Medium", "visualizer": "graph_grid", "patterns": ["count-components", "union-find"]},
+        {"slug": "clone-graph", "lc": 133, "title": "Clone Graph", "difficulty": "Medium", "visualizer": "graph_grid", "patterns": ["hash-map-old-to-new", "graph-dfs"]},
+        {"slug": "pacific-atlantic-water-flow", "lc": 417, "title": "Pacific Atlantic Water Flow", "difficulty": "Medium", "visualizer": "graph_grid", "patterns": ["reverse-flow-dfs"]},
+        {"slug": "course-schedule", "lc": 207, "title": "Course Schedule", "difficulty": "Medium", "visualizer": "graph_grid", "patterns": ["topological-sort", "cycle-detection"]},
+        {"slug": "course-schedule-ii", "lc": 210, "title": "Course Schedule II", "difficulty": "Medium", "visualizer": "graph_grid", "patterns": ["topological-sort"]},
+        {"slug": "network-delay-time", "lc": 743, "title": "Network Delay Time", "difficulty": "Medium", "visualizer": "graph_grid", "patterns": ["dijkstra"]},
+        {"slug": "cheapest-flights-within-k-stops", "lc": 787, "title": "Cheapest Flights Within K Stops", "difficulty": "Medium", "visualizer": "graph_grid", "patterns": ["bellman-ford", "bfs-with-state"]},
+        {"slug": "word-ladder", "lc": 127, "title": "Word Ladder", "difficulty": "Hard", "visualizer": "graph_grid", "patterns": ["implicit-graph-bfs"]}
+      ]
+    },
+    {
+      "id": 11, "slug": "greedy-intervals", "name": "Greedy & Intervals",
+      "tagline": "Make the locally best choice and prove it never hurts.",
+      "core_idea": "Greedy works when an exchange argument shows the local best choice is safe. For intervals, sort by start (to merge) or by end (to keep the most non-overlapping).",
+      "triggers": ["maximum number of", "minimum number of", "intervals / meetings", "can you reach", "overlapping", "assign"],
+      "questions": [
+        {"slug": "assign-cookies", "lc": 455, "title": "Assign Cookies", "difficulty": "Easy", "visualizer": "array_pointer", "patterns": ["sort-and-match"]},
+        {"slug": "maximum-subarray", "lc": 53, "title": "Maximum Subarray (Kadane's)", "difficulty": "Medium", "visualizer": "array_pointer", "patterns": ["kadane"]},
+        {"slug": "jump-game", "lc": 55, "title": "Jump Game", "difficulty": "Medium", "visualizer": "array_pointer", "patterns": ["farthest-reach"]},
+        {"slug": "jump-game-ii", "lc": 45, "title": "Jump Game II", "difficulty": "Medium", "visualizer": "array_pointer", "patterns": ["farthest-reach", "implicit-bfs-levels"]},
+        {"slug": "gas-station", "lc": 134, "title": "Gas Station", "difficulty": "Medium", "visualizer": "array_pointer", "patterns": ["reset-start"]},
+        {"slug": "merge-intervals", "lc": 56, "title": "Merge Intervals", "difficulty": "Medium", "visualizer": "array_pointer", "patterns": ["sort-by-start", "merge"]},
+        {"slug": "insert-interval", "lc": 57, "title": "Insert Interval", "difficulty": "Medium", "visualizer": "array_pointer", "patterns": ["three-phase-scan"]},
+        {"slug": "non-overlapping-intervals", "lc": 435, "title": "Non-overlapping Intervals", "difficulty": "Medium", "visualizer": "array_pointer", "patterns": ["sort-by-end"]},
+        {"slug": "minimum-number-of-arrows-to-burst-balloons", "lc": 452, "title": "Minimum Number of Arrows to Burst Balloons", "difficulty": "Medium", "visualizer": "array_pointer", "patterns": ["sort-by-end", "interval-sweep"]}
+      ]
+    },
+    {
+      "id": 12, "slug": "dynamic-programming", "name": "1D & 2D Dynamic Programming",
+      "tagline": "Recursion + memory: never solve the same subproblem twice.",
+      "core_idea": "Define dp[i] (or dp[i][j]) in words, write the recurrence from smaller states, set base cases, choose the fill order. Most interview DP is 'take it or skip it'.",
+      "triggers": ["number of ways", "minimum / maximum cost", "can you form", "longest subsequence", "choices at each step", "overlapping subproblems"],
+      "questions": [
+        {"slug": "climbing-stairs", "lc": 70, "title": "Climbing Stairs", "difficulty": "Easy", "visualizer": "dp_table", "patterns": ["fibonacci-dp"]},
+        {"slug": "min-cost-climbing-stairs", "lc": 746, "title": "Min Cost Climbing Stairs", "difficulty": "Easy", "visualizer": "dp_table", "patterns": ["fibonacci-dp"]},
+        {"slug": "house-robber", "lc": 198, "title": "House Robber", "difficulty": "Medium", "visualizer": "dp_table", "patterns": ["take-or-skip"]},
+        {"slug": "house-robber-ii", "lc": 213, "title": "House Robber II", "difficulty": "Medium", "visualizer": "dp_table", "patterns": ["take-or-skip", "circular-split"]},
+        {"slug": "unique-paths", "lc": 62, "title": "Unique Paths", "difficulty": "Medium", "visualizer": "dp_table", "patterns": ["grid-dp"]},
+        {"slug": "coin-change", "lc": 322, "title": "Coin Change", "difficulty": "Medium", "visualizer": "dp_table", "patterns": ["unbounded-knapsack-min"]},
+        {"slug": "coin-change-ii", "lc": 518, "title": "Coin Change II", "difficulty": "Medium", "visualizer": "dp_table", "patterns": ["unbounded-knapsack-count"]},
+        {"slug": "longest-increasing-subsequence", "lc": 300, "title": "Longest Increasing Subsequence", "difficulty": "Medium", "visualizer": "dp_table", "patterns": ["lis"]},
+        {"slug": "word-break", "lc": 139, "title": "Word Break", "difficulty": "Medium", "visualizer": "dp_table", "patterns": ["prefix-dp"]},
+        {"slug": "partition-equal-subset-sum", "lc": 416, "title": "Partition Equal Subset Sum", "difficulty": "Medium", "visualizer": "dp_table", "patterns": ["0-1-knapsack"]},
+        {"slug": "target-sum", "lc": 494, "title": "Target Sum", "difficulty": "Medium", "visualizer": "dp_table", "patterns": ["0-1-knapsack-count"]},
+        {"slug": "longest-common-subsequence", "lc": 1143, "title": "Longest Common Subsequence", "difficulty": "Medium", "visualizer": "dp_table", "patterns": ["two-string-dp"]},
+        {"slug": "best-time-to-buy-and-sell-stock-with-cooldown", "lc": 309, "title": "Best Time to Buy and Sell Stock with Cooldown", "difficulty": "Medium", "visualizer": "dp_table", "patterns": ["state-machine-dp"]},
+        {"slug": "edit-distance", "lc": 72, "title": "Edit Distance", "difficulty": "Medium", "visualizer": "dp_table", "patterns": ["two-string-dp"]}
+      ]
+    }
+  ]
+}

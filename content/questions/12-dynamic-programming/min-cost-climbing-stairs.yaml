@@ -1,0 +1,338 @@
+slug: min-cost-climbing-stairs
+lc: 746
+
+concept:
+  problem_it_solves: >-
+    "What is the cheapest way to reach a target when each move is a small choice with a
+    price?" It's Climbing Stairs again, but instead of counting routes you want the best one.
+    The structure is the same: the best way to reach step i is built from the best ways to
+    reach the steps just below it, so you solve each step once and store it.
+  brute_force: >-
+    Recurse from the top: reach(i) = min(reach(i − 1) + cost[i − 1], reach(i − 2) + cost[i − 2]),
+    with reach(0) = reach(1) = 0. It tries every possible route, and, exactly like Climbing
+    Stairs, the two branches keep recomputing the cheapest cost of the same lower steps:
+    reach(k) for a step near the bottom is recomputed a Fibonacci number of times.
+  brute_force_complexity: >-
+    O(φⁿ) ≈ O(1.618ⁿ) time, O(N) recursion stack — 1000 steps means about 10²⁰⁹ calls.
+  key_insight: >-
+    Look at the last move onto step i: you pushed off from step i − 1 (paying cost[i − 1]) or
+    from step i − 2 (paying cost[i − 2]). Whatever happened before that, you'd want it to
+    have been as cheap as possible, so the cheapest way to i only needs the cheapest ways to
+    i − 1 and i − 2. Counting used "+" between the two cases; optimising uses "min". The two
+    tricky details are where the top is (step n, one past the last stair, which you never
+    pay for) and the free start (you may begin on step 0 or 1, so both cost 0 to reach).
+  real_world: >-
+    Shortest-path routing on a line of hops is this exact recurrence: a network packet or a
+    delivery route can hop one or two nodes ahead, each hop has a price, and the router keeps
+    the cheapest known cost per node. Speech recognition and spell-checkers (the Viterbi
+    algorithm) do the same thing at scale, keeping only the best-scoring way to reach each
+    position instead of every path.
+
+statement:
+  clean: |
+    You are given an integer array `cost` where `cost[i]` is the cost of the `i`th step on a
+    staircase. Once you pay the cost, you can either climb one or two steps.
+
+    You can either start from the step with index `0`, or the step with index `1`.
+
+    Return the **minimum cost** to reach the **top of the floor**.
+  oa_story: |
+    **LiftLogic Robotics — OA Round 1**
+
+    LiftLogic builds stair-climbing delivery trolleys for the many old Jayanagar and
+    Malleshwaram apartment blocks that have no lift. The trolley rests on a stair, then
+    pushes off to climb either one stair or two at a time. Pushing off from stair `i` drains
+    `cost[i]` units of battery (some stairs are cracked or slippery and need more torque);
+    arriving on a stair is free.
+
+    The loading ramp is long enough to drop the trolley on stair 0 or on stair 1 at no
+    charge. The trolley is done when it reaches the landing just above the last stair. Given
+    the list of push-off costs for a staircase (at most 1000 stairs), return the least battery
+    the trolley needs to reach the landing.
+  trigger_keywords: ["minimum cost", "one or two steps", "top of the floor"]
+  examples:
+    - input: "cost = [10,15,20]"
+      output: "15"
+      explanation: "Start on step 1, pay 15 and climb two steps to the top."
+    - input: "cost = [1,100,1,1,1,100,1,1,100,1]"
+      output: "6"
+      explanation: "Start on step 0 and pay only the 1s: steps 0, 2, 4, 6, 7, 9, then the top."
+  constraints:
+    - "2 <= cost.length <= 1000"
+    - "0 <= cost[i] <= 999"
+
+constraint_quiz:
+  prompt: >-
+    cost.length can be 1000. What time complexity should your solution have?
+  options:
+    - "O(2ⁿ) — try every route; 1000 steps isn't many"
+    - "O(N) — compute the cheapest cost of each step once"
+    - "O(N²) — for each step, check every earlier step"
+    - "O(log N) — binary search the cheapest route"
+  answer: 1
+  explanation: >-
+    The plain recursion makes about 10²⁰⁹ calls for 1000 steps, so it never finishes. Each
+    step only depends on the two steps below it, so one min() per step gives O(N), about 1000
+    operations. O(N²) would pass at this size but does work nothing needs: you can only arrive
+    from one or two steps back. Binary search needs a monotonic yes/no question over a sorted
+    space, and there isn't one here.
+
+pattern_quiz:
+  prompt: >-
+    A teammate suggests: "Start on the cheaper of steps 0 and 1, then always move to the
+    cheaper of the next two steps." Which approach is actually correct?
+  options:
+    - "That greedy rule is correct"
+    - "1D DP: dp[i] = min(dp[i − 1] + cost[i − 1], dp[i − 2] + cost[i − 2])"
+    - "Sort the costs and pay the smallest half"
+    - "Two pointers from both ends of the staircase"
+  answer: 1
+  explanation: >-
+    The greedy rule fails on [5, 10, 20]: it starts on step 0 (5), then moves to step 1 (10)
+    for a total of 15, but starting on step 1 and jumping straight to the top costs 10. A
+    cheap step now can force an expensive step later, so you must compare whole histories,
+    which is what dp does by keeping the best cost for every step. Sorting ignores which steps
+    are reachable from which, and two pointers have no meaningful condition to move on.
+    "Minimum cost" plus "one or two steps" is the 1D DP trigger.
+
+function:
+  name: minCostClimbingStairs
+  params: [{name: cost}]
+
+starter_code: |
+  class Solution:
+      def minCostClimbingStairs(self, cost: List[int]) -> int:
+          pass
+
+tests:
+  - {args: [[10, 15, 20]], expected: 15}
+  - {args: [[1, 100, 1, 1, 1, 100, 1, 1, 100, 1]], expected: 6}
+  - {args: [[5, 10]], expected: 5, note: "two steps: start on the cheaper one and jump straight to the top"}
+  - {args: [[0, 0, 0, 0]], expected: 0, note: "every step is free"}
+  - {args: [[10, 1, 10, 1, 10]], expected: 2, note: "the cheap route hops over every expensive step"}
+  - {args: [[1, 2, 3, 4, 5, 6]], expected: 9, note: "increasing costs: start on step 0, use 2-steps"}
+  - {args: [[999, 0, 999, 0, 999]], expected: 0, note: "start on step 1, not step 0"}
+  - {args: [[0, 5]], expected: 0, note: "a free step 0 reaches the top with one 2-step"}
+  - {args: [[3, 2, 4, 1, 5, 2, 6]], expected: 5}
+visualize_test: 4
+
+drills:
+  - title: Put the top at index n
+    skill: setup
+    goal: Size the table n + 1 so the top is a real cell, seed the free start, and fill it left to right.
+    instructions: |
+      Return the full list `dp` of length `len(cost) + 1`, where `dp[i]` is the cheapest
+      total you must pay to **stand on step `i`**, and step `len(cost)` is the top.
+
+      Two decisions are made here, and both trip people up. The top is not `cost[n - 1]`, it
+      is one step *past* the last stair, so the table needs `n + 1` cells. And you may start
+      on step 0 or step 1 for free, so `dp[0] = dp[1] = 0`: you only pay when you push off
+      from a step, never when you land on it.
+    function:
+      name: minCostTable
+      params: [{name: cost}]
+    starter_code: |
+      class Solution:
+          def minCostTable(self, cost: List[int]) -> List[int]:
+              pass
+    tests:
+      - {args: [[10, 15, 20]], expected: [0, 0, 10, 15]}
+      - {args: [[5, 10]], expected: [0, 0, 5]}
+      - {args: [[10, 1, 10, 1, 10]], expected: [0, 0, 1, 1, 2, 2]}
+      - {args: [[1, 2, 3, 4, 5, 6]], expected: [0, 0, 1, 2, 4, 6, 9]}
+    solution: |
+      class Solution:
+          def minCostTable(self, cost: List[int]) -> List[int]:
+              n = len(cost)
+              dp = [0] * (n + 1)
+              for i in range(2, n + 1):
+                  dp[i] = min(dp[i - 1] + cost[i - 1], dp[i - 2] + cost[i - 2])
+              return dp
+    hint: "`[0] * (n + 1)` already gives you both free starting steps; the loop starts at 2."
+
+  - title: Top-down with a memo
+    skill: core
+    goal: Write the recurrence as a recursion from the top and cache it, the stepping stone to the table.
+    instructions: |
+      Return the minimum cost to reach the top, but this time write it **top-down**: a
+      recursive `reach(i)` = cheapest cost to stand on step `i`, called as
+      `reach(len(cost))`, with a dictionary so each `i` is computed only once.
+
+      In an interview this is often the version you think of first, because you just write
+      "the last move came from `i - 1` or `i - 2`" as code. The memo turns it from
+      exponential into O(N). Base case: `reach(0)` and `reach(1)` are 0 (free start).
+      Check the cache *before* recursing, or you've gained nothing.
+    function:
+      name: minCostMemo
+      params: [{name: cost}]
+    starter_code: |
+      class Solution:
+          def minCostMemo(self, cost: List[int]) -> int:
+              pass
+    tests:
+      - {args: [[10, 15, 20]], expected: 15}
+      - {args: [[1, 100, 1, 1, 1, 100, 1, 1, 100, 1]], expected: 6}
+      - {args: [[3, 2, 4, 1, 5, 2, 6]], expected: 5}
+      - {args: [[0, 5]], expected: 0}
+    solution: |
+      class Solution:
+          def minCostMemo(self, cost: List[int]) -> int:
+              memo = {}
+
+              def reach(i):
+                  if i <= 1:
+                      return 0
+                  if i not in memo:
+                      memo[i] = min(reach(i - 1) + cost[i - 1], reach(i - 2) + cost[i - 2])
+                  return memo[i]
+
+              return reach(len(cost))
+    hint: "Inside `reach(i)`: base case first, then `if i not in memo:` compute and store, then return `memo[i]`."
+
+  - title: A different state, a different answer cell
+    skill: edge
+    goal: When dp[i] includes the cost of step i itself, read the answer from the last two cells, not one.
+    instructions: |
+      Solve the same problem with a different state definition: `dp[i]` = the cheapest
+      total to stand on step `i` **and pay its cost** (you will push off from it). So
+      `dp[0] = cost[0]`, `dp[1] = cost[1]` and `dp[i] = cost[i] + min(dp[i - 1], dp[i - 2])`.
+      The table has only `n` cells now. Return the minimum cost to reach the top.
+
+      The catch is the answer location. The top isn't a cell in this table: you reach it by
+      pushing off from the last step or the second-to-last step, so the answer is
+      `min(dp[n - 1], dp[n - 2])`. Returning `dp[n - 1]` alone is the classic bug. Both
+      definitions are valid; what matters is that step 5 of the recipe matches step 1.
+    function:
+      name: minCostLanding
+      params: [{name: cost}]
+    starter_code: |
+      class Solution:
+          def minCostLanding(self, cost: List[int]) -> int:
+              pass
+    tests:
+      - {args: [[10, 15, 20]], expected: 15, note: "dp = [10, 15, 30]: the answer is dp[1], not dp[2]"}
+      - {args: [[1, 100, 1, 1, 1, 100, 1, 1, 100, 1]], expected: 6}
+      - {args: [[5, 10]], expected: 5}
+      - {args: [[7, 1, 7]], expected: 1, note: "push off from the second-to-last step"}
+      - {args: [[0, 3, 2, 4]], expected: 2}
+    solution: |
+      class Solution:
+          def minCostLanding(self, cost: List[int]) -> int:
+              n = len(cost)
+              dp = [0] * n  # dp[i] = cheapest total to stand on step i, cost[i] included
+              dp[0], dp[1] = cost[0], cost[1]
+              for i in range(2, n):
+                  dp[i] = cost[i] + min(dp[i - 1], dp[i - 2])
+              return min(dp[n - 1], dp[n - 2])
+    hint: "Ask where the top is reachable from: which two steps can push off onto it?"
+
+hints:
+  - >-
+    This is Climbing Stairs with prices. If you're standing on the top, where was your last
+    push-off from, and what did that last move cost?
+  - >-
+    Let dp[i] be the cheapest total to stand on step i, with the top at i = n. You arrived
+    from i − 1 (paying cost[i − 1]) or from i − 2 (paying cost[i − 2]), so
+    dp[i] = min(dp[i − 1] + cost[i − 1], dp[i − 2] + cost[i − 2]). Starting is free, so
+    dp[0] = dp[1] = 0.
+  - |
+    n = length of cost
+    dp = list of n + 1 zeros        (dp[0] = dp[1] = 0: free start)
+    for i from 2 to n:
+        dp[i] = min(dp[i - 1] + cost[i - 1],
+                    dp[i - 2] + cost[i - 2])
+    return dp[n]
+
+solution:
+  code: |
+    class Solution:
+        def minCostClimbingStairs(self, cost: List[int]) -> int:
+            n = len(cost)
+            # dp[i] = cheapest total paid to stand on step i; step n is the top (past the last stair)
+            dp = [0] * (n + 1)
+            # dp[0] = dp[1] = 0: you may start on step 0 or step 1 for free
+            for i in range(2, n + 1):
+                # the last move onto step i pushed off from step i - 1 or from step i - 2
+                dp[i] = min(dp[i - 1] + cost[i - 1], dp[i - 2] + cost[i - 2])
+            return dp[n]
+  explanation: |
+    The same five-step recipe as Climbing Stairs, with "min" instead of "+":
+
+    1. **State.** `dp[i]` = the cheapest total you must have paid to be standing on step
+       `i`. Landing is free; you pay `cost[k]` when you push off from step `k`.
+    2. **Recurrence from the last move.** You reached step `i` by pushing off from `i - 1`
+       (paying `cost[i - 1]`) or from `i - 2` (paying `cost[i - 2]`). The best route to `i`
+       must use the best route to whichever step it came from (a cheaper route to `i - 1`
+       would make the whole thing cheaper), so
+       `dp[i] = min(dp[i - 1] + cost[i - 1], dp[i - 2] + cost[i - 2])`.
+    3. **Base cases.** You may start on step 0 or step 1 at no charge: `dp[0] = dp[1] = 0`.
+       The `[0] * (n + 1)` initialisation sets both.
+    4. **Fill order.** Each cell reads the two cells to its left, so fill `i = 2 .. n` left to
+       right.
+    5. **Answer location.** The top of the floor is one step *past* the last stair, index
+       `n`. That's why the table has `n + 1` cells, and why `[10, 15, 20]` answers 15: from
+       step 1 a 2-step lands on index 3, the top.
+
+    **From recursion to table.** Written top-down, the recurrence is
+    `reach(i) = min(reach(i - 1) + cost[i - 1], reach(i - 2) + cost[i - 2])`, which is
+    exponential because both branches re-solve the same lower steps. Caching `reach(i)` in a
+    dictionary makes it O(N) (that's the core drill), and the table is the same computation
+    filled from the bottom, without recursion (Python's default recursion limit of 1000 is
+    right at this problem's maximum size, another reason to prefer the table).
+
+    **O(1) space.** Only `dp[i - 1]` and `dp[i - 2]` are ever read, so two rolling
+    variables are enough: `a, b = b, min(b + cost[i - 1], a + cost[i - 2])`.
+
+    A common alternative defines `dp[i]` to include `cost[i]` itself. That works too, but
+    then the top is not in the table and the answer becomes `min(dp[n - 1], dp[n - 2])`.
+    Whichever definition you pick, steps 3 and 5 must follow from it.
+  time: O(N) — one min() over two candidates for each of the n − 1 filled cells
+  space: O(N) — the dp table (O(1) with two rolling variables)
+  brute_force_code: |
+    class Solution:
+        def minCostClimbingStairs(self, cost: List[int]) -> int:
+            def reach(i):
+                # cheapest cost to stand on step i, recomputed from scratch on every call
+                if i <= 1:
+                    return 0
+                return min(reach(i - 1) + cost[i - 1], reach(i - 2) + cost[i - 2])
+
+            return reach(len(cost))
+
+pitch_script: |
+  **(Clarify)** "So I pay cost of i when I leave step i, I can climb one or two steps per move,
+  I can start on step 0 or 1 for free, and the top is just past the last step, index n. All
+  costs are non-negative. Right?"
+
+  **(Brute force)** "I could recurse: the cheapest way to reach step i is the cheaper of
+  coming from i minus 1 or from i minus 2, plus that step's cost. That tries every route and
+  recomputes the same lower steps over and over, so it's exponential."
+
+  **(Trigger)** "'Minimum cost' with a choice of one or two steps, where each step's answer
+  depends on the two below it, is 1D dynamic programming. Greedily taking the cheaper next
+  step doesn't work: on 5, 10, 20 it pays 15 instead of 10."
+
+  **(Optimal)** "I define dp of i as the cheapest total to stand on step i, with the top at
+  index n, so the table has n plus 1 cells. dp of 0 and dp of 1 are 0 because the start is
+  free. Then for i from 2 to n, dp of i is the min of dp of i minus 1 plus cost of i minus 1,
+  and dp of i minus 2 plus cost of i minus 2. The answer is dp of n."
+
+  **(Complexity)** "O(N) time and O(N) space. Each cell only reads the previous two, so I can
+  replace the table with two variables for O(1) space."
+
+twist:
+  lc: 983
+  title: Minimum Cost For Tickets
+  why: >-
+    Same "cheapest way to cover everything up to here" DP, but the moves are passes: a 1-day,
+    7-day or 30-day ticket with its own price. Let dp[d] be the cheapest cost to cover every
+    travel day up to day d. On a day you don't travel, dp[d] = dp[d − 1] (nothing to pay). On a
+    travel day, the last ticket you bought covers today and was a 1-, 7- or 30-day pass, so
+    dp[d] = min(dp[d − 1] + costs[0], dp[max(0, d − 7)] + costs[1],
+    dp[max(0, d − 30)] + costs[2]). The step sizes get bigger and the "stairs" are calendar
+    days, but you still think about the last purchase and take the min.
+
+viz:
+  table: dp
+  col_labels: cost
+  watch: [i, n]

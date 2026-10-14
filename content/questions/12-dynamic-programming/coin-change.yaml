@@ -1,0 +1,347 @@
+slug: coin-change
+lc: 322
+
+concept:
+  problem_it_solves: >-
+    "What is the cheapest way to build exactly this total from pieces I can reuse as often as I
+    like?" The fewest coins for 11 depends on the fewest coins for 11 − 1, 11 − 2 and 11 − 5,
+    and those depend on smaller totals again. The same small totals come up over and over, so
+    you solve each total once, from 0 upwards, and every bigger total just looks its answers up.
+  brute_force: >-
+    Recursion: to make amount a, try every coin as the last coin and recurse on a − coin, taking
+    the minimum. It is correct, but the tree branches len(coins) ways at every level and keeps
+    re-solving the same totals: with coins [1, 2, 5], the call for 6 is reached from 11 by
+    removing a 5, by removing 2 + 2 + 1, by removing five 1s, and by many more paths, and every
+    one of them solves 6 from scratch.
+  brute_force_complexity: >-
+    O(C^(A / min coin)) time in the worst case, O(A) recursion depth, where C = len(coins) and
+    A = amount — with coin 1 and amount 10⁴ the tree is astronomically large.
+  key_insight: >-
+    Think about the LAST coin you drop in. If the last coin is c, the rest is an optimal answer
+    for a − c, so dp[a] = 1 + min over coins of dp[a − c]. There are only amount + 1 distinct
+    totals, so a table indexed by total, filled from 0 up, replaces the exponential tree. Coins
+    are unlimited, which is why dp[a] may read dp[a − c] that already used c: that is the
+    "unbounded knapsack" shape. Greedy (largest coin first) is not safe: with coins [1, 3, 4]
+    and amount 6 it picks 4 + 1 + 1 = 3 coins, but 3 + 3 = 2 coins.
+  real_world: >-
+    Cash dispensers and vending machines pick the fewest notes or coins to pay out, and greedy
+    breaks as soon as some denominations are missing: an ATM stocked only with ₹200 and ₹500
+    notes must pay ₹600 as three ₹200s, but greedy grabs a ₹500 and gets stuck. The
+    same min-cost-to-reach-a-total table appears in ad budget pacing (fewest ad slots to hit an
+    impression target) and in compilers choosing the fewest instructions to build a constant.
+
+statement:
+  clean: |
+    You are given an integer array `coins` representing coins of different denominations and
+    an integer `amount` representing a total amount of money.
+
+    Return the **fewest number of coins** that you need to **make up that amount**. If that
+    amount of money cannot be made up by any combination of the coins, return `-1`.
+
+    You may assume that you have an **infinite number of each kind of coin**.
+  oa_story: |
+    **ChangeChowk Kiosks — OA Round 1**
+
+    ChangeChowk runs self-service ticket kiosks at Namma Metro stations from Majestic to
+    Whitefield. When a commuter pays in cash, the kiosk must return the balance using its
+    coin hoppers. Each hopper holds one denomination and is refilled every hour, so for one
+    payout it never runs out. Hopper motors wear out with every coin they push, so the ops
+    team in Indiranagar wants every payout to drop as few coins as possible.
+
+    Write a function that takes the list of denominations installed in a kiosk and the
+    balance to return, and outputs the smallest number of coins that adds up to exactly that
+    balance. If no mix of the installed denominations can produce the balance, output `-1` so
+    the kiosk prints a refund slip instead. Kiosks have at most 12 hoppers and balances go up
+    to ₹10,000. Note that some kiosks have unusual hopper sets (like ₹1, ₹3 and ₹4 tokens), so
+    "always push the biggest coin that fits" is not guaranteed to be optimal.
+  trigger_keywords: ["fewest number of coins", "make up that amount", "infinite number of each kind of coin"]
+  examples:
+    - input: "coins = [1,2,5], amount = 11"
+      output: "3"
+      explanation: "11 = 5 + 5 + 1."
+    - input: "coins = [2], amount = 3"
+      output: "-1"
+      explanation: "Only even totals can be made from 2s."
+    - input: "coins = [1], amount = 0"
+      output: "0"
+      explanation: "Zero coins make an amount of 0."
+  constraints:
+    - "1 <= coins.length <= 12"
+    - "1 <= coins[i] <= 2^31 - 1"
+    - "0 <= amount <= 10^4"
+
+constraint_quiz:
+  prompt: >-
+    There are at most 12 coin types and the amount is at most 10⁴. What complexity should you
+    aim for?
+  options:
+    - "O(C^A) — try every sequence of coins"
+    - "O(A · C) — one table cell per amount, one look-back per coin"
+    - "O(C log C) — sort the coins and take the largest first"
+    - "O(A²) — for each amount, try every smaller amount"
+  answer: 1
+  explanation: >-
+    Plain recursion is exponential in the amount. Sorting and taking the largest coin first is
+    fast but wrong: coins [1, 3, 4] with amount 6 gives 3 coins instead of 2. O(A²) would pass
+    (10⁸ is borderline in Python) but wastes work, because only C of the smaller amounts can be
+    "one coin away". Filling dp[0..A] with C look-backs per cell is 10⁴ × 12 ≈ 1.2 × 10⁵ steps.
+
+pattern_quiz:
+  prompt: >-
+    You need the minimum count of items that add up to an exact total, and every item can be
+    used any number of times. Which pattern fits?
+  options:
+    - "Greedy: always take the largest coin that still fits"
+    - "Unbounded knapsack DP: dp[a] = min over coins of dp[a − coin] + 1"
+    - "Backtracking over all combinations with pruning"
+    - "Binary search on the number of coins"
+  answer: 1
+  explanation: >-
+    "Fewest ... to make up an exact amount" with "infinite number of each" is the unbounded
+    knapsack (min) trigger. Greedy only works for special coin systems and fails on [1, 3, 4] →
+    6. Backtracking is the exponential brute force. Binary search on the count would need a fast
+    "can I do it with k coins?" check, which is itself the DP.
+
+function:
+  name: coinChange
+  params: [{name: coins}, {name: amount}]
+
+starter_code: |
+  class Solution:
+      def coinChange(self, coins: List[int], amount: int) -> int:
+          pass
+
+tests:
+  - {args: [[1, 2, 5], 11], expected: 3}
+  - {args: [[2], 3], expected: -1}
+  - {args: [[1], 0], expected: 0, note: "amount 0 needs zero coins: the base case itself"}
+  - {args: [[1, 3, 4], 6], expected: 2, note: "greedy picks 4 + 1 + 1 = 3 coins; 3 + 3 is better"}
+  - {args: [[2, 5], 6], expected: 3, note: "greedy takes 5 and gets stuck at 1; 2 + 2 + 2 works"}
+  - {args: [[1, 5, 6, 9], 11], expected: 2, note: "greedy gives 9 + 1 + 1; optimal is 5 + 6"}
+  - {args: [[5, 3], 7], expected: -1, note: several coins and still unreachable}
+  - {args: [[7, 2147483647], 14], expected: 2, note: "a coin larger than the amount must be skipped"}
+  - {args: [[5, 10, 25], 100], expected: 4, note: "four 25s; most cells stay unreachable"}
+visualize_test: 3
+
+drills:
+  - title: Which amounts can be made at all?
+    skill: setup
+    goal: Build a table over amounts 0..amount with a base case at 0 and fill it left to right with a bounds-checked look-back per coin.
+    instructions: |
+      Return a list `reach` of length `amount + 1` where `reach[a]` is `True` if `a` can be
+      made from the coins (each usable any number of times), else `False`.
+
+      This is the skeleton of Coin Change without the counting: `reach[0] = True` (zero coins
+      make 0), then for each amount `a` from 1 up, `a` is reachable if some coin `c <= a` has
+      `reach[a - c]` already `True`. Filling in increasing `a` guarantees every look-back cell
+      is final before you read it. The `c <= a` guard stops a negative index, which in Python
+      would silently read from the END of the list.
+    function:
+      name: reachableAmounts
+      params: [{name: coins}, {name: amount}]
+    starter_code: |
+      class Solution:
+          def reachableAmounts(self, coins: List[int], amount: int) -> List[bool]:
+              pass
+    tests:
+      - {args: [[2], 5], expected: [true, false, true, false, true, false]}
+      - {args: [[3, 5], 8], expected: [true, false, false, true, false, true, true, false, true]}
+      - {args: [[4], 0], expected: [true], note: only the base case}
+      - {args: [[10], 3], expected: [true, false, false, false], note: coin larger than every amount}
+    solution: |
+      class Solution:
+          def reachableAmounts(self, coins: List[int], amount: int) -> List[bool]:
+              reach = [False] * (amount + 1)
+              reach[0] = True
+              for a in range(1, amount + 1):
+                  for c in coins:
+                      if c <= a and reach[a - c]:
+                          reach[a] = True
+              return reach
+    hint: "Start with `reach[0] = True`; for each `a`, check `c <= a and reach[a - c]` for every coin."
+
+  - title: Relax one cell from the last coin
+    skill: core
+    goal: Apply the recurrence dp[a] = 1 + min(dp[a − c]) for a single new amount, skipping unreachable look-backs.
+    instructions: |
+      `prev[x]` is the fewest coins needed to make `x`, for every `x` from `0` to
+      `len(prev) - 1`, with `-1` meaning "unreachable". Return the fewest coins needed for
+      the next amount, `a = len(prev)`, or `-1` if it can't be made.
+
+      This is exactly one step of the table fill. Ask: "if the last coin I drop in is `c`,
+      how many coins did the rest need?" The rest is `prev[a - c]`. Only coins with
+      `c <= a` and a reachable `prev[a - c]` count. In the full solution an infinity
+      sentinel makes the "unreachable" check disappear, because `inf + 1` is still `inf`.
+    function:
+      name: nextCell
+      params: [{name: prev}, {name: coins}]
+    starter_code: |
+      class Solution:
+          def nextCell(self, prev: List[int], coins: List[int]) -> int:
+              pass
+    tests:
+      - {args: [[0, 1, 1, 2, 2], [1, 2, 5]], expected: 1, note: "a = 5: one 5-coin"}
+      - {args: [[0, 1, 2, 1, 1, 2], [1, 3, 4]], expected: 2, note: "a = 6: 3 + 3, not 4 + 1 + 1"}
+      - {args: [[0, -1, 1], [2]], expected: -1, note: "a = 3: prev[1] is unreachable"}
+      - {args: [[0, -1, -1], [5]], expected: -1, note: "a = 3: the only coin is too big"}
+      - {args: [[0, -1, 1, -1], [2, 4]], expected: 1}
+    solution: |
+      class Solution:
+          def nextCell(self, prev: List[int], coins: List[int]) -> int:
+              a = len(prev)
+              best = -1
+              for c in coins:
+                  if c <= a and prev[a - c] != -1:
+                      if best == -1 or prev[a - c] + 1 < best:
+                          best = prev[a - c] + 1
+              return best
+    hint: "For each coin, the candidate is `prev[a - c] + 1`, but only when `c <= a` and `prev[a - c] != -1`."
+
+  - title: Watch greedy break
+    skill: edge
+    goal: Implement "largest coin first" and see on which inputs it disagrees with the true minimum.
+    instructions: |
+      Implement the tempting shortcut: sort coins from largest to smallest, take as many of
+      each as fit, and return the number of coins used, or `-1` if something is left over.
+      Return what **greedy** returns, even when it's wrong.
+
+      Then compare with the true answers in the test notes. Greedy is right for "canonical"
+      systems like `[1, 2, 5]`, but `[1, 3, 4]` → 6 gives 3 instead of 2, and `[2, 5]` → 6
+      gives `-1` even though `2 + 2 + 2` works. One counterexample like this is the
+      sentence that justifies DP in an interview.
+    function:
+      name: greedyCoins
+      params: [{name: coins}, {name: amount}]
+    starter_code: |
+      class Solution:
+          def greedyCoins(self, coins: List[int], amount: int) -> int:
+              pass
+    tests:
+      - {args: [[1, 2, 5], 11], expected: 3, note: "greedy happens to be right: 5 + 5 + 1"}
+      - {args: [[1, 3, 4], 6], expected: 3, note: "true minimum is 2 (3 + 3)"}
+      - {args: [[2, 5], 6], expected: -1, note: "true minimum is 3 (2 + 2 + 2)"}
+      - {args: [[1, 5, 6, 9], 11], expected: 3, note: "true minimum is 2 (5 + 6)"}
+    solution: |
+      class Solution:
+          def greedyCoins(self, coins: List[int], amount: int) -> int:
+              count = 0
+              for c in sorted(coins, reverse=True):
+                  count += amount // c
+                  amount %= c
+              return count if amount == 0 else -1
+    hint: "`amount // c` coins of size `c` fit; `amount % c` is what's left for the smaller coins."
+
+hints:
+  - >-
+    Suppose someone hands you the optimal pile of coins for amount a. Take out the last coin
+    you dropped in, of value c. What can you say about the coins that remain, and which
+    smaller amount do they make?
+  - >-
+    Let dp[a] be the fewest coins that make exactly a. The last coin is one of the coin values,
+    so dp[a] = 1 + min(dp[a − c]) over coins c ≤ a. dp[0] = 0, unreachable amounts stay at
+    infinity, and you fill a from 1 up so every dp[a − c] is already final.
+  - |
+    dp = [infinity] * (amount + 1)
+    dp[0] = 0
+    for a from 1 to amount:
+        for each coin c:
+            if c <= a:
+                dp[a] = min(dp[a], dp[a - c] + 1)
+    return dp[amount] if it is not infinity, else -1
+
+solution:
+  code: |
+    class Solution:
+        def coinChange(self, coins: List[int], amount: int) -> int:
+            INF = float('inf')
+            dp = [INF] * (amount + 1)  # dp[a] = fewest coins that make exactly a
+            dp[0] = 0  # zero coins make amount 0
+            for a in range(1, amount + 1):  # small amounts first: look-backs are final
+                for coin in coins:
+                    if coin <= a:  # the last coin dropped in is `coin`
+                        dp[a] = min(dp[a], dp[a - coin] + 1)
+            return dp[amount] if dp[amount] != INF else -1
+  explanation: |
+    **The 5-step DP recipe**
+
+    1. **Define dp[a] in words.** `dp[a]` = the fewest coins whose values add up to exactly
+       `a`, or infinity if `a` can't be made.
+    2. **Recurrence from the last choice.** Look at the last coin in an optimal pile for `a`.
+       If it's `coin`, the rest is an optimal pile for `a - coin` (if it weren't, swapping in
+       a better one would beat the optimum). So
+       `dp[a] = min over coins with coin <= a of dp[a - coin] + 1`.
+    3. **Base case.** `dp[0] = 0`. Everything else starts at infinity, meaning "no way found
+       yet". Infinity is a safe sentinel: `inf + 1` is still `inf`, so an unreachable
+       `dp[a - coin]` can never win the `min`. (`amount + 1` works too, since no answer can
+       use more than `amount` coins.)
+    4. **Fill order.** `dp[a]` reads only smaller indices, so fill `a = 1, 2, ..., amount`.
+       Coins may be reused, and that is fine here: `dp[a - coin]` may itself already contain
+       `coin`. That is what makes this the **unbounded** knapsack.
+    5. **Answer location.** `dp[amount]`, translated to `-1` if it's still infinity.
+
+    **Stepping stone.** If you blank on the table, write the recursion first:
+    `fewest(a) = 1 + min(fewest(a - c))`, with `fewest(0) = 0`. Add `@cache` and it's
+    already O(A · C). The table is the same function, just computed from the bottom up
+    without recursion depth limits (amount 10⁴ would overflow Python's default stack).
+
+    **Why not greedy?** Greedy commits to the biggest coin and never reconsiders. For
+    `[1, 3, 4]` and 6 it locks in the 4 and pays with two 1s, but `3 + 3` is better. For
+    `[2, 5]` and 6 it takes the 5 and is left with an impossible 1. The DP tries every
+    possible last coin at every amount, so it can't be trapped by an early choice.
+
+    Trace for `[1, 3, 4]`, amount 6: `dp = [0, 1, 2, 1, 1, 2, 2]`. `dp[6]` checks
+    `dp[5] + 1 = 3`, `dp[3] + 1 = 2` and `dp[2] + 1 = 3`, and keeps 2.
+  time: O(A · C) — amount + 1 cells, each tries every one of the C coins once
+  space: O(A) — one table entry per amount from 0 to amount
+  brute_force_code: |
+    class Solution:
+        def coinChange(self, coins: List[int], amount: int) -> int:
+            def fewest(a):
+                if a == 0:
+                    return 0
+                best = float('inf')
+                for coin in coins:
+                    if coin <= a:
+                        best = min(best, fewest(a - coin) + 1)
+                return best
+
+            ans = fewest(amount)
+            return -1 if ans == float('inf') else ans
+
+pitch_script: |
+  **(Clarify)** "So each coin type is unlimited, I need the minimum number of coins summing
+  to exactly the amount, and I return -1 if it's impossible. Amount 0 returns 0. Are the coin
+  values distinct and positive? Yes? Good."
+
+  **(Brute force)** "The first idea people have is greedy: take the largest coin that fits.
+  That fails: with coins 1, 3 and 4 and amount 6, greedy takes 4, 1, 1, but 3 plus 3 is two
+  coins. So I need to try every option for the last coin, recursively: fewest of a is one
+  plus the minimum of fewest of a minus c. That recursion is exponential because the same
+  amounts get re-solved down many paths."
+
+  **(Trigger)** "Minimum count to hit an exact total, with unlimited reuse, is unbounded
+  knapsack. The subproblems are just the amounts 0 to amount, so there are only amount plus
+  one of them. Memoising the recursion already gives the right complexity; I'll write it
+  bottom-up to avoid recursion depth problems at 10⁴."
+
+  **(Optimal)** "dp of a is the fewest coins for exactly a. dp of 0 is 0, everything else
+  starts at infinity. For each amount from 1 up, for each coin that fits, dp of a is the min
+  of itself and dp of a minus coin plus one. Infinity plus one stays infinity, so
+  unreachable states never win. At the end I return dp of amount, or -1 if it's still
+  infinity."
+
+  **(Complexity)** "That's O(amount times number of coins) time, about 1.2 times 10⁵ here,
+  and O(amount) space for the table."
+
+twist:
+  lc: 279
+  title: Perfect Squares
+  why: >-
+    Now the "coins" aren't given: they are every perfect square 1, 4, 9, ... up to n, and you
+    want the fewest squares that sum to n. Build that coin list first, then it's the same
+    table: dp[x] = min(dp[x − s] + 1) over squares s ≤ x. The -1 case disappears, because 1 is
+    always a square, so every n is reachable.
+
+viz:
+  table: dp
+  watch: [a, coin, amount]

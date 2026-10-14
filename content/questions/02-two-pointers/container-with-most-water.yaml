@@ -1,0 +1,320 @@
+slug: container-with-most-water
+lc: 11
+
+concept:
+  problem_it_solves: >-
+    "Among all pairs, which one maximises (shorter height) × (distance)?" Checking every
+    pair is quadratic. Starting with the widest pair and moving inward, each comparison
+    proves that one of the two lines can never be part of a better container, so it can be
+    discarded forever and the search finishes in one sweep.
+  brute_force: >-
+    Try every pair (i, j), compute min(height[i], height[j]) × (j − i), and keep the best.
+    Most of those pairs are hopeless: once you have seen a short line paired with a far-away
+    partner, every closer partner for that same short line can only be narrower and no
+    taller, yet the brute force still evaluates all of them.
+  brute_force_complexity: O(N²) time, O(1) space — 10⁵ lines means about 5 × 10⁹ pairs.
+  key_insight: >-
+    Put l and r at the two ends. The water is capped by the shorter line, say height[l].
+    Every other container that uses line l pairs it with some r' between l and r: it is
+    narrower, and its height is still at most height[l]. So none of them can beat the
+    container you just measured, and line l is finished. Discard it (move l inward) and
+    repeat. Moving the taller line instead could never help, because the shorter line still
+    caps the height while the width shrinks.
+  real_world: >-
+    The same "the bottleneck side is settled, discard it" argument drives greedy matching
+    in ride-hailing and logistics (pairing the heaviest load with the lightest that fits),
+    and it is how query planners do merge-style scans over two sorted columns, advancing
+    whichever side can no longer produce a better match.
+
+statement:
+  clean: |
+    You are given an integer array `height` of length `n`. There are `n` vertical lines
+    drawn such that the two endpoints of the `i`th line are `(i, 0)` and `(i, height[i])`.
+
+    Find **two lines** that together with the x-axis form a container, such that the
+    container holds the **most water**.
+
+    Return the **maximum amount of water** a container can store. You may not slant the
+    container, and the lines in between do not block the water.
+  oa_story: |
+    **UdaanFreight Logistics — OA Round 1**
+
+    UdaanFreight's cross-dock in Whitefield has a straight row of `n` steel pillars, one
+    metre apart, each with a different height. During the monsoon rush, the yard team
+    creates temporary storage bays by hanging a roller shutter between two pillars. The
+    shutter can only roll down from the top of the **shorter** of the two pillars, and the
+    bay is as wide as the distance between them. The pillars in between are thin and don't
+    get in the way.
+
+    Given the list of pillar heights in order, return the largest front cross-section
+    (height of the shutter × width of the bay) the team can create with a single pair of
+    pillars. Bigger hubs have up to 100,000 pillars, and the planner tool must answer
+    instantly.
+  trigger_keywords: ["two lines", "most water", "maximum amount of water"]
+  examples:
+    - input: "height = [1,8,6,2,5,4,8,3,7]"
+      output: "49"
+      explanation: "Lines at index 1 (height 8) and index 8 (height 7): min(8, 7) × (8 − 1) = 49."
+    - input: "height = [1,1]"
+      output: "1"
+  constraints:
+    - "n == height.length"
+    - "2 <= n <= 10^5"
+    - "0 <= height[i] <= 10^4"
+
+constraint_quiz:
+  prompt: With up to 10⁵ lines, what time complexity do you need?
+  options: ["O(N²)", "O(N log N)", "O(N)", "O(log N)"]
+  answer: 2
+  explanation: >-
+    O(N²) is about 5 × 10⁹ pairs, far too slow. Sorting the heights is O(N log N) but throws
+    away the positions, and the width depends on positions, so sorting doesn't lead anywhere
+    natural. Two pointers that discard one line per step is O(N). O(log N) is impossible:
+    any line you never read could be the tallest one.
+
+pattern_quiz:
+  prompt: >-
+    Choose two positions to maximise min(height[i], height[j]) × (j − i). Which pattern
+    fits?
+  options:
+    - "Sort by height and pair the two tallest lines"
+    - "Two pointers from both ends, always moving the shorter line inward"
+    - "Monotonic stack of increasing heights"
+    - "Sliding window that grows while the area increases"
+  answer: 1
+  explanation: >-
+    Height alone is wrong because width matters: in [7, 8, 1, 1, 1, 6] the two tallest
+    lines are adjacent and hold only 7, while lines 0 and 5 hold 6 × 5 = 30. A monotonic
+    stack answers "next taller line", not "best pair". The area isn't monotonic in window size, so a window can't
+    decide when to stop. "Best pair from both ends, where the shorter side is the
+    bottleneck" is the opposite-ends greedy-discard trigger.
+
+function:
+  name: maxArea
+  params: [{name: height}]
+
+starter_code: |
+  class Solution:
+      def maxArea(self, height: List[int]) -> int:
+          pass
+
+tests:
+  - {args: [[1, 8, 6, 2, 5, 4, 8, 3, 7]], expected: 49}
+  - {args: [[1, 1]], expected: 1, note: minimum size}
+  - {args: [[4, 3, 2, 1, 4]], expected: 16, note: the very first (widest) pair is the best}
+  - {args: [[1, 2, 1]], expected: 2}
+  - {args: [[1, 2, 4, 3]], expected: 4, note: best pair is not at either end}
+  - {args: [[5, 5, 5, 5, 5]], expected: 20, note: all heights equal}
+  - {args: [[0, 2]], expected: 0, note: "a zero-height line holds nothing"}
+  - {args: [[1, 1000, 1000, 1]], expected: 1000, note: two tall inner lines beat the wide outer pair}
+  - {args: [[3, 9, 3, 4, 7, 2, 12, 6]], expected: 45}
+visualize_test: 8
+
+drills:
+  - title: Score a container correctly
+    skill: setup
+    goal: Compute a container's water as the shorter height times the distance between the lines.
+    instructions: |
+      Fix the left line at index 0. Return a list whose entry for each `j` from 1 to
+      `n - 1` is the water held by lines `0` and `j`.
+
+      Two details trip people up: the height is the **shorter** line (`min`, not `max`,
+      since water spills over the lower edge), and the width is `j - 0`, the distance
+      between the lines, not the number of lines (`j - i + 1` is wrong).
+    function:
+      name: areasFromFirst
+      params: [{name: height}]
+    starter_code: |
+      class Solution:
+          def areasFromFirst(self, height: List[int]) -> List[int]:
+              pass
+    tests:
+      - {args: [[4, 3, 2, 1, 4]], expected: [3, 4, 3, 16]}
+      - {args: [[3, 9, 3, 4, 7, 2, 12, 6]], expected: [3, 6, 9, 12, 10, 18, 21]}
+      - {args: [[5, 0]], expected: [0]}
+      - {args: [[2, 5]], expected: [2], note: the shorter line caps the water}
+    solution: |
+      class Solution:
+          def areasFromFirst(self, height: List[int]) -> List[int]:
+              out = []
+              for j in range(1, len(height)):
+                  out.append(min(height[0], height[j]) * j)
+              return out
+    hint: "Water level = `min(height[0], height[j])`, width = `j`."
+
+  - title: Discard the shorter line
+    skill: core
+    goal: Starting from both ends, always move the pointer at the shorter line, since that line is finished.
+    instructions: |
+      Run the opposite-ends sweep and return the list of indices in the order they are
+      **discarded**. At each step with `l < r`, discard `l` if `height[l] < height[r]`,
+      otherwise discard `r` (so on a tie the right line goes). Stop when `l == r`.
+
+      This is the whole algorithm's decision. The shorter line has just been paired with the
+      farthest partner it can still get; every remaining partner is closer and the water is
+      still capped by that short line. So it can never do better, and discarding it loses
+      nothing.
+    function:
+      name: discardOrder
+      params: [{name: height}]
+    starter_code: |
+      class Solution:
+          def discardOrder(self, height: List[int]) -> List[int]:
+              pass
+    tests:
+      - {args: [[1, 8, 6, 2, 5, 4, 8, 3, 7]], expected: [0, 8, 7, 6, 5, 4, 3, 2]}
+      - {args: [[1, 1]], expected: [1], note: "tie, so the right line goes"}
+      - {args: [[2, 3, 1]], expected: [2, 0]}
+      - {args: [[5, 1, 2, 6]], expected: [0, 1, 2]}
+    solution: |
+      class Solution:
+          def discardOrder(self, height: List[int]) -> List[int]:
+              l, r = 0, len(height) - 1
+              order = []
+              while l < r:
+                  if height[l] < height[r]:
+                      order.append(l)
+                      l += 1
+                  else:
+                      order.append(r)
+                      r -= 1
+              return order
+    hint: "Compare `height[l] < height[r]`; append the loser's index, then move that pointer inward."
+
+  - title: On a tie, both lines are finished
+    skill: edge
+    goal: Show that when the two lines are equal, moving both pointers is still safe.
+    instructions: |
+      Return the maximum water, but with one change to the sweep: when
+      `height[l] == height[r]`, move **both** pointers inward.
+
+      People worry about ties ("which one do I move?"). The exchange argument answers it:
+      with both lines at height `h`, any container using `l` with a partner inside `(l, r)`
+      is narrower and at most `h` tall, and the same is true for `r`. Neither line can ever
+      beat the current container, so both can go. Moving either one alone is also correct;
+      this drill proves that the tie case can't hide the optimum.
+    function:
+      name: maxAreaTieBoth
+      params: [{name: height}]
+    starter_code: |
+      class Solution:
+          def maxAreaTieBoth(self, height: List[int]) -> int:
+              pass
+    tests:
+      - {args: [[1, 8, 6, 2, 5, 4, 8, 3, 7]], expected: 49}
+      - {args: [[5, 5, 5, 5, 5]], expected: 20, note: every step is a tie}
+      - {args: [[3, 1, 1, 3]], expected: 9}
+      - {args: [[2, 2]], expected: 2, note: pointers cross after the only tie}
+      - {args: [[1, 2, 4, 3]], expected: 4}
+    solution: |
+      class Solution:
+          def maxAreaTieBoth(self, height: List[int]) -> int:
+              l, r, best = 0, len(height) - 1, 0
+              while l < r:
+                  best = max(best, min(height[l], height[r]) * (r - l))
+                  if height[l] < height[r]:
+                      l += 1
+                  elif height[l] > height[r]:
+                      r -= 1
+                  else:
+                      l, r = l + 1, r - 1
+              return best
+    hint: "Add a third branch for equality that does `l += 1` and `r -= 1`; `while l < r` handles the crossing."
+
+hints:
+  - >-
+    Start with the widest possible container, the two end lines. Which of the two lines is
+    limiting the water? Could that line ever do better with a partner that is closer to it?
+  - >-
+    Keep l and r at the ends and a running best. Measure min(height[l], height[r]) × (r − l),
+    then move the pointer at the shorter line inward. Why does moving the taller one
+    never help?
+  - |
+    l = 0, r = n - 1, best = 0
+    while l < r:
+        area = min(height[l], height[r]) * (r - l)
+        best = max(best, area)
+        if height[l] < height[r]: l += 1
+        else: r -= 1
+    return best
+
+solution:
+  code: |
+    class Solution:
+        def maxArea(self, height: List[int]) -> int:
+            l, r = 0, len(height) - 1
+            best = 0
+            while l < r:
+                area = min(height[l], height[r]) * (r - l)
+                best = max(best, area)
+                # the shorter line can't do better with any closer partner: discard it
+                if height[l] < height[r]:
+                    l += 1
+                else:
+                    r -= 1
+            return best
+  explanation: |
+    Start with the widest container, lines `0` and `n - 1`, and measure it. Now suppose
+    `height[l] <= height[r]`.
+
+    **The exchange argument.** Every container that still uses line `l` pairs it with some
+    `r'` where `l < r' < r` (partners beyond `r` were already discarded). Its width
+    `r' - l` is smaller than `r - l`, and its height `min(height[l], height[r'])` is at most
+    `height[l]`. Smaller width times no-greater height means it holds no more water than
+    the container we just measured. So we have already seen the best container line `l`
+    can ever be part of, and throwing it away cannot lose the optimum. The same argument
+    applies to `r` when it is the shorter one.
+
+    Moving the **taller** line instead is pointless: the short line still caps the height
+    and the width only shrinks. That is why the rule is "always move the shorter line".
+    On a tie both lines are finished, so moving either one (or both) is safe.
+
+    Each step discards one line, so after `n - 1` steps the pointers meet, and every line
+    has had its best container measured.
+  time: O(N) — each iteration discards one line, n − 1 iterations in total
+  space: O(1) — two pointers and a running best
+  brute_force_code: |
+    class Solution:
+        def maxArea(self, height: List[int]) -> int:
+            best = 0
+            n = len(height)
+            for i in range(n):
+                for j in range(i + 1, n):
+                    best = max(best, min(height[i], height[j]) * (j - i))
+            return best
+
+pitch_script: |
+  **(Clarify)** "So I pick two lines, the water is the shorter line times the distance
+  between them, and the lines in between don't matter. I return the maximum amount, not
+  the indices, right?"
+
+  **(Brute force)** "The simple version checks every pair, O(N²) time and O(1) space. With
+  10⁵ lines that's about 5 billion pairs, so I need something linear."
+
+  **(Trigger)** "I want the best pair, and the cost depends on both ends of the pair, which
+  suggests starting with the two ends and moving inward. The question is which end I can
+  safely give up on each step."
+
+  **(Optimal)** "I start with l at 0 and r at the end and measure the container. Say the
+  left line is shorter. Any other container using that left line would have a partner
+  closer than r, so it's narrower, and its height is still capped by the left line, so it
+  can't beat what I just measured. That means the shorter line is done, and I move it
+  inward. I keep the best area as I go and stop when the pointers meet."
+
+  **(Complexity)** "Every step discards one line, so it's O(N) time and O(1) extra space."
+
+twist:
+  lc: 881
+  title: Boats to Save People
+  why: >-
+    Now you pair the heaviest and lightest people onto boats with a weight limit and
+    minimise the number of boats. You sort first, then run the same opposite-ends sweep
+    with the same "one end is settled" argument: the heaviest person always leaves on the
+    current boat (nobody can share with them if the lightest can't), so r always moves,
+    and l moves only when the lightest fits alongside. You count boats instead of
+    maximising an area.
+
+viz:
+  arrays: [height]
+  pointers: [l, r]
+  watch: [area, best]

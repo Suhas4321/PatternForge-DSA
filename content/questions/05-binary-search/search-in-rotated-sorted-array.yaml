@@ -1,0 +1,346 @@
+slug: search-in-rotated-sorted-array
+lc: 33
+
+concept:
+  problem_it_solves: >-
+    "Can I still throw away half the array when the array is not fully sorted?" A rotated
+    sorted array is two sorted runs glued together, so plain binary search can't compare the
+    target with the middle and trust the answer. But whichever way you cut it, at least one of
+    the two halves is still perfectly sorted, and a sorted half tells you for certain whether
+    the target can be inside it.
+  brute_force: >-
+    Scan every index and return the one that holds the target. It ignores the fact that the
+    array is almost sorted: one comparison against a sorted half could rule out thousands of
+    elements, but the scan reads them all anyway.
+  brute_force_complexity: >-
+    O(N) time, O(1) space — fine for 5000 elements in an OA, but the problem explicitly
+    demands O(log N), so a linear scan is a rejected answer in an interview.
+  key_insight: >-
+    Stop asking "is the target left or right of mid?" (you can't know that in a rotated
+    array) and ask "which half is sorted?" instead. Compare nums[lo] with nums[mid]: if
+    nums[lo] <= nums[mid], the left half nums[lo..mid] has no break in it; otherwise the right
+    half nums[mid..hi] is the clean one. A sorted half has known minimum and maximum (its two
+    ends), so one range check decides whether the target lives there. If it does, search that
+    half; if not, it must be in the other one. Either way, half the window is gone.
+  real_world: >-
+    Ring buffers are rotated sorted arrays: Kafka-style log segments, circular metric buffers
+    in Prometheus-like agents, and write-ahead logs that wrap around all keep entries sorted
+    by timestamp but start at an arbitrary write head. Looking up "the entry at time T" in
+    such a buffer is exactly this search, done without first un-rotating the buffer.
+
+statement:
+  clean: |
+    There is an integer array `nums` **sorted in ascending order** with **distinct values**.
+
+    Before being passed to your function, `nums` is **possibly rotated** at an unknown pivot
+    index `k` (`1 <= k < nums.length`), so that it becomes
+    `[nums[k], nums[k+1], ..., nums[n-1], nums[0], nums[1], ..., nums[k-1]]` (0-indexed).
+    For example, `[0,1,2,4,5,6,7]` might be rotated at pivot index 3 and become
+    `[4,5,6,7,0,1,2]`.
+
+    Given the array `nums` **after** the possible rotation and an integer `target`, return the
+    **index** of `target` if it is in `nums`, or `-1` if it is not.
+
+    You must write an algorithm with **O(log n)** runtime complexity.
+  oa_story: |
+    **PaanPay Payments — OA Round 1**
+
+    PaanPay processes UPI payments for paan shops and tea stalls across Bengaluru. Each
+    merchant's terminal keeps its recent transaction IDs in a fixed-size circular buffer:
+    IDs are issued in strictly increasing order, but when the buffer fills up, new IDs
+    overwrite the oldest slots from the front. So if you read the buffer from slot 0, you see
+    a run of newer IDs followed by a run of older ones, and each run is in increasing order.
+    No ID ever appears twice.
+
+    When a customer disputes a payment, support enters a transaction ID and needs the slot it
+    sits in, or -1 if it has already been overwritten. Buffers hold up to 5000 IDs and the
+    dispute desk runs millions of lookups a day, so the lookup must take logarithmic time,
+    without reorganising the buffer first. Write the function that returns the slot index.
+  trigger_keywords: ["sorted in ascending order", "possibly rotated", "O(log n)"]
+  examples:
+    - input: "nums = [4,5,6,7,0,1,2], target = 0"
+      output: "4"
+      explanation: "0 is the smallest value, sitting right after the rotation break at index 4."
+    - input: "nums = [4,5,6,7,0,1,2], target = 3"
+      output: "-1"
+      explanation: "3 is not in the array."
+    - input: "nums = [1], target = 0"
+      output: "-1"
+  constraints:
+    - "1 <= nums.length <= 5000"
+    - "-10^4 <= nums[i] <= 10^4"
+    - "All values of nums are unique."
+    - "nums is an ascending array that is possibly rotated."
+    - "-10^4 <= target <= 10^4"
+
+constraint_quiz:
+  prompt: >-
+    N is at most 5000 and the statement says "You must write an algorithm with O(log n)
+    runtime complexity". What should you aim for?
+  options: ["O(N²)", "O(N)", "O(N log N)", "O(log N)"]
+  answer: 3
+  explanation: >-
+    The size is a red herring: even O(N²) would run on 5000 elements, but the statement sets
+    the bar explicitly. O(N) is a linear scan, which an interviewer will reject because it
+    ignores the sorted structure. O(N log N) means sorting a copy, which is slower than the
+    scan and loses the original indices. O(log N) is achievable because every comparison can
+    discard half of the remaining window.
+
+pattern_quiz:
+  prompt: >-
+    The array is sorted but rotated at an unknown point, values are distinct, and you need
+    O(log n). Which pattern fits?
+  options:
+    - "Two pointers moving inward from both ends"
+    - "Hash map from value to index"
+    - "Binary search that first decides which half is sorted"
+    - "Find the pivot with a linear scan, then binary search"
+  answer: 2
+  explanation: >-
+    "Sorted" plus "O(log n)" is the binary search trigger, and "rotated" tells you plain
+    binary search needs one extra decision: which half is still sorted. Two pointers and a
+    hash map are both O(N), and building the map costs O(N) before the first lookup. Finding
+    the pivot with a linear scan is also O(N); the pivot can be found in O(log N), but a
+    single pass that checks the sorted half each step is simpler and needs no pivot at all.
+
+function:
+  name: search
+  params: [{name: nums}, {name: target}]
+
+starter_code: |
+  class Solution:
+      def search(self, nums: List[int], target: int) -> int:
+          pass
+
+tests:
+  - {args: [[4, 5, 6, 7, 0, 1, 2], 0], expected: 4}
+  - {args: [[4, 5, 6, 7, 0, 1, 2], 3], expected: -1}
+  - {args: [[1], 0], expected: -1, note: single element and absent}
+  - {args: [[1], 1], expected: 0, note: single element and present}
+  - {args: [[3, 1], 1], expected: 1, note: "lo == mid: the sorted-half check needs <="}
+  - {args: [[1, 2, 3, 4, 5], 4], expected: 3, note: not rotated at all}
+  - {args: [[5, 1, 3], 5], expected: 0, note: target is the first element}
+  - {args: [[6, 7, 8, 1, 2, 3, 4, 5], 1], expected: 3, note: "target is the minimum, right after the break"}
+  - {args: [[3, 4, 5, 6, 7, 1, 2], 2], expected: 6, note: target is the last element}
+visualize_test: 0
+
+drills:
+  - title: Which half is sorted?
+    skill: setup
+    goal: Compute mid for a window [lo, hi] and decide which half has no rotation break in it.
+    instructions: |
+      Given `nums` and a window `[lo, hi]`, compute `mid = (lo + hi) // 2` and return
+      `"left"` if `nums[lo..mid]` is sorted, otherwise `"right"` (then `nums[mid..hi]` must
+      be sorted).
+
+      This is the first decision of every iteration of the full search. A rotated window has
+      exactly one break, so it can't be in both halves. If `nums[lo] <= nums[mid]`, the left
+      side climbs without a break. Use `<=`, not `<`: when the window has two elements,
+      `lo == mid`, and the "left half" is the single element `nums[lo]`, which is trivially
+      sorted.
+    function:
+      name: sortedHalf
+      params: [{name: nums}, {name: lo}, {name: hi}]
+    starter_code: |
+      class Solution:
+          def sortedHalf(self, nums: List[int], lo: int, hi: int) -> str:
+              pass
+    tests:
+      - {args: [[4, 5, 6, 7, 0, 1, 2], 0, 6], expected: left}
+      - {args: [[6, 7, 0, 1, 2, 4, 5], 0, 6], expected: right}
+      - {args: [[3, 1], 0, 1], expected: left, note: "lo == mid"}
+      - {args: [[4, 5, 6, 7, 0, 1, 2], 4, 6], expected: left, note: a sub-window that is fully sorted}
+      - {args: [[5, 6, 7, 1, 2, 3, 4], 2, 6], expected: right}
+    solution: |
+      class Solution:
+          def sortedHalf(self, nums: List[int], lo: int, hi: int) -> str:
+              mid = (lo + hi) // 2
+              if nums[lo] <= nums[mid]:
+                  return "left"
+              return "right"
+    hint: "Only one comparison is needed: the left end of the window against the middle."
+
+  - title: Go left or go right?
+    skill: core
+    goal: Use the sorted half's two ends as a range check to decide which half can hold the target.
+    instructions: |
+      Given `nums`, a window `[lo, hi]` and a `target`, with `mid = (lo + hi) // 2` and
+      `nums[mid] != target` guaranteed, return `True` if the search must continue in the left
+      part `[lo, mid - 1]` and `False` if it must continue in the right part `[mid + 1, hi]`.
+
+      Find the sorted half first. If the left half is sorted, the target is in it exactly when
+      `nums[lo] <= target < nums[mid]`. If the right half is sorted, the target is in it
+      exactly when `nums[mid] < target <= nums[hi]`. If the target isn't in the sorted half,
+      it can only be in the other one. Watch the boundaries: the target can equal
+      `nums[lo]` or `nums[hi]`, but never `nums[mid]` (already checked).
+    function:
+      name: goLeft
+      params: [{name: nums}, {name: lo}, {name: hi}, {name: target}]
+    starter_code: |
+      class Solution:
+          def goLeft(self, nums: List[int], lo: int, hi: int, target: int) -> bool:
+              pass
+    tests:
+      - {args: [[4, 5, 6, 7, 0, 1, 2], 0, 6, 5], expected: true}
+      - {args: [[4, 5, 6, 7, 0, 1, 2], 0, 6, 0], expected: false, note: not in the sorted left half}
+      - {args: [[6, 7, 0, 1, 2, 4, 5], 0, 6, 7], expected: true, note: not in the sorted right half}
+      - {args: [[4, 5, 6, 7, 0, 1, 2], 0, 6, 4], expected: true, note: "target == nums[lo]"}
+      - {args: [[6, 7, 0, 1, 2, 4, 5], 0, 6, 5], expected: false, note: "target == nums[hi]"}
+    solution: |
+      class Solution:
+          def goLeft(self, nums: List[int], lo: int, hi: int, target: int) -> bool:
+              mid = (lo + hi) // 2
+              if nums[lo] <= nums[mid]:             # left half is sorted
+                  return nums[lo] <= target < nums[mid]
+              return not (nums[mid] < target <= nums[hi])  # right half is sorted
+    hint: "Decide the sorted half, then ask whether the target lies between that half's two ends."
+
+  - title: Rotation is just an index shift
+    skill: edge
+    goal: Binary search a rotated array through a wrap-around index and return the physical index, not the logical one.
+    instructions: |
+      You are given the rotated array `nums`, the index `pivot` of its smallest element, and a
+      `target`. Return the index of `target` in `nums`, or `-1`.
+
+      Pretend the array is un-rotated: the `t`-th smallest element lives at
+      `(t + pivot) % n`. Run an ordinary `lo <= hi` binary search over logical positions
+      `0..n-1`, reading `nums[(mid + pivot) % n]`. The classic mistake is returning the
+      logical `mid` instead of the physical index `(mid + pivot) % n`. This is the
+      alternative two-step approach (find the pivot as in #153, then search), and it shows
+      why a rotated array is still "sorted", just with its starting point moved.
+    function:
+      name: searchWithPivot
+      params: [{name: nums}, {name: pivot}, {name: target}]
+    starter_code: |
+      class Solution:
+          def searchWithPivot(self, nums: List[int], pivot: int, target: int) -> int:
+              pass
+    tests:
+      - {args: [[4, 5, 6, 7, 0, 1, 2], 4, 0], expected: 4}
+      - {args: [[4, 5, 6, 7, 0, 1, 2], 4, 6], expected: 2, note: logical position 6 is physical index 2}
+      - {args: [[4, 5, 6, 7, 0, 1, 2], 4, 3], expected: -1}
+      - {args: [[1, 2, 3], 0, 3], expected: 2, note: "pivot 0: not rotated"}
+      - {args: [[3, 1], 1, 3], expected: 0}
+    solution: |
+      class Solution:
+          def searchWithPivot(self, nums: List[int], pivot: int, target: int) -> int:
+              n = len(nums)
+              lo, hi = 0, n - 1
+              while lo <= hi:
+                  mid = (lo + hi) // 2
+                  real = (mid + pivot) % n
+                  if nums[real] == target:
+                      return real
+                  if nums[real] < target:
+                      lo = mid + 1
+                  else:
+                      hi = mid - 1
+              return -1
+    hint: "Search logical positions with lo/hi, but always read and return `(mid + pivot) % n`."
+
+hints:
+  - >-
+    Cut the window at mid. The rotation break can be in the left half or the right half, but
+    can it be in both? What can you say for certain about the half that doesn't contain it?
+  - >-
+    Each step: if nums[mid] is the target, done. Otherwise find the sorted half by comparing
+    nums[lo] with nums[mid]. Check whether the target falls between that half's two ends. If
+    yes, shrink the window to that half; if no, shrink it to the other half.
+  - |
+    lo = 0, hi = n - 1
+    while the window [lo, hi] is not empty:
+        mid = middle of lo and hi
+        if nums[mid] equals target: return mid
+        if nums[lo] <= nums[mid]:                  # left half sorted
+            target within [nums[lo], nums[mid]) ? hi = mid - 1 : lo = mid + 1
+        else:                                      # right half sorted
+            target within (nums[mid], nums[hi]] ? lo = mid + 1 : hi = mid - 1
+    return -1
+
+solution:
+  code: |
+    class Solution:
+        def search(self, nums: List[int], target: int) -> int:
+            lo, hi = 0, len(nums) - 1
+            while lo <= hi:
+                mid = (lo + hi) // 2
+                if nums[mid] == target:
+                    return mid
+                if nums[lo] <= nums[mid]:  # left half nums[lo..mid] is sorted
+                    if nums[lo] <= target < nums[mid]:
+                        hi = mid - 1
+                    else:
+                        lo = mid + 1
+                else:  # right half nums[mid..hi] is sorted
+                    if nums[mid] < target <= nums[hi]:
+                        lo = mid + 1
+                    else:
+                        hi = mid - 1
+            return -1
+  explanation: |
+    The window `[lo, hi]` always contains the target if it exists at all. A rotated window
+    has at most one "break" where the values drop, so after cutting at `mid`, at least one
+    half has no break and is sorted. For a sorted half, its smallest and largest values are
+    its two ends, so `nums[lo] <= target < nums[mid]` (or `nums[mid] < target <= nums[hi]`)
+    tells you with certainty whether the target is in it. If it isn't, the target can only
+    be in the other half, even though that half is messy. Either way you discard half the
+    window, exactly like classic binary search.
+
+    The subtle decision is `nums[lo] <= nums[mid]` with `<=`. When the window has two
+    elements, `mid == lo` and the left half is just `nums[lo]`. With `<`, `[3, 1]` searching
+    for 1 would wrongly treat `[3, 1]` as the sorted right half, decide 1 isn't in
+    `(3, 1]`, and return -1. Distinct values are what make `<=` safe: `nums[lo] == nums[mid]`
+    can only happen when they are the same element.
+
+    The range checks exclude `nums[mid]` (already compared) and include the far end of the
+    half, which is why one side uses `<` and the other `<=`. An un-rotated array also works:
+    the left half is always sorted, so it degrades to classic binary search.
+  time: O(log N) — every iteration discards half of the window
+  space: O(1) — just lo, hi and mid
+  brute_force_code: |
+    class Solution:
+        def search(self, nums: List[int], target: int) -> int:
+            for i, x in enumerate(nums):
+                if x == target:
+                    return i
+            return -1
+
+pitch_script: |
+  **(Clarify)** "So the array was sorted ascending, then rotated at some unknown index, all
+  values are distinct, and I return the index of the target or -1. And I need O(log n), so a
+  scan is off the table, right?"
+
+  **(Brute force)** "The obvious answer is a linear scan, O(N) time and O(1) space. It works,
+  but it ignores the fact that the array is two sorted pieces, and the problem explicitly asks
+  for logarithmic time."
+
+  **(Trigger)** "Sorted plus O(log n) means binary search. The rotation breaks the usual 'go
+  left if the target is smaller' rule, but I notice that when I cut at mid, the rotation break
+  can only be on one side, so at least one half is fully sorted, and a sorted half tells me
+  for certain whether the target is inside it."
+
+  **(Optimal)** "I keep lo and hi. At each step, if nums[mid] is the target I return it.
+  Otherwise, if nums[lo] <= nums[mid], the left half is sorted: if the target is between
+  nums[lo] and nums[mid] I go left, else right. If not, the right half is sorted and I do the
+  mirror check with nums[mid] and nums[hi]. I use <= because with two elements lo equals mid,
+  and that single element counts as sorted."
+
+  **(Complexity)** "Every iteration halves the window, so it's O(log N) time and O(1) space.
+  If duplicates were allowed, nums[lo] == nums[mid] would stop telling me which side is sorted,
+  and the worst case would degrade to O(N)."
+
+twist:
+  lc: 81
+  title: Search in Rotated Sorted Array II
+  why: >-
+    Duplicates are now allowed and you return true/false. When nums[lo] == nums[mid] ==
+    nums[hi] (e.g. [1, 0, 1, 1, 1]), you can no longer tell which half is sorted, so you
+    shrink the window from both ends (lo += 1, hi -= 1) and try again. Everything else is the
+    same template, but this one escape hatch makes the worst case O(N), and saying why is
+    usually the real interview question.
+
+viz:
+  arrays: [nums]
+  pointers: [lo, mid, hi]
+  window: [lo, hi]
+  watch: [target]

@@ -1,0 +1,328 @@
+slug: merge-intervals
+lc: 56
+
+concept:
+  problem_it_solves: >-
+    "Which ranges are really one continuous block?" Two ranges belong together when they share
+    at least one point, and chains of such overlaps glue many ranges into one. Once the ranges
+    are sorted by start, every range can only ever glue onto the block you are currently
+    building, so one left-to-right pass collapses them all.
+  brute_force: >-
+    Repeatedly scan every pair of intervals; whenever two overlap, replace them with their union
+    and start the scan again, until no pair overlaps. Each merge can create a new overlap with a
+    range you already checked ([1,3] and [5,7] are separate until [2,6] arrives), so the scan is
+    rerun again and again over pairs that were already compared.
+  brute_force_complexity: >-
+    O(N³) time in the worst case (up to N merges, each found by an O(N²) pair scan), O(1) extra
+    space — 10⁴ intervals means up to 10¹² pair checks.
+  key_insight: >-
+    Sort by start. Now the current block is the only one a new interval can touch: every later
+    interval starts at or after this one, so if it starts after the block's end, nothing that
+    comes after it can reach back into the block either. The whole decision collapses to one
+    comparison with the last merged interval: start <= last end means extend it (to the max of
+    the two ends), otherwise the block is finished and a new one begins.
+  real_world: >-
+    Calendar services (Google Calendar free/busy, Outlook scheduling assistant) merge everyone's
+    busy events into busy blocks before showing free slots. Memory allocators coalesce adjacent
+    free blocks, firewalls and CDNs aggregate overlapping IP ranges, and incident tooling at
+    companies like Swiggy merges overlapping outage windows so SLA downtime isn't double-counted.
+
+statement:
+  clean: |
+    Given an array of `intervals` where `intervals[i] = [start_i, end_i]`,
+    **merge all overlapping intervals** and return an array of the
+    **non-overlapping intervals** that cover all the intervals in the input.
+
+    Two intervals overlap if they share at least one point, so intervals that only touch,
+    like `[1,4]` and `[4,5]`, are merged into `[1,5]`. The input is **not necessarily sorted**,
+    and the output may be returned in any order.
+  oa_story: |
+    **ShuttleSetu Mobility — OA Round 1**
+
+    ShuttleSetu runs electric employee shuttles for tech parks along Outer Ring Road. Every
+    shuttle that plugs into the single fast charger at the Whitefield depot books a window
+    `[from, to]` in minutes after midnight. Bookings come from different shift managers, so the
+    list arrives in no particular order and windows often run into each other.
+
+    The depot dashboard must show the charger's busy periods: each busy period is one stretch of
+    time during which the charger is never free. If one booking ends at the exact minute the
+    next one begins, the charger never frees up, so that is a single busy period. Given all
+    bookings (up to 10,000 a day), return the list of busy periods, in any order.
+  trigger_keywords: ["merge all overlapping intervals", "non-overlapping intervals", "not necessarily sorted"]
+  examples:
+    - input: "intervals = [[1,3],[2,6],[8,10],[15,18]]"
+      output: "[[1,6],[8,10],[15,18]]"
+      explanation: "[1,3] and [2,6] overlap, so they merge into [1,6]. The others stand alone."
+    - input: "intervals = [[1,4],[4,5]]"
+      output: "[[1,5]]"
+      explanation: "They share the point 4, which counts as overlapping."
+    - input: "intervals = [[4,7],[1,4]]"
+      output: "[[1,7]]"
+      explanation: "Unsorted input: after sorting, [1,4] touches [4,7]."
+  constraints:
+    - "1 <= intervals.length <= 10^4"
+    - "intervals[i].length == 2"
+    - "0 <= start_i <= end_i <= 10^4"
+
+constraint_quiz:
+  prompt: >-
+    There can be 10⁴ intervals in any order. What time complexity should you aim for?
+  options: ["O(N³)", "O(N²)", "O(N log N)", "O(N)"]
+  answer: 2
+  explanation: >-
+    Repeated pairwise merging is O(N³) in the worst case, about 10¹² steps. Even a single O(N²)
+    pass over all pairs is 10⁸ comparisons and still isn't enough on its own, because merges
+    cascade. Sorting by start costs O(N log N) and then one linear pass finishes the job, so
+    O(N log N) is the target. Plain O(N) would need the input already sorted (or a bucket trick
+    on the small coordinate range), which an interviewer won't expect here.
+
+pattern_quiz:
+  prompt: >-
+    You must collapse every chain of overlapping ranges into one range, and the input is
+    unsorted. Which pattern fits?
+  options:
+    - "Sort by start, then extend the last merged interval or append a new one"
+    - "Sort by end, then greedily keep the earliest-finishing interval"
+    - "Union-find over every overlapping pair"
+    - "Two pointers from both ends of the array"
+  answer: 0
+  explanation: >-
+    "Merge overlapping intervals" is the sort-by-start trigger: after sorting by start, a new
+    interval can only overlap the block you are currently building, so one comparison per
+    interval decides everything. Sort by end is the rule for *keeping* the most disjoint
+    intervals, not for merging: with [[2,3],[4,5],[1,10]] the end order puts [1,10] last and it
+    has to swallow blocks you already closed. Union-find works but needs O(N²) pair checks to
+    find the edges, and two pointers has nothing to squeeze from both ends.
+
+function:
+  name: merge
+  params: [{name: intervals}]
+  compare: unordered
+
+starter_code: |
+  class Solution:
+      def merge(self, intervals: List[List[int]]) -> List[List[int]]:
+          pass
+
+tests:
+  - {args: [[[1, 3], [2, 6], [8, 10], [15, 18]]], expected: [[1, 6], [8, 10], [15, 18]]}
+  - {args: [[[1, 4], [4, 5]]], expected: [[1, 5]], note: touching intervals merge}
+  - {args: [[[4, 7], [1, 4]]], expected: [[1, 7]], note: unsorted input}
+  - {args: [[[1, 4]]], expected: [[1, 4]], note: single interval}
+  - {args: [[[1, 10], [2, 3], [4, 5]]], expected: [[1, 10]], note: "contained intervals: the end needs max(), not overwrite"}
+  - {args: [[[5, 6], [1, 2], [3, 4]]], expected: [[1, 2], [3, 4], [5, 6]], note: "gaps of 1 do not merge: 2 and 3 share no point"}
+  - {args: [[[2, 3], [2, 2], [3, 3], [1, 3], [5, 7], [2, 2], [4, 6]]], expected: [[1, 3], [4, 7]], note: duplicates and zero-length intervals}
+  - {args: [[[0, 0], [0, 0]]], expected: [[0, 0]], note: identical points at zero}
+visualize_test: 0
+
+drills:
+  - title: Sort by start, compare only neighbours
+    skill: setup
+    goal: Sort intervals by start and walk them comparing each one only with the previous one.
+    instructions: |
+      Return `True` if **any** two intervals share at least one point (touching counts), and
+      `False` otherwise. The input is unsorted.
+
+      After sorting by start you never need to compare all pairs. If interval `i` overlaps an
+      earlier interval `j`, then interval `i - 1` starts somewhere between them, inside `j`, so
+      an overlap would already show up between consecutive intervals. The first overlap is
+      always between neighbours. This "sort, then only look back one step" loop is the
+      skeleton of the full merge.
+    function:
+      name: hasOverlap
+      params: [{name: intervals}]
+    starter_code: |
+      class Solution:
+          def hasOverlap(self, intervals: List[List[int]]) -> bool:
+              pass
+    tests:
+      - {args: [[[1, 3], [2, 6], [8, 10]]], expected: true}
+      - {args: [[[1, 4], [4, 5]]], expected: true, note: touching counts}
+      - {args: [[[5, 6], [1, 2], [3, 4]]], expected: false, note: unsorted and disjoint}
+      - {args: [[[7, 9], [1, 2], [8, 8]]], expected: true, note: overlap only visible after sorting}
+      - {args: [[[1, 2]]], expected: false}
+    solution: |
+      class Solution:
+          def hasOverlap(self, intervals: List[List[int]]) -> bool:
+              intervals = sorted(intervals, key=lambda iv: iv[0])
+              for i in range(1, len(intervals)):
+                  if intervals[i][0] <= intervals[i - 1][1]:
+                      return True
+              return False
+    hint: "Sort with `key=lambda iv: iv[0]`, then compare `intervals[i][0]` with `intervals[i - 1][1]`."
+
+  - title: Extend or append
+    skill: core
+    goal: Decide whether a new interval extends the last merged block or starts a new one.
+    instructions: |
+      You are given `last`, the last merged block, and `cur`, the next interval in start order
+      (so `cur[0] >= last[0]`). Return the new tail of the merged list: either a single merged
+      interval `[[a, b]]` or both intervals `[last, cur]`.
+
+      This is the only decision in Merge Intervals. Two details: touching (`cur[0] == last[1]`)
+      merges, and the new end is `max(last[1], cur[1])`, because `cur` might sit entirely
+      inside `last`.
+    function:
+      name: absorb
+      params: [{name: last}, {name: cur}]
+    starter_code: |
+      class Solution:
+          def absorb(self, last: List[int], cur: List[int]) -> List[List[int]]:
+              pass
+    tests:
+      - {args: [[1, 3], [2, 6]], expected: [[1, 6]]}
+      - {args: [[1, 4], [4, 5]], expected: [[1, 5]], note: touching}
+      - {args: [[1, 10], [2, 3]], expected: [[1, 10]], note: "contained: keep the bigger end"}
+      - {args: [[1, 2], [3, 4]], expected: [[1, 2], [3, 4]], note: gap}
+      - {args: [[1, 5], [1, 7]], expected: [[1, 7]], note: same start}
+    solution: |
+      class Solution:
+          def absorb(self, last: List[int], cur: List[int]) -> List[List[int]]:
+              if cur[0] <= last[1]:  # shares a point with the block
+                  return [[last[0], max(last[1], cur[1])]]
+              return [last, cur]
+    hint: "Overlap test is `cur[0] <= last[1]`; the merged end is a `max`, not `cur[1]`."
+
+  - title: Count blocks without losing the end
+    skill: edge
+    goal: Track only the running block end and count blocks, keeping the end correct for contained intervals.
+    instructions: |
+      Return **how many** blocks remain after merging, without building the merged list. The
+      input is unsorted and may be empty.
+
+      You only need one number of state: the end of the current block. The classic bug is
+      `cur_end = end` on overlap instead of `cur_end = max(cur_end, end)`: with
+      `[[1,10],[2,3],[4,5]]` that shrinks the block to end at 3, so `[4,5]` wrongly opens a
+      second block.
+    function:
+      name: countMerged
+      params: [{name: intervals}]
+    starter_code: |
+      class Solution:
+          def countMerged(self, intervals: List[List[int]]) -> int:
+              pass
+    tests:
+      - {args: [[[1, 10], [2, 3], [4, 5]]], expected: 1, note: "overwriting the end gives 2"}
+      - {args: [[[1, 4], [4, 5]]], expected: 1}
+      - {args: [[]], expected: 0, note: empty input}
+      - {args: [[[3, 4], [1, 2]]], expected: 2}
+      - {args: [[[1, 3], [2, 6], [8, 10], [15, 18]]], expected: 3}
+    solution: |
+      class Solution:
+          def countMerged(self, intervals: List[List[int]]) -> int:
+              blocks = 0
+              cur_end = None
+              for start, end in sorted(intervals, key=lambda iv: iv[0]):
+                  if cur_end is None or start > cur_end:
+                      blocks += 1
+                      cur_end = end
+                  else:
+                      cur_end = max(cur_end, end)
+              return blocks
+    hint: "On overlap, the block's end can only grow: `cur_end = max(cur_end, end)`."
+
+hints:
+  - >-
+    If the intervals were sorted by start, which already-merged block could a new interval
+    possibly overlap? Could it ever need to reach back past the most recent one?
+  - >-
+    Keep a list of merged blocks. For each interval in start order, compare its start with the
+    end of the last block: if it is less than or equal, the block absorbs it and its end becomes
+    the larger of the two ends; otherwise the interval starts a new block.
+  - |
+    sort intervals by start
+    merged = empty list
+    for each [start, end] in intervals:
+        if merged not empty and start <= end of last block:
+            end of last block = max(end of last block, end)
+        else:
+            append [start, end] to merged
+    return merged
+
+solution:
+  code: |
+    class Solution:
+        def merge(self, intervals: List[List[int]]) -> List[List[int]]:
+            intervals.sort(key=lambda iv: iv[0])  # sort by START so only the last block can overlap
+            merged = []
+            for i in range(len(intervals)):
+                start, end = intervals[i]
+                if merged and start <= merged[-1][1]:  # overlaps or touches the current block
+                    merged[-1][1] = max(merged[-1][1], end)
+                else:
+                    merged.append([start, end])  # gap: the previous block is final
+            return merged
+  explanation: |
+    **Why sort by start?** Merging is about chains: a block keeps growing as long as the next
+    interval starts inside it. After sorting by start, every later interval begins at or after
+    the current one, so the moment an interval starts *after* the current block's end, no later
+    interval can reach back into that block either. The block is final, and we only ever compare
+    against `merged[-1]`.
+
+    Sorting by end does not give that guarantee: in `[[2,3],[4,5],[1,10]]` (already in end
+    order) `[1,10]` arrives last and swallows two blocks you had already closed.
+
+    Two details decide correctness. The test is `start <= merged[-1][1]`, so touching
+    intervals like `[1,4]` and `[4,5]` merge, as the problem requires. And the new end is
+    `max(...)`, because a short interval can sit entirely inside the block (`[2,3]` inside
+    `[1,10]`); overwriting the end would shrink the block. Appending a fresh `[start, end]`
+    list (rather than the input list itself) means updating `merged[-1][1]` never edits the
+    caller's intervals by accident.
+  time: O(N log N) — the sort dominates; the merge pass is O(N)
+  space: O(N) — the output list (plus O(N) for Python's sort in the worst case)
+  brute_force_code: |
+    class Solution:
+        def merge(self, intervals: List[List[int]]) -> List[List[int]]:
+            ivs = [list(iv) for iv in intervals]
+            changed = True
+            while changed:
+                changed = False
+                for i in range(len(ivs)):
+                    for j in range(i + 1, len(ivs)):
+                        a, b = ivs[i], ivs[j]
+                        if a[0] <= b[1] and b[0] <= a[1]:
+                            ivs[i] = [min(a[0], b[0]), max(a[1], b[1])]
+                            ivs.pop(j)
+                            changed = True
+                            break
+                    if changed:
+                        break
+            return ivs
+
+pitch_script: |
+  **(Clarify)** "So the input can be in any order, intervals are closed, and two intervals that
+  just touch, like 1 to 4 and 4 to 5, should merge into one? And I can return the result in any
+  order?"
+
+  **(Brute force)** "The naive way is to keep scanning all pairs, merge any two that overlap,
+  and restart until nothing changes. Merges can cascade, so that's up to O(N³), far too slow for
+  10⁴ intervals."
+
+  **(Trigger)** "'Merge overlapping intervals' tells me to sort by start. Once the intervals are
+  sorted by start, a new interval can only overlap the block I'm currently building, because
+  everything after it starts even later. So I only ever compare with the last merged interval."
+
+  **(Optimal)** "I sort by start and walk the list with an output list. If the current interval
+  starts at or before the end of the last merged block, I extend that block's end to the max of
+  the two ends; the max matters for intervals that are fully contained. Otherwise there's a gap,
+  so the last block is final and I append the current interval as a new block."
+
+  **(Complexity)** "Sorting is O(N log N) and the pass is O(N), so O(N log N) overall, with O(N)
+  space for the output. If someone asks why not sort by end: with end order a long interval
+  that starts early can arrive last and swallow blocks I've already closed."
+
+twist:
+  lc: 986
+  title: Interval List Intersections
+  why: >-
+    Now you get two lists, each already sorted and internally disjoint, and you want the
+    overlaps between them instead of the union. No sort is needed: walk both lists with two
+    pointers, the intersection of the current pair is [max(starts), min(ends)] if that range is
+    non-empty, and you advance whichever interval ends first, since it cannot overlap anything
+    further in the other list. Same "compare with the current block" logic, applied across two
+    lists.
+
+viz:
+  arrays: [intervals, merged]
+  pointers: [i]
+  watch: [start, end]

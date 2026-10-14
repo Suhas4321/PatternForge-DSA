@@ -1,0 +1,344 @@
+slug: koko-eating-bananas
+lc: 875
+
+concept:
+  problem_it_solves: >-
+    "What is the smallest setting that still gets the job done?" Nothing here is sorted, so
+    there's no array to binary search. But the candidate answers (speeds 1, 2, 3, ...) are
+    ordered, and the yes/no question "can she finish at speed k?" flips from no to yes exactly
+    once as k grows. Any question with that shape can be binary searched on the answer itself.
+  brute_force: >-
+    Try k = 1, 2, 3, ... and, for each one, add up the hours every pile takes; return the
+    first k that fits in h hours. Each check is a cheap O(N) pass, but you may run up to
+    max(piles) of them, and almost all of those checks are pointless: once you know speed 50
+    is too slow, testing 1 to 49 tells you nothing new.
+  brute_force_complexity: >-
+    O(N · M) time, O(1) space, where M = max(piles) — 10⁴ piles and piles up to 10⁹ means up to
+    10¹³ steps.
+  key_insight: >-
+    Stop searching the input and search the answer space. The speed lies in [1, max(piles)]:
+    speed 1 is the slowest possible, and at speed max(piles) every pile takes exactly one
+    hour, so n <= h hours always suffices. Define feasible(k) = "total hours at speed k <= h".
+    Faster never hurts, so feasible is monotonic: F F F ... F T T T ... T. The answer is the
+    first T, and a binary search finds it with about 30 feasibility checks instead of 10⁹.
+    Each pile at speed k takes ceil(p / k) hours, computed in integers as (p + k - 1) // k.
+  real_world: >-
+    Capacity planning is binary search on the answer: "what is the smallest number of Kafka
+    consumers / pods / worker threads that clears this backlog before the SLA?" Autoscalers and
+    load-testing tools (k6, Locust ramp tests) search for the lowest replica count or the
+    highest request rate that still meets a latency target, and rate limiters are tuned by
+    searching for the lowest refill rate that drains queued requests in time.
+
+statement:
+  clean: |
+    Koko loves to eat bananas. There are `n` piles of bananas, the `i`th pile has `piles[i]`
+    bananas. The guards have gone and will come back in `h` hours.
+
+    Koko can decide her bananas-per-hour **eating speed** of `k`. Each hour, she chooses some
+    pile of bananas and eats `k` bananas from that pile. If the pile has less than `k`
+    bananas, she eats all of them instead and will not eat any more bananas during this hour.
+
+    Koko likes to eat slowly but still wants to finish eating all the bananas before the
+    guards return.
+
+    Return the **minimum integer k** such that she can eat all the bananas
+    **within h hours**.
+  oa_story: |
+    **HostelHub Rentals — OA Round 1**
+
+    HostelHub manages PG accommodations across Koramangala, HSR Layout and Marathahalli.
+    Before the July move-in rush, every tenant application must have its KYC documents
+    verified. Applications are grouped by building: building `i` has `piles[i]` documents in
+    its queue. One verification agent handles everything, and the compliance team wants all
+    queues cleared within `h` working hours.
+
+    The agent works building by building: in each hour they pick one building and verify up
+    to `k` of its documents. If that building has fewer than `k` documents left, they finish
+    them and spend the rest of the hour on paperwork, never switching buildings mid-hour.
+    Verifying faster costs money (the agent needs more tooling), so HostelHub wants the
+    smallest whole number `k` that still clears every queue in time. There are up to 10⁴
+    buildings, a queue can hold up to 10⁹ documents, and `h` is at least the number of
+    buildings.
+  trigger_keywords: ["eating speed", "minimum integer k", "within h hours"]
+  examples:
+    - input: "piles = [3,6,7,11], h = 8"
+      output: "4"
+      explanation: "At k = 4 the piles take 1 + 2 + 2 + 3 = 8 hours. At k = 3 they take 1 + 2 + 3 + 4 = 10 > 8."
+    - input: "piles = [30,11,23,4,20], h = 5"
+      output: "30"
+      explanation: "Five piles in five hours: each pile must be finished in one hour, so k = max(piles)."
+    - input: "piles = [30,11,23,4,20], h = 6"
+      output: "23"
+      explanation: "At k = 23 only the 30-pile needs two hours: 2 + 1 + 1 + 1 + 1 = 6."
+  constraints:
+    - "1 <= piles.length <= 10^4"
+    - "piles.length <= h <= 10^9"
+    - "1 <= piles[i] <= 10^9"
+
+constraint_quiz:
+  prompt: >-
+    There are up to 10⁴ piles and each pile can hold up to 10⁹ bananas. Checking one speed
+    takes O(N). What overall complexity should you aim for?
+  options:
+    - "O(N · max(piles)) — try every speed"
+    - "O(N log N) — sort the piles first"
+    - "O(N · log(max(piles))) — binary search the speed"
+    - "O(log(max(piles))) — binary search alone"
+  answer: 2
+  explanation: >-
+    Trying every speed is up to 10⁹ checks of 10⁴ piles each, about 10¹³ steps. Sorting the
+    piles costs O(N log N) but doesn't tell you the speed; the order of the piles doesn't
+    even matter. O(log M) alone is impossible because each feasibility check must read every
+    pile. Binary searching the speed needs about log₂(10⁹) ≈ 30 checks of O(N) each, around
+    3 × 10⁵ steps.
+
+pattern_quiz:
+  prompt: >-
+    You need the minimum speed such that a total time stays within a limit, and a higher speed
+    never takes longer. Which pattern fits?
+  options:
+    - "Greedy: sort the piles and eat the biggest first"
+    - "Binary search on the answer (the speed) with a feasibility check"
+    - "Sliding window over the piles"
+    - "Max-heap of the remaining piles"
+  answer: 1
+  explanation: >-
+    "Minimum k such that ... within h hours" plus "faster is never worse" is the binary search
+    on answer trigger: the yes/no question is monotonic in k, so you can binary search k
+    directly. The order in which she eats piles doesn't change the total, so sorting or a heap
+    adds nothing, and there's no contiguous range to slide a window over.
+
+function:
+  name: minEatingSpeed
+  params: [{name: piles}, {name: h}]
+
+starter_code: |
+  class Solution:
+      def minEatingSpeed(self, piles: List[int], h: int) -> int:
+          pass
+
+tests:
+  - {args: [[3, 6, 7, 11], 8], expected: 4}
+  - {args: [[30, 11, 23, 4, 20], 5], expected: 30}
+  - {args: [[30, 11, 23, 4, 20], 6], expected: 23}
+  - {args: [[3, 6, 7, 11], 4], expected: 11, note: "h == number of piles: the answer is max(piles)"}
+  - {args: [[5], 5], expected: 1, note: "plenty of time: the lower bound 1 is the answer"}
+  - {args: [[4, 9], 5], expected: 3, note: "ceil division: 9 at speed 2 is 5 hours, not 4.5"}
+  - {args: [[312884470], 312884469], expected: 2, note: one huge pile with one hour short}
+  - {args: [[805306368, 805306368, 805306368], 1000000000], expected: 3, note: "large values: totals exceed 2^31"}
+visualize_test: 0
+
+drills:
+  - title: Hours needed at speed k
+    skill: setup
+    goal: Compute the total hours at a fixed speed k with integer ceiling division.
+    instructions: |
+      Return the total number of hours Koko needs to finish all piles at speed `k`.
+
+      A pile of `p` bananas takes `ceil(p / k)` hours: a half-eaten pile still burns a whole
+      hour. Write it as `(p + k - 1) // k`. That stays in exact integers, unlike
+      `math.ceil(p / k)`, which goes through floating point and can round wrongly for values
+      near 10¹⁸ (and in Java/C++ `p / k` silently floors). This function is the cost model
+      that the whole binary search is built on.
+    function:
+      name: hoursAtSpeed
+      params: [{name: piles}, {name: k}]
+    starter_code: |
+      class Solution:
+          def hoursAtSpeed(self, piles: List[int], k: int) -> int:
+              pass
+    tests:
+      - {args: [[3, 6, 7, 11], 4], expected: 8}
+      - {args: [[30, 11, 23, 4, 20], 30], expected: 5}
+      - {args: [[5], 2], expected: 3, note: "5 / 2 rounds up to 3"}
+      - {args: [[4, 4], 4], expected: 2, note: exact division adds no extra hour}
+      - {args: [[1, 2, 3], 10], expected: 3, note: every pile still costs one hour}
+    solution: |
+      class Solution:
+          def hoursAtSpeed(self, piles: List[int], k: int) -> int:
+              hours = 0
+              for p in piles:
+                  hours += (p + k - 1) // k
+              return hours
+    hint: "Adding `k - 1` before floor-dividing pushes any remainder up to the next whole hour."
+
+  - title: See the monotonic predicate
+    skill: core
+    goal: Evaluate feasible(k) = hours(k) <= h for every k and see that it flips from False to True exactly once.
+    instructions: |
+      Return a list whose entry `k - 1` is `True` if Koko can finish within `h` hours at
+      speed `k`, for every `k` from `1` to `max(piles)`.
+
+      Look at the output: it's always some `False`s followed only by `True`s. That shape is
+      the whole justification for binary search on the answer. A faster speed can never need
+      more hours, so once a speed works, every faster speed works too. If the list could go
+      `T F T`, binary search would be wrong. Always convince yourself the predicate is
+      monotonic before you reach for this pattern.
+    function:
+      name: feasibilityMap
+      params: [{name: piles}, {name: h}]
+    starter_code: |
+      class Solution:
+          def feasibilityMap(self, piles: List[int], h: int) -> List[bool]:
+              pass
+    tests:
+      - {args: [[3, 6, 7, 11], 8], expected: [false, false, false, true, true, true, true, true, true, true, true]}
+      - {args: [[4, 9], 5], expected: [false, false, true, true, true, true, true, true, true]}
+      - {args: [[2], 1], expected: [false, true]}
+      - {args: [[1, 1], 5], expected: [true], note: "max(piles) is 1, so only k = 1 is tried"}
+    solution: |
+      class Solution:
+          def feasibilityMap(self, piles: List[int], h: int) -> List[bool]:
+              flags = []
+              for k in range(1, max(piles) + 1):
+                  hours = sum((p + k - 1) // k for p in piles)
+                  flags.append(hours <= h)
+              return flags
+    hint: "Loop k over `range(1, max(piles) + 1)` and append `hours <= h` for each one."
+
+  - title: Find the first True
+    skill: edge
+    goal: Write the lower-bound loop (lo < hi, hi = mid, lo = mid + 1) that returns the first True in a monotonic list.
+    instructions: |
+      `flags` is monotonic: some `False`s, then only `True`s. Return the index of the first
+      `True`, or `len(flags)` if there is none. Use binary search, not a scan.
+
+      Start with `lo, hi = 0, len(flags)` (index `len(flags)` stands for "no True at all").
+      If `flags[mid]` is `True`, the answer is `mid` or something left of it, so set
+      `hi = mid`, **not** `mid - 1`, or you may jump past the answer. If it's `False`, the
+      answer is strictly right, so `lo = mid + 1`. When `lo == hi` the window holds exactly
+      one candidate: return `lo`. In Koko, `flags[k]` is replaced by `hours(k) <= h`, and
+      `hi = max(piles)` is always feasible, so no "none" case is needed.
+    function:
+      name: firstTrue
+      params: [{name: flags}]
+    starter_code: |
+      class Solution:
+          def firstTrue(self, flags: List[bool]) -> int:
+              pass
+    tests:
+      - {args: [[false, false, false, true, true]], expected: 3}
+      - {args: [[true, true]], expected: 0, note: first index already true}
+      - {args: [[false, false]], expected: 2, note: "no True: return len(flags)"}
+      - {args: [[false]], expected: 1}
+      - {args: [[false, false, false, false, false, false, true]], expected: 6, note: answer at the very end}
+    solution: |
+      class Solution:
+          def firstTrue(self, flags: List[bool]) -> int:
+              lo, hi = 0, len(flags)
+              while lo < hi:
+                  mid = (lo + hi) // 2
+                  if flags[mid]:
+                      hi = mid
+                  else:
+                      lo = mid + 1
+              return lo
+    hint: "A True at `mid` might itself be the answer, so keep it inside the window."
+
+hints:
+  - >-
+    Forget the piles for a moment: if someone hands you a speed k, can you check quickly
+    whether Koko finishes in time? And if speed k works, what do you know about speed k + 1?
+  - >-
+    The answer lies between 1 and max(piles). feasible(k) is "sum of ceil(p / k) <= h", and it
+    goes False ... False True ... True as k grows. Binary search that range for the first
+    True: if mid is feasible, the answer is mid or smaller; otherwise it is larger.
+  - |
+    hours_needed(k) = sum over piles of (p + k - 1) // k
+    lo = 1, hi = max(piles)
+    while lo < hi:
+        mid = middle of lo and hi
+        if hours_needed(mid) <= h:  hi = mid       (mid works, try slower)
+        else:                       lo = mid + 1   (mid too slow)
+    return lo
+
+solution:
+  code: |
+    class Solution:
+        def minEatingSpeed(self, piles: List[int], h: int) -> int:
+            def hours_needed(k):
+                hours = 0
+                for p in piles:
+                    hours += (p + k - 1) // k  # ceil(p / k): a part-eaten pile still costs an hour
+                return hours
+
+            # answer space: at speed max(piles) every pile takes one hour, and n <= h
+            lo, hi = 1, max(piles)
+            while lo < hi:  # find the first speed with hours_needed(speed) <= h
+                mid = (lo + hi) // 2
+                if hours_needed(mid) <= h:
+                    hi = mid  # mid works: the answer is mid or slower
+                else:
+                    lo = mid + 1  # mid is too slow, and so is every speed below it
+            return lo
+  explanation: |
+    This is the **binary search on answer** template, and every problem in this family has
+    the same three parts:
+
+    1. **Answer space.** The speed is at least 1, and `max(piles)` always works because each
+       pile then takes exactly one hour and there are at most `h` piles. So the answer is in
+       `[1, max(piles)]`.
+    2. **Monotonic predicate.** `hours_needed(k) <= h` is False for slow speeds and True for
+       fast ones, with a single flip: going faster never adds hours.
+    3. **First-true search.** The lower-bound loop `while lo < hi` with `hi = mid` on success
+       and `lo = mid + 1` on failure shrinks the window until `lo == hi`, which is the first
+       feasible speed.
+
+    Why `hi = mid` and not `mid - 1`: a feasible `mid` might be the answer itself. Why the loop
+    terminates: `mid = (lo + hi) // 2` is always `< hi` when `lo < hi`, so either branch
+    shrinks the window. Since `hi` starts at a speed that is known to work, there's no "not
+    found" case.
+
+    Ceil division `(p + k - 1) // k` matters: `[4, 9]` with `h = 5` needs speed 3, because at
+    speed 2 the 9-pile takes 5 hours, not 4.5. Python integers don't overflow, but in Java or
+    C++ the total hours for 10⁴ piles of 10⁹ at speed 1 reach 10¹³, so use a 64-bit counter.
+  time: O(N log M) — about log₂(max(piles)) ≤ 30 iterations, each an O(N) pass over the piles
+  space: O(1) — only a few integers
+  brute_force_code: |
+    class Solution:
+        def minEatingSpeed(self, piles: List[int], h: int) -> int:
+            for k in range(1, max(piles) + 1):
+                if sum((p + k - 1) // k for p in piles) <= h:
+                    return k
+            return max(piles)
+
+pitch_script: |
+  **(Clarify)** "Each hour she works on a single pile, so a pile of p at speed k takes ceil of
+  p over k hours, and leftover time in that hour is wasted. h is at least the number of piles,
+  so an answer always exists, and I return the smallest whole-number speed. Right?"
+
+  **(Brute force)** "I could try speeds 1, 2, 3 and so on, computing the total hours each time,
+  and return the first one that fits. Each check is O(N), but there can be up to 10⁹ speeds,
+  so that's up to 10¹³ operations."
+
+  **(Trigger)** "The phrase 'minimum k such that it finishes within h hours' is the signal.
+  If speed k works, any faster speed also works, so the feasibility answer is monotonic in k:
+  false, false, ..., true, true. That means I can binary search on the answer instead of on
+  the array."
+
+  **(Optimal)** "The answer lies between 1 and max(piles), since at max speed every pile takes
+  one hour. I write a helper that sums ceil(p / k) using (p + k - 1) // k. Then I binary
+  search for the first feasible speed: if mid is feasible I set hi = mid, because mid could be
+  the answer; otherwise lo = mid + 1. When lo meets hi, that's the minimum speed."
+
+  **(Complexity)** "About log₂ of 10⁹, so roughly 30 iterations, each an O(N) pass, giving
+  O(N log M) time and O(1) space. In Java or C++ I'd keep the hours total in a long, because
+  it can reach 10¹³ at low speeds."
+
+twist:
+  lc: 1482
+  title: Minimum Number of Days to Make m Bouquets
+  why: >-
+    Now you search over days instead of speeds: the answer space is [min(bloomDay),
+    max(bloomDay)], and feasible(day) asks "after this day, can I form m bouquets from runs of
+    k adjacent bloomed flowers?". It's still monotonic (waiting longer only blooms more
+    flowers), so the same first-true loop works. Two changes: the check is a greedy scan
+    counting consecutive bloomed flowers instead of a ceil-division sum, and you must return
+    -1 up front when m * k > n, because then no day is ever feasible.
+
+viz:
+  arrays: [piles]
+  # lo and hi are speeds, not indices into piles: point the window at names that don't exist
+  # so the visualizer doesn't draw a misleading [lo..hi] box over the piles array.
+  window: null  # lo/hi are answer values, not indices: no range box
+  watch: [lo, hi, mid, k, hours, h]

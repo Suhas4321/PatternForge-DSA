@@ -1,0 +1,359 @@
+slug: subsets-ii
+lc: 90
+
+concept:
+  problem_it_solves: >-
+    "List every distinct selection when some items are identical." Two equal values are
+    interchangeable, so "the first 2 without the second" and "the second 2 without the first"
+    are the same subset. The job is to make sure the search tree never builds that subset
+    twice, instead of building it twice and throwing one copy away.
+  brute_force: >-
+    Generate all 2^N subsets exactly as in Subsets, sort each one, and push it into a set of
+    tuples to drop repeats. It gives the right answer, but most of the work can be wasted: for
+    [2, 2, 2, 2, 2] it builds 32 subsets, sorts and hashes all of them, and keeps only 6. The
+    more duplicates the input has, the larger the fraction of thrown-away work.
+  brute_force_complexity: >-
+    O(2^N · N log N) time — all 2^N subsets are built and each is sorted before hashing — and
+    O(N · 2^N) space for the set, even when the real answer is only N + 1 subsets.
+  key_insight: >-
+    Sort first, so equal values sit next to each other. Then, in the loop form of the template,
+    the `for` loop inside one dfs(start) call lists the candidates for the *same position* of
+    path: these are siblings in the tree. If two siblings carry the same value, their subtrees
+    are identical, so keep the first and skip the rest: `if i > start and nums[i] ==
+    nums[i - 1]: continue`. Going *deeper* is different: picking a 2 and then another 2 below
+    it builds [2, 2], which is new. Skip duplicates across a level, never along a branch.
+  real_world: >-
+    Constraint solvers and SAT solvers call this symmetry breaking: when two choices are
+    interchangeable, they force a canonical order (here, sorted order plus "first copy only")
+    so the solver never explores mirror-image branches. Bundle and pricing engines that
+    enumerate offers from a cart with repeated SKUs use the same idea to avoid generating,
+    hashing and discarding duplicate bundles.
+
+statement:
+  clean: |
+    Given an integer array `nums` that **may contain duplicates**, return all possible
+    subsets (the power set).
+
+    The solution set **must not contain duplicate subsets**. Return the solution in
+    **any order**.
+  oa_story: |
+    **ComboCart — OA Round 2**
+
+    ComboCart is a 10-minute grocery app with dark stores across HSR Layout and Bellandur.
+    When a customer's cart is ready, the "Save as bundle" feature suggests sub-bundles the
+    customer can reorder later. A cart is a list of product codes, and the same product can
+    appear several times (three packets of the same instant noodles share one code).
+
+    The bundle service must list every bundle that can be formed by taking some of the cart's
+    items, including the empty bundle. Two bundles are the same if they contain the same
+    products in the same quantities, regardless of which physical packet was taken or in what
+    order, and the same bundle must never be suggested twice. Carts have at most 10 items, and
+    the bundles can be returned in any order.
+  trigger_keywords: ["may contain duplicates", "must not contain duplicate subsets"]
+  examples:
+    - input: "nums = [1,2,2]"
+      output: "[[],[1],[1,2],[1,2,2],[2],[2,2]]"
+      explanation: "[2] appears once even though there are two different 2s you could pick."
+    - input: "nums = [0]"
+      output: "[[],[0]]"
+  constraints:
+    - "1 <= nums.length <= 10"
+    - "-10 <= nums[i] <= 10"
+
+constraint_quiz:
+  prompt: >-
+    nums.length is at most 10 and you must return every distinct subset. What is the
+    worst-case time complexity you should aim for?
+  options: ["O(N²)", "O(N log N)", "O(N · 2^N)", "O(N · N!)"]
+  answer: 2
+  explanation: >-
+    When all elements are distinct there really are 2^N distinct subsets of up to N elements
+    each, so O(N · 2^N) is forced by the output size; O(N²) and O(N log N) can't even write it.
+    O(N · N!) is the permutation bound and counts orderings that subsets don't care about. The
+    goal here isn't a lower bound but no wasted work: when duplicates exist, the skip rule
+    makes the tree only as large as the number of distinct subsets.
+
+pattern_quiz:
+  prompt: >-
+    You must list every subset of an array that may contain duplicates, without repeating a
+    subset. Which approach is the intended one?
+  options:
+    - "Generate all 2^N subsets, then dedupe with a set of sorted tuples"
+    - "Sort, then backtrack and skip a value equal to its left neighbour at the same tree level"
+    - "Sliding window over the sorted array"
+    - "Count each value, then greedily take the most frequent ones"
+  answer: 1
+  explanation: >-
+    The set-based dedupe passes for N = 10 but generates the duplicates before discarding them,
+    and interviewers will ask you to avoid that. "May contain duplicates" plus "must not
+    contain duplicate subsets" is the sort-and-skip trigger: sorting makes equal values
+    adjacent, and skipping equal siblings stops identical subtrees from ever being built. A
+    window only sees contiguous runs, and greedy picks one answer instead of listing them all.
+
+function:
+  name: subsetsWithDup
+  params: [{name: nums}]
+  compare: unordered_nested
+
+starter_code: |
+  class Solution:
+      def subsetsWithDup(self, nums: List[int]) -> List[List[int]]:
+          pass
+
+tests:
+  - {args: [[1, 2, 2]], expected: [[], [1], [1, 2], [1, 2, 2], [2], [2, 2]]}
+  - {args: [[0]], expected: [[], [0]]}
+  - {args: [[2, 2, 2]], expected: [[], [2], [2, 2], [2, 2, 2]], note: "all equal: N + 1 subsets, not 2^N"}
+  - {args: [[4, 4, 4, 1, 4]], expected: [[], [1], [4], [1, 4], [4, 4], [1, 4, 4], [4, 4, 4], [1, 4, 4, 4], [4, 4, 4, 4], [1, 4, 4, 4, 4]], note: "unsorted, the duplicates aren't adjacent until you sort"}
+  - {args: [[1, 1, 2, 2]], expected: [[], [1], [2], [1, 1], [1, 2], [2, 2], [1, 1, 2], [1, 2, 2], [1, 1, 2, 2]], note: two duplicate groups}
+  - {args: [[3, 1, 3]], expected: [[], [1], [3], [1, 3], [3, 3], [1, 3, 3]]}
+  - {args: [[-1, 1, -1, 2]], expected: [[], [-1], [1], [2], [-1, -1], [-1, 1], [-1, 2], [1, 2], [-1, -1, 1], [-1, -1, 2], [-1, 1, 2], [-1, -1, 1, 2]], note: negative duplicates}
+  - {args: [[1, 2, 3]], expected: [[], [1], [2], [3], [1, 2], [1, 3], [2, 3], [1, 2, 3]], note: "no duplicates: same answer as Subsets"}
+visualize_test: 0
+
+drills:
+  - title: Sort so twins sit together
+    skill: setup
+    goal: Sort the array and detect a duplicate by comparing each value with its left neighbour.
+    instructions: |
+      Return the distinct values of `nums` in ascending order, using **sort + compare with the
+      previous element** (no `set`).
+
+      This is the setup step of Subsets II. Before sorting, two equal values can be far apart
+      (`[4, 1, 4]`), and nothing local tells you the second 4 is a repeat. After sorting,
+      every repeat sits right after its twin, so `nums[i] == nums[i - 1]` is a one-comparison
+      duplicate test. The `i > 0` guard keeps you from comparing index 0 with `nums[-1]`,
+      which in Python is the *last* element.
+    function:
+      name: uniqueSorted
+      params: [{name: nums}]
+    starter_code: |
+      class Solution:
+          def uniqueSorted(self, nums: List[int]) -> List[int]:
+              pass
+    tests:
+      - {args: [[3, 1, 3, 2, 1]], expected: [1, 2, 3]}
+      - {args: [[5, 5, 5]], expected: [5]}
+      - {args: [[7]], expected: [7], note: "without the i > 0 guard, nums[0] is compared with nums[-1], which is itself"}
+      - {args: [[2, -1, 2, -1]], expected: [-1, 2], note: negatives sort first}
+      - {args: [[1, 0, 1]], expected: [0, 1], note: twins far apart before sorting}
+    solution: |
+      class Solution:
+          def uniqueSorted(self, nums: List[int]) -> List[int]:
+              nums.sort()
+              out = []
+              for i in range(len(nums)):
+                  if i > 0 and nums[i] == nums[i - 1]:
+                      continue
+                  out.append(nums[i])
+              return out
+    hint: "Sort first, then `continue` when `nums[i]` equals `nums[i - 1]`."
+
+  - title: Same level vs same branch
+    skill: core
+    goal: Skip a duplicate only when it is a sibling choice (j > i + 1), never when it is the first choice one level deeper.
+    instructions: |
+      Return every distinct pair `[a, b]` (with `a <= b`) that can be formed from two
+      different positions of `nums`, in ascending order. `[1, 1, 2, 2]` gives
+      `[[1, 1], [1, 2], [2, 2]]`.
+
+      Use two nested loops after sorting. The outer loop picks the first element: skip `i` when
+      `i > 0` and it equals its left neighbour. The inner loop starts at `i + 1` and picks the
+      second element: skip `j` when **`j > i + 1`** and it equals its left neighbour.
+
+      Why `j > i + 1` and not `j > 0`? `j == i + 1` is the *first* option at this level. If it
+      equals `nums[i]`, that's going deeper on the same branch, and `[1, 1]` is a real pair.
+      Only a *later* sibling with the same value would repeat a pair. In the recursive
+      solution, `start` plays the role of `i + 1`, which is why the rule reads `i > start`.
+    function:
+      name: uniquePairs
+      params: [{name: nums}]
+    starter_code: |
+      class Solution:
+          def uniquePairs(self, nums: List[int]) -> List[List[int]]:
+              pass
+    tests:
+      - {args: [[1, 1, 2, 2]], expected: [[1, 1], [1, 2], [2, 2]]}
+      - {args: [[2, 1, 2]], expected: [[1, 2], [2, 2]]}
+      - {args: [[3, 3, 3]], expected: [[3, 3]], note: "j == i + 1 must be allowed or [3, 3] disappears"}
+      - {args: [[1, 2, 3]], expected: [[1, 2], [1, 3], [2, 3]]}
+      - {args: [[4]], expected: [], note: "one element: no pair"}
+    solution: |
+      class Solution:
+          def uniquePairs(self, nums: List[int]) -> List[List[int]]:
+              nums.sort()
+              out = []
+              for i in range(len(nums)):
+                  if i > 0 and nums[i] == nums[i - 1]:
+                      continue
+                  for j in range(i + 1, len(nums)):
+                      if j > i + 1 and nums[j] == nums[j - 1]:
+                          continue
+                      out.append([nums[i], nums[j]])
+              return out
+    hint: "Each loop's guard compares against that loop's own starting index."
+
+  - title: Excluding a value means excluding every copy
+    skill: edge
+    goal: Write Subsets II in include/exclude form, where the exclude branch jumps past all copies of the current value.
+    instructions: |
+      Solve Subsets II again, but with the include/exclude tree from Subsets instead of the
+      loop: `dfs(i)` either takes `nums[i]` (append, `dfs(i + 1)`, pop) or skips it.
+
+      The edge case: if you skip a 4 but then take the next 4, you rebuild exactly the subsets
+      that "take the first 4" already built. So the exclude branch must skip **every** copy:
+      move `j` forward while `nums[j] == nums[i]`, then call `dfs(j)`. The input here is
+      unsorted on purpose; without sorting first, the copies aren't next to each other and the
+      jump misses them.
+    function:
+      name: subsetsSkipCopies
+      params: [{name: nums}]
+      compare: unordered_nested
+    starter_code: |
+      class Solution:
+          def subsetsSkipCopies(self, nums: List[int]) -> List[List[int]]:
+              pass
+    tests:
+      - {args: [[4, 4, 4, 1, 4]], expected: [[], [1], [4], [1, 4], [4, 4], [1, 4, 4], [4, 4, 4], [1, 4, 4, 4], [4, 4, 4, 4], [1, 4, 4, 4, 4]]}
+      - {args: [[1, 2, 2]], expected: [[], [1], [1, 2], [1, 2, 2], [2], [2, 2]]}
+      - {args: [[5, 5]], expected: [[], [5], [5, 5]]}
+      - {args: [[0]], expected: [[], [0]]}
+    solution: |
+      class Solution:
+          def subsetsSkipCopies(self, nums: List[int]) -> List[List[int]]:
+              nums.sort()
+              res, path = [], []
+
+              def dfs(i):
+                  if i == len(nums):
+                      res.append(path[:])
+                      return
+                  path.append(nums[i])
+                  dfs(i + 1)
+                  path.pop()
+                  j = i
+                  while j < len(nums) and nums[j] == nums[i]:
+                      j += 1
+                  dfs(j)
+
+              dfs(0)
+              return res
+    hint: "The include branch still moves by one (`i + 1`); only the exclude branch jumps."
+
+hints:
+  - >-
+    In [1, 2, 2], why does plain Subsets produce [2] twice? Look at the root of the loop-form
+    tree: what are its children, and which two of them start identical subtrees?
+  - >-
+    Sort nums. In dfs(start), record path, then loop i from start. If i > start and nums[i]
+    equals nums[i - 1], an earlier sibling already explored this value: skip it. Otherwise
+    choose nums[i], recurse with i + 1, un-choose. i == start is always allowed, because that
+    is going deeper on the current branch.
+  - |
+    sort nums
+    dfs(start):
+        record a copy of path
+        for i from start to n - 1:
+            if i > start and nums[i] == nums[i - 1]: skip   (same level, same value)
+            append nums[i]; dfs(i + 1); pop
+    dfs(0); return res
+
+solution:
+  code: |
+    class Solution:
+        def subsetsWithDup(self, nums: List[int]) -> List[List[int]]:
+            nums.sort()  # equal values become neighbours, so a repeat is one comparison away
+            res = []
+            path = []
+
+            def dfs(start):
+                res.append(path[:])  # every node of this tree is a subset
+                for i in range(start, len(nums)):  # siblings: candidates for the next slot
+                    if i > start and nums[i] == nums[i - 1]:
+                        continue  # same level, same value: this subtree was already built
+                    path.append(nums[i])  # choose
+                    dfs(i + 1)  # explore
+                    path.pop()  # un-choose
+
+            dfs(0)
+            return res
+  explanation: |
+    **The one change from Subsets.** Take the loop form of the Subsets template (record
+    `path`, then loop `i` from `start`: choose, `dfs(i + 1)`, un-choose). Subsets II adds a
+    single `continue` line inside the loop, plus the `sort` that makes it work.
+
+    **Why duplicates appear at all.** For sorted `[1, 2, 2]`, the root call `dfs(0)` has three
+    children: pick 1, pick the first 2, pick the second 2. The last two start with the same
+    value and can only add elements after them, so the second 2's subtree (`[2]`) is a copy of
+    part of the first 2's subtree (`[2]`, `[2, 2]`). Skipping it loses nothing.
+
+    ```
+    dfs(0) []
+    ├── 1 → dfs(1) [1]
+    │       ├── 2 → dfs(2) [1,2]
+    │       │       └── 2 → dfs(3) [1,2,2]   i == start: deeper on the same branch, allowed
+    │       └── 2 (i=2)  skipped: same level as the 2 at i=1
+    ├── 2 → dfs(2) [2]
+    │       └── 2 → dfs(3) [2,2]             i == start: allowed
+    └── 2 (i=2)  skipped: same level as the 2 at i=1
+    ```
+
+    **Same level vs same branch.** All iterations of the `for` loop inside one call are
+    *siblings*: they compete for the same position in `path`. Two siblings with the same value
+    build identical subtrees, so only the first may go. A recursive call is a *child*: it
+    picks the next position. Picking a 2 there, right after a 2 on the parent, makes `[2, 2]`,
+    which is a new subset. `i > start` is exactly "this is not the first sibling at this
+    level", so `i == start` (going deeper) is never skipped. Writing `i > 0` instead would
+    wrongly delete `[2, 2]` and `[1, 2, 2]`.
+
+    **Why sorting is required.** The skip only compares neighbours. In `[4, 4, 4, 1, 4]` the
+    last 4 isn't next to the others, so without sorting it would start a duplicate subtree.
+    Sorting costs O(N log N), which disappears next to the exponential search.
+  time: O(N · 2^N) — at most 2^N distinct subsets (all values distinct), each copied in O(N); the sort adds O(N log N)
+  space: O(N) — recursion depth and path length are at most N (the output is not counted)
+  brute_force_code: |
+    class Solution:
+        def subsetsWithDup(self, nums: List[int]) -> List[List[int]]:
+            n = len(nums)
+            seen = set()
+            for mask in range(1 << n):
+                subset = sorted(nums[b] for b in range(n) if mask >> b & 1)
+                seen.add(tuple(subset))  # sorted, so equal subsets hash the same
+            return [list(t) for t in seen]
+
+pitch_script: |
+  **(Clarify)** "The array can have duplicates, and two subsets with the same values in the
+  same quantities count as one. I return each distinct subset once, empty subset included,
+  in any order. N is at most 10."
+
+  **(Brute force)** "I could generate all 2^N subsets like in Subsets, sort each one and put
+  it in a set of tuples. That's correct, but with many duplicates most of the work is thrown
+  away: five 2s generate 32 subsets to keep 6."
+
+  **(Trigger)** "'May contain duplicates' and 'no duplicate subsets' tells me to sort and skip
+  duplicates during the search, so they're never generated in the first place."
+
+  **(Optimal)** "I sort, then use the loop-style backtracking: each call records the current
+  path, then loops i from start, appends nums[i], recurses with i plus 1, and pops. The one
+  addition is: if i is greater than start and nums[i] equals nums[i minus 1], I skip it. Those
+  are two siblings at the same level with the same value, so they'd build identical subtrees.
+  I use i greater than start, not i greater than 0, because the first choice at a level may
+  repeat its parent's value; that's how [2, 2] gets built."
+
+  **(Complexity)** "Worst case all values are distinct: 2^N subsets copied in O(N) each, so
+  O(N · 2^N) time plus O(N log N) for the sort. Extra space is O(N) for recursion and the
+  path, not counting the output."
+
+twist:
+  lc: 47
+  title: Permutations II
+  why: >-
+    The duplicate-skip moves into a permutation tree. There is no start index there (any
+    unused element can go next), so "same level" is detected with the used array instead:
+    sort, then skip nums[i] when i > 0, nums[i] == nums[i - 1] and used[i - 1] is False. A
+    False used[i - 1] means the twin is not on the current branch, so it was an earlier sibling
+    at this same level, and choosing this copy would rebuild its subtree.
+
+viz:
+  arrays: [nums, path]
+  pointers: [start, i]

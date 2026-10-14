@@ -1,0 +1,353 @@
+slug: course-schedule
+lc: 207
+
+concept:
+  problem_it_solves: >-
+    "Can these dependencies ever be satisfied?" Courses are nodes and "b before a" is a directed
+    edge b → a. Everything can be finished exactly when the graph has no cycle, because a cycle is a
+    set of courses that each wait on another one in the same set. Topological sorting answers it by
+    repeatedly taking whatever has no unmet prerequisites.
+  brute_force: >-
+    For every course, run a DFS along the "unlocks" edges and check whether you can get back to the
+    starting course; if any course can reach itself, there's a cycle. Each search may walk the whole
+    graph, and the searches overlap almost entirely: the same chains of courses get re-walked once
+    for every course that leads into them.
+  brute_force_complexity: >-
+    O(V · (V + E)) time, O(V + E) space — 2000 courses and 5000 pairs means about 1.4 × 10⁷ steps,
+    and it grows quadratically with the number of courses.
+  key_insight: >-
+    Simulate actually taking the courses. A course with indegree 0 (no prerequisites left) can be
+    taken right now, so put all of them in a queue. Taking a course removes its outgoing edges:
+    decrement the indegree of every course it unlocks, and any course that drops to 0 joins the
+    queue. This is Kahn's algorithm. Courses on a cycle never reach indegree 0, because each one is
+    still waiting on another member of the cycle, so they never get taken. Hence: all courses can
+    be finished if and only if the number of courses taken equals numCourses.
+  real_world: >-
+    Build systems (Bazel, Maven, Gradle) and package managers (pip, npm, apt) topologically sort
+    the dependency graph to decide what to build or install first, and report "cyclic dependency"
+    when Kahn's queue empties early. Spring detects circular bean dependencies the same way,
+    Airflow refuses DAGs with cycles, and Terraform orders resource creation by a topological sort
+    of its resource graph.
+
+statement:
+  clean: |
+    There are a total of `numCourses` courses you have to take, labelled from `0` to
+    `numCourses - 1`. You are given an array `prerequisites` where
+    `prerequisites[i] = [ai, bi]` means you **must take course** `bi` first if you want to take
+    course `ai`.
+
+    For example, the pair `[0, 1]` means that to take course `0` you have to first take course `1`.
+
+    Return `true` if you can **finish all courses**. Otherwise, return `false`.
+  oa_story: |
+    **SemesterSathi — OA Round 1**
+
+    SemesterSathi helps engineering colleges around Bengaluru publish their elective catalogue.
+    Each department uploads its modules, numbered `0` to `numCourses - 1`, and a list of
+    "needs" rules: the rule `[a, b]` says module `b` has to be cleared before a student may
+    register for module `a`. Rules come from many professors editing the same spreadsheet, so
+    nobody has ever checked them all together.
+
+    Before the catalogue goes live, the platform must confirm that a student starting from zero
+    could, semester by semester, eventually clear **every** module. If some modules can never be
+    registered for, the upload must be rejected. Write a function that returns `true` if the
+    catalogue is completable and `false` otherwise. Catalogues have up to 2000 modules and 5000
+    rules.
+  trigger_keywords: ["prerequisites", "must take course", "finish all courses"]
+  examples:
+    - input: "numCourses = 2, prerequisites = [[1,0]]"
+      output: "true"
+      explanation: "Take course 0, then course 1."
+    - input: "numCourses = 2, prerequisites = [[1,0],[0,1]]"
+      output: "false"
+      explanation: "Course 1 needs 0 and course 0 needs 1: neither can ever be taken first."
+  constraints:
+    - "1 <= numCourses <= 2000"
+    - "0 <= prerequisites.length <= 5000"
+    - "prerequisites[i].length == 2"
+    - "0 <= ai, bi < numCourses"
+    - "All the pairs prerequisites[i] are unique."
+
+constraint_quiz:
+  prompt: >-
+    There are up to 2000 courses (V) and 5000 prerequisite pairs (E). What should you aim for?
+  options:
+    - "O(V!) — try every ordering of the courses"
+    - "O(V · (V + E)) — a cycle-search DFS from every course"
+    - "O(V + E) — a single topological sort"
+    - "O(E log E) — sort the prerequisite pairs"
+  answer: 2
+  explanation: >-
+    Trying orderings is hopeless (2000! orderings). A DFS from every course is about 1.4 × 10⁷
+    steps, which might scrape through here but scales quadratically and is not what an interviewer
+    wants to see. Sorting the pairs doesn't reveal cycles at all. Kahn's algorithm (or a single
+    3-colour DFS) touches each course and each pair a constant number of times: O(V + E), about
+    7000 steps.
+
+pattern_quiz:
+  prompt: >-
+    You have items and "x must come before y" rules, and must decide whether some order satisfies
+    every rule. Which pattern fits?
+  options:
+    - "Union-Find to group connected courses"
+    - "Topological sort (Kahn's algorithm with indegrees) and check that every node gets processed"
+    - "Dijkstra from course 0"
+    - "Greedy: sort courses by how many prerequisites they have"
+  answer: 1
+  explanation: >-
+    "Prerequisites", "must take before", "order" are the topological-sort triggers: the rules form
+    a directed graph and an order exists exactly when it has no cycle. Union-Find ignores edge
+    direction (a → b and b → a look the same to it), Dijkstra answers a distance question, and
+    sorting by prerequisite count fails as soon as a course with many prerequisites is needed early.
+
+function:
+  name: canFinish
+  params: [{name: numCourses}, {name: prerequisites}]
+
+starter_code: |
+  class Solution:
+      def canFinish(self, numCourses: int, prerequisites: List[List[int]]) -> bool:
+          pass
+
+tests:
+  - {args: [2, [[1, 0]]], expected: true}
+  - {args: [2, [[1, 0], [0, 1]]], expected: false}
+  - {args: [1, []], expected: true, note: single course with no rules}
+  - {args: [5, []], expected: true, note: "no prerequisites: every course starts at indegree 0"}
+  - {args: [1, [[0, 0]]], expected: false, note: "a course that needs itself is a cycle of length 1"}
+  - {args: [4, [[1, 0], [2, 0], [3, 1], [3, 2]]], expected: true, note: "diamond: course 3 waits for two prerequisites, but there is no cycle"}
+  - {args: [3, [[0, 1], [1, 2], [2, 0]]], expected: false, note: "3-cycle: the queue starts empty"}
+  - {args: [4, [[1, 0], [2, 3], [3, 2]]], expected: false, note: "courses 0 and 1 are fine, but a cycle anywhere fails"}
+  - {args: [5, [[1, 0], [2, 1], [3, 2], [1, 3], [4, 0]]], expected: false, note: "cycle 1 → 2 → 3 → 1 downstream of a valid start"}
+visualize_test: 5
+
+drills:
+  - title: Count incoming prerequisites
+    skill: setup
+    goal: Turn prerequisite pairs into an indegree array, getting the edge direction right.
+    instructions: |
+      Return a list `indegree` where `indegree[i]` is the number of prerequisites course `i` has.
+
+      The pair `[a, b]` means "take `b` before `a`", which is the directed edge `b → a`. The edge
+      points **into** `a`, so `a` is the course whose indegree goes up. Swapping the two is the most
+      common bug in topological-sort problems: the algorithm still runs, but on the reversed graph.
+    function:
+      name: indegrees
+      params: [{name: numCourses}, {name: prerequisites}]
+    starter_code: |
+      class Solution:
+          def indegrees(self, numCourses: int, prerequisites: List[List[int]]) -> List[int]:
+              pass
+    tests:
+      - {args: [2, [[1, 0]]], expected: [0, 1]}
+      - {args: [4, [[1, 0], [2, 0], [3, 1], [3, 2]]], expected: [0, 1, 1, 2]}
+      - {args: [3, []], expected: [0, 0, 0], note: no rules}
+      - {args: [3, [[0, 1], [0, 2]]], expected: [2, 0, 0], note: "[a, b]: a gets the +1"}
+    solution: |
+      class Solution:
+          def indegrees(self, numCourses: int, prerequisites: List[List[int]]) -> List[int]:
+              indegree = [0] * numCourses
+              for course, pre in prerequisites:
+                  indegree[course] += 1  # edge pre -> course points into course
+              return indegree
+    hint: "Unpack each pair as `course, pre`; the first element is the one that has to wait."
+
+  - title: Peel off courses with no prerequisites left
+    skill: core
+    goal: Run Kahn's loop, decrementing indegrees and enqueueing nodes the moment they hit 0, and count how many get processed.
+    instructions: |
+      You're given a directed graph as an adjacency list (`adj[u]` lists the nodes `u` points to)
+      and its `indegree` array. Return **how many nodes** Kahn's algorithm processes.
+
+      Start the queue with every node of indegree 0. Pop a node, count it, and for each neighbour
+      decrement its indegree; a neighbour joins the queue exactly when its indegree reaches 0,
+      because that's the moment its last prerequisite was taken. Nodes on or behind a cycle never
+      reach 0, so they're never counted. That count is what Course Schedule compares with
+      `numCourses`.
+    function:
+      name: peelCount
+      params: [{name: adj}, {name: indegree}]
+    starter_code: |
+      class Solution:
+          def peelCount(self, adj: List[List[int]], indegree: List[int]) -> int:
+              pass
+    tests:
+      - {args: [[[1], [2], []], [0, 1, 1]], expected: 3, note: a simple chain}
+      - {args: [[[1], [0]], [1, 1]], expected: 0, note: "a 2-cycle: nothing starts at indegree 0"}
+      - {args: [[[1, 2], [3], [3], []], [0, 1, 1, 2]], expected: 4, note: "diamond: 3 waits until both 1 and 2 are done"}
+      - {args: [[[1], [2], [1], []], [0, 2, 1, 0]], expected: 2, note: "0 and 3 are processed; 1 and 2 wait on each other forever"}
+    solution: |
+      class Solution:
+          def peelCount(self, adj: List[List[int]], indegree: List[int]) -> int:
+              queue = deque(u for u in range(len(adj)) if indegree[u] == 0)
+              count = 0
+              while queue:
+                  u = queue.popleft()
+                  count += 1
+                  for v in adj[u]:
+                      indegree[v] -= 1
+                      if indegree[v] == 0:
+                          queue.append(v)
+              return count
+    hint: "Enqueue inside the decrement step, only when `indegree[v]` becomes exactly 0."
+
+  - title: Three colours, not two
+    skill: edge
+    goal: Detect a directed cycle with DFS using three states, so a node finished by an earlier search isn't mistaken for a cycle.
+    instructions: |
+      Return `True` if the directed graph `adj` contains a cycle. Use DFS, the alternative to
+      Kahn's algorithm that interviewers often ask for as a follow-up.
+
+      Each node is in one of three states: `0` unvisited, `1` on the current DFS path, `2` fully
+      explored. Reaching a node in state `1` means you walked back into your own path: a cycle.
+      Reaching a node in state `2` is **not** a cycle; in the diamond `0 → 1 → 3`, `0 → 2 → 3`,
+      node 3 is reached twice without any cycle. A plain visited set can't tell those two cases
+      apart. Also start a DFS from every unvisited node, because a cycle may not be reachable
+      from node 0.
+    function:
+      name: hasCycle
+      params: [{name: adj}]
+    starter_code: |
+      class Solution:
+          def hasCycle(self, adj: List[List[int]]) -> bool:
+              pass
+    tests:
+      - {args: [[[1, 2], [3], [3], []]], expected: false, note: "diamond: node 3 is reached twice, no cycle"}
+      - {args: [[[1], [0]]], expected: true}
+      - {args: [[[0]]], expected: true, note: self-loop}
+      - {args: [[[1], [2], []]], expected: false}
+      - {args: [[[], [2], [3], [1]]], expected: true, note: "the cycle isn't reachable from node 0"}
+    solution: |
+      class Solution:
+          def hasCycle(self, adj: List[List[int]]) -> bool:
+              state = [0] * len(adj)  # 0 = unvisited, 1 = on current path, 2 = done
+
+              def dfs(u):
+                  state[u] = 1
+                  for v in adj[u]:
+                      if state[v] == 1 or (state[v] == 0 and dfs(v)):
+                          return True
+                  state[u] = 2
+                  return False
+
+              return any(state[u] == 0 and dfs(u) for u in range(len(adj)))
+    hint: "Set `state[u] = 2` only after all of `u`'s neighbours are explored, right before returning."
+
+hints:
+  - >-
+    Imagine actually doing the courses, semester by semester. Which courses can you take on day one?
+    After you take one, whose situation changes?
+  - >-
+    Track each course's indegree (number of unmet prerequisites). Queue every course at 0. When you
+    take a course, decrement the indegree of each course it unlocks, and queue those that hit 0.
+    If there's a cycle, its courses never reach 0. How can you tell at the end whether that
+    happened?
+  - |
+    adj[pre] = list of courses that pre unlocks
+    indegree[course] = number of prerequisites of course
+    queue = every course with indegree 0
+    taken = 0
+    while queue:
+        node = pop front; taken += 1
+        for each nxt in adj[node]:
+            indegree[nxt] -= 1
+            if indegree[nxt] == 0: push nxt
+    return taken == numCourses
+
+solution:
+  code: |
+    class Solution:
+        def canFinish(self, numCourses: int, prerequisites: List[List[int]]) -> bool:
+            adj = [[] for _ in range(numCourses)]  # adj[pre] = courses that pre unlocks
+            indegree = [0] * numCourses  # unmet prerequisites per course
+            for course, pre in prerequisites:
+                adj[pre].append(course)
+                indegree[course] += 1
+
+            queue = deque(c for c in range(numCourses) if indegree[c] == 0)
+            taken = 0
+            while queue:
+                node = queue.popleft()
+                taken += 1
+                for nxt in adj[node]:
+                    indegree[nxt] -= 1  # node is done: one fewer prerequisite for nxt
+                    if indegree[nxt] == 0:
+                        queue.append(nxt)
+            return taken == numCourses  # anything left over sits on or behind a cycle
+  explanation: |
+    Model each course as a node and each pair `[course, pre]` as the edge `pre → course`. A valid
+    order exists exactly when this directed graph has **no cycle**.
+
+    **Kahn's algorithm** simulates taking courses. The queue holds every course whose
+    prerequisites are all done (indegree 0). Taking a course "deletes" its outgoing edges, which we
+    do by decrementing the indegree of each course it unlocks; a course is enqueued at the exact
+    moment its count reaches 0, so it's enqueued once.
+
+    Why the final check works: if a cycle exists, every course on it has at least one prerequisite
+    that is also on the cycle, so none of them can be the first to reach indegree 0. They (and
+    anything that depends on them) are never taken, and `taken < numCourses`. Conversely, if there
+    is no cycle, there is always some remaining course with no remaining prerequisites, so the
+    queue only empties once everything is taken.
+
+    The direction of the edge matters. `[1, 0]` means 0 comes first, so the edge is `0 → 1` and
+    course 1's indegree is incremented. The alternative is a DFS with three colours (unvisited,
+    on the current path, done) that reports a cycle when it meets a node still on the path; it has
+    the same O(V + E) cost but recursion depth can reach 2000.
+  time: O(V + E) — every course is enqueued once and every prerequisite edge is relaxed once
+  space: O(V + E) — the adjacency list holds E edges; indegree and the queue hold V entries
+  brute_force_code: |
+    class Solution:
+        def canFinish(self, numCourses: int, prerequisites: List[List[int]]) -> bool:
+            adj = [[] for _ in range(numCourses)]
+            for course, pre in prerequisites:
+                adj[pre].append(course)
+            # a cycle exists iff some course can reach itself
+            for start in range(numCourses):
+                stack, seen = list(adj[start]), set()
+                while stack:
+                    u = stack.pop()
+                    if u == start:
+                        return False
+                    if u not in seen:
+                        seen.add(u)
+                        stack.extend(adj[u])
+            return True
+
+pitch_script: |
+  **(Clarify)** "So [a, b] means b must be taken before a, and I just need a yes or no on whether
+  all courses can be completed. Can a pair repeat, or can a course list itself? I'll handle a
+  self-loop as a cycle either way."
+
+  **(Brute force)** "This is asking whether the directed graph of prerequisites has a cycle. A
+  naive way is to DFS from every course and see if I can come back to it. That's O(V times V plus
+  E), and it re-walks the same chains for every starting course."
+
+  **(Trigger)** "Words like prerequisites and order point to topological sort. If I simulate
+  taking courses, a course becomes available exactly when its last prerequisite is done, which is
+  Kahn's algorithm with indegree counts."
+
+  **(Optimal)** "I build an adjacency list from prerequisite to course and count indegrees. All
+  courses with indegree zero go into a queue. I pop one, count it as taken, and decrement each
+  course it unlocks, pushing any that hit zero. Courses on a cycle never reach zero, so at the end
+  I return whether the number taken equals numCourses. A three-colour DFS would also work if you'd
+  prefer a recursive solution."
+
+  **(Complexity)** "Each course enters the queue once and each edge is processed once, so it's
+  O(V + E) time and O(V + E) space for the graph."
+
+twist:
+  lc: 802
+  title: Find Eventual Safe States
+  why: >-
+    Now you're asked which nodes are safe: every path from them ends at a terminal node (no
+    outgoing edges). Run Kahn's algorithm on the reversed graph, using outdegree instead of
+    indegree: terminal nodes start in the queue, and when a node's outdegree drops to 0, all of its
+    successors are known safe, so it is safe too. Nodes on or leading into a cycle never drop to 0.
+    Return the safe nodes sorted. Same peeling idea, but you count outgoing edges and walk them
+    backwards.
+
+viz:
+  graph: adj
+  node: node
+  dist: indegree
+  watch: [taken, nxt]

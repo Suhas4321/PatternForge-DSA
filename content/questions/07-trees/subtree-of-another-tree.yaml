@@ -1,0 +1,343 @@
+slug: subtree-of-another-tree
+lc: 572
+
+concept:
+  problem_it_solves: >-
+    "Does an exact copy of this small tree hang somewhere inside the big tree?" It's two
+    questions nested inside each other: *where* could a copy start (any node of the big tree),
+    and *does* it match if it starts here (Same Tree). Each question gets its own recursive
+    function with its own clear contract.
+  brute_force: >-
+    For every node of root, serialise that node's entire subtree into a fresh list (with null
+    markers) and compare it with subRoot's serialisation. It's correct, but each node's subtree
+    is rebuilt from scratch for every ancestor, so a node deep in the tree is copied once per
+    level above it, and the comparison can only start after the whole copy is built.
+  brute_force_complexity: >-
+    O(m · H + m · n) time, up to O(m²) on a skewed tree — 2000 nodes in a chain means about
+    2 × 10⁶ copied values, none of which can stop early at the first mismatch.
+  key_insight: >-
+    Split the work into two contracts. isSame(p, q) answers "are these two subtrees identical?"
+    (exactly the Same Tree lesson). isSubtree(node) answers "does subRoot appear anywhere inside
+    node's subtree?", which is true if a copy starts right here (isSame(node, subRoot)) or
+    somewhere inside the left child or the right child. Trust both recursions. Don't stop at the
+    first node whose value equals subRoot's root: values can repeat, and the real match may be
+    deeper.
+  real_world: >-
+    Structural code search (Semgrep, ESLint rules, IDE "find similar code") matches a pattern
+    AST against every node of a file's AST. Git and content-addressed stores avoid the O(m · n)
+    comparison by hashing every subtree (Merkle trees), so equal subtrees are found by equal
+    hashes, and plagiarism detectors such as MOSS compare fingerprints of code structure the
+    same way.
+
+statement:
+  clean: |
+    Given the roots of two binary trees `root` and `subRoot`, return `true` if there is a
+    **subtree of root** with the **same structure and node values** of `subRoot`, and `false`
+    otherwise.
+
+    A subtree of a binary tree `tree` is a tree that consists of a node in `tree` and
+    **all of this node's descendants**. The tree `tree` could also be considered as a subtree
+    of itself.
+  oa_story: |
+    **FolderFort — OA Round 1**
+
+    FolderFort is a Bengaluru cloud-drive startup used by design agencies in Indiranagar. Its
+    legacy storage engine keeps folders in a hierarchy where every folder has at most two child
+    slots, a first slot and a second slot, and each folder carries a numeric template tag. Agencies
+    publish "starter kits": a folder hierarchy that new projects are supposed to copy exactly.
+
+    The compliance bot needs to check whether a client's drive contains an untouched copy of a
+    starter kit. A copy counts only if some folder in the drive, together with *everything*
+    beneath it, matches the kit exactly: same tags, same slots, nothing missing and nothing extra
+    underneath. The whole drive can count as the copy. A drive has up to 2000 folders and a kit
+    up to 1000. Return whether such a folder exists.
+  trigger_keywords: ["subtree of root", "same structure and node values", "all of this node's descendants"]
+  examples:
+    - input: "root = [3,4,5,1,2], subRoot = [4,1,2]"
+      output: "true"
+      explanation: "The node 4 in root, with its children 1 and 2, matches subRoot exactly."
+    - input: "root = [3,4,5,1,2,null,null,null,null,0], subRoot = [4,1,2]"
+      output: "false"
+      explanation: "The node 4 in root has an extra descendant 0 under 2, so its subtree is not identical to subRoot."
+  constraints:
+    - "The number of nodes in the root tree is in the range [1, 2000]."
+    - "The number of nodes in the subRoot tree is in the range [1, 1000]."
+    - "-10^4 <= root.val <= 10^4"
+    - "-10^4 <= subRoot.val <= 10^4"
+
+constraint_quiz:
+  prompt: >-
+    root has m ≤ 2000 nodes and subRoot has n ≤ 1000. Checking for a match at every node of root
+    costs O(m · n) in the worst case. Is that good enough here?
+  options:
+    - "Yes: m · n ≤ 2 × 10⁶ basic steps, comfortably fast"
+    - "No: it must be O(m + n), anything slower times out"
+    - "No: it must be O(log m), using the tree's height"
+    - "It doesn't matter, the answer is always found at the root"
+  answer: 0
+  explanation: >-
+    2000 × 1000 = 2 × 10⁶ steps runs well within limits, and in practice most isSame calls stop
+    after one or two comparisons. O(m + n) is possible (serialise both trees with null markers
+    and run a linear string search, or hash every subtree), and it's the right follow-up if the
+    limits grew to 10⁵, but it isn't required here. O(log m) is impossible since you may have to
+    look at every node, and the match can start anywhere, not only at the root.
+
+pattern_quiz:
+  prompt: >-
+    You need to know whether an exact copy of one tree appears anywhere inside another. Which
+    approach fits?
+  options:
+    - "DFS over every node of root, and at each one run a Same Tree check against subRoot"
+    - "Check whether subRoot's in-order traversal is a contiguous part of root's in-order traversal"
+    - "Find the first node whose value equals subRoot.val and run Same Tree only there"
+    - "Compare the heights and node counts of subRoot and every subtree of root"
+  answer: 0
+  explanation: >-
+    "Subtree" with "same structure and node values" is Same Tree applied at every possible
+    starting node: an outer DFS chooses the start, an inner parallel DFS checks the match.
+    In-order lists without null markers lose shape, so different trees can produce the same
+    sequence. Stopping at the first matching value fails when values repeat: the first 4 you
+    meet may have the wrong children while a deeper 4 matches. Heights and counts are equal for
+    many different trees.
+
+function:
+  name: isSubtree
+  params: [{name: root, type: TreeNode}, {name: subRoot, type: TreeNode}]
+
+starter_code: |
+  class Solution:
+      def isSubtree(self, root: Optional[TreeNode], subRoot: Optional[TreeNode]) -> bool:
+          pass
+
+tests:
+  - {args: [[3, 4, 5, 1, 2], [4, 1, 2]], expected: true}
+  - {args: [[3, 4, 5, 1, 2, null, null, null, null, 0], [4, 1, 2]], expected: false, note: "the 4 has an extra descendant: all descendants must match"}
+  - {args: [[1], [1]], expected: true, note: "a tree is a subtree of itself"}
+  - {args: [[1, 1], [1]], expected: true, note: "the root 1 has a child, but the leaf 1 matches"}
+  - {args: [[3, 4, 5, 4, null, null, null, 1, 2], [4, 1, 2]], expected: true, note: "repeated value: the first 4 fails, the deeper 4 matches"}
+  - {args: [[1, 2, 3], [1, 2]], expected: false, note: "matches the top of root, but root has an extra node 3"}
+  - {args: [[12], [2]], expected: false, note: "12 vs 2: the trap for string serialisation without separators"}
+  - {args: [[1, 2, null, 3, null, 4, null, 5], [3, 4, null, 5]], expected: true, note: "skewed tree, match at the bottom"}
+  - {args: [[2, 1, 3], [2, 3, 1]], expected: false, note: "same values, mirrored shape"}
+visualize_test: 0
+
+drills:
+  - title: Visit every possible starting node
+    skill: setup
+    goal: Write the outer DFS that reaches every node of root, in pre-order.
+    instructions: |
+      Return the values of all nodes in **pre-order**: the node itself, then its left subtree,
+      then its right subtree.
+
+      The outer recursion of Subtree of Another Tree has exactly this shape: every node of
+      `root` is a place where a copy of `subRoot` could start, so you must be able to reach all
+      of them. Pre-order is the natural order: check "does it start here?" before searching
+      below.
+    function:
+      name: preorder
+      params: [{name: root, type: TreeNode}]
+    starter_code: |
+      class Solution:
+          def preorder(self, root: Optional[TreeNode]) -> List[int]:
+              pass
+    tests:
+      - {args: [[3, 4, 5, 1, 2]], expected: [3, 4, 1, 2, 5]}
+      - {args: [[]], expected: []}
+      - {args: [[1, null, 2, 3]], expected: [1, 2, 3]}
+      - {args: [[7]], expected: [7]}
+    solution: |
+      class Solution:
+          def preorder(self, root: Optional[TreeNode]) -> List[int]:
+              if root is None:
+                  return []
+              return [root.val] + self.preorder(root.left) + self.preorder(root.right)
+    hint: "An empty subtree contributes `[]`; a node contributes `[val]` followed by both children's lists."
+
+  - title: Count every place a copy starts
+    skill: core
+    goal: Run an isSame check at every node of the outer DFS and combine the results.
+    instructions: |
+      Return **how many nodes** of `root` are the top of an exact copy of `subRoot`.
+
+      You need both recursions: a helper `isSame(p, q)` (the Same Tree lesson) and an outer DFS
+      that asks it at every node. Counting instead of returning `True` early forces you to visit
+      every node, which makes it clear why stopping at the first node with a matching *value* is
+      wrong: in the third test, both 4s have the right value, but only one has the right
+      children.
+    function:
+      name: countCopies
+      params: [{name: root, type: TreeNode}, {name: subRoot, type: TreeNode}]
+    starter_code: |
+      class Solution:
+          def countCopies(self, root: Optional[TreeNode], subRoot: Optional[TreeNode]) -> int:
+              pass
+    tests:
+      - {args: [[3, 4, 5, 1, 2], [4, 1, 2]], expected: 1}
+      - {args: [[1, 1, 1], [1]], expected: 2, note: "only the two leaves match; the root has children"}
+      - {args: [[3, 4, 5, 4, null, null, null, 1, 2], [4, 1, 2]], expected: 1, note: "two 4s, one copy"}
+      - {args: [[1, 2, 3], [9]], expected: 0}
+    solution: |
+      class Solution:
+          def countCopies(self, root: Optional[TreeNode], subRoot: Optional[TreeNode]) -> int:
+              def same(p, q):
+                  if p is None or q is None:
+                      return p is q
+                  return p.val == q.val and same(p.left, q.left) and same(p.right, q.right)
+
+              if root is None:
+                  return 0
+              here = 1 if same(root, subRoot) else 0
+              return here + self.countCopies(root.left, subRoot) + self.countCopies(root.right, subRoot)
+    hint: "`here` is 1 if a copy starts at this node; add the counts from both children."
+
+  - title: Serialise with separators — the O(m + n) idea
+    skill: edge
+    goal: Build a delimiter-safe pre-order string so a subtree check becomes a substring check.
+    instructions: |
+      Return `True` if `subRoot` is a subtree of `root` by **string matching**: serialise both
+      trees in pre-order, writing `",v"` for a node with value `v` and `",#"` for an empty
+      child, then check whether subRoot's string occurs inside root's string.
+
+      The edge cases are the whole point. Without `#` markers, different shapes collide. Without
+      the leading comma, value `2` would match inside `12` (`"2,#,#"` is inside `"12,#,#"`),
+      but `",2,#,#"` can't match inside `",12,#,#"`. With both, a substring match means an exact
+      subtree. This is the optimisation behind the O(m + n) solution (with a linear-time string
+      search such as KMP).
+    function:
+      name: containsBySerialization
+      params: [{name: root, type: TreeNode}, {name: subRoot, type: TreeNode}]
+    starter_code: |
+      class Solution:
+          def containsBySerialization(self, root: Optional[TreeNode], subRoot: Optional[TreeNode]) -> bool:
+              pass
+    tests:
+      - {args: [[3, 4, 5, 1, 2], [4, 1, 2]], expected: true}
+      - {args: [[12], [2]], expected: false, note: "the leading comma keeps 2 from matching inside 12"}
+      - {args: [[3, 4, 5, 1, 2, null, null, null, null, 0], [4, 1, 2]], expected: false, note: "the # markers catch the extra 0"}
+      - {args: [[-2, 2], [2]], expected: true, note: "negative values are fine with separators"}
+      - {args: [[1, 2], [1]], expected: false, note: "the root 1 has a child; only a full subtree counts"}
+    solution: |
+      class Solution:
+          def containsBySerialization(self, root: Optional[TreeNode], subRoot: Optional[TreeNode]) -> bool:
+              def serial(node):
+                  if node is None:
+                      return ",#"
+                  return "," + str(node.val) + serial(node.left) + serial(node.right)
+
+              return serial(subRoot) in serial(root)
+    hint: "Put the comma *before* every token, including `#`, so every match starts on a token boundary."
+
+hints:
+  - >-
+    If you already had the Same Tree function, how would you use it here? At which nodes of
+    root could a copy of subRoot possibly begin?
+  - >-
+    isSubtree(node) is "does subRoot appear somewhere in node's subtree?". An empty node can't
+    contain it. Otherwise, either a copy starts exactly here (isSame(node, subRoot)), or it is
+    somewhere in the left subtree, or somewhere in the right subtree.
+  - |
+    isSame(p, q):
+        if either is empty: return (both are empty)
+        return p.val == q.val and isSame(p.left, q.left) and isSame(p.right, q.right)
+
+    isSubtree(node, sub):
+        if node is empty: return false
+        if isSame(node, sub): return true
+        return isSubtree(node.left, sub) or isSubtree(node.right, sub)
+
+solution:
+  code: |
+    class Solution:
+        def isSubtree(self, root: Optional[TreeNode], subRoot: Optional[TreeNode]) -> bool:
+            if root is None:  # ran out of tree without finding a copy (subRoot is never empty)
+                return False
+            if self.isSame(root, subRoot):  # does a copy start exactly here?
+                return True
+            # otherwise it must start somewhere inside one of the two children
+            return self.isSubtree(root.left, subRoot) or self.isSubtree(root.right, subRoot)
+
+        def isSame(self, p, q):
+            if p is None or q is None:
+                return p is q  # True only when both are None
+            return p.val == q.val and self.isSame(p.left, q.left) and self.isSame(p.right, q.right)
+  explanation: |
+    **Two functions, two contracts.**
+
+    - `isSame(p, q)` returns whether the subtrees at `p` and `q` are identical. It's the Same
+      Tree solution, compressed: if either side is `None`, they match only if both are (`p is q`
+      is True exactly when both are `None`).
+    - `isSubtree(root, subRoot)` returns whether `subRoot` appears anywhere inside `root`'s
+      subtree. Empty tree: no. Otherwise, a copy either starts at this very node, or lies
+      entirely inside the left child, or entirely inside the right child. The recursive calls
+      answer the last two (trust them).
+
+    **Why "all descendants" matters.** `isSame` runs to the bottom of both trees, so a node whose
+    top part matches but which has extra nodes underneath (example 2's extra 0, or `[1,2,3]` vs
+    `[1,2]`) returns False.
+
+    **Why you can't stop at the first matching value.** Values repeat. In
+    `[3,4,5,4,null,null,null,1,2]`, the first 4 you reach has the wrong children; the outer DFS
+    keeps searching and finds the deeper 4. The `or` only short-circuits on a *full* match.
+
+    **Cost.** `isSame` can take up to n steps at each of the m nodes: O(m · n) worst case, about
+    2 × 10⁶ here. In practice most calls fail after a comparison or two.
+
+    **The O(m + n) optimisation.** Serialise both trees in pre-order with null markers and a
+    separator before every token (`",3,4,#,#,5,#,#"`), then check whether subRoot's string is a
+    substring of root's using KMP or Z-function. Alternatively, hash every subtree bottom-up
+    (Merkle-style) and compare subRoot's hash with each node's hash, verifying with `isSame` on
+    a hash hit. Both are worth mentioning as the follow-up.
+  time: O(m · n) — up to n comparison steps for each of the m possible starting nodes
+  space: O(H_root + H_sub) — the outer recursion stack plus one isSame stack at a time
+  brute_force_code: |
+    class Solution:
+        def isSubtree(self, root: Optional[TreeNode], subRoot: Optional[TreeNode]) -> bool:
+            def serial(node):  # rebuilt from scratch for every node it's called on
+                if node is None:
+                    return [None]
+                return [node.val] + serial(node.left) + serial(node.right)
+
+            target = serial(subRoot)
+
+            def walk(node):
+                if node is None:
+                    return False
+                return serial(node) == target or walk(node.left) or walk(node.right)
+
+            return walk(root)
+
+pitch_script: |
+  **(Clarify)** "A subtree means a node together with all of its descendants, so a match has to
+  go all the way to the leaves, nothing extra below. And the whole tree counts as its own
+  subtree. subRoot is never empty, right?"
+
+  **(Brute force)** "I could serialise every node's subtree and compare it with subRoot's
+  serialisation, but that rebuilds the lower parts of the tree for every ancestor, up to
+  quadratic copying on a skewed tree."
+
+  **(Trigger)** "This is really Same Tree applied at every node. I'll write isSame as a helper,
+  and then a DFS over root that asks: does a copy start here, or somewhere in my left subtree,
+  or somewhere in my right subtree?"
+
+  **(Optimal)** "isSubtree returns false on a null node. Otherwise, if isSame of this node and
+  subRoot is true, I return true; if not, I recurse into the left and right children with an
+  or. I don't stop at the first node with the same value, because values can repeat and a
+  deeper node might be the real match."
+
+  **(Complexity)** "Worst case isSame runs n steps from each of m nodes, so O(m times n), about
+  two million here, which is fine. Space is the recursion depth, O(height of root plus height
+  of subRoot). If the trees were much bigger, I'd serialise both with null markers and
+  separators and do a KMP substring search, or hash every subtree, for O(m + n)."
+
+twist:
+  lc: 652
+  title: Find Duplicate Subtrees
+  why: >-
+    There's no fixed pattern any more: you must find every subtree shape that appears at least
+    twice. Calling isSame on every pair of nodes would be O(N²) pairs, each up to O(N). Instead,
+    the serialisation idea from the edge drill becomes the main tool: each call *returns* its
+    subtree's serialisation (built from its children's returned strings, or better, a small
+    integer ID per distinct shape), and a hash map counts how often each one occurs. When a
+    count hits 2, record that node.
+
+viz: {}  # root and subRoot are both drawn; the active call's first node is highlighted

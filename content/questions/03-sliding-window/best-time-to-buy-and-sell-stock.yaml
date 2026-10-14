@@ -1,0 +1,302 @@
+slug: best-time-to-buy-and-sell-stock
+lc: 121
+
+concept:
+  problem_it_solves: >-
+    "What is the biggest rise from an earlier low to a later high?" For any sell day, the
+    only buy day worth considering is the cheapest one before it. So instead of comparing
+    every pair of days, you carry one number forward, the lowest price so far, and score each
+    day against it.
+  brute_force: >-
+    Try every pair (buy day i, sell day j > i) and keep the largest prices[j] − prices[i].
+    For each new sell day it re-scans every earlier day looking for the minimum, even though
+    the minimum of days 0..j−1 is just the minimum of days 0..j−2 plus one more comparison.
+  brute_force_complexity: >-
+    O(N²) time, O(1) space — 10⁵ days means about 5 × 10⁹ pairs.
+  key_insight: >-
+    Think of it as a window: l is the buy day, r is the sell day, and the profit is
+    prices[r] − prices[l]. The window grows to the right every day. When prices[r] drops
+    below prices[l], jump l to r: a cheaper buy day makes every older buy day useless for
+    all future sales, so nothing behind it ever needs to be looked at again. One pass, and l
+    only ever moves forward.
+  real_world: >-
+    Broker and portfolio apps (Zerodha, Groww) run this exact running-minimum scan over price
+    history for backtests and "best possible entry" reports, and the mirror image (running
+    maximum, biggest drop) is how max drawdown is measured. Streaming systems like Flink and
+    Kafka Streams keep running min/max aggregates the same way: one number of state, updated
+    per event.
+
+statement:
+  clean: |
+    You are given an array `prices` where `prices[i]` is the price of a given stock on the
+    `i`th day.
+
+    You want to **maximize your profit** by choosing a **single day to buy** one stock and
+    choosing a **different day in the future to sell** that stock.
+
+    Return the maximum profit you can achieve from this transaction. If you cannot achieve
+    any profit, return `0`.
+  oa_story: |
+    **LoopLedger — OA Round 1**
+
+    LoopLedger is a Bengaluru fintech that lets salaried users in Whitefield and Electronic
+    City save small amounts in digital gold. A new "hindsight" feature shows users what they
+    could have earned: given the closing price of one gram for each day of a period, in
+    order, it reports the best result from one purchase followed by one sale on some later
+    day.
+
+    Return the largest gain in rupees that a single purchase and a single later sale could
+    have produced. If prices only fell (or stayed flat) so no sale could ever beat its
+    purchase, the feature should show `0`. Periods can span up to 100,000 days and the report
+    is generated live, so it must run in one pass over the prices.
+  trigger_keywords: ["maximize your profit", "single day to buy", "different day in the future to sell"]
+  examples:
+    - input: "prices = [7,1,5,3,6,4]"
+      output: "5"
+      explanation: "Buy on day 1 (price 1) and sell on day 4 (price 6): 6 − 1 = 5. Buying at 1 and selling at 7 is not allowed because day 0 comes before day 1."
+    - input: "prices = [7,6,4,3,1]"
+      output: "0"
+      explanation: "Prices only fall, so no transaction makes a profit."
+  constraints:
+    - "1 <= prices.length <= 10^5"
+    - "0 <= prices[i] <= 10^4"
+
+constraint_quiz:
+  prompt: With up to 10⁵ days of prices, what time complexity should you aim for?
+  options: ["O(N²)", "O(N log N)", "O(N)", "O(log N)"]
+  answer: 2
+  explanation: >-
+    Checking every buy/sell pair is O(N²), about 5 × 10⁹ pairs, which is far too slow.
+    O(N log N) usually means sorting, but sorting the prices forgets which day came first,
+    and the sale must come after the purchase. O(N) works because each day only needs the
+    cheapest earlier price, which you can carry forward. O(log N) is impossible since any
+    single day you skip could be the cheapest one.
+
+pattern_quiz:
+  prompt: >-
+    You need max(prices[r] − prices[l]) over all l < r, in one pass. Which pattern fits?
+  options:
+    - "Sort the prices and return max − min"
+    - "Keep the cheapest day so far as the left edge of a window (running minimum)"
+    - "Hash map from price to day"
+    - "Binary search for the best sell day"
+  answer: 1
+  explanation: >-
+    Sorting gives max − min, but the max might come before the min ([2, 4, 1] would answer 3
+    instead of 2). A hash map remembers exact values, but you don't need an exact value, you
+    need the smallest one so far. Binary search needs sorted data. "Best later value minus
+    best earlier value" is the running-minimum trigger: the window's left edge is the
+    cheapest day seen, and it only ever moves right.
+
+function:
+  name: maxProfit
+  params: [{name: prices}]
+
+starter_code: |
+  class Solution:
+      def maxProfit(self, prices: List[int]) -> int:
+          pass
+
+tests:
+  - {args: [[7, 1, 5, 3, 6, 4]], expected: 5}
+  - {args: [[7, 6, 4, 3, 1]], expected: 0, note: "falling prices: never trade"}
+  - {args: [[5]], expected: 0, note: "one day: no future day to sell on"}
+  - {args: [[2, 4, 1]], expected: 2, note: "the global minimum comes last, so max − min would be wrong"}
+  - {args: [[3, 3, 3]], expected: 0, note: "flat prices: zero profit, not negative"}
+  - {args: [[1, 2]], expected: 1, note: smallest profitable case}
+  - {args: [[2, 1, 2, 1, 0, 1, 2]], expected: 2, note: the buy day resets late}
+  - {args: [[9, 2, 8, 1, 4]], expected: 6, note: "the cheapest day is not part of the best trade"}
+visualize_test: 0
+
+drills:
+  - title: Carry the cheapest price forward
+    skill: setup
+    goal: Maintain a running minimum in one pass instead of re-scanning the past.
+    instructions: |
+      Return a list where position `i` holds the **lowest price on days `0..i`**.
+
+      This is the only memory the full problem needs. For any sell day, the best buy day is
+      the cheapest one so far, and you can keep that up to date with one comparison per day
+      rather than calling `min()` over a slice (which would be O(N²) again).
+    function:
+      name: runningMin
+      params: [{name: prices}]
+    starter_code: |
+      class Solution:
+          def runningMin(self, prices: List[int]) -> List[int]:
+              pass
+    tests:
+      - {args: [[7, 1, 5, 3, 6, 4]], expected: [7, 1, 1, 1, 1, 1]}
+      - {args: [[3, 2, 4]], expected: [3, 2, 2]}
+      - {args: [[5]], expected: [5]}
+      - {args: [[1, 2, 3]], expected: [1, 1, 1]}
+    solution: |
+      class Solution:
+          def runningMin(self, prices: List[int]) -> List[int]:
+              lowest = prices[0]
+              out = []
+              for p in prices:
+                  lowest = min(lowest, p)
+                  out.append(lowest)
+              return out
+    hint: "Start `lowest` at `prices[0]` and update it with `min(lowest, p)` before recording it."
+
+  - title: Jump the buy day when a cheaper price appears
+    skill: core
+    goal: Move the window's left edge l straight to r whenever prices[r] is cheaper than prices[l].
+    instructions: |
+      Use a window where `l` is the buy day and `r` is the sell day. For every day `r`, return
+      the profit of selling on day `r` after buying on the best day so far, `prices[r] -
+      prices[l]` (selling on the buy day itself gives 0).
+
+      The move to learn: if `prices[r] < prices[l]`, set `l = r` **before** scoring. A cheaper
+      day beats every older buy day for every future sale, so the window's left edge jumps
+      forward and never comes back.
+    function:
+      name: sellTodayProfit
+      params: [{name: prices}]
+    starter_code: |
+      class Solution:
+          def sellTodayProfit(self, prices: List[int]) -> List[int]:
+              pass
+    tests:
+      - {args: [[7, 1, 5, 3, 6, 4]], expected: [0, 0, 4, 2, 5, 3]}
+      - {args: [[7, 6, 4]], expected: [0, 0, 0]}
+      - {args: [[2, 4, 1, 3]], expected: [0, 2, 0, 2]}
+      - {args: [[5]], expected: [0]}
+    solution: |
+      class Solution:
+          def sellTodayProfit(self, prices: List[int]) -> List[int]:
+              l = 0
+              out = []
+              for r in range(len(prices)):
+                  if prices[r] < prices[l]:
+                      l = r  # cheaper buy day: restart the window here
+                  out.append(prices[r] - prices[l])
+              return out
+    hint: "Check `prices[r] < prices[l]` first and set `l = r`; then the profit is never negative."
+
+  - title: Report the trade, and know when not to trade
+    skill: edge
+    goal: Extract the buy/sell days of the best trade, keeping buy before sell and returning "no trade" when nothing is profitable.
+    instructions: |
+      Return `[buy_day, sell_day]` for the most profitable trade, or `[-1, -1]` if no trade
+      makes a **strictly positive** profit. If several trades tie, keep the first one found
+      scanning left to right.
+
+      This is where "max minus min" thinking breaks: in `[2, 4, 1]` the cheapest day (2) comes
+      after the priciest day (1), so the answer is `[0, 1]`, not `[2, 1]`. Also, flat or
+      falling prices mean you simply don't trade.
+    function:
+      name: bestTradeDays
+      params: [{name: prices}]
+    starter_code: |
+      class Solution:
+          def bestTradeDays(self, prices: List[int]) -> List[int]:
+              pass
+    tests:
+      - {args: [[7, 1, 5, 3, 6, 4]], expected: [1, 4]}
+      - {args: [[7, 6, 4, 3, 1]], expected: [-1, -1], note: falling}
+      - {args: [[3, 3]], expected: [-1, -1], note: zero profit is not a trade}
+      - {args: [[2, 4, 1]], expected: [0, 1], note: buy must come before sell}
+      - {args: [[9, 2, 8, 1, 4]], expected: [1, 2]}
+    solution: |
+      class Solution:
+          def bestTradeDays(self, prices: List[int]) -> List[int]:
+              l, best, days = 0, 0, [-1, -1]
+              for r in range(1, len(prices)):
+                  if prices[r] < prices[l]:
+                      l = r
+                  elif prices[r] - prices[l] > best:  # strictly positive and strictly better
+                      best, days = prices[r] - prices[l], [l, r]
+              return days
+    hint: "Start `best` at 0 and `days` at `[-1, -1]`; only a strictly bigger profit replaces them."
+
+hints:
+  - >-
+    Suppose you've decided to sell on day r. Out of all the days before r, which single one
+    should you have bought on? Do you need to look at all of them again to find it?
+  - >-
+    Keep a window: l is the buy day, r is the sell day. Every day, r moves right. If
+    prices[r] is lower than prices[l], is there any future sale for which l is still a better
+    buy than r? Otherwise, score prices[r] − prices[l] against the best so far.
+  - |
+    l = 0, best = 0
+    for r from 1 to n-1:
+        if prices[r] < prices[l]:
+            l = r                       # cheaper buy day: restart the window
+        else:
+            best = max(best, prices[r] - prices[l])
+    return best
+
+solution:
+  code: |
+    class Solution:
+        def maxProfit(self, prices: List[int]) -> int:
+            l = 0  # buy day: the cheapest price seen so far
+            best = 0  # not trading is always allowed
+            for r in range(1, len(prices)):  # r = sell day
+                if prices[r] < prices[l]:
+                    l = r  # cheaper buy day: older buy days are now useless
+                else:
+                    best = max(best, prices[r] - prices[l])
+            return best
+  explanation: |
+    Read the window `prices[l..r]` as "buy on day `l`, sell on day `r`". The right edge moves
+    forward every day. The left edge always sits on the **cheapest day so far**, because for
+    any sale on day `r`, the best purchase is the minimum of everything before it.
+
+    Why can `l` jump straight to `r` when a lower price appears? Take any future sell day. Buying
+    at the new low gives a bigger profit than buying at any older day, so no older day can
+    ever be the answer again. That is the sliding-window promise in its simplest form: the
+    left edge only moves forward, and whatever it leaves behind is provably useless.
+
+    Compared with the fixed window in Maximum Average Subarray, the difference is *why* `l`
+    moves: there it moved to keep the size at `k`, here it moves when a better left edge
+    shows up. `best` starts at `0` because not trading is allowed, which handles falling
+    prices and a single day for free. Ties on the reset (`<` vs `<=`) don't matter: an equal
+    price gives the same profit either way.
+  time: O(N) — one pass; l and r only move forward
+  space: O(1) — two indices and the best profit
+  brute_force_code: |
+    class Solution:
+        def maxProfit(self, prices: List[int]) -> int:
+            best = 0
+            for i in range(len(prices)):
+                for j in range(i + 1, len(prices)):
+                    best = max(best, prices[j] - prices[i])
+            return best
+
+pitch_script: |
+  **(Clarify)** "So it's exactly one buy and one later sell, the sell day has to be strictly
+  after the buy day, and if no trade makes money I return 0 rather than a negative number?"
+
+  **(Brute force)** "The naive way checks every buy-sell pair with two loops, O(N²) time and
+  O(1) space. With 10⁵ days that's around 5 billion pairs, so that won't work."
+
+  **(Trigger)** "For a fixed sell day, the best buy is simply the cheapest earlier day. So I
+  don't need every pair, I just need the minimum so far. I like to think of it as a window
+  from the buy day to the sell day, where the left edge only ever moves forward."
+
+  **(Optimal)** "I keep l on the cheapest day seen and move r through the days. If today is
+  cheaper than prices[l], I move l to today, because a lower buy price beats every older one
+  for any future sale. Otherwise I compute prices[r] minus prices[l] and update the best.
+  Best starts at 0, which covers falling prices and a single day."
+
+  **(Complexity)** "One pass, so O(N) time, and O(1) extra space for two indices and the
+  answer."
+
+twist:
+  lc: 122
+  title: Best Time to Buy and Sell Stock II
+  why: >-
+    Now you may make as many buy/sell transactions as you like (holding at most one share at
+    a time). The single long window breaks into many tiny ones: every time the price rises
+    from one day to the next, take that gain. The answer is the sum of all positive
+    day-to-day differences, still one pass and O(1) space.
+
+viz:
+  arrays: [prices]
+  pointers: [l, r]
+  window: [l, r]
+  watch: [best]

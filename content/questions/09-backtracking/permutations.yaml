@@ -1,0 +1,357 @@
+slug: permutations
+lc: 46
+
+concept:
+  problem_it_solves: >-
+    "List every possible order of these items." Now order matters: [1, 2] and [2, 1] are
+    different answers. You fill the result one slot at a time, and any item that isn't already
+    placed may go into the next slot. Backtracking walks that tree of choices, marking an item
+    as used on the way down and freeing it on the way back up.
+  brute_force: >-
+    Generate every length-N sequence of indices (N choices for each of N slots, so N^N
+    sequences) and keep only those where no index repeats. Almost all of that work is wasted:
+    as soon as a sequence repeats an index in its second slot, every one of its continuations
+    is doomed, but the brute force builds them all anyway and checks only at the end.
+  brute_force_complexity: >-
+    O(N · N^N) time, O(N) extra space — for N = 6 that is 46,656 sequences checked to keep 720;
+    for N = 10 it would be 10¹⁰ sequences for 3.6 × 10⁶ permutations.
+  key_insight: >-
+    Check the "no repeats" rule while building, not at the end: only offer the next slot to
+    elements that aren't on the current branch yet. A boolean used[i] answers "is nums[i]
+    already in path?" in O(1). Compared with Subsets, the only change is the loop: instead of
+    "elements after the one I just picked" (start index, which bans going backwards), it is
+    "any element not used yet" (range(n) plus used[]). That is why [2, 1] is reachable here
+    and wasn't in Subsets.
+  real_world: >-
+    Exact solvers for tiny routing problems try every order: a rider batching 5 or 6 deliveries
+    (Swiggy, Dunzo-style hyperlocal apps) can afford all 720 stop orders to find the shortest
+    route. Model checkers such as TLA+'s TLC and concurrency-testing tools explore orderings of
+    events to find race conditions, and query planners enumerate join orders for small numbers
+    of tables before switching to heuristics.
+
+statement:
+  clean: |
+    Given an array `nums` of **distinct integers**, return **all the possible permutations**.
+    You can return the answer in **any order**.
+  oa_story: |
+    **RosterRaja — OA Round 1**
+
+    RosterRaja builds on-call scheduling software for SaaS teams in Whitefield and Electronic
+    City. Every week one engineer after another holds the pager, and each engineer holds it
+    exactly once. Before rolling out a new leave-aware scheduler, the SRE lead wants to
+    simulate every possible hand-off order of a small team against the leave calendar, to make
+    sure no order breaks the escalation policy.
+
+    Given the list of employee IDs in the team (all different), return every possible order in
+    which they could take the pager, each as a list of IDs from first to last. Teams have at
+    most 6 engineers, and the orders themselves can be returned in any sequence.
+  trigger_keywords: ["all the possible permutations", "distinct integers"]
+  examples:
+    - input: "nums = [1,2,3]"
+      output: "[[1,2,3],[1,3,2],[2,1,3],[2,3,1],[3,1,2],[3,2,1]]"
+      explanation: "3 choices for the first slot, 2 for the second, 1 for the last: 3! = 6."
+    - input: "nums = [0,1]"
+      output: "[[0,1],[1,0]]"
+    - input: "nums = [1]"
+      output: "[[1]]"
+  constraints:
+    - "1 <= nums.length <= 6"
+    - "-10 <= nums[i] <= 10"
+    - "All the integers of nums are unique."
+
+constraint_quiz:
+  prompt: >-
+    nums.length is at most 6 and you must return every ordering. What time complexity should
+    you expect?
+  options: ["O(N²)", "O(N · 2^N)", "O(N · N!)", "O(N · N^N)"]
+  answer: 2
+  explanation: >-
+    There are N! permutations of length N each, so writing the output alone costs O(N · N!);
+    no algorithm can be faster, and for N = 6 that's only 4,320 values. O(N²) can't even print
+    the answer. O(N · 2^N) counts subsets, where order doesn't matter, and misses most
+    orderings. O(N · N^N) is the brute force that tries sequences with repeats and filters
+    them: it passes at N = 6 but grows far faster than N!.
+
+pattern_quiz:
+  prompt: >-
+    You must list every ordering of distinct numbers, so [1, 2] and [2, 1] are both answers.
+    Which pattern fits?
+  options:
+    - "Backtracking with a start index, exactly like Subsets"
+    - "Backtracking where any unused element can fill the next slot (used[] array)"
+    - "Sort, then two pointers swapping from both ends"
+    - "Dynamic programming over prefixes"
+  answer: 1
+  explanation: >-
+    "All possible permutations" with N ≤ 6 means generate everything, so it's backtracking. But
+    a start index only lets you pick elements *after* the last one, which can never produce
+    [2, 1]: that's the right rule when order doesn't matter, the wrong one here. Every slot can
+    take any element not already placed, which is exactly what used[] tracks. Two pointers and
+    DP compute one value; they don't enumerate orderings.
+
+function:
+  name: permute
+  params: [{name: nums}]
+  compare: unordered
+
+starter_code: |
+  class Solution:
+      def permute(self, nums: List[int]) -> List[List[int]]:
+          pass
+
+tests:
+  - {args: [[1, 2, 3]], expected: [[1, 2, 3], [1, 3, 2], [2, 1, 3], [2, 3, 1], [3, 1, 2], [3, 2, 1]]}
+  - {args: [[0, 1]], expected: [[0, 1], [1, 0]]}
+  - {args: [[1]], expected: [[1]], note: "single element: one permutation, not zero"}
+  - {args: [[-1, 7]], expected: [[-1, 7], [7, -1]], note: negatives}
+  - {args: [[3, 1, 2]], expected: [[3, 1, 2], [3, 2, 1], [1, 3, 2], [1, 2, 3], [2, 3, 1], [2, 1, 3]], note: "unsorted input: order inside each permutation is checked exactly"}
+  - {args: [[1, 2, 3, 4]], expected: [[1, 2, 3, 4], [1, 2, 4, 3], [1, 3, 2, 4], [1, 3, 4, 2], [1, 4, 2, 3], [1, 4, 3, 2], [2, 1, 3, 4], [2, 1, 4, 3], [2, 3, 1, 4], [2, 3, 4, 1], [2, 4, 1, 3], [2, 4, 3, 1], [3, 1, 2, 4], [3, 1, 4, 2], [3, 2, 1, 4], [3, 2, 4, 1], [3, 4, 1, 2], [3, 4, 2, 1], [4, 1, 2, 3], [4, 1, 3, 2], [4, 2, 1, 3], [4, 2, 3, 1], [4, 3, 1, 2], [4, 3, 2, 1]], note: "4! = 24 permutations"}
+  - {args: [[-10, 0, 10]], expected: [[-10, 0, 10], [-10, 10, 0], [0, -10, 10], [0, 10, -10], [10, -10, 0], [10, 0, -10]], note: extreme values}
+visualize_test: 0
+
+drills:
+  - title: Who can fill the next slot?
+    skill: setup
+    goal: Build a used[] array from the indices already placed and list the elements still available for the next slot.
+    instructions: |
+      `taken` holds the **indices** already placed in the permutation, in placement order.
+      Return the values of `nums` that may go into the next slot, in index order.
+
+      Build `used = [False] * len(nums)`, mark every index in `taken`, then loop over **all**
+      indices (from 0, not from a start index) and keep the ones not used. This is exactly
+      the candidate list at one node of the permutation tree. Note that an element *before*
+      the last placed one is still allowed: after placing index 1, index 0 is a valid next
+      choice, which is how `[2, 1, …]` gets built.
+    function:
+      name: nextChoices
+      params: [{name: nums}, {name: taken}]
+    starter_code: |
+      class Solution:
+          def nextChoices(self, nums: List[int], taken: List[int]) -> List[int]:
+              pass
+    tests:
+      - {args: [[1, 2, 3], [1]], expected: [1, 3], note: "index 0 is still available after index 1"}
+      - {args: [[1, 2, 3], []], expected: [1, 2, 3], note: "root of the tree: everything is available"}
+      - {args: [[4, 5], [1, 0]], expected: [], note: "leaf: every slot is filled"}
+      - {args: [[7, 8, 9], [2, 0]], expected: [8]}
+    solution: |
+      class Solution:
+          def nextChoices(self, nums: List[int], taken: List[int]) -> List[int]:
+              used = [False] * len(nums)
+              for i in taken:
+                  used[i] = True
+              return [nums[i] for i in range(len(nums)) if not used[i]]
+    hint: "Mark first, then filter with `if not used[i]` over `range(len(nums))`."
+
+  - title: Un-choose the mark too
+    skill: core
+    goal: Mark used[i] before recursing and clear it after, even when the partial answer itself needs no undo.
+    instructions: |
+      Return every permutation of the string `s` (all characters distinct), in any order.
+
+      Build the partial answer as a string and pass `cur + s[i]` down the recursion. Strings
+      are immutable, so the partial answer needs no undo. But `used` is a single shared list,
+      so it still needs the full rhythm: `used[i] = True` (choose), recurse (explore),
+      `used[i] = False` (un-choose). Forget the last step and `'a'` stays marked after the first
+      branch returns, so every later branch is starved and you only ever get `"abc"`.
+    function:
+      name: stringPermutations
+      params: [{name: s}]
+      compare: unordered
+    starter_code: |
+      class Solution:
+          def stringPermutations(self, s: str) -> List[str]:
+              pass
+    tests:
+      - {args: ["ab"], expected: ["ab", "ba"]}
+      - {args: ["abc"], expected: ["abc", "acb", "bac", "bca", "cab", "cba"]}
+      - {args: ["x"], expected: ["x"]}
+      - {args: ["dog"], expected: ["dog", "dgo", "odg", "ogd", "gdo", "god"]}
+    solution: |
+      class Solution:
+          def stringPermutations(self, s: str) -> List[str]:
+              out = []
+              used = [False] * len(s)
+
+              def go(cur):
+                  if len(cur) == len(s):
+                      out.append(cur)
+                      return
+                  for i in range(len(s)):
+                      if not used[i]:
+                          used[i] = True
+                          go(cur + s[i])
+                          used[i] = False
+
+              go("")
+              return out
+    hint: "Every `used[i] = True` needs a matching `used[i] = False` after the recursive call."
+
+  - title: The base case defines a leaf
+    skill: edge
+    goal: Stop at len(path) == k to build partial arrangements, and handle k = 0 and k > n.
+    instructions: |
+      Return every ordered arrangement of exactly `k` distinct elements of `nums`, in any
+      order. `nums = [1, 2, 3], k = 2` gives `[[1, 2], [1, 3], [2, 1], [2, 3], [3, 1], [3, 2]]`.
+
+      The only change from Permutations is the base case: record when `len(path) == k`
+      instead of `len(nums)`. Two edges decide correctness. `k = 0` has exactly one
+      arrangement, the empty one, because the root is already a leaf. `k > len(nums)` has none:
+      the loop runs out of unused elements before the base case is ever reached, so nothing is
+      recorded. Neither case needs special code if the base case comes first.
+    function:
+      name: arrangements
+      params: [{name: nums}, {name: k}]
+      compare: unordered
+    starter_code: |
+      class Solution:
+          def arrangements(self, nums: List[int], k: int) -> List[List[int]]:
+              pass
+    tests:
+      - {args: [[1, 2, 3], 2], expected: [[1, 2], [1, 3], [2, 1], [2, 3], [3, 1], [3, 2]]}
+      - {args: [[1, 2], 0], expected: [[]], note: "k = 0: the empty arrangement"}
+      - {args: [[5], 1], expected: [[5]]}
+      - {args: [[1, 2], 3], expected: [], note: "k > n: nothing to record"}
+    solution: |
+      class Solution:
+          def arrangements(self, nums: List[int], k: int) -> List[List[int]]:
+              res, path = [], []
+              used = [False] * len(nums)
+
+              def dfs():
+                  if len(path) == k:
+                      res.append(path[:])
+                      return
+                  for i in range(len(nums)):
+                      if not used[i]:
+                          used[i] = True
+                          path.append(nums[i])
+                          dfs()
+                          path.pop()
+                          used[i] = False
+
+              dfs()
+              return res
+    hint: "Put the `len(path) == k` check first, before the loop."
+
+hints:
+  - >-
+    Fill the answer slot by slot. For the first slot you have N options. Once one is placed,
+    how many remain for the second slot, and how do you know which ones they are? Why can't
+    the start index from Subsets work here?
+  - >-
+    Keep path (the slots filled so far) and used[i] (is nums[i] in path?). In dfs, if path
+    has N elements, record a copy. Otherwise loop over every index i from 0: if it isn't used,
+    mark it and append it, recurse, then pop it and unmark it.
+  - |
+    path = [], used = [False] * n
+    dfs():
+        if len(path) == n: record a copy of path; return
+        for i from 0 to n - 1:
+            if used[i]: skip
+            used[i] = True; append nums[i]     (choose)
+            dfs()                              (explore)
+            pop; used[i] = False               (un-choose)
+    dfs(); return res
+
+solution:
+  code: |
+    class Solution:
+        def permute(self, nums: List[int]) -> List[List[int]]:
+            res = []
+            path = []  # the slots filled so far on this branch
+            used = [False] * len(nums)  # used[i]: nums[i] is already in path
+
+            def dfs():
+                if len(path) == len(nums):  # every slot filled: one permutation
+                    res.append(path[:])
+                    return
+                for i in range(len(nums)):  # any element not on this branch can go next
+                    if used[i]:
+                        continue
+                    used[i] = True  # choose
+                    path.append(nums[i])
+                    dfs()  # explore
+                    path.pop()  # un-choose: undo both pieces of state
+                    used[i] = False
+
+            dfs()
+            return res
+  explanation: |
+    **The one change from Subsets.** Take the loop form of the template: choose, explore,
+    un-choose inside `for i in range(...)`. Subsets loops `range(start, n)` and recurses with
+    `i + 1`, which means "only elements after the one I just picked". That rule is perfect
+    when order doesn't matter (it builds `[1, 2]` once and never `[2, 1]`), and wrong here.
+    Permutations replaces it with "any element not already in `path`": loop over `range(n)`
+    and skip `used[i]`. Since there is no start index, `dfs` needs no argument at all; the
+    depth is `len(path)`.
+
+    **The tree.** For `[1, 2, 3]`, the root has 3 children (which element goes first), each
+    of those has 2 (which of the remaining two goes second), and each of those has 1. That's
+    3 × 2 × 1 = 6 leaves, one per permutation, all at depth 3:
+
+    ```
+                          dfs() []
+             /               |               \
+          [1]               [2]               [3]
+         /    \            /    \            /    \
+      [1,2]  [1,3]      [2,1]  [2,3]      [3,1]  [3,2]
+        |      |          |      |          |      |
+     [1,2,3][1,3,2]   [2,1,3][2,3,1]   [3,1,2][3,2,1]
+    ```
+
+    **Two pieces of state, two undos.** `path` says what's placed, `used` says what's taken.
+    Both are shared by every branch, so both must be restored before the loop moves on: pop
+    the path *and* clear `used[i]`. If you clear only one, the next sibling either sees a
+    stale element in `path` or finds `nums[i]` still marked and skips it forever.
+
+    **Base case.** `len(path) == len(nums)` means every slot is filled. Because each element
+    can be placed only once, that is also the only way the recursion can stop, so there are
+    no dead ends: every leaf is an answer.
+  time: O(N · N!) — fewer than e · N! calls in total, each looping over N indices, and the N! leaves each copy N elements
+  space: O(N) — recursion depth N, plus path and used of size N (the output is not counted)
+  brute_force_code: |
+    class Solution:
+        def permute(self, nums: List[int]) -> List[List[int]]:
+            n = len(nums)
+            res = []
+            # every sequence of n indices, repeats allowed: n^n of them
+            for idx in itertools.product(range(n), repeat=n):
+                if len(set(idx)) == n:  # keep only those that use each index once
+                    res.append([nums[i] for i in idx])
+            return res
+
+pitch_script: |
+  **(Clarify)** "All the numbers are distinct, I return every ordering, and the list of
+  permutations can be in any order, but each permutation's own order matters. N is at most 6."
+
+  **(Brute force)** "A naive way is to generate every sequence of N indices with repeats
+  allowed, N to the power N of them, and keep those with no repeated index. That's
+  O(N · N^N) and wastes work, because a sequence that repeats early is still fully built."
+
+  **(Trigger)** "'All the possible permutations' with N up to 6 means generate everything, so
+  backtracking. Since order matters, I can't use a start index like in Subsets; any element
+  that isn't placed yet can go in the next slot."
+
+  **(Optimal)** "I keep a path and a boolean used array. My dfs checks if the path has N
+  elements; if so it appends a copy. Otherwise it loops over every index, skips used ones,
+  marks the element used, appends it, recurses, and then pops it and unmarks it, so the next
+  choice starts from a clean state."
+
+  **(Complexity)** "There are N! permutations and copying each takes N, so O(N · N!) time;
+  the internal calls add at most a constant factor. Extra space is O(N) for the recursion,
+  path and used array, not counting the output."
+
+twist:
+  lc: 1079
+  title: Letter Tile Possibilities
+  why: >-
+    Two things change. Tiles can repeat, so used[] becomes a Counter of remaining tiles: each
+    level loops over distinct letters, not positions, which makes identical tiles one choice
+    instead of two. And every non-empty sequence of any length counts, so you count at every
+    node, as in Subsets, instead of only at full-length leaves. The choose → explore →
+    un-choose rhythm stays: decrement the count, recurse, increment it back.
+
+viz:
+  arrays: [nums, used, path]
+  pointers: [i]

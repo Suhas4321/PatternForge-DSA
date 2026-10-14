@@ -1,0 +1,317 @@
+slug: next-greater-element-i
+lc: 496
+
+concept:
+  problem_it_solves: >-
+    "For a given value, what is the first bigger value to its right?" Answering that once per
+    query means scanning right again for every query. A monotonic stack answers it for *every*
+    element of the array in one pass, so each query becomes a single dictionary lookup.
+  brute_force: >-
+    For each value in nums1, find where it sits in nums2, then walk right until something
+    bigger shows up. On a falling array like [9, 8, 7, …] every query walks to the end, and
+    different queries re-read the same stretch of nums2 again and again.
+  brute_force_complexity: O(m · n) time, O(1) extra space — 1000 × 1000 means ~10⁶ comparisons, and it grows quadratically.
+  key_insight: >-
+    Stop answering queries one by one. Precompute the next greater value for *every* element
+    of nums2 using the Daily Temperatures template: keep a stack of values still waiting for
+    a bigger one (decreasing from bottom to top), and when a bigger value x arrives, pop the
+    smaller ones and record "x is your answer". Because all values are distinct, you can key
+    the answers by value, and each query is then an O(1) lookup.
+  real_world: >-
+    Price-alert services ("notify me when this stock trades above today's price") and
+    e-commerce "next higher bid" logic use this precompute-then-lookup shape. It's the same
+    idea as building an index once in a database so thousands of later queries don't each
+    trigger a full table scan.
+
+statement:
+  clean: |
+    The **next greater element** of some element `x` in an array is the
+    **first greater element that is to the right** of `x` in the same array.
+
+    You are given two **distinct** 0-indexed integer arrays `nums1` and `nums2`, where `nums1`
+    is a subset of `nums2`.
+
+    For each `0 <= i < nums1.length`, find the index `j` such that `nums1[i] == nums2[j]` and
+    determine the next greater element of `nums2[j]` in `nums2`. If there is no next greater
+    element, then the answer for this query is `-1`.
+
+    Return an array `ans` of length `nums1.length` such that `ans[i]` is the next greater
+    element as described above.
+
+    **Follow up:** Could you find an `O(nums1.length + nums2.length)` solution?
+  oa_story: |
+    **GaanaGrid Music — OA Round 2**
+
+    GaanaGrid publishes a "rising tracks" chart: every song in today's chart, in chart
+    order, with its stream count, and no two songs ever have the same count. The growth team
+    in Indiranagar wants a "you might like this next" nudge. For a song a listener has saved,
+    the nudge points to the first song placed *after* it in today's chart that has strictly
+    more streams.
+
+    You're given `nums2`, the stream counts in chart order, and `nums1`, the stream counts of
+    the listener's saved songs (every saved song is in today's chart). For each saved song,
+    return the stream count of its nudge song, or `-1` if no later song in the chart has more
+    streams. Return the answers in the same order as `nums1`. The service handles many
+    listeners per chart, so the work per listener must stay tiny.
+  trigger_keywords: ["next greater element", "first greater element that is to the right"]
+  examples:
+    - input: "nums1 = [4,1,2], nums2 = [1,3,4,2]"
+      output: "[-1,3,-1]"
+      explanation: "Nothing right of 4 is bigger. The first value right of 1 that's bigger is 3. 2 is last in nums2, so -1."
+    - input: "nums1 = [2,4], nums2 = [1,2,3,4]"
+      output: "[3,-1]"
+      explanation: "The next greater element of 2 is 3; 4 is the largest and last, so -1."
+  constraints:
+    - "1 <= nums1.length <= nums2.length <= 1000"
+    - "0 <= nums1[i], nums2[i] <= 10^4"
+    - "All integers in nums1 and nums2 are unique."
+    - "All the integers of nums1 also appear in nums2."
+
+constraint_quiz:
+  prompt: >-
+    Both arrays have at most 1000 elements, but the follow-up asks for
+    O(nums1.length + nums2.length). What should you aim for in the interview?
+  options: ["O(m · n)", "O(n²)", "O(m + n)", "O((m + n) log n)"]
+  answer: 2
+  explanation: >-
+    O(m · n) and O(n²) (scan right for each query) pass these small limits, but they are
+    exactly what the follow-up rules out, and they explode on real-size inputs. O((m + n)
+    log n) suggests sorting or a balanced tree, but sorting destroys the "to the right"
+    order the question depends on. A monotonic stack over nums2 plus a hash map gives
+    O(m + n): every element is pushed and popped once, and every query is one lookup.
+
+pattern_quiz:
+  prompt: >-
+    For a set of query values you need the first strictly greater value to their right in
+    another array. Which pattern fits?
+  options:
+    - "Sort nums2 and binary search each query"
+    - "Monotonic decreasing stack over nums2, storing answers in a value → next-greater map"
+    - "Two pointers moving through nums1 and nums2 together"
+    - "Sliding window maximum over nums2"
+  answer: 1
+  explanation: >-
+    "Next greater element … to the right" is the monotonic-stack trigger, the same as Daily
+    Temperatures. The only new part is that queries come from a different array, so you
+    store each answer in a map keyed by value (safe because values are unique) and look them
+    up. Sorting loses positions, nums1 isn't in nums2's order so two pointers don't line up,
+    and a window maximum answers a different question.
+
+function:
+  name: nextGreaterElement
+  params: [{name: nums1}, {name: nums2}]
+
+starter_code: |
+  class Solution:
+      def nextGreaterElement(self, nums1: List[int], nums2: List[int]) -> List[int]:
+          pass
+
+tests:
+  - {args: [[4, 1, 2], [1, 3, 4, 2]], expected: [-1, 3, -1]}
+  - {args: [[2, 4], [1, 2, 3, 4]], expected: [3, -1]}
+  - {args: [[1], [1]], expected: [-1], note: single element}
+  - {args: [[1, 2, 3], [3, 2, 1]], expected: [-1, -1, -1], note: "strictly decreasing: nothing ever resolves"}
+  - {args: [[4, 1, 3], [1, 2, 3, 4]], expected: [-1, 2, 4], note: "strictly increasing: each value is answered by its neighbour"}
+  - {args: [[5, 2, 6], [2, 6, 1, 5, 3, 7]], expected: [7, 6, 7], note: "the first greater, not the largest: 2 gets 6, not 7"}
+  - {args: [[4, 6], [6, 5, 4, 3, 8]], expected: [8, 8], note: one big value resolves many waiting values}
+  - {args: [[1, 3, 4, 2], [1, 3, 4, 2]], expected: [3, 4, -1, -1], note: nums1 is all of nums2}
+visualize_test: 5
+
+drills:
+  - title: Keep the values that are still waiting
+    skill: setup
+    goal: Scan the array and maintain a stack of values that haven't met a bigger value yet.
+    instructions: |
+      Walk `nums` left to right. Before pushing each value `x`, pop every value on top of the
+      stack that is **smaller** than `x`. Return the stack left at the end.
+
+      The values left over are the ones with **no** next greater element. Notice the stack is
+      always decreasing from bottom to top; that ordering is what lets one big value resolve
+      many waiting values at once. Here the stack holds **values**, not indices, because the
+      answer you need is a value.
+    function:
+      name: pendingValues
+      params: [{name: nums}]
+    starter_code: |
+      class Solution:
+          def pendingValues(self, nums: List[int]) -> List[int]:
+              pass
+    tests:
+      - {args: [[1, 3, 4, 2]], expected: [4, 2]}
+      - {args: [[5, 4, 3]], expected: [5, 4, 3]}
+      - {args: [[1, 2, 3]], expected: [3]}
+      - {args: [[6, 5, 4, 3, 8]], expected: [8]}
+    solution: |
+      class Solution:
+          def pendingValues(self, nums: List[int]) -> List[int]:
+              stack = []
+              for x in nums:
+                  while stack and stack[-1] < x:
+                      stack.pop()
+                  stack.append(x)
+              return stack
+    hint: "`while stack and stack[-1] < x: stack.pop()`, then push `x`."
+
+  - title: Record an answer at the moment you pop
+    skill: core
+    goal: Every value popped by x has just found its next greater element, which is x.
+    instructions: |
+      Same loop, but every time `x` pops a value `v`, record the pair `[v, x]`. Return the
+      list of pairs **in the order they were recorded**.
+
+      This is the moment the whole algorithm turns on: the popped value gets its answer, and
+      it's the current element. Watch the order on `[3, 2, 1, 6]`: the top of the stack (the
+      most recent, smallest value) is answered first. In the full problem you write each pair
+      into a map `next_greater[v] = x` instead of a list.
+    function:
+      name: resolvedPairs
+      params: [{name: nums}]
+    starter_code: |
+      class Solution:
+          def resolvedPairs(self, nums: List[int]) -> List[List[int]]:
+              pass
+    tests:
+      - {args: [[2, 1, 3]], expected: [[1, 3], [2, 3]]}
+      - {args: [[1, 3, 4, 2]], expected: [[1, 3], [3, 4]]}
+      - {args: [[3, 2, 1, 6]], expected: [[1, 6], [2, 6], [3, 6]], note: top of the stack resolves first}
+      - {args: [[5, 4, 3]], expected: [], note: nothing ever resolves}
+    solution: |
+      class Solution:
+          def resolvedPairs(self, nums: List[int]) -> List[List[int]]:
+              pairs = []
+              stack = []
+              for x in nums:
+                  while stack and stack[-1] < x:
+                      pairs.append([stack.pop(), x])
+                  stack.append(x)
+              return pairs
+    hint: "Pop and record in one step: `pairs.append([stack.pop(), x])`."
+
+  - title: Why keying by value needs distinct values
+    skill: edge
+    goal: Default unresolved answers to -1 and switch to an index stack when values can repeat.
+    instructions: |
+      Now `nums` **may contain duplicates**. Return, for every position `i`, the next greater
+      **value** to the right of `nums[i]`, or `-1` if there is none.
+
+      A value-keyed map breaks here: in `[2, 3, 2, 1]` the first 2 is answered by 3, but the
+      second 2 has no answer, and a map can't hold both. Next Greater Element I avoids this
+      because its values are unique. When they aren't, push **indices** and write into a
+      result array that starts as all `-1`, so unresolved positions already hold the default.
+    function:
+      name: nextGreaterValues
+      params: [{name: nums}]
+    starter_code: |
+      class Solution:
+          def nextGreaterValues(self, nums: List[int]) -> List[int]:
+              pass
+    tests:
+      - {args: [[2, 3, 2, 1]], expected: [3, -1, -1, -1], note: the two 2s have different answers}
+      - {args: [[2, 1, 2, 3]], expected: [3, 2, 3, -1]}
+      - {args: [[1, 1, 1]], expected: [-1, -1, -1], note: equal is not greater}
+      - {args: [[5]], expected: [-1]}
+      - {args: [[1, 3, 4, 2]], expected: [3, 4, -1, -1]}
+    solution: |
+      class Solution:
+          def nextGreaterValues(self, nums: List[int]) -> List[int]:
+              result = [-1] * len(nums)
+              stack = []  # indices
+              for i, x in enumerate(nums):
+                  while stack and nums[stack[-1]] < x:
+                      result[stack.pop()] = x
+                  stack.append(i)
+              return result
+    hint: "Compare `nums[stack[-1]] < x`, and write `x` (the value) into `result` at the popped index."
+
+hints:
+  - >-
+    Can you compute the next greater element for *every* value in nums2 first, so each
+    query in nums1 becomes a lookup? Which earlier values does a big new value answer?
+  - >-
+    Scan nums2 with a stack of values waiting for something bigger (decreasing upward). For
+    each x, pop every smaller value v and record next_greater[v] = x, then push x. Then map
+    each value in nums1 through next_greater, defaulting to -1.
+  - |
+    next_greater = empty map
+    stack = empty  (holds values)
+    for x in nums2:
+        while stack not empty and top < x:
+            next_greater[pop] = x
+        push x
+    return [next_greater.get(v, -1) for v in nums1]
+
+solution:
+  code: |
+    class Solution:
+        def nextGreaterElement(self, nums1: List[int], nums2: List[int]) -> List[int]:
+            next_greater = {}  # value -> first greater value to its right in nums2
+            stack = []  # values still waiting; decreasing from bottom to top
+            for i, x in enumerate(nums2):
+                while stack and stack[-1] < x:
+                    next_greater[stack.pop()] = x
+                stack.append(x)
+            # values left on the stack never met a bigger value: default -1
+            return [next_greater.get(v, -1) for v in nums1]
+  explanation: |
+    This is Daily Temperatures with two changes: the answer is the bigger **value** instead of
+    a distance, and the questions come from a different array.
+
+    The stack holds the values of nums2 that haven't seen anything bigger yet. They're
+    decreasing from bottom to top, because a bigger value would already have popped the
+    smaller ones beneath it. When `x` arrives, every smaller value on top has just met its
+    first greater element to the right, and it's `x`. Pop them, record the answer, push `x`.
+
+    Using the value itself as the map key is safe only because all values are unique. Values
+    left on the stack at the end are never recorded, so `.get(v, -1)` supplies the `-1`. The
+    comparison is strict `<` to match "greater"; with unique values it can't tie anyway.
+  time: O(m + n) — each value of nums2 is pushed and popped at most once, and each query is an O(1) average lookup
+  space: O(n) — the map and the stack each hold at most n values of nums2
+  brute_force_code: |
+    class Solution:
+        def nextGreaterElement(self, nums1: List[int], nums2: List[int]) -> List[int]:
+            ans = []
+            for v in nums1:
+                j = nums2.index(v)
+                found = -1
+                for k in range(j + 1, len(nums2)):
+                    if nums2[k] > v:
+                        found = nums2[k]
+                        break
+                ans.append(found)
+            return ans
+
+pitch_script: |
+  **(Clarify)** "So for each value in nums1, I find it in nums2 and return the first strictly
+  bigger value to its right, or -1. All values are unique and nums1 is a subset of nums2, so
+  every query has a well-defined position, right?"
+
+  **(Brute force)** "The direct way is: for each query, find its index in nums2 and scan right
+  until something is bigger. That's O(m times n), and the follow-up asks for linear."
+
+  **(Trigger)** "'Next greater element to the right' tells me monotonic stack, the same
+  template as Daily Temperatures. Since many queries share one array, I'll precompute the
+  answer for every element of nums2 and then just look queries up."
+
+  **(Optimal)** "I scan nums2 with a stack of values that haven't found a bigger one yet.
+  When a value x comes in, I pop every smaller value and record in a hash map that its next
+  greater is x, then push x. Because values are unique I can key by value. Finally I map each
+  value in nums1 through the dictionary, with -1 as the default for anything never popped."
+
+  **(Complexity)** "Every element of nums2 is pushed and popped at most once, and each query is
+  an O(1) lookup, so O(m plus n) time and O(n) space for the stack and the map."
+
+twist:
+  lc: 503
+  title: Next Greater Element II
+  why: >-
+    The array becomes circular, so the next greater element can wrap around to the start,
+    and values can repeat. Keep the same decreasing stack but store indices (so duplicates
+    don't collide) and loop i from 0 to 2n − 1 using nums[i % n]; the second lap lets values
+    near the end be answered by values near the start. Only push during the first lap.
+
+viz:
+  arrays: [nums2, nums1]
+  pointers: [i]
+  stacks: [stack]
+  maps: [next_greater]
+  watch: [x]

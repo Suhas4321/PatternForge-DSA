@@ -1,0 +1,306 @@
+slug: maximum-subarray
+lc: 53
+
+concept:
+  problem_it_solves: >-
+    "Which contiguous stretch has the biggest total?" Checking every start and end re-adds
+    the same numbers again and again. Kadane's algorithm answers a smaller question at each
+    index, "what's the best sum of a stretch that ends right here?", and that answer can be
+    built from the previous index's answer in O(1).
+  brute_force: >-
+    Fix every start i, extend the end j with a running sum, and keep the maximum. It wastes
+    work because every new start rebuilds sums that an earlier start already computed, and it
+    keeps extending stretches whose prefix is already dragging the total down.
+  brute_force_complexity: O(N²) time, O(1) space — 10⁵ elements means ~5 × 10⁹ subarray sums.
+  key_insight: >-
+    Let cur be the best sum of a subarray that ends at index i. At the next element x there
+    are only two choices: extend the best stretch ending at i (cur + x) or restart at x alone.
+    So cur = max(x, cur + x), which means "drop the past the moment its total is negative,
+    because a negative prefix can only make any future sum smaller". The answer is the
+    largest cur ever seen.
+  real_world: >-
+    Trading and analytics dashboards (Zerodha Kite, Groww) use it to find the best
+    buy-and-hold window in a series of daily returns. Monitoring systems use the same scan
+    to find the worst stretch of net error budget burn, and genomics tools use it to find the
+    highest-scoring segment of a sequence.
+
+statement:
+  clean: |
+    Given an integer array `nums`, find the **subarray** with the **largest sum**, and return
+    its sum.
+
+    A subarray is a **contiguous** non-empty sequence of elements within an array. Values
+    may be negative, and the subarray must contain at least one element.
+  oa_story: |
+    **ZaikaZone — OA Round 1**
+
+    ZaikaZone is a cloud-kitchen brand running twelve kitchens across Indiranagar,
+    Whitefield and Jayanagar. For one kitchen, finance records the net profit of each day
+    in date order: positive on busy days, negative on days when ingredient wastage or
+    marketing spend beat the orders. The founders want to showcase the kitchen's single best
+    unbroken run of days in their investor deck.
+
+    Given the list of daily net profits, return the highest total profit over any run of one
+    or more consecutive days. Some kitchens have only had losing days so far, and the deck
+    must still show their best (least bad) run, which must contain at least one day. A
+    kitchen can have 100,000 days of history, so the report must run in a single pass.
+  trigger_keywords: ["subarray", "largest sum", "contiguous"]
+  examples:
+    - input: "nums = [-2,1,-3,4,-1,2,1,-5,4]"
+      output: "6"
+      explanation: "The subarray [4,-1,2,1] has the largest sum, 6."
+    - input: "nums = [1]"
+      output: "1"
+    - input: "nums = [5,4,-1,7,8]"
+      output: "23"
+      explanation: "The whole array: the -1 dip is worth keeping because 5 + 4 - 1 > 0."
+  constraints:
+    - "1 <= nums.length <= 10^5"
+    - "-10^4 <= nums[i] <= 10^4"
+
+constraint_quiz:
+  prompt: With up to 10⁵ elements, what time complexity should you aim for?
+  options: ["O(N³)", "O(N²)", "O(N log N)", "O(N)"]
+  answer: 3
+  explanation: >-
+    O(N³) re-sums every subarray from scratch: ~10¹⁵ steps. O(N²) with a running sum is
+    ~5 × 10⁹, still far too slow. Divide and conquer gives O(N log N) and would pass, and
+    it's the classic follow-up, but Kadane's single pass is O(N) and simpler. Every element
+    can change the answer, so you can't go below O(N).
+
+pattern_quiz:
+  prompt: >-
+    Find the maximum sum over all contiguous subarrays, where values can be negative. Which
+    pattern fits?
+  options:
+    - "Sliding window that shrinks when the sum drops"
+    - "Kadane's: best sum ending here = max(x, previous best + x)"
+    - "Prefix sums + hash map of seen prefixes"
+    - "Sort the array and take the positive numbers"
+  answer: 1
+  explanation: >-
+    A sliding window needs a rule for when to shrink, and with negatives the sum isn't
+    monotonic, so there's no safe rule. A prefix-sum hash map answers "sum equals exactly
+    k", not "maximum sum". Sorting destroys contiguity. "Largest sum of a contiguous
+    subarray" is the textbook Kadane trigger: extend the current run or restart.
+
+function:
+  name: maxSubArray
+  params: [{name: nums}]
+
+starter_code: |
+  class Solution:
+      def maxSubArray(self, nums: List[int]) -> int:
+          pass
+
+tests:
+  - {args: [[-2, 1, -3, 4, -1, 2, 1, -5, 4]], expected: 6}
+  - {args: [[1]], expected: 1}
+  - {args: [[5, 4, -1, 7, 8]], expected: 23}
+  - {args: [[-3, -1, -2]], expected: -1, note: "all negative: answer is the largest single element, not 0"}
+  - {args: [[-5]], expected: -5, note: single negative element}
+  - {args: [[2, -1, 2]], expected: 3, note: a small dip is worth extending through}
+  - {args: [[3, -4, 5]], expected: 5, note: "restart: 3 - 4 is negative, so 5 starts fresh"}
+  - {args: [[-1, 0, -2]], expected: 0, note: zero is the best}
+  - {args: [[8, -19, 5, -4, 20]], expected: 21, note: best run starts after a big loss}
+visualize_test: 0
+
+drills:
+  - title: The best sum that ends exactly here
+    skill: setup
+    goal: Understand the state Kadane tracks by computing it the slow way for one index.
+    instructions: |
+      Return the largest sum of a subarray that **ends exactly at index `i`** (it can start
+      anywhere from `0` to `i`). Walk backward from `i` keeping a running total.
+
+      This is the quantity `cur` stands for in Kadane's algorithm. Once you see that the
+      overall answer is just the maximum of this value over all `i`, the only remaining
+      question is how to get it in O(1) per index instead of O(i).
+    function:
+      name: maxEndingAt
+      params: [{name: nums}, {name: i}]
+    starter_code: |
+      class Solution:
+          def maxEndingAt(self, nums: List[int], i: int) -> int:
+              pass
+    tests:
+      - {args: [[-2, 1, -3, 4, -1, 2, 1, -5, 4], 6], expected: 6}
+      - {args: [[-2, 1, -3, 4, -1, 2, 1, -5, 4], 2], expected: -2}
+      - {args: [[5, 4, -1, 7, 8], 4], expected: 23}
+      - {args: [[-3, -1, -2], 0], expected: -3}
+    solution: |
+      class Solution:
+          def maxEndingAt(self, nums: List[int], i: int) -> int:
+              total = 0
+              best = nums[i]
+              for j in range(i, -1, -1):
+                  total += nums[j]
+                  best = max(best, total)
+              return best
+    hint: "Start `best` at `nums[i]` (the subarray must be non-empty) and add `nums[j]` for j = i down to 0."
+
+  - title: Extend or restart
+    skill: core
+    goal: Build every "best sum ending here" value from the previous one with cur = max(x, cur + x).
+    instructions: |
+      Return a list whose position `i` holds the best sum of a subarray ending exactly at
+      `i`, computed in **one pass**.
+
+      At each element `x` you either glue `x` onto the best stretch ending just before it
+      (`cur + x`) or start a brand-new stretch at `x`. Restarting wins exactly when `cur` is
+      negative: carrying a negative total forward can only hurt.
+    function:
+      name: bestEndingHere
+      params: [{name: nums}]
+    starter_code: |
+      class Solution:
+          def bestEndingHere(self, nums: List[int]) -> List[int]:
+              pass
+    tests:
+      - {args: [[-2, 1, -3, 4, -1, 2, 1, -5, 4]], expected: [-2, 1, -2, 4, 3, 5, 6, 1, 5]}
+      - {args: [[-3, -1, -2]], expected: [-3, -1, -2]}
+      - {args: [[2, -1, 2]], expected: [2, 1, 3]}
+      - {args: [[1]], expected: [1]}
+    solution: |
+      class Solution:
+          def bestEndingHere(self, nums: List[int]) -> List[int]:
+              out = [nums[0]]
+              for x in nums[1:]:
+                  out.append(max(x, out[-1] + x))
+              return out
+    hint: "Seed the list with `nums[0]`; each next value is `max(x, previous + x)`."
+
+  - title: Recover the winning subarray
+    skill: edge
+    goal: Track where the current run started and initialise from nums[0] so all-negative inputs work.
+    instructions: |
+      Return `[left, right]`, the indices of the maximum-sum subarray (the tests have a
+      unique answer).
+
+      Two traps. Initialising `best` and `cur` to `0` silently returns an *empty* subarray
+      on inputs like `[-3, -1, -2]`; start from `nums[0]` instead. And the start index only
+      changes when you **restart**, while the recorded answer only changes when `cur` beats
+      `best`, so keep those two updates separate.
+    function:
+      name: maxSubarrayBounds
+      params: [{name: nums}]
+    starter_code: |
+      class Solution:
+          def maxSubarrayBounds(self, nums: List[int]) -> List[int]:
+              pass
+    tests:
+      - {args: [[-2, 1, -3, 4, -1, 2, 1, -5, 4]], expected: [3, 6]}
+      - {args: [[-3, -1, -2]], expected: [1, 1], note: all negative}
+      - {args: [[5, 4, -1, 7, 8]], expected: [0, 4]}
+      - {args: [[3, -4, 5]], expected: [2, 2]}
+      - {args: [[-5]], expected: [0, 0]}
+    solution: |
+      class Solution:
+          def maxSubarrayBounds(self, nums: List[int]) -> List[int]:
+              best = cur = nums[0]
+              start, bounds = 0, [0, 0]
+              for i in range(1, len(nums)):
+                  if cur < 0:  # restart: the past only drags us down
+                      cur, start = nums[i], i
+                  else:
+                      cur += nums[i]
+                  if cur > best:
+                      best, bounds = cur, [start, i]
+              return bounds
+    hint: "Set `start = i` only when you restart; copy `[start, i]` into the answer only when `cur > best`."
+
+hints:
+  - >-
+    Instead of asking "what's the best subarray anywhere?", ask "what's the best subarray
+    that ends exactly at index i?". How does that answer relate to the one for index i − 1?
+  - >-
+    At each element x you either extend the best run ending just before it or start fresh at
+    x, so cur = max(x, cur + x). Keep a separate best that remembers the largest cur seen.
+    What should both start as so an all-negative array still works?
+  - |
+    cur = nums[0], best = nums[0]
+    for each x in nums after the first:
+        cur = max(x, cur + x)      # extend or restart
+        best = max(best, cur)
+    return best
+
+solution:
+  code: |
+    class Solution:
+        def maxSubArray(self, nums: List[int]) -> int:
+            cur = best = nums[0]  # cur: best sum of a subarray ending at i
+            for i in range(1, len(nums)):
+                x = nums[i]
+                cur = max(x, cur + x)  # extend the run, or restart at x
+                best = max(best, cur)
+            return best
+  explanation: |
+    `cur` is the best sum of a subarray that ends exactly at the current index. Any such
+    subarray is either `x` alone or `x` glued onto a subarray ending at the previous index,
+    and the best of those is the previous `cur`. So `cur = max(x, cur + x)`, and the answer
+    is the largest `cur` seen anywhere.
+
+    **Why the local choice is safe.** Restarting happens exactly when the old `cur` is
+    negative. A negative prefix can only lower every sum that includes it, so no future
+    optimal subarray would ever want it. Dropping it loses nothing. That's why a single
+    forward pass is enough.
+
+    Both variables start at `nums[0]`, not `0`. Starting at `0` would mean "the empty
+    subarray is allowed" and return `0` for `[-3, -1, -2]`, but the answer there is `-1`.
+
+    **Follow-up: divide and conquer.** Split the array in half. The best subarray lies
+    entirely in the left half, entirely in the right half, or crosses the middle. The
+    crossing case is the best suffix of the left half plus the best prefix of the right
+    half, found in linear time. That gives T(N) = 2T(N/2) + O(N) = O(N log N). It's slower
+    than Kadane but is what interviewers mean by "try a different approach", and a segment
+    tree built on the same idea answers range max-subarray queries.
+  time: O(N) — one pass, O(1) work per element
+  space: O(1) — two running variables
+  brute_force_code: |
+    class Solution:
+        def maxSubArray(self, nums: List[int]) -> int:
+            best = nums[0]
+            for i in range(len(nums)):
+                total = 0
+                for j in range(i, len(nums)):
+                    total += nums[j]
+                    best = max(best, total)
+            return best
+
+pitch_script: |
+  **(Clarify)** "The subarray has to be contiguous and non-empty, and I return only the sum?
+  Values can be negative, so if everything is negative I return the largest single element,
+  not zero?"
+
+  **(Brute force)** "The simple approach fixes every start, extends the end with a running
+  sum and tracks the maximum. That's O(N²) time and O(1) space, around 5 × 10⁹ steps for
+  N = 10⁵, so that won't work."
+
+  **(Trigger)** "Largest sum over contiguous subarrays with negatives is Kadane's algorithm.
+  I'll track the best sum of a subarray ending at the current index, because every subarray
+  ends somewhere, so the answer is the maximum of those."
+
+  **(Optimal)** "At each element, I either extend the run ending at the previous index or
+  restart here: cur equals the max of x and cur plus x. Then best is the max of best and
+  cur. Why is the greedy restart safe? I only restart when cur is negative, and a negative
+  prefix can only make any later sum smaller, so throwing it away never loses the optimum.
+  I start both values at nums[0] so all-negative arrays work."
+
+  **(Complexity)** "One pass, O(N) time and O(1) space. If you'd like, there's also a
+  divide-and-conquer version at O(N log N): best of left half, right half, and the best
+  crossing sum through the middle."
+
+twist:
+  lc: 152
+  title: Maximum Product Subarray
+  why: >-
+    Now you maximise a product instead of a sum. "Drop the negative past" no longer works,
+    because a negative running product can flip into the biggest one when you multiply by
+    another negative. So you track two states per index, the max and the min product ending
+    here, and each new x picks from x, max·x and min·x (swapping roles when x is negative).
+    A zero forces a restart of both.
+
+viz:
+  arrays: [nums]
+  pointers: [i]
+  watch: [x, cur, best]

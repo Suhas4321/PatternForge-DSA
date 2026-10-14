@@ -1,0 +1,345 @@
+slug: n-queens
+lc: 51
+
+concept:
+  problem_it_solves: >-
+    "Place N things so that no two of them conflict, and list every valid arrangement." The
+    arrangements are built one decision at a time, and most partial arrangements are already
+    doomed after two or three decisions. Constraint backtracking makes one decision per level,
+    checks it against everything placed so far in O(1) using sets of "taken" resources, and
+    abandons a branch the instant a conflict appears.
+  brute_force: >-
+    Put N queens on any N of the N² squares and check each placement: C(N², N) placements. A
+    smarter brute force uses the fact that each row and column holds exactly one queen, so it
+    tries all N! permutations of columns and checks the diagonals at the end. Even that keeps
+    building full boards whose first two queens already attack each other: with queens at
+    (0, 0) and (1, 1), all (N − 2)! completions are generated and rejected one by one.
+  brute_force_complexity: >-
+    O(N! · N) time for the permutation version (C(N², N) for the naive one), O(N) space
+    besides the output — N = 9 means 362,880 full boards, almost all thrown away.
+  key_insight: >-
+    Place queens row by row, so rows never conflict by construction, and the only decision
+    per level is "which column in this row?". Two queens share a column if c1 == c2, a
+    diagonal (going down-right) if r1 − c1 == r2 − c2, and an anti-diagonal (going down-left)
+    if r1 + c1 == r2 + c2. Keep three sets: cols, diag (r − c) and anti (r + c). A square is
+    safe exactly when its three keys are all absent, an O(1) check. Choose = add the three
+    keys and place 'Q'; explore = recurse on row r + 1; un-choose = remove the keys and put
+    '.' back. Reaching row N means all N queens are placed.
+  real_world: >-
+    Constraint solvers behind scheduling systems work exactly like this: assign one variable
+    at a time (an interview slot, a room, a delivery van) and keep sets of resources already
+    taken so each new assignment is checked in O(1). University timetabling, airline crew
+    rostering and Kubernetes pod placement with anti-affinity rules ("no two replicas on the
+    same node or zone") are N-Queens with different conflict rules.
+
+statement:
+  clean: |
+    The **n-queens** puzzle is the problem of placing `n` queens on an `n x n` chessboard
+    such that **no two queens attack each other**. A queen attacks every square in its row,
+    its column and both of its diagonals.
+
+    Given an integer `n`, return **all distinct solutions** to the n-queens puzzle. You may
+    return the answer in any order.
+
+    Each solution is a board configuration given as a list of `n` strings, where `'Q'` marks a
+    queen and `'.'` an empty square.
+  oa_story: |
+    **ChessChowk — OA Round 2**
+
+    ChessChowk runs weekend chess cafés in Jayanagar and Malleshwaram, and its app generates
+    warm-up puzzles for members. For a board of size `n x n`, the puzzle designer wants every
+    way to seat `n` "royal" pieces such that no piece can capture another. A royal piece
+    captures along its whole row, its whole column, and both lines that run at 45 degrees
+    through its square, in every direction, any distance.
+
+    Write a function that returns every valid seating. Describe each one as `n` strings, one
+    per row from top to bottom, using `'Q'` for a royal piece and `'.'` for an empty square.
+    Seatings can be listed in any order. Café boards go up to 9 x 9, and the designer
+    already knows some small boards have no valid seating at all.
+  trigger_keywords: ["n-queens", "no two queens attack each other", "all distinct solutions"]
+  examples:
+    - input: "n = 4"
+      output: "[[\".Q..\",\"...Q\",\"Q...\",\"..Q.\"],[\"..Q.\",\"Q...\",\"...Q\",\".Q..\"]]"
+      explanation: "There are exactly two ways to place 4 non-attacking queens, and they are mirror images."
+    - input: "n = 1"
+      output: "[[\"Q\"]]"
+  constraints:
+    - "1 <= n <= 9"
+
+constraint_quiz:
+  prompt: >-
+    n is at most 9 and you must return every solution. Placing row by row with O(1) safety
+    checks, what bounds the search?
+  options:
+    - "O(n²) — check every square once"
+    - "O(2^(n²)) — each square either has a queen or not"
+    - "O(n · n!) at most — n choices in the first row, at most n − 1 in the next, and so on, with O(n) work per call"
+    - "O(n^n) — n choices in every row, no pruning possible"
+  answer: 2
+  explanation: >-
+    O(n²) can't even write the output (n = 8 has 92 solutions). 2^(n²) and n^n describe
+    searches that ignore structure: one queen per row removes the 2^(n²) blow-up, and the
+    column set means each row has at most one fewer free column than the row above, so there
+    are at most n! leaves, each node doing an O(n) loop. Diagonal pruning cuts far below n!
+    in practice: n = 9 makes about 8,400 recursive calls, against 9! = 362,880 permutations.
+
+pattern_quiz:
+  prompt: >-
+    Place n items on a grid so that no two share a row, column or diagonal, and list every
+    arrangement. Which pattern fits?
+  options:
+    - "Greedy: place each queen in the leftmost safe column and never undo"
+    - "Backtracking row by row with sets of used columns, r − c diagonals and r + c anti-diagonals"
+    - "BFS over board states"
+    - "Dynamic programming over rows with dp[r][c] = number of ways"
+  answer: 1
+  explanation: >-
+    "Place N items" + "no two attack each other" + "all distinct solutions" is constraint
+    backtracking. Greedy gets stuck (for n = 4, leftmost-first fails in row 2) and can't undo.
+    BFS stores whole boards per level and gains nothing over DFS when you need every leaf.
+    A DP over rows can't capture diagonal conflicts with earlier rows without remembering the
+    full placement, which is the backtracking state anyway.
+
+function:
+  name: solveNQueens
+  params: [{name: n}]
+  compare: unordered
+
+starter_code: |
+  class Solution:
+      def solveNQueens(self, n: int) -> List[List[str]]:
+          pass
+
+tests:
+  - {args: [4], expected: [[".Q..", "...Q", "Q...", "..Q."], ["..Q.", "Q...", "...Q", ".Q.."]]}
+  - {args: [1], expected: [["Q"]], note: "one square, one queen"}
+  - {args: [2], expected: [], note: "no solution: every square in row 1 is attacked"}
+  - {args: [3], expected: [], note: "no solution: every branch dies by row 2"}
+  - {args: [5], expected: [["Q....", "..Q..", "....Q", ".Q...", "...Q."], ["Q....", "...Q.", ".Q...", "....Q", "..Q.."], [".Q...", "...Q.", "Q....", "..Q..", "....Q"], [".Q...", "....Q", "..Q..", "Q....", "...Q."], ["..Q..", "Q....", "...Q.", ".Q...", "....Q"], ["..Q..", "....Q", ".Q...", "...Q.", "Q...."], ["...Q.", "Q....", "..Q..", "....Q", ".Q..."], ["...Q.", ".Q...", "....Q", "..Q..", "Q...."], ["....Q", ".Q...", "...Q.", "Q....", "..Q.."], ["....Q", "..Q..", "Q....", "...Q.", ".Q..."]], note: 10 solutions}
+  - {args: [6], expected: [[".Q....", "...Q..", ".....Q", "Q.....", "..Q...", "....Q."], ["..Q...", ".....Q", ".Q....", "....Q.", "Q.....", "...Q.."], ["...Q..", "Q.....", "....Q.", ".Q....", ".....Q", "..Q..."], ["....Q.", "..Q...", "Q.....", ".....Q", "...Q..", ".Q...."]], note: "only 4 solutions: fewer than n = 5 has"}
+visualize_test: 0
+
+drills:
+  - title: Turn column choices into a board
+    skill: setup
+    goal: Convert a placement (queens[r] = column of the queen in row r) into the list-of-strings output format.
+    instructions: |
+      `queens[r]` is the column of the queen in row `r`. Return the board as `n` strings,
+      with `'Q'` at the queen's column and `'.'` everywhere else.
+
+      The backtracking thinks in "one column per row", but the answer must be strings.
+      Building a string is `'.' * c + 'Q' + '.' * (n - c - 1)`. In the full solution, you
+      must build these strings **at the moment you record a solution**: the shared board is
+      undone afterwards, so storing a reference to it would leave you with empty boards.
+    function:
+      name: renderBoard
+      params: [{name: n}, {name: queens}]
+    starter_code: |
+      class Solution:
+          def renderBoard(self, n: int, queens: List[int]) -> List[str]:
+              pass
+    tests:
+      - {args: [4, [1, 3, 0, 2]], expected: [".Q..", "...Q", "Q...", "..Q."]}
+      - {args: [1, [0]], expected: ["Q"]}
+      - {args: [3, [0, 2, 1]], expected: ["Q..", "..Q", ".Q."], note: "rendering doesn't check validity"}
+      - {args: [5, [4, 2, 0, 3, 1]], expected: ["....Q", "..Q..", "Q....", "...Q.", ".Q..."], note: queen in the last column}
+    solution: |
+      class Solution:
+          def renderBoard(self, n: int, queens: List[int]) -> List[str]:
+              rows = []
+              for c in queens:
+                  rows.append('.' * c + 'Q' + '.' * (n - c - 1))
+              return rows
+    hint: "Row r has `c = queens[r]` dots before the Q and `n - c - 1` dots after it."
+
+  - title: Safe squares in O(1) with three sets
+    skill: core
+    goal: Build the column, r − c and r + c sets from the queens placed so far and filter the next row's safe columns.
+    instructions: |
+      Queens are already placed in rows `0 .. len(queens) - 1` (`queens[r]` is the column in
+      row `r`). Return, in increasing order, the columns of the **next** row,
+      `r = len(queens)`, where a new queen would be safe.
+
+      Every square on one down-right diagonal has the same `r - c`, and every square on one
+      down-left anti-diagonal has the same `r + c`. So a square is attacked exactly when its
+      column, its `r - c` or its `r + c` is already taken. Put the three keys of every placed
+      queen into three sets; then each square is checked in O(1) instead of comparing with
+      every earlier queen. If the result is empty, the branch is a dead end.
+    function:
+      name: safeColumns
+      params: [{name: n}, {name: queens}]
+    starter_code: |
+      class Solution:
+          def safeColumns(self, n: int, queens: List[int]) -> List[int]:
+              pass
+    tests:
+      - {args: [4, []], expected: [0, 1, 2, 3], note: "empty board: everything is safe"}
+      - {args: [4, [1]], expected: [3]}
+      - {args: [4, [0]], expected: [2, 3]}
+      - {args: [4, [1, 3]], expected: [0]}
+      - {args: [4, [0, 2]], expected: [], note: "dead end: the search must backtrack"}
+    solution: |
+      class Solution:
+          def safeColumns(self, n: int, queens: List[int]) -> List[int]:
+              r = len(queens)
+              cols = set(queens)
+              diag = {row - c for row, c in enumerate(queens)}
+              anti = {row + c for row, c in enumerate(queens)}
+              return [c for c in range(n) if c not in cols and r - c not in diag and r + c not in anti]
+    hint: "A placed queen at (row, c) contributes `c`, `row - c` and `row + c`; test the new square's three keys."
+
+  - title: Index diagonals without negative numbers
+    skill: edge
+    goal: Map r − c (which can be negative) and r + c onto array indices 0 .. 2n − 2.
+    instructions: |
+      Return two lists of length `2n - 1`: how many queens lie on each down-right diagonal
+      and on each down-left anti-diagonal, for the placement `queens` (`queens[r]` = column).
+      Index the diagonal of `(r, c)` as `r - c + n - 1` and the anti-diagonal as `r + c`.
+
+      If you swap the sets for boolean arrays (common in Java/C++, and faster), `r - c` runs
+      from `-(n - 1)` to `n - 1`, so it must be shifted by `n - 1`. In Java/C++ a negative
+      index crashes; in Python `diag[-2]` silently reads from the end of the list, which
+      hides the bug instead of reporting it. `r + c` already runs from 0 to `2n - 2`. A
+      valid N-Queens placement has every count at most 1.
+    function:
+      name: diagonalLoads
+      params: [{name: n}, {name: queens}]
+    starter_code: |
+      class Solution:
+          def diagonalLoads(self, n: int, queens: List[int]) -> List[List[int]]:
+              pass
+    tests:
+      - {args: [4, [1, 3, 0, 2]], expected: [[0, 1, 1, 0, 1, 1, 0], [0, 1, 1, 0, 1, 1, 0]], note: "a valid solution: no count above 1"}
+      - {args: [1, [0]], expected: [[1], [1]]}
+      - {args: [2, [0, 1]], expected: [[0, 2, 0], [1, 0, 1]], note: "both queens on the main diagonal r - c = 0"}
+      - {args: [3, [2, 1, 0]], expected: [[1, 0, 1, 0, 1], [0, 0, 3, 0, 0]], note: "all three on anti-diagonal r + c = 2"}
+    solution: |
+      class Solution:
+          def diagonalLoads(self, n: int, queens: List[int]) -> List[List[int]]:
+              diag = [0] * (2 * n - 1)
+              anti = [0] * (2 * n - 1)
+              for r, c in enumerate(queens):
+                  diag[r - c + n - 1] += 1
+                  anti[r + c] += 1
+              return [diag, anti]
+    hint: "The most negative `r - c` is `0 - (n - 1)`; adding `n - 1` moves it to index 0."
+
+hints:
+  - >-
+    Every row must contain exactly one queen. So what is the only decision you need to make
+    at each level of the recursion, and what has to be true about the earlier rows for a
+    square to be safe?
+  - >-
+    dfs(r): if r == n, all queens are placed, so record the board. Otherwise try every column
+    c; skip it if c, r − c or r + c is already in its set. Otherwise add the three keys, put
+    'Q' at (r, c), recurse on r + 1, then remove the keys and put '.' back.
+  - |
+    cols, diag, anti = empty sets; board = n x n of '.'
+    dfs(r):
+        if r == n: record each row of board joined into a string; return
+        for c from 0 to n - 1:
+            if c in cols or r - c in diag or r + c in anti: skip
+            add c, r - c, r + c to their sets; board[r][c] = 'Q'
+            dfs(r + 1)
+            remove c, r - c, r + c; board[r][c] = '.'
+    dfs(0)
+
+solution:
+  code: |
+    class Solution:
+        def solveNQueens(self, n: int) -> List[List[str]]:
+            res = []
+            board = [['.'] * n for _ in range(n)]
+            cols, diag, anti = set(), set(), set()  # taken columns, r - c, r + c
+
+            def dfs(r):  # rows 0 .. r - 1 already hold one safe queen each
+                if r == n:
+                    res.append([''.join(row) for row in board])  # snapshot as strings
+                    return
+                for c in range(n):
+                    if c in cols or (r - c) in diag or (r + c) in anti:
+                        continue  # attacked by an earlier queen
+                    cols.add(c)  # choose
+                    diag.add(r - c)
+                    anti.add(r + c)
+                    board[r][c] = 'Q'
+                    dfs(r + 1)  # explore the next row
+                    board[r][c] = '.'  # un-choose: undo all four changes
+                    cols.remove(c)
+                    diag.remove(r - c)
+                    anti.remove(r + c)
+
+            dfs(0)
+            return res
+  explanation: |
+    **Rows by construction.** `dfs(r)` places exactly one queen in row `r`, so two queens can
+    never share a row and the only decision per level is the column. Reaching `r == n` means
+    every row has a queen that is safe from all the rows above it, so the board is a
+    solution.
+
+    **Diagonals as keys.** Moving one step down-right adds 1 to both `r` and `c`, so `r - c`
+    stays constant along that diagonal; moving down-left adds 1 to `r` and subtracts 1 from
+    `c`, so `r + c` stays constant. That turns "is this square attacked?" into three set
+    lookups. Without the sets you'd compare against every earlier queen, an O(n) check.
+
+    **Un-choose everything you chose.** The choose step changes four things (three sets and
+    the board), and the un-choose step must undo all four, in the same branch, before trying
+    the next column. Forgetting one, for example leaving `r + c` in `anti`, wrongly blocks
+    squares for every later branch and silently loses solutions.
+
+    **Snapshot at the leaf.** `board` is shared and gets reset to all dots by the end, so the
+    solution is copied as fresh strings with `''.join(row)` at the moment it is found.
+    n = 2 and n = 3 return `[]`: every branch dies before row n, and nothing is ever
+    recorded.
+  time: >-
+    O(n · n!) upper bound — at most n! partial placements (one fewer free column per row),
+    each looping over n columns with O(1) checks; plus O(n²) to build each solution's
+    strings. Diagonal pruning keeps the real count far lower.
+  space: O(n²) — the shared board, plus O(n) for the three sets and the recursion depth, excluding the output
+  brute_force_code: |
+    from itertools import permutations
+
+    class Solution:
+        def solveNQueens(self, n: int) -> List[List[str]]:
+            res = []
+            for perm in permutations(range(n)):  # perm[r] = column of the queen in row r
+                if len({r - c for r, c in enumerate(perm)}) == n and len({r + c for r, c in enumerate(perm)}) == n:
+                    res.append(['.' * c + 'Q' + '.' * (n - c - 1) for c in perm])
+            return res
+
+pitch_script: |
+  **(Clarify)** "So I return every board with n non-attacking queens, each as n strings with
+  Q and dots, in any order. n is at most 9, and for n equal to 2 or 3 I return an empty
+  list since there are no solutions?"
+
+  **(Brute force)** "Since every row and column has exactly one queen, a brute force could
+  try all n! column permutations and check the diagonals of each. That's O(n · n!), and
+  it keeps building complete boards whose first two queens already attack each other."
+
+  **(Trigger)** "'Place n queens so none attack each other, return all solutions' is
+  constraint backtracking: one decision per level, a fast conflict check, and undo on the
+  way back."
+
+  **(Optimal)** "I go row by row, so rows never clash. For row r I try each column c. A square
+  is attacked if its column is taken, or its r minus c diagonal, or its r plus c
+  anti-diagonal, and I keep three sets so that check is O(1). If it's safe, I add the three
+  keys, place the Q, recurse into row r + 1, then remove the keys and reset the square. When
+  r reaches n, I join each row into a string and save the board."
+
+  **(Complexity)** "The column set alone limits the search to n! leaves at most, with an O(n)
+  loop per call, so O(n · n!) is a safe upper bound, and the diagonal sets prune most of it.
+  Space is O(n²) for the board plus O(n) for the sets and recursion."
+
+twist:
+  lc: 52
+  title: N-Queens II
+  why: >-
+    Now you only return how many solutions exist, not the boards. The search is identical,
+    but the board and the string building disappear: dfs(r) returns 1 when r == n and
+    otherwise the sum of its children's counts, with the same three sets doing the safety
+    check. Without boards to store, it's natural to swap the sets for bitmasks (cols, diag,
+    anti as integers shifted per row), which makes each check a single AND.
+
+viz:
+  maps: [cols, diag, anti]
+  watch: [r, c, res]

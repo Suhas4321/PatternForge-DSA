@@ -1,0 +1,373 @@
+slug: split-array-largest-sum
+lc: 410
+
+concept:
+  problem_it_solves: >-
+    "How do I cut a sequence into k contiguous pieces so the heaviest piece is as light as
+    possible?" Choosing the cuts directly is a combinatorial search. Turning it around is
+    easy: if someone fixes a ceiling X on every piece's sum, a single greedy pass tells you
+    whether k pieces are enough. That yes/no question is monotonic in X, so you binary search
+    X. In Indian interviews this exact problem is "Allocate Minimum Number of Pages"
+    (Book Allocation): books in order, k students, minimise the maximum pages any student
+    reads.
+  brute_force: >-
+    Try every way to place k − 1 cuts among the n − 1 gaps, compute each piece's sum, and keep
+    the smallest maximum. There are C(n − 1, k − 1) cut sets, and each one re-adds the same
+    elements that thousands of other cut sets already added. A DP over (prefix, pieces) removes
+    the repetition but still tries every last-cut position: O(k · n²).
+  brute_force_complexity: >-
+    O(C(n − 1, k − 1) · n) time for brute force (n = 1000, k = 50 is astronomically large);
+    the O(k · n²) DP is 5 × 10⁷ steps at LeetCode's limits and 5 × 10¹¹ for a GfG-style
+    n = 10⁵.
+  key_insight: >-
+    "Minimise the maximum" is the signal to binary search the maximum itself. Guess a limit X
+    and ask "can I split into at most k pieces with every piece sum <= X?". Greedy answers it
+    in O(n): keep extending the current piece and only cut when the next element would push it
+    over X. A larger X never needs more pieces, so feasible(X) is F ... F T ... T over
+    [max(nums), sum(nums)], and the answer is the first T. Needing fewer than k pieces is still
+    feasible, because you can always split a piece further without raising the maximum.
+  real_world: >-
+    Load balancing an ordered workload: Spark and Flink range partitioners split a sorted key
+    space into k contiguous ranges so the heaviest partition (the straggler) is as small as
+    possible. Video platforms split an ordered list of segments across k transcoding workers,
+    and CI systems (e.g. test sharding in Bazel or pytest-split) assign ordered test files to
+    k runners to minimise the slowest shard.
+
+statement:
+  clean: |
+    Given an integer array `nums` and an integer `k`, split `nums` into `k` non-empty
+    subarrays such that the **largest sum** of any subarray is **minimized**.
+
+    Return the minimized largest sum of the split.
+
+    A **subarray** is a **contiguous** part of the array.
+
+    *Interview alias: **Allocate Minimum Pages / Book Allocation**. `nums` are the pages of
+    books kept in order, `k` is the number of students, each student reads a contiguous run
+    of at least one book, and you minimise the maximum pages assigned to a single student.*
+  oa_story: |
+    **DakshDeliveries — OA Round 2**
+
+    DakshDeliveries runs evening grocery drops in Whitefield. Tonight's route is a fixed
+    sequence of stops along the ITPL main road, and stop `i` has `nums[i]` parcels. The
+    dispatcher must hand the route to exactly `k` riders: each rider takes one unbroken stretch
+    of consecutive stops (at least one stop each), and every stop goes to exactly one rider,
+    because riders can't leapfrog each other on a one-way service road.
+
+    Riders are paid per parcel, but the shift ends when the busiest rider finishes, so
+    operations wants the stretches chosen to make the busiest rider's parcel count as small as
+    possible. Return that smallest possible count. A route can have up to 1000 stops with up
+    to 10⁶ parcels each, and there are at most 50 riders.
+  trigger_keywords: ["largest sum", "minimized", "contiguous"]
+  examples:
+    - input: "nums = [7,2,5,10,8], k = 2"
+      output: "18"
+      explanation: "Split as [7,2,5] and [10,8]: sums 14 and 18. Every other split has a bigger maximum."
+    - input: "nums = [1,2,3,4,5], k = 2"
+      output: "9"
+      explanation: "Split as [1,2,3] and [4,5]: sums 6 and 9."
+    - input: "nums = [12,34,67,90], k = 2"
+      output: "113"
+      explanation: "The classic Allocate Books example: [12,34,67] and [90], so one student reads 113 pages."
+  constraints:
+    - "1 <= nums.length <= 1000"
+    - "0 <= nums[i] <= 10^6"
+    - "1 <= k <= min(50, nums.length)"
+
+constraint_quiz:
+  prompt: >-
+    n is up to 1000, k up to 50, values up to 10⁶ (so the total S is at most 10⁹). Interviewers
+    also ask the Allocate Books version with n up to 10⁵. What should you aim for?
+  options:
+    - "O(C(n − 1, k − 1) · n) — try every set of cuts"
+    - "O(k · n²) — DP over (prefix length, pieces used)"
+    - "O(n · log S) — binary search the largest sum, greedy check"
+    - "O(n) — one greedy pass, no search"
+  answer: 2
+  explanation: >-
+    Every cut set is exponential in k. The DP is 5 × 10⁷ at LeetCode's limits, which passes in
+    C++ but is slow in Python, and at n = 10⁵ it becomes 5 × 10¹¹, so it fails the Allocate
+    Books version. One greedy pass can't know where to cut without a target limit. Binary
+    searching the limit takes about log₂(10⁹) ≈ 30 greedy passes: ~3 × 10⁴ steps here and
+    ~3 × 10⁶ at n = 10⁵.
+
+pattern_quiz:
+  prompt: >-
+    Split an array into k contiguous parts so that the largest part sum is as small as
+    possible. Which pattern fits?
+  options:
+    - "Sort the array and deal elements round-robin"
+    - "Sliding window of fixed size n / k"
+    - "Binary search on the answer (the largest sum) with a greedy piece count"
+    - "Prefix sums + hash map"
+  answer: 2
+  explanation: >-
+    "Minimise the maximum" (or "maximise the minimum") is the binary search on answer trigger:
+    fix the maximum, check feasibility greedily, and search the smallest feasible value.
+    Sorting destroys the required contiguity, equal-sized windows ignore that element values
+    differ, and prefix-sum lookups answer "sum equals k", not "best split".
+
+function:
+  name: splitArray
+  params: [{name: nums}, {name: k}]
+
+starter_code: |
+  class Solution:
+      def splitArray(self, nums: List[int], k: int) -> int:
+          pass
+
+tests:
+  - {args: [[7, 2, 5, 10, 8], 2], expected: 18}
+  - {args: [[1, 2, 3, 4, 5], 2], expected: 9}
+  - {args: [[12, 34, 67, 90], 2], expected: 113, note: Allocate Minimum Pages classic example}
+  - {args: [[1, 4, 4], 3], expected: 4, note: "k == n: every element alone, answer is max(nums)"}
+  - {args: [[1, 2, 3, 4, 5], 1], expected: 15, note: "k == 1: the answer is sum(nums)"}
+  - {args: [[10], 1], expected: 10, note: single element}
+  - {args: [[5, 1, 1, 1], 3], expected: 5, note: "greedy needs only 2 pieces at 5: fewer than k is still feasible"}
+  - {args: [[0, 0, 0, 0], 2], expected: 0, note: "all zeros: lo == hi == 0"}
+  - {args: [[2, 3, 1, 2, 4, 3], 5], expected: 4}
+visualize_test: 0
+
+drills:
+  - title: Count pieces under a limit
+    skill: setup
+    goal: Greedily count how many contiguous pieces you need when no piece may exceed a given sum.
+    instructions: |
+      Return the minimum number of contiguous pieces `nums` must be cut into so that every
+      piece sum is at most `limit` (assume `limit >= max(nums)`).
+
+      Walk the array with `pieces = 1` and a running `current` sum. When `current + x`
+      would exceed `limit`, close the piece (`pieces += 1`, `current = 0`) and start the new
+      piece with `x`. Extending a piece as far as possible is optimal: cutting earlier only
+      pushes more elements onto later pieces. This is the same greedy as the shipping
+      problem's day counter, and it's the feasibility engine of the whole solution.
+    function:
+      name: piecesNeeded
+      params: [{name: nums}, {name: limit}]
+    starter_code: |
+      class Solution:
+          def piecesNeeded(self, nums: List[int], limit: int) -> int:
+              pass
+    tests:
+      - {args: [[7, 2, 5, 10, 8], 18], expected: 2}
+      - {args: [[7, 2, 5, 10, 8], 14], expected: 3}
+      - {args: [[1, 2, 3, 4, 5], 9], expected: 2}
+      - {args: [[1, 4, 4], 4], expected: 3, note: every element alone}
+      - {args: [[12, 34, 67, 90], 113], expected: 2}
+    solution: |
+      class Solution:
+          def piecesNeeded(self, nums: List[int], limit: int) -> int:
+              pieces, current = 1, 0
+              for x in nums:
+                  if current + x > limit:  # x would overflow: it starts a new piece
+                      pieces += 1
+                      current = 0
+                  current += x
+              return pieces
+    hint: "Only cut when adding the next element would break the limit, never earlier."
+
+  - title: The Allocate Books feasibility check
+    skill: core
+    goal: Decide whether a page limit works for k students, using "at most k" and the two impossibility guards.
+    instructions: |
+      Books are in order with `pages[i]` pages. Return `True` if the books can be given to
+      exactly `students` students, each getting a contiguous run of **at least one** book,
+      so that nobody reads more than `limit` pages.
+
+      Three decisions make this correct:
+
+      - If any single book has more than `limit` pages, it's impossible.
+      - If there are more students than books, it's impossible (the GfG version of this
+        problem returns -1 in that case; LeetCode guarantees `k <= n`).
+      - Otherwise, count the greedy pieces and accept when the count is **<=** `students`,
+        not `==`. With fewer pieces, peel single books off pieces to hand to the extra
+        students; that never raises anyone's total.
+    function:
+      name: canAllocate
+      params: [{name: pages}, {name: students}, {name: limit}]
+    starter_code: |
+      class Solution:
+          def canAllocate(self, pages: List[int], students: int, limit: int) -> bool:
+              pass
+    tests:
+      - {args: [[12, 34, 67, 90], 2, 113], expected: true}
+      - {args: [[12, 34, 67, 90], 2, 112], expected: false, note: one below the answer}
+      - {args: [[5, 1, 1, 1], 3, 5], expected: true, note: "greedy uses 2 pieces: still feasible for 3"}
+      - {args: [[10, 20], 3, 100], expected: false, note: more students than books}
+      - {args: [[12, 34, 67, 90], 4, 80], expected: false, note: the 90-page book can't fit}
+    solution: |
+      class Solution:
+          def canAllocate(self, pages: List[int], students: int, limit: int) -> bool:
+              if students > len(pages) or max(pages) > limit:
+                  return False
+              count, current = 1, 0
+              for p in pages:
+                  if current + p > limit:
+                      count, current = count + 1, 0
+                  current += p
+              return count <= students
+    hint: "Rule out the two impossible situations first, then compare the greedy count with `<=`."
+
+  - title: Show who reads what
+    skill: edge
+    goal: Rebuild the actual contiguous pieces for a limit, since interviewers often ask for the split itself.
+    instructions: |
+      Return the greedy split of `nums` as a list of pieces (each a list), where every piece
+      sum is at most `limit` (assume `limit >= max(nums)`).
+
+      The binary search only returns a number. A common follow-up is "which books does each
+      student get?" Once you know the optimal limit, one more greedy pass rebuilds a valid
+      split. Two details people miss: append the **last** open piece after the loop, and
+      remember the greedy may return fewer than `k` pieces (`[5, 1, 1, 1]` at limit 5 gives 2
+      pieces). For exactly `k`, split any piece with two or more elements further.
+    function:
+      name: splitAtLimit
+      params: [{name: nums}, {name: limit}]
+    starter_code: |
+      class Solution:
+          def splitAtLimit(self, nums: List[int], limit: int) -> List[List[int]]:
+              pass
+    tests:
+      - {args: [[7, 2, 5, 10, 8], 18], expected: [[7, 2, 5], [10, 8]]}
+      - {args: [[1, 2, 3, 4, 5], 9], expected: [[1, 2, 3], [4, 5]]}
+      - {args: [[12, 34, 67, 90], 113], expected: [[12, 34, 67], [90]]}
+      - {args: [[5, 1, 1, 1], 5], expected: [[5], [1, 1, 1]], note: fewer pieces than k = 3}
+      - {args: [[4], 4], expected: [[4]], note: the last piece must still be appended}
+    solution: |
+      class Solution:
+          def splitAtLimit(self, nums: List[int], limit: int) -> List[List[int]]:
+              parts, piece, current = [], [], 0
+              for x in nums:
+                  if current + x > limit:
+                      parts.append(piece)
+                      piece, current = [], 0
+                  piece.append(x)
+                  current += x
+              parts.append(piece)  # close the final piece
+              return parts
+    hint: "Keep the open piece as a list, and don't forget it when the loop ends."
+
+hints:
+  - >-
+    Picking the cuts directly is hard. What if someone told you "no piece may exceed X"? Could
+    you then check in one pass whether k pieces are enough? And what happens to that answer as
+    X grows?
+  - >-
+    The answer lies in [max(nums), sum(nums)]. For a candidate X, cut greedily whenever the
+    next element would push the current piece over X, and count pieces. If the count is <= k,
+    X is feasible, so try smaller; otherwise try larger. Find the first feasible X.
+  - |
+    pieces_needed(X):
+        pieces = 1, current = 0
+        for each x in nums:
+            if current + x > X: pieces += 1, current = 0
+            current += x
+        return pieces
+    lo = max(nums), hi = sum(nums)
+    while lo < hi:
+        mid = middle of lo and hi
+        if pieces_needed(mid) <= k:  hi = mid
+        else:                        lo = mid + 1
+    return lo
+
+solution:
+  code: |
+    class Solution:
+        def splitArray(self, nums: List[int], k: int) -> int:
+            def pieces_needed(limit):
+                pieces, current = 1, 0
+                for x in nums:
+                    if current + x > limit:  # x would overflow this piece: cut before it
+                        pieces += 1
+                        current = 0
+                    current += x
+                return pieces
+
+            # largest sum is at least the biggest element and at most the whole array
+            lo, hi = max(nums), sum(nums)
+            while lo < hi:  # first limit that needs at most k pieces
+                mid = (lo + hi) // 2
+                if pieces_needed(mid) <= k:
+                    hi = mid  # feasible: the answer is mid or smaller
+                else:
+                    lo = mid + 1  # needs too many pieces: the limit must grow
+            return lo
+  explanation: |
+    This is the shipping problem with "days" renamed to "pieces", and it's the template behind
+    every "minimise the maximum" question:
+
+    1. **Answer space.** The largest piece sum is at least `max(nums)` (that element sits in
+       some piece) and at most `sum(nums)` (one piece). For Allocate Books: at least the
+       thickest book, at most all the pages.
+    2. **Predicate.** `pieces_needed(X) <= k`. Greedy is optimal for a fixed `X`: extending
+       the current piece as long as it fits leaves the least for the remaining pieces.
+    3. **Monotonic.** A bigger limit never needs more pieces, so the predicate is
+       F ... F T ... T, and the first-true loop finds the minimum feasible `X`.
+
+    The subtle decision is `<= k` rather than `== k`. At the optimal limit the greedy might
+    use fewer pieces (`[5, 1, 1, 1]` with `k = 3` needs only 2 at limit 5), but you can always
+    split a piece with two or more elements further without increasing any sum, and since
+    `k <= n` there are always enough elements to do so. Requiring exactly `k` would wrongly
+    reject the optimum.
+
+    The answer is always the sum of some real piece: the first feasible `X` is tight, because
+    if no piece summed to exactly `X`, then `X - 1` would also be feasible. Zeros are fine
+    (`[0, 0, 0, 0]` gives `lo == hi == 0`), because values are non-negative. With negative
+    values the greedy and the monotonicity both break, which is why the constraint says
+    `0 <= nums[i]`.
+  time: O(n log S) — about log₂(sum − max) ≤ 30 iterations, each an O(n) greedy pass
+  space: O(1) — a few counters
+  brute_force_code: |
+    from itertools import combinations
+
+    class Solution:
+        def splitArray(self, nums: List[int], k: int) -> int:
+            n = len(nums)
+            best = sum(nums)
+            for cuts in combinations(range(1, n), k - 1):  # every way to place k - 1 cuts
+                bounds = (0,) + cuts + (n,)
+                largest = max(sum(nums[a:b]) for a, b in zip(bounds, bounds[1:]))
+                best = min(best, largest)
+            return best
+
+pitch_script: |
+  **(Clarify)** "So I split into exactly k non-empty contiguous subarrays and minimise the
+  largest subarray sum. Values are non-negative and k is at most n. This is the same as the
+  Allocate Minimum Pages problem with books and students, right?"
+
+  **(Brute force)** "I could try every placement of the k − 1 cuts and take the best maximum,
+  but that's combinatorial. A DP over prefix and number of pieces brings it to O(k · n²),
+  about 5 × 10⁷ here, and it doesn't scale to the n = 10⁵ version."
+
+  **(Trigger)** "'Minimise the largest sum' is a minimise-the-maximum problem, which tells me
+  to binary search the answer. If I fix a limit X, checking whether k pieces suffice is easy
+  with a greedy pass, and a bigger X never needs more pieces, so feasibility is monotonic."
+
+  **(Optimal)** "The answer is between max(nums) and sum(nums). For each mid I greedily build
+  pieces, cutting only when the next element would exceed mid, and count them. If the count is
+  at most k, mid is feasible and I set hi = mid; otherwise lo = mid + 1. I accept fewer than k
+  pieces because I can always split a piece further without raising the maximum."
+
+  **(Complexity)** "About log₂ of the total sum, at most 30 iterations, each O(n), so
+  O(n log S) time and O(1) space. If they want the actual split, one more greedy pass at the
+  final limit reconstructs it."
+
+twist:
+  lc: 2064
+  title: Minimized Maximum of Products Distributed to Any Store
+  why: >-
+    Painter's Partition, the other classic in this family, is not on LeetCode (it's Split Array
+    with every sum multiplied by a time per unit), so practise with this one. You hand
+    quantities of m product types to n stores, each store gets at most one type, and you
+    minimise the maximum any store receives. Same "minimise the maximum" search over [1,
+    max(quantities)], but the pieces are no longer contiguous: a product type of quantity q
+    needs ceil(q / x) stores at limit x, so feasible(x) is sum(ceil(q / x)) <= n. It's Split
+    Array's goal with Koko's ceil-division predicate, which shows the template cares only
+    about monotonic feasibility, not about subarrays.
+
+viz:
+  arrays: [nums]
+  # lo and hi are candidate sums, not indices into nums: point the window at names that don't
+  # exist so the visualizer doesn't draw a misleading [lo..hi] box over the nums array.
+  window: null  # lo/hi are answer values, not indices: no range box
+  watch: [lo, hi, mid, limit, pieces, current, k]

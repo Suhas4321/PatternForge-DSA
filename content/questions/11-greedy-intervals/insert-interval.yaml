@@ -1,0 +1,337 @@
+slug: insert-interval
+lc: 57
+
+concept:
+  problem_it_solves: >-
+    "Where does one new range go in a list that is already clean?" The list is sorted and has no
+    overlaps, so it splits into three runs: intervals entirely before the new one, intervals
+    that collide with it, and intervals entirely after it. Recognising those three runs lets you
+    rebuild the list in one linear pass, with no sorting at all.
+  brute_force: >-
+    Append the new interval and run Merge Intervals: sort everything by start, then merge. It is
+    correct, but it throws away the gift in the input. The list was already sorted and
+    non-overlapping, and the sort pays O(N log N) to rediscover an order you were handed for
+    free.
+  brute_force_complexity: >-
+    O(N log N) time, O(N) space — fine for 10⁴ intervals, but an interviewer asking this
+    question wants to see that you use the sortedness and finish in O(N).
+  key_insight: >-
+    In a sorted, non-overlapping list, the intervals that overlap the new one form one
+    contiguous run. Everything ending before the new start comes first and is copied as is;
+    then every interval starting at or before the new end is absorbed into it (min of starts,
+    max of ends); whatever remains starts after the merged interval and is copied as is. Three
+    while-loops sharing one index i, each interval touched once.
+  real_world: >-
+    TCP receivers keep a sorted list of byte ranges already received (SACK blocks) and merge
+    each arriving segment into it exactly this way. The Linux kernel merges a new memory mapping
+    into the sorted list of a process's virtual memory areas, and booking systems (Calendly,
+    Google Calendar) insert a new event into a user's sorted busy list before recomputing free
+    slots.
+
+statement:
+  clean: |
+    You are given an array of non-overlapping intervals `intervals` where
+    `intervals[i] = [start_i, end_i]`, **sorted in ascending order by start_i**, and an interval
+    `newInterval = [start, end]`.
+
+    **Insert newInterval** into `intervals` so that the result is still sorted by start and
+    still has **no overlapping intervals** (merge overlapping intervals if necessary). Intervals
+    that share an endpoint count as overlapping. Return the resulting array. You do not need to
+    modify `intervals` in place.
+  oa_story: |
+    **QuizQuest EdTech — OA Round 2**
+
+    QuizQuest hosts live quiz battles for JEE and NEET aspirants, and every teacher has a busy
+    calendar of blocked slots, stored as `[from, to]` minutes since the start of the week. The
+    calendar service guarantees that the blocks are kept in order of their start time and that
+    no two blocks run into each other.
+
+    A teacher in Jayanagar just scheduled one more live quiz, `[from, to]`. Update the calendar:
+    the new quiz must be added, and any existing blocks it runs into (including a block that ends
+    exactly when it starts, or starts exactly when it ends) must be fused with it into one block.
+    Return the updated calendar, still in start order with no two blocks running into each other.
+    Calendars hold up to 10,000 blocks and the update runs on every booking, so re-sorting the
+    whole calendar each time is not acceptable.
+  trigger_keywords: ["sorted in ascending order by start_i", "insert newInterval", "no overlapping intervals"]
+  examples:
+    - input: "intervals = [[1,3],[6,9]], newInterval = [2,5]"
+      output: "[[1,5],[6,9]]"
+      explanation: "[2,5] overlaps [1,3], so they merge into [1,5]. [6,9] starts after 5."
+    - input: "intervals = [[1,2],[3,5],[6,7],[8,10],[12,16]], newInterval = [4,8]"
+      output: "[[1,2],[3,10],[12,16]]"
+      explanation: "[4,8] overlaps [3,5], [6,7] and touches [8,10], so all four become [3,10]."
+  constraints:
+    - "0 <= intervals.length <= 10^4"
+    - "intervals[i].length == 2"
+    - "0 <= start_i <= end_i <= 10^5"
+    - "intervals is sorted by start_i in ascending order."
+    - "newInterval.length == 2"
+    - "0 <= start <= end <= 10^5"
+
+constraint_quiz:
+  prompt: >-
+    The list (up to 10⁴ intervals) is already sorted and non-overlapping. What time complexity
+    should you aim for?
+  options: ["O(N²)", "O(N log N)", "O(N)", "O(log N)"]
+  answer: 2
+  explanation: >-
+    O(N²) would come from inserting into the middle of a Python list repeatedly while merging,
+    which is wasteful. O(N log N) is what append-then-sort costs, and it ignores the fact that
+    the input is already sorted. O(N) is achievable with one pass. O(log N) is impossible: binary
+    search can find where the new interval goes, but you still have to build and return a list of
+    up to N + 1 intervals, which is O(N) work by itself.
+
+pattern_quiz:
+  prompt: >-
+    A sorted, non-overlapping list gets one new interval that may collide with several existing
+    ones. Which approach fits best?
+  options:
+    - "Append it and re-run Merge Intervals (sort by start, then merge)"
+    - "Three-phase linear scan: copy the ones before, absorb the overlapping run, copy the rest"
+    - "Binary search for its position and insert it there without merging"
+    - "Push everything into a min-heap keyed by start and pop to rebuild"
+  answer: 1
+  explanation: >-
+    The trigger is "already sorted and non-overlapping, insert one more". That guarantees the
+    collisions form one contiguous run, so a single scan in three phases does it in O(N).
+    Append-and-sort is correct but pays O(N log N) for nothing. Binary search alone breaks as
+    soon as the new interval overlaps anything, because it may swallow many intervals. A heap
+    just re-sorts the data in O(N log N).
+
+function:
+  name: insert
+  params: [{name: intervals}, {name: newInterval}]
+
+starter_code: |
+  class Solution:
+      def insert(self, intervals: List[List[int]], newInterval: List[int]) -> List[List[int]]:
+          pass
+
+tests:
+  - {args: [[[1, 3], [6, 9]], [2, 5]], expected: [[1, 5], [6, 9]]}
+  - {args: [[[1, 2], [3, 5], [6, 7], [8, 10], [12, 16]], [4, 8]], expected: [[1, 2], [3, 10], [12, 16]]}
+  - {args: [[], [5, 7]], expected: [[5, 7]], note: empty list}
+  - {args: [[[1, 5]], [2, 3]], expected: [[1, 5]], note: new interval is contained}
+  - {args: [[[1, 5]], [6, 8]], expected: [[1, 5], [6, 8]], note: goes at the very end}
+  - {args: [[[3, 5], [8, 9]], [0, 1]], expected: [[0, 1], [3, 5], [8, 9]], note: goes at the very front}
+  - {args: [[[1, 2], [5, 6]], [2, 5]], expected: [[1, 6]], note: touches on both sides}
+  - {args: [[[1, 2], [3, 4], [5, 6]], [0, 10]], expected: [[0, 10]], note: swallows everything}
+  - {args: [[[1, 2], [6, 7]], [3, 4]], expected: [[1, 2], [3, 4], [6, 7]], note: fits in a gap}
+visualize_test: 1
+
+drills:
+  - title: Phase 1, copy what ends before
+    skill: setup
+    goal: Walk the sorted list with one index and stop at the first interval that could touch the new one.
+    instructions: |
+      Return the intervals that lie **entirely before** `newInterval`, i.e. those that end
+      strictly before it starts. `intervals` is sorted and non-overlapping.
+
+      This is phase 1 of the full solution. The comparison must be strict: an interval ending at
+      exactly `newInterval[0]` touches it, so it belongs to the merge phase, not the copy phase.
+      Use a `while` loop with an index, because phase 2 will continue from where it stops.
+    function:
+      name: beforeNew
+      params: [{name: intervals}, {name: newInterval}]
+    starter_code: |
+      class Solution:
+          def beforeNew(self, intervals: List[List[int]], newInterval: List[int]) -> List[List[int]]:
+              pass
+    tests:
+      - {args: [[[1, 2], [3, 5], [6, 7]], [5, 8]], expected: [[1, 2]], note: "[3,5] touches at 5"}
+      - {args: [[[1, 2], [3, 4]], [6, 8]], expected: [[1, 2], [3, 4]]}
+      - {args: [[[4, 6]], [1, 2]], expected: []}
+      - {args: [[], [1, 2]], expected: []}
+    solution: |
+      class Solution:
+          def beforeNew(self, intervals: List[List[int]], newInterval: List[int]) -> List[List[int]]:
+              out = []
+              i = 0
+              while i < len(intervals) and intervals[i][1] < newInterval[0]:
+                  out.append(intervals[i])
+                  i += 1
+              return out
+    hint: "Keep going while `intervals[i][1] < newInterval[0]`, strictly less."
+
+  - title: Phase 2, absorb the colliding run
+    skill: core
+    goal: Grow the new interval with min of starts and max of ends over every interval it overlaps.
+    instructions: |
+      Return the single interval `[start, end]` that `newInterval` becomes after absorbing every
+      interval in `intervals` that overlaps or touches it.
+
+      Overlap with closed intervals means `iv[1] >= start and iv[0] <= end`. Each absorbed
+      interval can only widen the merged interval: `start = min(...)`, `end = max(...)`. In the
+      full solution these colliding intervals are one contiguous run, so phase 2 is just a loop
+      while `intervals[i][0] <= end`.
+    function:
+      name: absorbAll
+      params: [{name: intervals}, {name: newInterval}]
+    starter_code: |
+      class Solution:
+          def absorbAll(self, intervals: List[List[int]], newInterval: List[int]) -> List[int]:
+              pass
+    tests:
+      - {args: [[[1, 2], [3, 5], [6, 7], [8, 10], [12, 16]], [4, 8]], expected: [3, 10]}
+      - {args: [[[1, 3], [6, 9]], [2, 5]], expected: [1, 5]}
+      - {args: [[[1, 2], [6, 7]], [3, 4]], expected: [3, 4], note: nothing overlaps}
+      - {args: [[[1, 5]], [2, 3]], expected: [1, 5], note: contained in an existing interval}
+      - {args: [[], [4, 4]], expected: [4, 4]}
+    solution: |
+      class Solution:
+          def absorbAll(self, intervals: List[List[int]], newInterval: List[int]) -> List[int]:
+              start, end = newInterval
+              for s, e in intervals:
+                  if e >= start and s <= end:  # shares at least one point
+                      start = min(start, s)
+                      end = max(end, e)
+              return [start, end]
+    hint: "Only widen: `start = min(start, s)` and `end = max(end, e)` for each overlapping interval."
+
+  - title: Place it exactly once
+    skill: edge
+    goal: Insert a disjoint interval at the front, middle or end of a sorted list without dropping or duplicating it.
+    instructions: |
+      `newInterval` is guaranteed **not** to overlap or touch anything in `intervals`. Return
+      the list with it inserted in sorted position.
+
+      The bug this trains against: placing the new interval only when you meet an interval that
+      starts after it. If the list is empty, or the new interval belongs at the very end, that
+      moment never comes and the new interval silently disappears. In the full solution this is
+      why `result.append([start, end])` sits *between* the loops, not inside one.
+    function:
+      name: insertDisjoint
+      params: [{name: intervals}, {name: newInterval}]
+    starter_code: |
+      class Solution:
+          def insertDisjoint(self, intervals: List[List[int]], newInterval: List[int]) -> List[List[int]]:
+              pass
+    tests:
+      - {args: [[[1, 2], [6, 7]], [3, 4]], expected: [[1, 2], [3, 4], [6, 7]]}
+      - {args: [[[3, 5]], [0, 1]], expected: [[0, 1], [3, 5]], note: front}
+      - {args: [[[1, 2], [4, 5]], [7, 9]], expected: [[1, 2], [4, 5], [7, 9]], note: end}
+      - {args: [[], [2, 3]], expected: [[2, 3]], note: empty list}
+    solution: |
+      class Solution:
+          def insertDisjoint(self, intervals: List[List[int]], newInterval: List[int]) -> List[List[int]]:
+              out = []
+              placed = False
+              for iv in intervals:
+                  if not placed and iv[0] > newInterval[1]:
+                      out.append(newInterval)
+                      placed = True
+                  out.append(iv)
+              if not placed:
+                  out.append(newInterval)
+              return out
+    hint: "After the loop, check whether the new interval was ever placed."
+
+hints:
+  - >-
+    The list is already sorted and clean. If you lay the new interval over it, which existing
+    intervals can it collide with? Are they scattered, or do they sit next to each other?
+  - >-
+    Use one index and three loops. Copy intervals while they end before the new start. Then,
+    while intervals start at or before the new end, widen the new interval to cover them. Append
+    the widened interval, then copy everything left.
+  - |
+    result = empty, i = 0, (start, end) = newInterval
+    while i < n and intervals[i].end < start:
+        append intervals[i]; i += 1
+    while i < n and intervals[i].start <= end:
+        start = min(start, intervals[i].start)
+        end = max(end, intervals[i].end); i += 1
+    append [start, end]
+    while i < n: append intervals[i]; i += 1
+    return result
+
+solution:
+  code: |
+    class Solution:
+        def insert(self, intervals: List[List[int]], newInterval: List[int]) -> List[List[int]]:
+            result = []
+            i, n = 0, len(intervals)
+            start, end = newInterval
+            # Phase 1: intervals that end before the new one starts
+            while i < n and intervals[i][1] < start:
+                result.append(intervals[i])
+                i += 1
+            # Phase 2: every interval that starts before the new one ends is absorbed
+            while i < n and intervals[i][0] <= end:
+                start = min(start, intervals[i][0])
+                end = max(end, intervals[i][1])
+                i += 1
+            result.append([start, end])
+            # Phase 3: the rest start after the merged interval ends
+            while i < n:
+                result.append(intervals[i])
+                i += 1
+            return result
+  explanation: |
+    Because the list is sorted by start **and** non-overlapping, it is also sorted by end. So
+    the intervals that end before `start` are a prefix, the ones that start after `end` are a
+    suffix, and everything in between overlaps the new interval. Each phase is a `while` loop
+    that continues from the shared index `i`, so every interval is looked at once.
+
+    The two comparisons encode the touching rule. Phase 1 uses `intervals[i][1] < start`
+    (strict), so an interval ending exactly at `start` is merged, not copied. Phase 2 uses
+    `intervals[i][0] <= end`, so an interval starting exactly at `end` is merged too; that is
+    how `[8,10]` joins `[4,8]` in example 2.
+
+    Phase 2 keeps widening `end` as it absorbs intervals, so the loop condition checks against
+    the *growing* end. The merged interval is appended between phases 2 and 3 unconditionally,
+    which covers the empty list, a new interval that goes at the very front or very end, and one
+    that overlaps nothing.
+  time: O(N) — each interval is visited once across the three loops
+  space: O(N) — the output list (O(1) extra besides it)
+  brute_force_code: |
+    class Solution:
+        def insert(self, intervals: List[List[int]], newInterval: List[int]) -> List[List[int]]:
+            all_ivs = sorted([list(iv) for iv in intervals] + [list(newInterval)])
+            merged = []
+            for s, e in all_ivs:
+                if merged and s <= merged[-1][1]:
+                    merged[-1][1] = max(merged[-1][1], e)
+                else:
+                    merged.append([s, e])
+            return merged
+
+pitch_script: |
+  **(Clarify)** "The existing list is sorted by start and has no overlaps, and the new interval
+  might overlap several of them. Touching counts as overlapping, so 4 to 8 and 8 to 10 merge?
+  And I can return a new list rather than editing in place?"
+
+  **(Brute force)** "The simplest correct answer is to append the new interval and run Merge
+  Intervals: sort, then merge. That's O(N log N), but it wastes the fact that the input is
+  already sorted."
+
+  **(Trigger)** "Since the list is sorted and disjoint, the intervals that collide with the new
+  one have to be a contiguous run. Everything before that run ends before the new start, and
+  everything after starts after the new end. That gives me a three-phase linear scan."
+
+  **(Optimal)** "With a single index, I first copy intervals while they end strictly before the
+  new start. Then, while intervals start at or before the new end, I absorb them by taking the
+  min of starts and the max of ends; the end keeps growing as I absorb. I append the merged
+  interval, then copy everything that's left. Appending between the loops handles the empty
+  list and the front and end cases."
+
+  **(Complexity)** "Every interval is visited once, so it's O(N) time and O(N) for the output.
+  I could binary search for the start of the overlapping run, but building the output is O(N)
+  anyway, so it doesn't change the bound."
+
+twist:
+  lc: 729
+  title: My Calendar I
+  why: >-
+    Now the intervals arrive one booking at a time, and a booking that overlaps anything must be
+    rejected instead of merged. The calendar is the same sorted, non-overlapping list, but you
+    never merge: you find where the new booking would sit (binary search, or a sorted container)
+    and only check its two neighbours, the one before and the one after, which is the same
+    "collisions are contiguous" insight that makes the three phases work. Watch the touching
+    rule flip: bookings are half-open [start, end), so one ending at 10 and the next starting at
+    10 do not conflict.
+
+viz:
+  arrays: [intervals, result]
+  pointers: [i]
+  watch: [start, end, n]

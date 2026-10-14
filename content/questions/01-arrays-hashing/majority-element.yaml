@@ -1,0 +1,306 @@
+slug: majority-element
+lc: 169
+
+concept:
+  problem_it_solves: >-
+    "Which value occurs more often than everything else put together?" The obvious tool is a
+    frequency map, which costs O(N) memory. But a value that owns more than half the array
+    can't be outvoted, and that lets you find it with just two variables.
+  brute_force: >-
+    For each element, loop over the whole array again and count its copies, returning the
+    first one whose count exceeds n / 2. Every copy of the same value recounts the same
+    array from scratch, so the work repeats once per element.
+  brute_force_complexity: O(N²) time, O(1) space — 5 × 10⁴ elements means up to 2.5 × 10⁹ comparisons.
+  key_insight: >-
+    Pair each element with a *different* element and cancel both. Every cancellation removes
+    at most one copy of the majority but always removes one non-majority element, and the
+    majority has more copies than all others combined, so it is the only value that can be
+    left standing. Boyer-Moore voting does this pairing on the fly with one candidate and
+    one counter.
+  real_world: >-
+    Boyer-Moore's generalisation, the Misra-Gries algorithm, finds "heavy hitters" in streams
+    with a fixed number of counters. Network monitoring and DDoS detection use it to spot the
+    one IP sending most of the traffic through a router or CDN edge, where keeping a counter
+    per IP would blow the memory budget.
+
+statement:
+  clean: |
+    Given an array `nums` of size `n`, return the **majority element**.
+
+    The majority element is the element that appears **more than ⌊n / 2⌋ times**. You may
+    assume that the majority element **always exists** in the array.
+
+    **Follow-up:** could you solve it in linear time and O(1) extra space?
+  oa_story: |
+    **DabbaDash Cloud Kitchens — OA Round 2**
+
+    DabbaDash runs a cloud kitchen in HSR Layout, and the order tablet at the pass logs the
+    dish ID of every ticket during the lunch rush. On rush days one dish, the office-crowd
+    favourite, is ordered on **more than half** of all tickets, and the kitchen wants the
+    tablet to flash that dish ID so the line cooks can batch it.
+
+    You get the list of dish IDs for the rush, in order. The dominant dish is guaranteed to
+    exist. The tablet's firmware leaves only a couple of integer registers free for this
+    feature, so the head of engineering wants the check to run in a single pass without
+    building any lookup table. Return the dish ID.
+  trigger_keywords: ["majority element", "more than ⌊n / 2⌋ times", "always exists"]
+  examples:
+    - input: "nums = [3,2,3]"
+      output: "3"
+      explanation: "n = 3, so the majority must appear more than 1 time. 3 appears twice."
+    - input: "nums = [2,2,1,1,1,2,2]"
+      output: "2"
+      explanation: "2 appears 4 times out of 7."
+  constraints:
+    - "n == nums.length"
+    - "1 <= n <= 5 * 10^4"
+    - "-10^9 <= nums[i] <= 10^9"
+    - "The majority element always exists."
+
+constraint_quiz:
+  prompt: >-
+    N can be 5 × 10⁴ and the follow-up asks for linear time and O(1) extra space. What should
+    you aim for?
+  options:
+    - "O(N²) time, O(1) space"
+    - "O(N log N) time, O(1) space"
+    - "O(N) time, O(N) space"
+    - "O(N) time, O(1) space"
+  answer: 3
+  explanation: >-
+    O(N²) is ~2.5 × 10⁹ comparisons, far too slow. Sorting and returning nums[n // 2] is
+    correct (the majority must cover the middle) but O(N log N) isn't linear. A hash map of
+    counts is O(N) time but uses O(N) space, breaking the follow-up. Boyer-Moore voting hits
+    both targets: one pass, two variables.
+
+pattern_quiz:
+  prompt: Which technique finds the majority element in one pass with O(1) extra space?
+  options:
+    - "Hash map of value → count"
+    - "Sort and return nums[n // 2]"
+    - "Boyer-Moore voting (one candidate + one counter)"
+    - "Two pointers from both ends"
+  answer: 2
+  explanation: >-
+    All of the first three find the right answer, but only one meets the follow-up. The
+    hash map is O(N) space, sorting is O(N log N) time, and two pointers has no meaning on
+    unsorted data here. "More than ⌊n / 2⌋ times" plus "always exists" is the Boyer-Moore
+    trigger: a value that beats everyone else combined survives pairwise cancellation.
+
+function:
+  name: majorityElement
+  params: [{name: nums}]
+
+starter_code: |
+  class Solution:
+      def majorityElement(self, nums: List[int]) -> int:
+          pass
+
+tests:
+  - {args: [[3, 2, 3]], expected: 3}
+  - {args: [[2, 2, 1, 1, 1, 2, 2]], expected: 2}
+  - {args: [[1]], expected: 1, note: single element is the majority}
+  - {args: [[5, 5]], expected: 5}
+  - {args: [[1, 2, 1, 2, 1]], expected: 1, note: "count hits 0 repeatedly; 1 keeps getting re-elected"}
+  - {args: [[1, 2, 3, 9, 9, 9, 9]], expected: 9, note: "majority arrives last; candidate switches late"}
+  - {args: [[4, 4, 4, 4, 1, 2, 3]], expected: 4, note: "majority front-loaded; others drain the count"}
+  - {args: [[-1000000000, 7, -1000000000]], expected: -1000000000, note: "negative extreme values"}
+visualize_test: 1
+
+drills:
+  - title: Track one value's net votes
+    skill: setup
+    goal: Keep a running counter that goes up for one value and down for every other value.
+    instructions: |
+      Return the **running net vote** for value `v`: after each element, record
+      (copies of `v` so far) − (other elements so far).
+
+      This is the counter at the heart of Boyer-Moore. If `v` is the majority, its copies
+      outnumber everything else combined, so this running total is guaranteed to finish
+      above 0, even if it dips below 0 along the way.
+    function:
+      name: netVotes
+      params: [{name: nums}, {name: v}]
+    starter_code: |
+      class Solution:
+          def netVotes(self, nums: List[int], v: int) -> List[int]:
+              pass
+    tests:
+      - {args: [[2, 2, 1, 1, 1, 2, 2], 2], expected: [1, 2, 1, 0, -1, 0, 1]}
+      - {args: [[3, 2, 3], 3], expected: [1, 0, 1]}
+      - {args: [[1, 2, 3], 9], expected: [-1, -2, -3]}
+      - {args: [[7], 7], expected: [1]}
+    solution: |
+      class Solution:
+          def netVotes(self, nums: List[int], v: int) -> List[int]:
+              count, out = 0, []
+              for x in nums:
+                  count += 1 if x == v else -1
+                  out.append(count)
+              return out
+    hint: "One counter, one `if`: `+1` when `x == v`, `-1` otherwise, then record it."
+
+  - title: Switch candidates when the count hits zero
+    skill: core
+    goal: Replace the candidate with the current element whenever the counter has dropped to 0.
+    instructions: |
+      Run Boyer-Moore voting and return the **candidate after each element** is processed.
+
+      Rules at each `x`: if `count == 0`, make `x` the new candidate. Then add 1 if `x`
+      equals the candidate, else subtract 1. A count of 0 means every earlier element has
+      been cancelled against a different one, so the prefix so far has no majority. Nothing
+      is lost by starting fresh, and the true majority still beats the rest of the array.
+    function:
+      name: candidateTrace
+      params: [{name: nums}]
+    starter_code: |
+      class Solution:
+          def candidateTrace(self, nums: List[int]) -> List[int]:
+              pass
+    tests:
+      - {args: [[2, 2, 1, 1, 1, 2, 2]], expected: [2, 2, 2, 2, 1, 1, 2]}
+      - {args: [[3, 2, 3]], expected: [3, 3, 3]}
+      - {args: [[1, 2, 3, 4]], expected: [1, 1, 3, 3]}
+      - {args: [[6]], expected: [6]}
+    solution: |
+      class Solution:
+          def candidateTrace(self, nums: List[int]) -> List[int]:
+              candidate, count, out = None, 0, []
+              for x in nums:
+                  if count == 0:
+                      candidate = x
+                  count += 1 if x == candidate else -1
+                  out.append(candidate)
+              return out
+    hint: "The switch happens at the *next* element after count reaches 0, not at the moment it reaches 0."
+
+  - title: The survivor is only a suspect
+    skill: edge
+    goal: Verify the Boyer-Moore survivor with a second pass when a majority isn't guaranteed.
+    instructions: |
+      Return the majority element of `nums` (more than ⌊n / 2⌋ copies), or `-1` if there
+      isn't one. Use O(1) extra space.
+
+      The cancellation argument only proves "**if** a majority exists, it survives". On
+      `[1, 2, 3]` the survivor is 3, which is not a majority. LeetCode 169 guarantees
+      existence so you can skip the check, but interviewers love removing that guarantee,
+      and Majority Element II needs this verification pass too.
+    function:
+      name: majorityOrNone
+      params: [{name: nums}]
+    starter_code: |
+      class Solution:
+          def majorityOrNone(self, nums: List[int]) -> int:
+              pass
+    tests:
+      - {args: [[1, 2, 3]], expected: -1}
+      - {args: [[2, 2, 1]], expected: 2}
+      - {args: [[1, 2, 1, 2]], expected: -1}
+      - {args: [[5]], expected: 5}
+      - {args: [[]], expected: -1}
+    solution: |
+      class Solution:
+          def majorityOrNone(self, nums: List[int]) -> int:
+              candidate, count = None, 0
+              for x in nums:
+                  if count == 0:
+                      candidate = x
+                  count += 1 if x == candidate else -1
+              return candidate if nums.count(candidate) > len(nums) // 2 else -1
+    hint: "`[1, 2, 1, 2]` has two values at exactly half. Is exactly half a majority?"
+
+hints:
+  - >-
+    A hash map of counts works, but the follow-up forbids O(N) memory. If you paired every
+    copy of the majority with a different element and threw both away, could you run out of
+    majority copies before you ran out of other elements?
+  - >-
+    Keep one candidate and one count. A matching element votes for the candidate (+1), a
+    different element cancels one vote (−1). What should happen when the count is 0 and a new
+    element arrives, and why can't that hurt the true majority?
+  - |
+    candidate = none, count = 0
+    for x in nums:
+        if count is 0: candidate = x
+        if x == candidate: count += 1
+        else: count -= 1
+    return candidate
+
+solution:
+  code: |
+    class Solution:
+        def majorityElement(self, nums: List[int]) -> int:
+            candidate, count = None, 0  # current suspect and its unmatched votes
+            for i, x in enumerate(nums):
+                if count == 0:
+                    candidate = x  # everything before i cancelled out, start fresh
+                count += 1 if x == candidate else -1
+            return candidate
+  explanation: |
+    **Step 1, the hash-count approach.** Count every value in a dict and return the one whose
+    count exceeds `n // 2`. That's O(N) time but O(N) space, and it's a perfectly good first
+    answer to say out loud before optimising.
+
+    **Step 2, Boyer-Moore voting.** Think of each `-1` as cancelling one vote for the
+    candidate against one element that differs from it. Whenever `count` drops to 0, the
+    prefix processed so far splits into cancelled pairs of *different* values, so at most half
+    of that prefix is the majority. Discarding the prefix leaves a suffix where the majority
+    still has more than half the elements, and the argument repeats. At the end, only a value
+    with more copies than everything else combined can still hold a positive count, and since
+    the majority always exists, the survivor is it.
+
+    The subtle ordering: the candidate switch happens **before** the vote, so the new
+    candidate votes for itself and starts at count 1. And because the problem guarantees a
+    majority, no verification pass is needed. Drop that guarantee and you must recount the
+    survivor in a second pass.
+  time: O(N) — one pass, constant work per element
+  space: O(1) — just the candidate and the counter
+  brute_force_code: |
+    class Solution:
+        def majorityElement(self, nums: List[int]) -> int:
+            n = len(nums)
+            for x in nums:
+                copies = 0
+                for y in nums:
+                    if y == x:
+                        copies += 1
+                if copies > n // 2:
+                    return x
+            return -1
+
+pitch_script: |
+  **(Clarify)** "So the majority appears strictly more than n over two times, and it's
+  guaranteed to exist, so I never need to return a 'not found' value? And the follow-up wants
+  O(1) extra space?"
+
+  **(Brute force)** "The naive way is, for each element, count its copies with a second loop
+  and return the first one above n over two. That's O(N²). The natural improvement is a
+  hash map of counts, which is O(N) time but O(N) space, so it doesn't meet the follow-up."
+
+  **(Trigger)** "'More than half' is the key phrase. If the majority beats all other values
+  combined, then pairing it off one-for-one against different values can never use it up.
+  That's Boyer-Moore voting."
+
+  **(Optimal)** "I keep a candidate and a count. For each element, if the count is zero I
+  adopt this element as the candidate. Then I add one if it matches the candidate and
+  subtract one if it doesn't. A count of zero means everything so far cancelled into pairs
+  of different values, so the majority still dominates what's left. Since a majority is
+  guaranteed, whatever candidate survives is the answer. Without that guarantee, I'd do a
+  second pass to count it."
+
+  **(Complexity)** "That's O(N) time with a single pass, and O(1) extra space, just two
+  variables."
+
+twist:
+  lc: 229
+  title: Majority Element II
+  why: >-
+    Now return every element appearing more than ⌊n / 3⌋ times, and no answer is guaranteed.
+    At most two values can qualify, so you keep two candidates and two counters, and a third
+    distinct value cancels one vote from each. Because existence isn't promised, a second
+    pass must recount both survivors before you return them.
+
+viz:
+  arrays: [nums]
+  pointers: [i]
+  watch: [candidate, count, x]

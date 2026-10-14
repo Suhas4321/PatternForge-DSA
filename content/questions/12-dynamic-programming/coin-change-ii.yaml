@@ -1,0 +1,338 @@
+slug: coin-change-ii
+lc: 518
+
+concept:
+  problem_it_solves: >-
+    "In how many different ways can I build this total?" where two piles with the same coins
+    in a different order count as the SAME way. Counting by listing every pile explodes, but
+    the number of ways to make a total only depends on smaller totals, so a table of counts,
+    built one coin type at a time, adds them up without ever listing a single pile.
+  brute_force: >-
+    Recurse over the coins in a fixed order: at coin i with r left, either use one more of
+    coin i (stay at i, r − coin) or move on to coin i + 1 for good. That counts each
+    combination exactly once, but it enumerates every combination one by one, and the same
+    (coin index, remaining) pair gets recomputed down countless branches.
+  brute_force_complexity: >-
+    Exponential time (at least one call per combination, and the answer itself can approach
+    2³¹), O(C + A) recursion depth — amount 5000 with small coins is hopeless.
+  key_insight: >-
+    Order the coins and build every combination in that order: all the 1s first, then all the
+    2s, then all the 5s. Then a combination is identified by how many of each coin it uses,
+    and counting it once is easy. In table form that order is the LOOP order: put coins in the
+    OUTER loop and amounts in the inner loop, so dp[a] += dp[a − coin] only ever adds a coin to
+    piles that use the same or earlier coins. Swap the loops and you count ordered sequences
+    instead: for amount 3 with [1, 2], amounts-outer counts 1+2 and 2+1 separately (3 ways),
+    coins-outer counts {1, 2} once (2 ways).
+  real_world: >-
+    Payment and pricing teams count "how many bundles of items add up to this price" when
+    designing combo offers, and capacity planners count the ways to fill a truck or a
+    container from standard box sizes. The same additive DP over a total runs inside
+    probability engines (counting dice outcomes, generating functions) and in fraud rules that
+    ask how many distinct transaction mixes could explain a settlement amount.
+
+statement:
+  clean: |
+    You are given an integer array `coins` representing coins of different denominations and
+    an integer `amount` representing a total amount of money.
+
+    Return the **number of combinations** that make up that amount. If that amount of money
+    cannot be made up by any combination of the coins, return `0`.
+
+    You may assume that you have an **infinite number of each kind of coin**.
+
+    The answer is guaranteed to fit into a signed **32-bit** integer.
+  oa_story: |
+    **TokenTill Canteens — OA Round 1**
+
+    TokenTill powers the cafeterias at tech parks along Outer Ring Road. Employees pay with
+    prepaid meal tokens that come in a few fixed values, and they can hand over any number of
+    tokens of each value. The finance team in Bellandur wants to know, for a given meal price,
+    how many genuinely different token mixes could have paid it exactly. Handing over a ₹1
+    token and then a ₹2 token is the same mix as ₹2 then ₹1: only the count of each token
+    value matters.
+
+    Write a function that takes the meal price and the list of token values in circulation,
+    and returns the number of distinct mixes that add up to the price exactly. Return `0` if
+    no mix works. Prices go up to ₹5,000, there are at most 300 token values, all different,
+    and the count always fits in a 32-bit signed integer.
+  trigger_keywords: ["number of combinations", "infinite number of each kind of coin"]
+  examples:
+    - input: "amount = 5, coins = [1,2,5]"
+      output: "4"
+      explanation: "5 = 5, 5 = 2 + 2 + 1, 5 = 2 + 1 + 1 + 1, 5 = 1 + 1 + 1 + 1 + 1."
+    - input: "amount = 3, coins = [2]"
+      output: "0"
+      explanation: "3 can't be made from 2s alone."
+    - input: "amount = 10, coins = [10]"
+      output: "1"
+  constraints:
+    - "1 <= coins.length <= 300"
+    - "1 <= coins[i] <= 5000"
+    - "All the values of coins are unique."
+    - "0 <= amount <= 5000"
+
+constraint_quiz:
+  prompt: >-
+    The amount is at most 5000 and there are at most 300 coin types. What complexity should
+    you aim for?
+  options:
+    - "Exponential — enumerate every combination"
+    - "O(A · C) — one pass over the amounts per coin"
+    - "O(A² · C) — for each amount and coin, try every count of that coin"
+    - "O(A log A)"
+  answer: 1
+  explanation: >-
+    Enumerating combinations is at least as slow as the answer is large, and the answer can
+    approach the 32-bit limit of about 2 × 10⁹. Trying every count k of each coin (dp[a] += dp[a − k·coin])
+    is correct but up to 5000 × 300 × 5000 steps. The trick dp[a] += dp[a − coin] reuses the
+    cell that already allowed any number of that coin, so each (coin, amount) pair is O(1):
+    5000 × 300 = 1.5 × 10⁶ steps. Nothing here is sorted or halved, so O(A log A) has no
+    algorithm behind it.
+
+pattern_quiz:
+  prompt: >-
+    You must count how many multisets of coins (order doesn't matter, unlimited reuse) sum to
+    an amount. Which approach is correct?
+  options:
+    - "Greedy: count how many times each coin divides the amount"
+    - "dp over amounts with coins in the OUTER loop: dp[a] += dp[a − coin]"
+    - "dp over amounts with amounts in the OUTER loop: dp[a] += dp[a − coin]"
+    - "Backtracking that lists every combination and adds them to a set"
+  answer: 1
+  explanation: >-
+    "Number of combinations" with "infinite number of each kind" is unbounded knapsack
+    counting. Both dp options use the same line of code, but amounts-outer lets any coin be
+    the last one at every amount, so 1+2 and 2+1 are counted separately (that's permutations,
+    Combination Sum IV). Coins-outer fixes the order in which coins are added, so each multiset
+    is counted once. Backtracking with a set is correct but exponential.
+
+function:
+  name: change
+  params: [{name: amount}, {name: coins}]
+
+starter_code: |
+  class Solution:
+      def change(self, amount: int, coins: List[int]) -> int:
+          pass
+
+tests:
+  - {args: [5, [1, 2, 5]], expected: 4}
+  - {args: [3, [2]], expected: 0}
+  - {args: [10, [10]], expected: 1}
+  - {args: [0, [7]], expected: 1, note: "amount 0: the empty combination counts as one way"}
+  - {args: [4, [1, 2]], expected: 3, note: "1+1+1+1, 1+1+2, 2+2; counting orders would give 5"}
+  - {args: [7, [2, 3]], expected: 1, note: "only 2 + 2 + 3"}
+  - {args: [5, [5, 2, 1]], expected: 4, note: "coin order in the input doesn't matter"}
+  - {args: [10, [1, 2, 5]], expected: 10}
+  - {args: [100, [1, 5, 10, 25]], expected: 242, note: "the classic: ways to change a dollar"}
+visualize_test: 0
+
+drills:
+  - title: Ways with a single coin
+    skill: setup
+    goal: Initialise the counting table with dp[0] = 1 and sweep the amounts upward for one coin.
+    instructions: |
+      Return a list `dp` of length `amount + 1` where `dp[a]` is the number of ways to make
+      `a` using only coins of value `coin` (any number of them).
+
+      Start from `dp[0] = 1`: there is exactly one way to make 0, the empty pile. Every other
+      count is built from it, so if you start it at 0 the whole table stays 0. Then sweep `a`
+      upward from `coin`: `dp[a] += dp[a - coin]`. Because you go upward, `dp[a - coin]` has
+      already been updated for this coin, which is what lets one coin be used many times.
+    function:
+      name: singleCoinWays
+      params: [{name: amount}, {name: coin}]
+    starter_code: |
+      class Solution:
+          def singleCoinWays(self, amount: int, coin: int) -> List[int]:
+              pass
+    tests:
+      - {args: [4, 2], expected: [1, 0, 1, 0, 1]}
+      - {args: [6, 3], expected: [1, 0, 0, 1, 0, 0, 1]}
+      - {args: [3, 5], expected: [1, 0, 0, 0], note: coin bigger than the amount}
+      - {args: [0, 3], expected: [1], note: only the base case}
+    solution: |
+      class Solution:
+          def singleCoinWays(self, amount: int, coin: int) -> List[int]:
+              dp = [0] * (amount + 1)
+              dp[0] = 1
+              for a in range(coin, amount + 1):
+                  dp[a] += dp[a - coin]
+              return dp
+    hint: "`dp[0] = 1`, then `for a in range(coin, amount + 1): dp[a] += dp[a - coin]`."
+
+  - title: Fold one more coin into the table
+    skill: core
+    goal: Apply the transition dp[a] += dp[a − coin] for a new coin on top of a table built from earlier coins.
+    instructions: |
+      `dp[a]` is the number of ways to make `a` with some earlier coins. Update it **in place**
+      so it also allows any number of the new `coin`, and return it.
+
+      Read the transition as "ways that don't use this coin (the old `dp[a]`) plus ways that
+      use it at least once (take one copy off: `dp[a - coin]`, already updated for this
+      coin)". This is one iteration of the outer coin loop in the full solution. Because every
+      way counted here adds the new coin after the earlier ones, no combination is counted
+      twice.
+    function:
+      name: addCoin
+      params: [{name: dp}, {name: coin}]
+    starter_code: |
+      class Solution:
+          def addCoin(self, dp: List[int], coin: int) -> List[int]:
+              pass
+    tests:
+      - {args: [[1, 1, 1, 1, 1], 2], expected: [1, 1, 2, 2, 3], note: "{1} table, then add coin 2"}
+      - {args: [[1, 0, 1, 0, 1, 0, 1], 3], expected: [1, 0, 1, 1, 1, 1, 2], note: "6 = 2+2+2 or 3+3"}
+      - {args: [[1, 1, 2, 2, 3, 3], 5], expected: [1, 1, 2, 2, 3, 4]}
+      - {args: [[1, 0, 0], 4], expected: [1, 0, 0], note: "coin too big: nothing changes"}
+    solution: |
+      class Solution:
+          def addCoin(self, dp: List[int], coin: int) -> List[int]:
+              for a in range(coin, len(dp)):
+                  dp[a] += dp[a - coin]
+              return dp
+    hint: "Loop `a` upward from `coin` to `len(dp) - 1` and add `dp[a - coin]`."
+
+  - title: Swap the loops, count orders
+    skill: edge
+    goal: See that putting amounts in the outer loop counts ordered sequences (permutations) instead of combinations.
+    instructions: |
+      Return the number of **ordered** sequences of coins that add up to `amount`, so
+      `1 + 2` and `2 + 1` are different.
+
+      Use the same table and the same line `dp[a] += dp[a - c]`, but with **amounts in the
+      outer loop** and coins in the inner loop. Now, at every amount, any coin can be the last
+      one, so every ordering gets its own count. Compare with Coin Change II: `amount = 4,
+      coins = [1, 2]` gives 5 here but 3 there. Getting the loop order backwards is the most
+      common bug in Coin Change II, and the very first example catches it: amount 5 with
+      `[1, 2, 5]` has 9 orderings but only 4 combinations.
+    function:
+      name: orderedWays
+      params: [{name: amount}, {name: coins}]
+    starter_code: |
+      class Solution:
+          def orderedWays(self, amount: int, coins: List[int]) -> int:
+              pass
+    tests:
+      - {args: [4, [1, 2]], expected: 5, note: "1111, 112, 121, 211, 22"}
+      - {args: [3, [1, 2]], expected: 3, note: "111, 12, 21 (only 2 combinations)"}
+      - {args: [4, [1, 2, 3]], expected: 7}
+      - {args: [5, [1, 2, 5]], expected: 9, note: "Coin Change II says 4"}
+      - {args: [3, [2]], expected: 0}
+    solution: |
+      class Solution:
+          def orderedWays(self, amount: int, coins: List[int]) -> int:
+              dp = [0] * (amount + 1)
+              dp[0] = 1
+              for a in range(1, amount + 1):
+                  for c in coins:
+                      if c <= a:
+                          dp[a] += dp[a - c]
+              return dp[amount]
+    hint: "Outer loop over `a` from 1 to amount; inner loop over coins with a `c <= a` guard."
+
+hints:
+  - >-
+    If you count by "which coin is last?" at every amount, 1 + 2 and 2 + 1 both get counted.
+    What if you decided up front that coins are always added in a fixed order, say all the 1s,
+    then all the 2s, then all the 5s?
+  - >-
+    Let dp[a] be the number of ways to make a with the coins processed so far; dp[0] = 1. For
+    each coin, sweep a upward and add dp[a − coin]: the ways that use this coin at least once.
+    Coins go in the OUTER loop so each combination is assembled in one fixed coin order.
+  - |
+    dp = [0] * (amount + 1)
+    dp[0] = 1                         (the empty pile)
+    for each coin:                    (outer: fixes the order coins are added in)
+        for a from coin to amount:    (upward: this coin may be reused)
+            dp[a] += dp[a - coin]
+    return dp[amount]
+
+solution:
+  code: |
+    class Solution:
+        def change(self, amount: int, coins: List[int]) -> int:
+            dp = [0] * (amount + 1)  # dp[a] = ways to make a with the coins processed so far
+            dp[0] = 1  # one way to make 0: take nothing
+            for coin in coins:  # coins OUTER: combinations, not orderings
+                for a in range(coin, amount + 1):  # upward: `coin` can be reused
+                    dp[a] += dp[a - coin]  # ways without coin + ways using it at least once
+            return dp[amount]
+  explanation: |
+    **The 5-step DP recipe**
+
+    1. **Define dp in words.** After processing the first k coins, `dp[a]` = the number of
+       combinations of those k coin types that sum to exactly `a`. (It's really a 2D table
+       `dp[k][a]`, squashed into one row that we overwrite coin by coin.)
+    2. **Recurrence from the last choice.** For the newest coin, every combination either
+       uses it zero times (that's the old `dp[a]`, from earlier coins only) or at least once
+       (remove one copy and you have a combination for `a - coin` that may still use it,
+       which is the already-updated `dp[a - coin]`). So `dp[a] = dp[a] + dp[a - coin]`.
+    3. **Base case.** `dp[0] = 1`: the empty combination. Without it every count stays 0. It
+       also makes `amount = 0` return 1.
+    4. **Fill order.** Coins outer, amounts inner and **upward**. Upward means `dp[a - coin]`
+       already includes this coin, so a coin can be used any number of times (unbounded).
+       Coins-outer is what prevents double counting.
+    5. **Answer location.** `dp[amount]` after the last coin.
+
+    **Why the loop order matters, on amount 3 with coins [1, 2].** Coins outer: after coin 1,
+    `dp = [1, 1, 1, 1]` (all-1s piles). Adding coin 2: `dp[2] = 1 + dp[0] = 2` ({1,1}, {2}),
+    `dp[3] = 1 + dp[1] = 2` ({1,1,1}, {1,2}). Coin 2 is only ever appended after 1s, so
+    {1, 2} is built once. Amounts outer instead: `dp[3] = dp[2] + dp[1]` with "last coin 1"
+    and "last coin 2" both allowed at every amount, which counts 1+2 and 2+1 separately and
+    gives 3. That version is Combination Sum IV.
+
+    **Stepping stone.** The memoised recursion is `ways(i, r) = ways(i, r - coins[i]) +
+    ways(i + 1, r)`: use coin i once more, or never again. Its two arguments are the 2D table,
+    and the "move on to i + 1 for good" step is exactly why order doesn't get double counted.
+  time: O(A · C) — every coin sweeps amounts coin..A once, O(1) per cell
+  space: O(A) — one row of counts, reused across coins
+  brute_force_code: |
+    class Solution:
+        def change(self, amount: int, coins: List[int]) -> int:
+            def ways(i, rem):
+                if rem == 0:
+                    return 1
+                if i == len(coins) or rem < 0:
+                    return 0
+                # use coins[i] once more, or skip it forever
+                return ways(i, rem - coins[i]) + ways(i + 1, rem)
+
+            return ways(0, amount)
+
+pitch_script: |
+  **(Clarify)** "So unlimited coins of each type, I count combinations, meaning 1 plus 2 and
+  2 plus 1 are the same, and amount 0 has exactly one way, the empty one. The coins are
+  distinct. Right?"
+
+  **(Brute force)** "I could recurse over the coins in order: either use the current coin
+  again or move past it forever. Moving past it forever is what stops me counting orders
+  twice. But that enumerates every combination, which is exponential."
+
+  **(Trigger)** "Counting ways to hit an exact total with unlimited reuse is unbounded
+  knapsack, counting version. The recursion's state is coin index and remaining amount, so a
+  table over amounts, updated one coin at a time, covers it."
+
+  **(Optimal)** "dp of a is the number of ways to make a with the coins seen so far. dp of 0
+  is 1. For each coin in the outer loop, I go through amounts from coin up and add dp of a
+  minus coin. The old value is the ways without this coin, the added value is the ways that
+  use it at least once. Coins have to be the outer loop: if I put amounts outside, every
+  coin can be last at every step and I'd count permutations, like 3 ways instead of 2 for
+  amount 3 with coins 1 and 2."
+
+  **(Complexity)** "O(amount times number of coins) time, which is 1.5 million here, and
+  O(amount) space for the single row."
+
+twist:
+  lc: 377
+  title: Combination Sum IV
+  why: >-
+    Same inputs, but now different ORDERS count as different answers (despite the name, it
+    counts permutations). The recurrence becomes "which number is last?": dp[t] = sum of
+    dp[t − x] over all x ≤ t. In code it's the same dp[t] += dp[t − x] line with the loops
+    swapped, totals outer and numbers inner, so every number can be the last one at every
+    total.
+
+viz:
+  table: dp
+  watch: [coin, a, amount]

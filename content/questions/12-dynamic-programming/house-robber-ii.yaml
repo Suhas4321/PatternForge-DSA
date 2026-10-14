@@ -1,0 +1,350 @@
+slug: house-robber-ii
+lc: 213
+
+concept:
+  problem_it_solves: >-
+    "Take-or-skip on a circle." The houses form a ring, so the first and the last house are
+    neighbours too. A circle has no natural starting point for a left-to-right DP, and the
+    first decision now constrains the last one. The question is how to turn a circular
+    constraint back into a straight line you already know how to solve.
+  brute_force: >-
+    Enumerate every subset of houses, reject any that contains two neighbours on the circle
+    (including house 0 with house n − 1), and keep the best sum. It re-checks and re-sums
+    overlapping plans over and over, and the number of subsets doubles with every house.
+  brute_force_complexity: >-
+    O(2ⁿ · N) time, O(1) extra space — 100 houses means about 1.3 × 10³⁰ subsets.
+  key_insight: >-
+    The circle adds exactly one rule: houses 0 and n − 1 can't both be robbed. So every valid
+    plan skips house 0 or skips house n − 1 (or both). If it skips house n − 1, it's a plan
+    for the line nums[0..n−2]; if it skips house 0, it's a plan for the line nums[1..n−1].
+    Neither line contains both ends, so the circle constraint disappears inside each. Run
+    the ordinary House Robber on both lines and take the max. Breaking a cycle by fixing the
+    decision about one element is a trick that works for many circular DP problems.
+  real_world: >-
+    Circular schedules show up wherever time wraps around: a weekly on-call rota where Sunday
+    is adjacent to Monday, a 24-hour maintenance window, or round-robin slots in a ring of
+    servers (consistent-hashing rings). Schedulers handle the wraparound the same way: fix
+    the choice at the seam, solve the resulting straight line, and compare the cases.
+
+statement:
+  clean: |
+    You are a professional robber planning to rob houses along a street. Each house has a
+    certain amount of money stashed. All houses at this place are **arranged in a circle**.
+    That means the **first house is the neighbor of the last one**. Meanwhile, adjacent
+    houses have a security system connected, and it will automatically contact the police if
+    two adjacent houses were broken into on the same night.
+
+    Given an integer array `nums` representing the amount of money of each house, return the
+    **maximum amount of money** you can rob tonight **without alerting the police**.
+  oa_story: |
+    **RingRoad Retail — OA Round 1**
+
+    RingRoad Retail runs a circular food court on the top floor of its Outer Ring Road mall:
+    the kiosks stand in a ring around the central atrium, so kiosk 0 is right next to the
+    last kiosk. For the Diwali weekend, marketing wants to run a flash sale at some of the
+    kiosks, and kiosk `i` is expected to bring in `nums[i]` thousand rupees of extra sales if
+    it runs one.
+
+    Two neighbouring kiosks running a flash sale at the same time cause a crowd crush in the
+    walkway, so security has banned that, and the ring means the first and last kiosk count
+    as neighbours. Given the expected extra sales for each kiosk in ring order (at most 100
+    kiosks, each at most 1000), return the largest total extra sales the mall can plan for.
+  trigger_keywords: ["arranged in a circle", "first house is the neighbor of the last one", "maximum amount of money"]
+  examples:
+    - input: "nums = [2,3,2]"
+      output: "3"
+      explanation: "Houses 0 and 2 (2 + 2) are neighbours on the circle, so the best is house 1 alone."
+    - input: "nums = [1,2,3,1]"
+      output: "4"
+      explanation: "Rob house 0 (1) and house 2 (3): 1 + 3 = 4."
+    - input: "nums = [1,2,3]"
+      output: "3"
+  constraints:
+    - "1 <= nums.length <= 100"
+    - "0 <= nums[i] <= 1000"
+
+constraint_quiz:
+  prompt: >-
+    You already have an O(N) House Robber for a line. With up to 100 houses on a circle, what
+    should the circular version cost?
+  options:
+    - "O(N) — two runs of the linear DP"
+    - "O(N²) — rerun the linear DP once for every possible starting house"
+    - "O(2ⁿ) — the circle breaks DP, so enumerate subsets"
+    - "O(N log N) — sort the houses to find a safe place to cut the circle"
+  answer: 0
+  explanation: >-
+    Only one extra rule exists (not both ends), so two linear runs, one without the last
+    house and one without the first, cover every valid plan: 2 × O(N) = O(N). Trying all N
+    cut points would pass at N = 100 but adds nothing, because those two cases already cover
+    every valid plan. Enumeration is 2¹⁰⁰ subsets, and the circle doesn't break DP, it just
+    needs a case split. Sorting destroys the ring order that defines who is adjacent.
+
+pattern_quiz:
+  prompt: >-
+    The houses form a circle, so house 0 and house n − 1 are neighbours. Which approach is
+    correct?
+  options:
+    - "Run the linear robber once; if it used both ends, subtract the smaller end"
+    - "Run the linear robber on nums[1:] and on nums[:-1], and take the max"
+    - "Run the linear robber on nums and on reversed(nums), and take the max"
+    - "Take the richest house, then run the linear robber on the remaining line"
+  answer: 1
+  explanation: >-
+    Every valid plan skips the first or the last house, so the two slices together cover all
+    of them, and neither slice contains both ends. Patching a linear answer fails on
+    [5, 1, 1, 5]: the line takes 5 + 5, subtracting an end leaves 5, but the real answer is 6
+    (5 + 1), because removing a house should let the rest of the plan change. Reversing the
+    array gives the same answer as the original, still using both ends. Fixing the richest
+    house first is a greedy guess, not a case split that covers every plan.
+
+function:
+  name: rob
+  params: [{name: nums}]
+
+starter_code: |
+  class Solution:
+      def rob(self, nums: List[int]) -> int:
+          pass
+
+tests:
+  - {args: [[2, 3, 2]], expected: 3}
+  - {args: [[1, 2, 3, 1]], expected: 4}
+  - {args: [[1, 2, 3]], expected: 3}
+  - {args: [[5]], expected: 5, note: "one house: both slices would be empty, so handle it first"}
+  - {args: [[1, 7]], expected: 7, note: "two houses are neighbours on both sides"}
+  - {args: [[200, 3, 140, 20, 10]], expected: 340, note: "the linear answer 350 uses both ends"}
+  - {args: [[2, 1, 1, 2]], expected: 3, note: "linear best is 2 + 2 at the two ends, which now touch"}
+  - {args: [[5, 1, 1, 5]], expected: 6, note: "patching the linear answer gives 5; re-solving gives 5 + 1"}
+  - {args: [[4, 1, 2, 7, 5, 3, 1]], expected: 14, note: "the best line plan already avoids the seam"}
+visualize_test: 1
+
+drills:
+  - title: Linear robber on a slice
+    skill: setup
+    goal: Run the linear take-or-skip table on nums[lo..hi] with the index offset written correctly.
+    instructions: |
+      Return the most money you can rob from the **straight line** of houses
+      `nums[lo..hi]` (both inclusive). If `lo > hi` the line is empty and the answer is 0.
+
+      The circular problem is solved by running the linear robber on two different stretches
+      of the same array, so you need it as a reusable piece that works on any range. Use a
+      table of length `hi - lo + 2` where `dp[k]` is the best from the first `k` houses of
+      the stretch; house `k` of the stretch is `nums[lo + k - 1]`. Slicing (`nums[lo:hi+1]`)
+      also works, but writing the offset yourself is the skill that transfers to languages
+      without cheap slices.
+    function:
+      name: robRange
+      params: [{name: nums}, {name: lo}, {name: hi}]
+    starter_code: |
+      class Solution:
+          def robRange(self, nums: List[int], lo: int, hi: int) -> int:
+              pass
+    tests:
+      - {args: [[2, 7, 9, 3, 1], 1, 3], expected: 10, note: "7 + 3 from [7, 9, 3]"}
+      - {args: [[2, 7, 9, 3, 1], 0, 4], expected: 12, note: "the whole array"}
+      - {args: [[5, 1, 1, 5], 1, 2], expected: 1}
+      - {args: [[4, 1, 2], 2, 2], expected: 2, note: "a single house"}
+      - {args: [[1, 2], 1, 0], expected: 0, note: "empty range"}
+    solution: |
+      class Solution:
+          def robRange(self, nums: List[int], lo: int, hi: int) -> int:
+              dp = [0] * (hi - lo + 2)  # dp[k] = best from the first k houses of nums[lo..hi]
+              for k in range(1, hi - lo + 2):
+                  take = (dp[k - 2] if k >= 2 else 0) + nums[lo + k - 1]
+                  dp[k] = max(dp[k - 1], take)
+              return dp[hi - lo + 1]
+    hint: "The stretch has `hi - lo + 1` houses; the k-th of them (1-based) sits at `nums[lo + k - 1]`."
+
+  - title: Break the circle into two lines
+    skill: core
+    goal: Compute both cases of the case split, "without the last house" and "without the first house".
+    instructions: |
+      `nums` has at least 2 houses on a circle. Return `[a, b]` where `a` is the best linear
+      robbery of `nums[:-1]` (the last house is never robbed) and `b` is the best linear
+      robbery of `nums[1:]` (the first house is never robbed).
+
+      This is the whole idea of House Robber II. Any valid circular plan leaves out the first
+      house or the last house, so it is counted in `a` or in `b`, and neither line contains
+      both ends, so neither can break the circle rule. The answer is `max(a, b)`. Use a
+      rolling take/skip pair for the line this time, to practise the O(1)-space form.
+    function:
+      name: bothCases
+      params: [{name: nums}]
+    starter_code: |
+      class Solution:
+          def bothCases(self, nums: List[int]) -> List[int]:
+              pass
+    tests:
+      - {args: [[2, 3, 2]], expected: [3, 3]}
+      - {args: [[1, 2, 3, 1]], expected: [4, 3]}
+      - {args: [[200, 3, 140, 20, 10]], expected: [340, 150]}
+      - {args: [[1, 7]], expected: [1, 7], note: "each line is a single house"}
+      - {args: [[2, 1, 1, 2]], expected: [3, 3]}
+    solution: |
+      class Solution:
+          def bothCases(self, nums: List[int]) -> List[int]:
+              def line(houses):
+                  take, skip = 0, 0
+                  for x in houses:
+                      take, skip = skip + x, max(take, skip)
+                  return max(take, skip)
+
+              return [line(nums[:-1]), line(nums[1:])]
+    hint: "`nums[:-1]` drops the last house and `nums[1:]` drops the first; run the same line DP on each."
+
+  - title: Fix the seam house yourself
+    skill: edge
+    goal: Get the slice boundaries right when house 0 is forced into the plan, including n = 1, 2 and 3.
+    instructions: |
+      Return the most money you can rob from the circle **given that house 0 must be
+      robbed**.
+
+      This is the other way to split a circle: "house 0 taken" vs "house 0 skipped".
+      If house 0 is taken, both its neighbours, house 1 and house `n - 1`, are off-limits, so
+      the rest of the plan is a linear robbery of `nums[2..n-2]`. The edge cases are all in
+      that range: for `n = 1, 2, 3` it is empty, and an off-by-one includes a neighbour of
+      house 0. (The full answer would be `max(this, linear robbery of nums[1:])`.)
+    function:
+      name: robCircleTakeFirst
+      params: [{name: nums}]
+    starter_code: |
+      class Solution:
+          def robCircleTakeFirst(self, nums: List[int]) -> int:
+              pass
+    tests:
+      - {args: [[2, 3, 2]], expected: 2, note: "both other houses are neighbours of house 0"}
+      - {args: [[1, 2, 3, 1]], expected: 4, note: "only house 2 is left: 1 + 3"}
+      - {args: [[5]], expected: 5}
+      - {args: [[5, 1]], expected: 5}
+      - {args: [[1, 5, 1, 10, 1]], expected: 11, note: "1 + 10 from the middle stretch [1, 10]"}
+      - {args: [[200, 3, 140, 20, 10]], expected: 340}
+    solution: |
+      class Solution:
+          def robCircleTakeFirst(self, nums: List[int]) -> int:
+              inner = nums[2:len(nums) - 1]  # houses 1 and n - 1 are house 0's neighbours
+              prev2, prev1 = 0, 0
+              for x in inner:
+                  prev2, prev1 = prev1, max(prev1, prev2 + x)
+              return nums[0] + prev1
+    hint: "Write down which indices are still allowed once house 0 is taken, then check that slice for n = 1, 2, 3."
+
+hints:
+  - >-
+    The circle only adds one new rule compared with House Robber: the first and last house
+    can't both be robbed. In any valid plan, what can you say for certain about at least one
+    of those two houses?
+  - >-
+    Every valid plan skips house 0 or skips house n − 1. So the answer is the better of the
+    linear robber on nums[1:] and the linear robber on nums[:-1]. With a single house both
+    slices are empty, so return nums[0] first.
+  - |
+    if n == 1: return nums[0]
+    rob_line(houses):
+        dp = len(houses) + 1 zeros, dp[1] = houses[0]
+        for i from 2 to len(houses):
+            dp[i] = max(dp[i - 1], dp[i - 2] + houses[i - 1])
+        return dp[len(houses)]
+    return max(rob_line(nums without last), rob_line(nums without first))
+
+solution:
+  code: |
+    class Solution:
+        def rob(self, nums: List[int]) -> int:
+            if len(nums) == 1:
+                return nums[0]  # one house has no neighbour to clash with
+
+            def rob_line(houses):
+                # dp[i] = most money from the first i houses of this straight line
+                dp = [0] * (len(houses) + 1)
+                dp[1] = houses[0]
+                for i in range(2, len(houses) + 1):
+                    # skip house i - 1, or take it and skip its neighbour
+                    dp[i] = max(dp[i - 1], dp[i - 2] + houses[i - 1])
+                return dp[len(houses)]
+
+            # house 0 and house n - 1 touch, so every valid plan leaves out at least one of them
+            return max(rob_line(nums[:-1]), rob_line(nums[1:]))
+  explanation: |
+    **Turn the circle into lines.** The only difference from House Robber is that house 0
+    and house `n - 1` are now neighbours. A valid plan can't rob both, so it leaves out
+    house `n - 1` (then it's a plan for the line `nums[0..n-2]`) or leaves out house 0 (a plan
+    for `nums[1..n-1]`). Each line is an ordinary House Robber with no seam. Every circular
+    plan is valid in at least one of the two lines, and every line plan is valid on the
+    circle, so `max` of the two is exactly the answer.
+
+    **The recipe inside `rob_line`** is the House Robber one:
+
+    1. **State.** `dp[i]` = most money from the first `i` houses of this line (`n + 1` cells,
+       so `dp[0]` = no houses).
+    2. **Recurrence.** Skip house `i - 1` (`dp[i - 1]`) or take it and skip its neighbour
+       (`dp[i - 2] + houses[i - 1]`); take the max.
+    3. **Base cases.** `dp[0] = 0`, `dp[1] = houses[0]`.
+    4. **Fill order.** `i = 2 .. len(houses)`, left to right.
+    5. **Answer.** `dp[len(houses)]`; then the outer answer is the max over the two lines.
+
+    **Edge case: one house.** With `n = 1` both slices are empty, but the single house is
+    its own "first and last" and is perfectly safe to rob, so return `nums[0]` up front.
+    (Without that check, `rob_line([])` would crash on `houses[0]`.) Two houses work
+    without special handling: each slice is one house, and the max picks the richer one.
+
+    **Why not fix the linear answer?** On `[5, 1, 1, 5]` the line answer takes both 5s.
+    Dropping one end gives 5, but the true answer is 6 (5 + 1): once an end is excluded, the
+    rest of the plan should re-optimise. That's why we re-run the DP on each line instead of
+    patching one result.
+
+    Each line DP is O(N) and can be rolled into two variables for O(1) space, as in House
+    Robber. A memoised recursion would need a flag for "house 0 was taken", which is why the
+    case split is the cleaner way to think about it.
+  time: O(N) — two linear passes of N − 1 houses each
+  space: O(N) — the slices and the dp table (O(1) with rolling variables and index ranges)
+  brute_force_code: |
+    class Solution:
+        def rob(self, nums: List[int]) -> int:
+            n = len(nums)
+            best = 0
+            for mask in range(1 << n):  # every subset of houses
+                if mask & (mask >> 1):
+                    continue  # two neighbours in a row
+                if n > 1 and mask & 1 and mask >> (n - 1) & 1:
+                    continue  # first and last house touch on the circle
+                best = max(best, sum(nums[i] for i in range(n) if mask >> i & 1))
+            return best
+
+pitch_script: |
+  **(Clarify)** "Same as House Robber, but the houses form a circle, so the first and last
+  are neighbours. Amounts are non-negative, there's at least one house, and with a single
+  house I can just rob it. Right?"
+
+  **(Brute force)** "I could try every subset and reject the ones with neighbours, including
+  the wraparound pair. That's 2 to the n subsets, which is far too many for 100 houses."
+
+  **(Trigger)** "It's still take-or-skip DP. The only new thing is one extra constraint, the
+  first and last house can't both be taken, and a single binary constraint like that is
+  handled with a case split rather than a new DP."
+
+  **(Optimal)** "Any valid plan skips the first house or the last house. So I run the normal
+  linear House Robber on nums without the last house, and again on nums without the first
+  house, and return the larger. Inside, dp of i is the best from the first i houses of that
+  line: max of dp of i minus 1, or dp of i minus 2 plus the current house. I return nums of
+  0 directly when there's one house, since both slices would be empty."
+
+  **(Complexity)** "Two O(N) passes, so O(N) time. O(N) space as written; with two rolling
+  variables and index bounds instead of slices, it's O(1)."
+
+twist:
+  lc: 337
+  title: House Robber III
+  why: >-
+    Now the houses form a binary tree and you can't rob a parent and its child together.
+    There is no left-to-right order, so the table becomes a post-order recursion: each node
+    returns a pair (best if I rob this node, best if I don't). Robbing the node adds its value
+    to its children's "not robbed" totals; skipping it adds the better of each child's two
+    totals. It's the take/skip two-state idea from the core drill of House Robber, moved onto
+    a tree.
+
+viz:
+  table: dp
+  col_labels: houses
+  label_offset: 1
+  watch: [i]

@@ -1,0 +1,327 @@
+slug: rearrange-array-elements-by-sign
+lc: 2149
+
+concept:
+  problem_it_solves: >-
+    "Merge two interleaved streams into fixed alternating slots, without losing either stream's
+    order." Once you see that the answer's shape is fixed (positives at even indices, negatives at
+    odd ones), every element's destination is known the moment you read it. Two write pointers,
+    one per stream, hand out those slots in order.
+  brute_force: >-
+    Walk the array slot by slot; whenever slot i holds the wrong sign, scan ahead for the next
+    element with the right sign and shift everything in between one step right to make room.
+    Shifting keeps the order correct, but the same elements are moved again and again, once for
+    every misplaced element in front of them.
+  brute_force_complexity: >-
+    O(N²) time, O(1) extra space — 2 × 10⁵ elements with all negatives first means ~10¹⁰
+    element shifts.
+  key_insight: >-
+    You don't have to search for where an element goes; the shape of the answer already says.
+    The k-th positive always lands at index 2k and the k-th negative at index 2k + 1. So keep
+    `pos` (next even slot, starts at 0) and `neg` (next odd slot, starts at 1), read the input
+    once left to right, drop each element into its pointer's slot and advance that pointer by 2.
+    Reading left to right is what preserves each sign's original order.
+  real_world: >-
+    Feed-blending services (LinkedIn, Instagram, Flipkart's home page) interleave sponsored and
+    organic items into fixed alternating slots while keeping each list's ranking intact. RAID 0
+    and Kafka partitioners stripe records round-robin across fixed positions, and counting sort /
+    radix sort compute each element's destination from a running counter in exactly this way,
+    which is also why they are stable.
+
+statement:
+  clean: |
+    You are given a **0-indexed** integer array `nums` of **even** length consisting of an
+    **equal number of positive and negative integers**.
+
+    Rearrange the elements of `nums` such that the modified array follows the given conditions:
+
+    1. Every consecutive pair of integers have **opposite signs**.
+    2. For all integers with the same sign, the **order in which they were present** in `nums`
+       is preserved.
+    3. The rearranged array **begins with a positive** integer.
+
+    Return the modified array after rearranging the elements to satisfy the aforementioned
+    conditions. It is not required to do the modifications in-place.
+  oa_story: |
+    **NammaRide Mobility — OA Round 1**
+
+    NammaRide runs a bike-taxi pooling service around Electronic City. Every few seconds the
+    dispatcher receives a batch of check-ins: drivers are logged with positive IDs, riders with
+    negative IDs, all mixed in the order they checked in. Each batch always contains the same
+    number of drivers and riders.
+
+    The matching screen must display the batch as driver, rider, driver, rider, …, starting with
+    a driver, so that each driver is paired with the rider shown right after them. Fairness rules
+    say drivers must appear in the order they checked in, and so must riders. Return the batch in
+    display order. Batches during the evening rush can hold up to 200,000 check-ins, and the
+    dispatcher must refresh instantly.
+  trigger_keywords: ["equal number of positive and negative integers", "opposite signs", "order in which they were present", "begins with a positive"]
+  examples:
+    - input: "nums = [3,1,-2,-5,2,-4]"
+      output: "[3,-2,1,-5,2,-4]"
+      explanation: "Positives in order are 3, 1, 2 and negatives in order are -2, -5, -4; interleaving them, positive first, gives the answer."
+    - input: "nums = [-1,1]"
+      output: "[1,-1]"
+      explanation: "The only positive, 1, must come first."
+  constraints:
+    - "2 <= nums.length <= 2 * 10^5"
+    - "nums.length is even"
+    - "1 <= |nums[i]| <= 10^5"
+    - "nums consists of equal number of positive and negative integers."
+
+constraint_quiz:
+  prompt: With up to 2 × 10⁵ elements, what time complexity should you aim for?
+  options: ["O(N²)", "O(N log N)", "O(N)", "O(log N)"]
+  answer: 2
+  explanation: >-
+    Shifting misplaced elements into position is O(N²), up to ~10¹⁰ moves, which is far too slow.
+    A stable sort by sign followed by interleaving is O(N log N); it passes, but sorting is wasted
+    work because you already know every element's destination. A single pass with two write
+    pointers is O(N). O(log N) is impossible since every element must be read and written.
+
+pattern_quiz:
+  prompt: >-
+    Alternate positives and negatives starting with a positive, keeping each sign's original
+    order, with equal counts guaranteed. Which pattern fits?
+  options:
+    - "Two pointers from both ends, swapping a misplaced positive with a misplaced negative"
+    - "Two write pointers into a result array: even slots for positives, odd slots for negatives"
+    - "Sort by absolute value, then interleave"
+    - "Monotonic stack"
+  answer: 1
+  explanation: >-
+    Swapping from both ends puts signs in the right places but scrambles the order within each
+    sign. Sorting by absolute value destroys the original order entirely. A monotonic stack
+    answers "next greater" questions, not placement. "Equal number of positive and negative"
+    plus "opposite signs" plus "order preserved" means each sign owns a fixed set of slots
+    (even or odd), so two write pointers stepping by 2 place every element directly.
+
+function:
+  name: rearrangeArray
+  params: [{name: nums}]
+
+starter_code: |
+  class Solution:
+      def rearrangeArray(self, nums: List[int]) -> List[int]:
+          pass
+
+tests:
+  - {args: [[3, 1, -2, -5, 2, -4]], expected: [3, -2, 1, -5, 2, -4]}
+  - {args: [[-1, 1]], expected: [1, -1], note: "starts negative: the positive must move to the front"}
+  - {args: [[1, -1]], expected: [1, -1], note: already arranged}
+  - {args: [[-3, -2, -1, 4, 5, 6]], expected: [4, -3, 5, -2, 6, -1], note: "all negatives first: worst case for shifting"}
+  - {args: [[1, 2, 3, -1, -2, -3]], expected: [1, -1, 2, -2, 3, -3], note: all positives first}
+  - {args: [[-4, 8, -4, 1, -9, 8]], expected: [8, -4, 1, -4, 8, -9], note: duplicate values keep their order}
+  - {args: [[-100000, 100000]], expected: [100000, -100000], note: extreme values}
+  - {args: [[2, -1, -3, 4, -5, 6, -7, 8]], expected: [2, -1, 4, -3, 6, -5, 8, -7], note: mixed order}
+visualize_test: 0
+
+drills:
+  - title: Read the shape of the answer
+    skill: setup
+    goal: Loop over the indices and check that even indices hold positives and odd indices hold negatives.
+    instructions: |
+      Return `True` if `nums` already satisfies the target shape: it begins with a positive and
+      every consecutive pair has opposite signs. Otherwise return `False`.
+
+      Writing the check reveals the whole trick. "Starts positive and alternates" is the same as
+      "index `i` is positive exactly when `i` is even". So positives own the even slots and
+      negatives own the odd slots, and every element's destination is fixed in advance.
+    function:
+      name: isAlternating
+      params: [{name: nums}]
+    starter_code: |
+      class Solution:
+          def isAlternating(self, nums: List[int]) -> bool:
+              pass
+    tests:
+      - {args: [[3, -2, 1, -5, 2, -4]], expected: true}
+      - {args: [[-1, 1]], expected: false, note: alternates but starts negative}
+      - {args: [[1, 2, -1, -2]], expected: false}
+      - {args: [[1, -1]], expected: true}
+    solution: |
+      class Solution:
+          def isAlternating(self, nums: List[int]) -> bool:
+              for i in range(len(nums)):
+                  should_be_positive = i % 2 == 0
+                  if (nums[i] > 0) != should_be_positive:
+                      return False
+              return True
+    hint: "Compare `nums[i] > 0` with `i % 2 == 0`; any disagreement means the shape is wrong."
+
+  - title: Hand out slots with two counters
+    skill: core
+    goal: Keep one write pointer per sign, starting at 0 and 1, and advance the matching one by 2 for each element read.
+    instructions: |
+      For each element of `nums`, return the index it will occupy in the rearranged array (the
+      answer is a list the same length as `nums`). Don't build the rearranged array itself.
+
+      This is the core move: `pos` starts at the first even slot (0) and `neg` at the first odd
+      slot (1). Reading left to right, a positive takes slot `pos` and `pos` jumps by 2; a
+      negative takes slot `neg` and `neg` jumps by 2. Because you read in order and each pointer
+      only moves forward, the k-th positive gets slot 2k, so order within each sign is kept.
+    function:
+      name: destinations
+      params: [{name: nums}]
+    starter_code: |
+      class Solution:
+          def destinations(self, nums: List[int]) -> List[int]:
+              pass
+    tests:
+      - {args: [[3, 1, -2, -5, 2, -4]], expected: [0, 2, 1, 3, 4, 5]}
+      - {args: [[-1, 1]], expected: [1, 0]}
+      - {args: [[-3, -2, -1, 4, 5, 6]], expected: [1, 3, 5, 0, 2, 4]}
+      - {args: [[2, -1, -3, 4]], expected: [0, 1, 3, 2]}
+    solution: |
+      class Solution:
+          def destinations(self, nums: List[int]) -> List[int]:
+              pos, neg = 0, 1
+              dest = []
+              for x in nums:
+                  if x > 0:
+                      dest.append(pos)
+                      pos += 2
+                  else:
+                      dest.append(neg)
+                      neg += 2
+              return dest
+    hint: "`pos, neg = 0, 1`; record the pointer for this element's sign, then add 2 to it."
+
+  - title: When the counts aren't equal
+    skill: edge
+    goal: Alternate while both signs remain, then append the leftovers of the longer sign in their original order.
+    instructions: |
+      Now the counts may differ (but there are no zeros). Alternate positive, negative, positive,
+      … as long as **both** signs still have elements left, starting with a positive. When one
+      sign runs out, append all remaining elements of the other sign in their original order.
+      If one sign is missing entirely, the answer is just the other sign's elements in order.
+
+      This is the follow-up interviewers in Indian product companies love, and it shows exactly
+      what the equal-count guarantee buys you: with equal counts, the slot of the k-th positive is
+      always `2k`. Without it, slots after the shorter sign runs out are no longer alternating,
+      so you first need to know where each sign's elements are before you can place them.
+    function:
+      name: rearrangeWithLeftovers
+      params: [{name: nums}]
+    starter_code: |
+      class Solution:
+          def rearrangeWithLeftovers(self, nums: List[int]) -> List[int]:
+              pass
+    tests:
+      - {args: [[1, 2, -4, -5, 3, 4]], expected: [1, -4, 2, -5, 3, 4], note: extra positives go at the end}
+      - {args: [[-1, -2, 3]], expected: [3, -1, -2], note: extra negatives go at the end}
+      - {args: [[5, -3]], expected: [5, -3]}
+      - {args: [[-2, -3]], expected: [-2, -3], note: no positives at all}
+      - {args: [[4, 7]], expected: [4, 7], note: no negatives at all}
+    solution: |
+      class Solution:
+          def rearrangeWithLeftovers(self, nums: List[int]) -> List[int]:
+              positives = [x for x in nums if x > 0]
+              negatives = [x for x in nums if x < 0]
+              k = min(len(positives), len(negatives))
+              out = []
+              for i in range(k):
+                  out += [positives[i], negatives[i]]
+              return out + positives[k:] + negatives[k:]
+    hint: "Split by sign (order kept), interleave the first `min(len)` of each, then append both tails."
+
+hints:
+  - >-
+    In the final array, which indices hold positives and which hold negatives? If you know the
+    k-th positive you read, do you already know exactly where it goes?
+  - >-
+    Positives fill indices 0, 2, 4, … and negatives fill 1, 3, 5, … in the order you read them.
+    Keep two write pointers, pos and neg, into a fresh result array. For each element, write it
+    at its sign's pointer and move that pointer forward by 2.
+  - |
+    result = array of n zeros
+    pos = 0, neg = 1
+    for each x in nums:
+        if x > 0: result[pos] = x, pos = pos + 2
+        else:     result[neg] = x, neg = neg + 2
+    return result
+
+solution:
+  code: |
+    class Solution:
+        def rearrangeArray(self, nums: List[int]) -> List[int]:
+            result = [0] * len(nums)
+            pos, neg = 0, 1  # next free even slot (positives) and odd slot (negatives)
+            for x in nums:
+                if x > 0:
+                    result[pos] = x
+                    pos += 2
+                else:
+                    result[neg] = x
+                    neg += 2
+            return result
+  explanation: |
+    The three conditions pin down the shape completely: starting positive and alternating means
+    every even index holds a positive and every odd index holds a negative. Preserving order
+    within each sign means the k-th positive read goes to index `2k`, and the k-th negative to
+    `2k + 1`. So there is nothing to search for; we read `nums` once, left to right, and each
+    element goes straight to the next free slot of its sign.
+
+    `pos` starts at 0 and `neg` at 1, and each jumps by 2 after a write, so they never collide.
+    Reading the input in order and only ever moving the pointers forward is exactly what keeps
+    each sign's relative order. The equal-count guarantee is what makes the fixed slots valid:
+    when the loop ends, `pos == n` and `neg == n + 1`, so every slot was filled exactly once.
+
+    The problem says the change doesn't have to be in place, and that matters: an in-place
+    version that preserves order needs shifting (O(N²)) or tricky rotations. With a result
+    array, it's one clean pass.
+  time: O(N) — one pass over nums, one write per element
+  space: O(N) — the result array (required as output); O(1) extra beyond it
+  brute_force_code: |
+    class Solution:
+        def rearrangeArray(self, nums: List[int]) -> List[int]:
+            arr = nums[:]
+            n = len(arr)
+            for i in range(n):
+                want_positive = i % 2 == 0
+                if (arr[i] > 0) == want_positive:
+                    continue
+                j = i + 1
+                while (arr[j] > 0) != want_positive:  # next element with the needed sign
+                    j += 1
+                val = arr[j]
+                for k in range(j, i, -1):  # shift arr[i..j-1] right by one
+                    arr[k] = arr[k - 1]
+                arr[i] = val
+            return arr
+
+pitch_script: |
+  **(Clarify)** "So I have equal numbers of positives and negatives, no zeros, I need to alternate
+  starting with a positive, and within each sign the original order must be kept. I can return a
+  new array, it doesn't have to be in place?"
+
+  **(Brute force)** "One approach is to walk slot by slot, and whenever a slot has the wrong sign,
+  find the next element with the right sign and shift everything in between to make room. That
+  keeps the order but it's O(N²), which at 2 × 10⁵ elements is around 10¹⁰ moves."
+
+  **(Trigger)** "The key observation is that the output shape is fixed: positives always sit at
+  even indices and negatives at odd indices. And because order is preserved, the k-th positive
+  goes to index 2k. So I don't need to search or swap; I just need two write pointers."
+
+  **(Optimal)** "I create a result array and two pointers, pos starting at 0 and neg starting at
+  1. I read nums once from left to right. A positive goes to result[pos] and pos moves forward by
+  two; a negative goes to result[neg] and neg moves forward by two. Reading in order is what keeps
+  each sign's relative order, and the equal counts guarantee every slot gets filled exactly once."
+
+  **(Complexity)** "One pass, so O(N) time. The result array is O(N), which is the output itself,
+  and beyond that I only use two integers. If the counts weren't equal, I'd alternate while both
+  signs remain and then append the leftovers in order."
+
+twist:
+  lc: 922
+  title: Sort Array By Parity II
+  why: >-
+    Now evens must sit at even indices and odds at odd indices, but order doesn't matter and you
+    should work in place. Keep the two pointers stepping by 2 (even starts at 0, odd at 1), but
+    use them as scanners: advance each past slots that are already correct, and when both point
+    at misplaced elements, swap them. That fixes two slots per swap with O(1) extra space.
+
+viz:
+  arrays: [nums, result]
+  pointers: ["pos:result", "neg:result"]
+  watch: [x, pos, neg]

@@ -1,0 +1,366 @@
+slug: minimum-window-substring
+lc: 76
+
+concept:
+  problem_it_solves: >-
+    "What is the shortest stretch of s that contains everything t asks for, duplicates
+    included?" Coverage only gets easier as a window grows and harder as it shrinks. So you
+    grow the right end until the window covers t, then squeeze the left end for as long as
+    it still covers t, recording the smallest valid window you pass through.
+  brute_force: >-
+    For every start i, extend j until s[i..j] covers t, checking coverage by comparing counts
+    for every distinct character of t, and keep the shortest. Every new start rebuilds its
+    counts from scratch and re-scans characters the previous start already counted, and the
+    coverage check itself repeats work after every single character.
+  brute_force_complexity: >-
+    O(m² · Σ) time, O(Σ) space, where Σ is the number of distinct characters in t (at most
+    52) — m = 10⁵ means ~5 × 10⁹ extensions before the coverage checks.
+  key_insight: >-
+    Two ideas. First, the window only needs two moves: expand r until valid, then shrink l
+    while still valid, and both pointers only ever move right, so the work is O(m + n).
+    Second, don't re-check coverage character by character. Keep `formed`, the number of
+    distinct characters of t whose required count the window currently meets. It goes up
+    exactly when a count reaches its requirement (window[c] == need[c]) and down exactly when
+    a count drops below it (window[c] < need[c]). The window is valid precisely when
+    formed == required, an O(1) test.
+  real_world: >-
+    Search engines build result snippets by finding the shortest passage of a document that
+    contains every query term (Elasticsearch highlighters do a version of this). Log and
+    trace tools look for the tightest time range containing all the events of an incident,
+    and genomics pipelines search reads for the shortest region containing a required set of
+    markers.
+
+statement:
+  clean: |
+    Given two strings `s` and `t` of lengths `m` and `n` respectively, return the
+    **minimum window** substring of `s` such that every character in `t`
+    (**including duplicates**) is included in the window. If there is no such substring, return the **empty string**
+    `""`.
+
+    The test cases are generated so that the answer is **unique**. Uppercase and lowercase
+    letters are different characters.
+  oa_story: |
+    **DhabaDirect Food Tech — OA Round 3**
+
+    DhabaDirect powers the kitchen displays of highway dhabas on the Bengaluru–Tumakuru
+    stretch. Every dish that leaves the pass is logged as one letter, in order, so a
+    kitchen's day is one long string. Uppercase letters are full plates and lowercase are
+    half plates, so `P` and `p` are different dishes.
+
+    For a big family order, operations has the combo as a string of dish letters, and a dish
+    can appear more than once (two butter naan, one dal). They want the shortest unbroken
+    stretch of the dispatch log during which the kitchen sent out at least every dish in the
+    combo, with the right quantities, to estimate the fastest the combo could have been
+    assembled. Return that stretch of the log exactly as logged. If the combo was never fully
+    covered on that day, return an empty string. Logs and combos can each have up to
+    100,000 entries.
+  trigger_keywords: ["minimum window", "including duplicates", "empty string"]
+  examples:
+    - input: "s = \"ADOBECODEBANC\", t = \"ABC\""
+      output: "\"BANC\""
+      explanation: "The minimum window substring \"BANC\" includes 'A', 'B', and 'C' from string t."
+    - input: "s = \"a\", t = \"a\""
+      output: "\"a\""
+      explanation: "The entire string s is the minimum window."
+    - input: "s = \"a\", t = \"aa\""
+      output: "\"\""
+      explanation: "Both 'a's from t must be included in the window. Since s has only one 'a', return the empty string."
+  constraints:
+    - "m == s.length"
+    - "n == t.length"
+    - "1 <= m, n <= 10^5"
+    - "s and t consist of uppercase and lowercase English letters."
+
+constraint_quiz:
+  prompt: >-
+    s and t can each have 10⁵ characters, and the follow-up asks for an algorithm that runs
+    in O(m + n). What should you aim for?
+  options: ["O(m² · n)", "O(m²)", "O(m log m · 52)", "O(m + n)"]
+  answer: 3
+  explanation: >-
+    O(m² · n) re-checks coverage against t for every substring, astronomically slow. O(m²)
+    is ~5 × 10⁹ for m = 10⁵. Binary searching on the window length with a fixed-window
+    coverage check works (coverage is monotone in length) and is O(m log m · 52), but it is
+    slower and more code than needed. Expand/shrink with a `formed` counter touches each
+    character of s at most twice and reads t once: O(m + n).
+
+pattern_quiz:
+  prompt: >-
+    You want the shortest contiguous part of s that contains all of t's characters with
+    multiplicity. Which pattern fits?
+  options:
+    - "Fixed-size sliding window of length len(t)"
+    - "Variable window: expand until it covers t, shrink while it still does, with need/have counts"
+    - "Prefix sums + hash map of counts"
+    - "Two pointers moving inward from both ends of s"
+  answer: 1
+  explanation: >-
+    "Minimum window" with a "contains everything" condition is the shrinking variable-window
+    trigger. Unlike the "longest" windows earlier in this world, you record the answer while
+    the window is valid and keep shrinking to beat it. A fixed window of length len(t) only
+    works when the answer has no extra characters, which "BANC" for "ABC" already
+    disproves. Inward two pointers can't tell which end to move.
+
+function:
+  name: minWindow
+  params: [{name: s}, {name: t}]
+
+starter_code: |
+  class Solution:
+      def minWindow(self, s: str, t: str) -> str:
+          pass
+
+tests:
+  - {args: ["ADOBECODEBANC", "ABC"], expected: "BANC"}
+  - {args: ["a", "a"], expected: "a"}
+  - {args: ["a", "aa"], expected: "", note: "t needs two a's, s has one"}
+  - {args: ["ab", "b"], expected: "b", note: answer at the end}
+  - {args: ["aa", "aa"], expected: "aa", note: duplicates in t}
+  - {args: ["abc", "d"], expected: "", note: character missing entirely}
+  - {args: ["bba", "ab"], expected: "ba", note: shrinking past an extra b}
+  - {args: ["acbbaca", "aba"], expected: "baca", note: "need a: 2, b: 1"}
+  - {args: ["aAbBa", "Ab"], expected: "Ab", note: case-sensitive}
+visualize_test: 7
+
+drills:
+  - title: Expand until formed == required
+    skill: setup
+    goal: Build need, required and formed, and grow the window until every distinct character is satisfied.
+    instructions: |
+      Grow a window from index 0 (never shrink it). Return the length of the **shortest
+      prefix** of `s` that contains every character of `t` with multiplicity, or `-1` if
+      even the whole of `s` doesn't.
+
+      Track `formed`, the number of distinct characters of `t` whose count is fully met.
+      Increment it only when a count becomes **exactly** equal to what's needed: the third
+      `A` when you needed two must not count again. When `formed == required`, the window is
+      valid.
+    function:
+      name: coverPrefix
+      params: [{name: s}, {name: t}]
+    starter_code: |
+      class Solution:
+          def coverPrefix(self, s: str, t: str) -> int:
+              pass
+    tests:
+      - {args: ["ADOBECODEBANC", "ABC"], expected: 6}
+      - {args: ["xyzx", "xx"], expected: 4, note: x is satisfied only by the second x}
+      - {args: ["aaab", "aab"], expected: 4, note: "the third a doesn't bump formed"}
+      - {args: ["a", "aa"], expected: -1}
+    solution: |
+      class Solution:
+          def coverPrefix(self, s: str, t: str) -> int:
+              need = Counter(t)
+              required, formed = len(need), 0
+              have = {}
+              for r, c in enumerate(s):
+                  have[c] = have.get(c, 0) + 1
+                  if c in need and have[c] == need[c]:
+                      formed += 1
+                  if formed == required:
+                      return r + 1
+              return -1
+    hint: "`formed` counts distinct characters, so compare with `len(Counter(t))`, not `len(t)`."
+
+  - title: Shrink while still valid
+    skill: core
+    goal: Remove characters from the left, decrementing formed only when a count drops below its requirement.
+    instructions: |
+      `s` is guaranteed to contain every character of `t` (with multiplicity). Starting from
+      the whole of `s` as the window, remove characters from the left for as long as the
+      window still covers `t`. Return the length of the **shortest suffix** of `s` that
+      still covers `t`.
+
+      This is the shrink half of the full solution. Removing a character can only break
+      validity when its count falls **below** what `t` needs (`have[c] < need[c]`), and only
+      then does `formed` go down. Removing an extra copy, or a character `t` doesn't care
+      about, is free.
+    function:
+      name: shortestCoveringSuffix
+      params: [{name: s}, {name: t}]
+    starter_code: |
+      class Solution:
+          def shortestCoveringSuffix(self, s: str, t: str) -> int:
+              pass
+    tests:
+      - {args: ["ADOBECODEBANC", "ABC"], expected: 4}
+      - {args: ["aab", "ab"], expected: 2}
+      - {args: ["bbaa", "ba"], expected: 3}
+      - {args: ["aaa", "aa"], expected: 2, note: dropping one extra a is free}
+      - {args: ["abc", "c"], expected: 1}
+    solution: |
+      class Solution:
+          def shortestCoveringSuffix(self, s: str, t: str) -> int:
+              need, have = Counter(t), Counter(s)
+              required = formed = len(need)  # the whole of s covers t
+              l = 0
+              while formed == required:
+                  have[s[l]] -= 1
+                  if s[l] in need and have[s[l]] < need[s[l]]:
+                      formed -= 1
+                  l += 1
+              return len(s) - l + 1  # s[l-1] was the last removal that broke coverage
+    hint: "The loop stops right after the removal that broke coverage, so add that character back when measuring."
+
+  - title: Duplicates, case, and when the answer is empty
+    skill: edge
+    goal: Count how many characters of t the whole of s is missing, which decides when the answer is "".
+    instructions: |
+      Return how many characters of `t` (counted with multiplicity) are **missing** from `s`
+      as a whole. If the result is `0`, some window covers `t`; otherwise the answer to the
+      full problem is `""`.
+
+      The traps: `t = "aa"` needs **two** `a`s, so one `a` in `s` still leaves one missing,
+      and `'A'` and `'a'` are different characters. In the full solution, an impossible input
+      simply never reaches `formed == required`, so the best length stays at its sentinel and
+      you must return `""` instead of slicing with it.
+    function:
+      name: missingCount
+      params: [{name: s}, {name: t}]
+    starter_code: |
+      class Solution:
+          def missingCount(self, s: str, t: str) -> int:
+              pass
+    tests:
+      - {args: ["ADOBECODEBANC", "ABC"], expected: 0}
+      - {args: ["a", "aa"], expected: 1, note: multiplicity}
+      - {args: ["abc", "d"], expected: 1}
+      - {args: ["aA", "AA"], expected: 1, note: case-sensitive}
+      - {args: ["xyz", "xxyyq"], expected: 3}
+    solution: |
+      class Solution:
+          def missingCount(self, s: str, t: str) -> int:
+              need, have = Counter(t), Counter(s)
+              missing = 0
+              for c, n in need.items():
+                  missing += max(0, n - have[c])
+              return missing
+    hint: "For each character of t, the shortfall is `need[c] - have[c]`, but never below zero."
+
+hints:
+  - >-
+    If a window covers t, does a bigger window around it also cover t? So once r has made the
+    window valid, which pointer should move next, and how far?
+  - >-
+    Keep need = counts of t, have = counts of the window, and formed = how many distinct
+    characters of t currently have enough copies. Expand r and bump formed when have[c]
+    reaches need[c]. While formed equals the number of distinct characters in t, record the
+    window, then remove s[l], drop formed if that count fell below need, and move l.
+  - |
+    need = counts of t, required = number of distinct chars in t
+    have = empty map, formed = 0, l = 0, best = none
+    for r from 0 to len(s) - 1:
+        add s[r] to have
+        if s[r] is in need and have[s[r]] == need[s[r]]: formed = formed + 1
+        while formed == required:
+            if r - l + 1 beats best: best = (l, r - l + 1)
+            remove s[l] from have
+            if s[l] is in need and have[s[l]] < need[s[l]]: formed = formed - 1
+            l = l + 1
+    return the best slice, or "" if best is none
+
+solution:
+  code: |
+    class Solution:
+        def minWindow(self, s: str, t: str) -> str:
+            need = Counter(t)     # char -> copies the window must contain
+            required = len(need)  # distinct chars that must be satisfied
+            have = {}             # char -> copies inside s[l..r]
+            formed = 0            # distinct chars whose count is currently met
+            best_len, best_l = len(s) + 1, 0
+            l = 0
+            for r, c in enumerate(s):
+                have[c] = have.get(c, 0) + 1
+                if c in need and have[c] == need[c]:
+                    formed += 1  # c just became satisfied
+                while formed == required:  # valid: record it, then try a smaller one
+                    if r - l + 1 < best_len:
+                        best_len, best_l = r - l + 1, l
+                    out = s[l]
+                    have[out] -= 1
+                    if out in need and have[out] < need[out]:
+                        formed -= 1  # out just became unsatisfied
+                    l += 1
+            return "" if best_len > len(s) else s[best_l:best_l + best_len]
+  explanation: |
+    **What `formed == required` means.** `need` says how many copies of each character of
+    `t` the window must hold, and `required` is how many *distinct* characters that is (for
+    `t = "aba"` it's 2: `a` and `b`). `formed` counts how many of those distinct characters
+    the window currently satisfies. The window covers `t` exactly when all of them are
+    satisfied, i.e. `formed == required`, so validity is one integer comparison instead of
+    a loop over `need`.
+
+    **Why `==` on the way in and `<` on the way out.** When `s[r]` enters, its count goes up
+    by one, so it crosses from "not enough" to "enough" only at the moment `have[c]` becomes
+    exactly `need[c]`. A third copy of a character that needed two must not bump `formed`
+    again, so `>=` would be wrong. When `s[l]` leaves, its count goes down by one, and it
+    crosses from "enough" to "not enough" only when `have[out]` drops below `need[out]`.
+    Characters not in `t` never touch `formed` at all.
+
+    **Why record inside the while.** In the "longest window" problems you measure after
+    shrinking back to valid. Here every window seen inside the while loop is valid, and each
+    one is shorter than the last, so you record first and then shrink. The loop exits right
+    after the removal that broke coverage; the next valid window needs more characters on
+    the right. Both pointers only move forward, so every character of `s` is added once and
+    removed at most once.
+
+    If coverage never happens, `best_len` stays at the impossible sentinel `len(s) + 1` and
+    we return `""`.
+  time: O(m + n) — building need reads t once; l and r each move right at most m times
+  space: O(Σ) — need and have hold at most one key per distinct character (at most 52 letters)
+  brute_force_code: |
+    class Solution:
+        def minWindow(self, s: str, t: str) -> str:
+            need = Counter(t)
+            best = ""
+            for i in range(len(s)):
+                have = Counter()
+                for j in range(i, len(s)):
+                    have[s[j]] += 1
+                    if all(have[c] >= n for c, n in need.items()):
+                        if not best or j - i + 1 < len(best):
+                            best = s[i:j + 1]
+                        break
+            return best
+
+pitch_script: |
+  **(Clarify)** "So the window must contain every character of t with its multiplicity, so
+  'aa' needs two a's. Case matters, extra characters inside the window are fine, and if
+  there's no valid window I return the empty string. The answer is guaranteed unique?"
+
+  **(Brute force)** "The simple approach tries every start, extends until the window covers
+  t, and keeps the shortest. That's O(m²) extensions, each with a coverage check, so
+  billions of steps at 10⁵, and it re-counts the same characters for every start."
+
+  **(Trigger)** "'Minimum window that contains everything' means a variable sliding window:
+  coverage only improves as the window grows, so I can expand the right end until it's
+  valid and then shrink the left end while it stays valid."
+
+  **(Optimal)** "I keep a count map for t, a count map for the window, and a counter called
+  formed: the number of distinct characters of t whose count is fully met. When a
+  character enters and its count hits exactly what t needs, formed goes up. While formed
+  equals the number of distinct characters in t, I record the window if it's the smallest
+  so far, remove the left character, and if its count drops below what t needs, formed goes
+  down. Then I move l."
+
+  **(Complexity)** "Each pointer only moves forward, so each character of s is added and
+  removed at most once. That's O(m + n) time, and the maps hold at most 52 letters, so O(1)
+  extra space for this alphabet."
+
+twist:
+  lc: 209
+  title: Minimum Size Subarray Sum
+  why: >-
+    Same "expand until valid, shrink while valid, record inside the while" template, but the
+    validity test is just a running sum >= target, so there are no counters at all. I picked
+    it over Substring with Concatenation of All Words because it strips the minimum-window
+    template to its skeleton and shows why it works: with positive numbers, shrinking can
+    only lower the sum, exactly like removing characters can only break coverage. #30 is
+    really a fixed window stepped by word length, closer to Permutation in String.
+
+viz:
+  arrays: [s, t]
+  pointers: [l, r]
+  window: [l, r]
+  maps: [need, have]
+  watch: [formed, required, best_len, best_l]

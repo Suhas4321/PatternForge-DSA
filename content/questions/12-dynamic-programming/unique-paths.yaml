@@ -1,0 +1,347 @@
+slug: unique-paths
+lc: 62
+
+concept:
+  problem_it_solves: >-
+    "How many different routes lead across a grid when you may only move in a couple of
+    directions?" It is Climbing Stairs in two dimensions: the number of ways to reach a cell
+    is built from the number of ways to reach the cells you could have come from. One table
+    cell per grid cell, each computed once.
+  brute_force: >-
+    Recurse from the target: paths(r, c) = paths(r − 1, c) + paths(r, c − 1), with 1 on the
+    top row and left column. It is correct, but the same cell is reached through many
+    different call chains and recomputed every time. Since the only values returned at the
+    bottom are 1s, the recursion counts the answer one path at a time: exactly
+    2 × answer − 1 calls.
+  brute_force_complexity: >-
+    O(C(m + n − 2, m − 1)) time, i.e. proportional to the answer itself, which grows
+    exponentially with m + n; O(m + n) recursion stack — an answer near 2 × 10⁹ means about
+    4 × 10⁹ calls.
+  key_insight: >-
+    Think about the last move into cell (r, c). The robot only moves right or down, so it
+    arrived from the cell above, (r − 1, c), or from the cell to the left, (r, c − 1). Those
+    two groups of paths are disjoint and together are all paths, so
+    dp[r][c] = dp[r − 1][c] + dp[r][c − 1]. The first row and first column have only one
+    neighbour to come from, so they are all 1. Fill row by row, left to right, and every cell
+    you need is already done.
+  real_world: >-
+    Grid DP is the backbone of sequence alignment (Needleman–Wunsch in bioinformatics), diff
+    tools like git diff, and spell-check edit distance, where each cell combines its top,
+    left and diagonal neighbours. Warehouse and robotics planners count or score monotone
+    routes over floor grids the same way, and image-processing seam carving fills a grid of
+    cumulative costs row by row.
+
+statement:
+  clean: |
+    There is a robot on an `m x n` grid. The robot is initially located at the **top-left
+    corner** (i.e., `grid[0][0]`). The robot tries to move to the **bottom-right corner**
+    (i.e., `grid[m - 1][n - 1]`). The robot can only move either **down or right** at any
+    point in time.
+
+    Given the two integers `m` and `n`, return the **number of possible unique paths** that
+    the robot can take to reach the bottom-right corner.
+
+    The test cases are generated so that the answer will be less than or equal to `2 * 10^9`.
+  oa_story: |
+    **GridGo Robotics — OA Round 1**
+
+    GridGo builds picking robots for a grocery fulfilment centre in Hosur Road's warehouse
+    belt. The storage floor is divided into `m` rows and `n` columns of bays. A robot starts
+    at the charging dock in the top-left bay and must deliver a tote to the packing station in
+    the bottom-right bay. To keep traffic one-directional and avoid head-on collisions, robots
+    may only move one bay towards the packing side (right) or one bay towards the loading side
+    (down) at a time.
+
+    To stress-test the traffic controller, GridGo wants to know how many distinct routes a
+    robot could take from the dock to the packing station. The floor is at most 100 × 100
+    bays, and the layouts tested are guaranteed to have at most 2 × 10⁹ routes. Return that
+    count.
+  trigger_keywords: ["down or right", "number of possible unique paths"]
+  examples:
+    - input: "m = 3, n = 7"
+      output: "28"
+    - input: "m = 3, n = 2"
+      output: "3"
+      explanation: "Right → Down → Down, Down → Down → Right, Down → Right → Down."
+  constraints:
+    - "1 <= m, n <= 100"
+
+constraint_quiz:
+  prompt: >-
+    m and n are at most 100, and the answer can be as large as 2 × 10⁹. What time complexity
+    should you aim for?
+  options:
+    - "O(2^(m+n)) — recurse along every path"
+    - "O(m · n) — compute each cell's count once"
+    - "O((m · n)²) — for each cell, scan every other cell"
+    - "O(answer) — walk each path once and count it"
+  answer: 1
+  explanation: >-
+    The recursion and "walk every path" are both proportional to the answer, up to about
+    2 × 10⁹ paths, which is far too slow. A 100 × 100 grid has only 10⁴ cells, and each cell
+    needs just two neighbours, so O(m · n) is about 10⁴ additions. Scanning all other cells
+    per cell is 10⁸ steps for no reason: only the cell above and the cell to the left can
+    lead into a cell. (A closed-form binomial coefficient is even faster, but the grid DP is
+    what survives when the interviewer adds obstacles.)
+
+pattern_quiz:
+  prompt: >-
+    You count routes on a grid where each move goes right or down, and each cell can be
+    reached only from its top or left neighbour. Which pattern fits?
+  options:
+    - "BFS from the top-left corner, counting how many times the corner is dequeued"
+    - "2D DP: dp[r][c] = dp[r − 1][c] + dp[r][c − 1]"
+    - "Backtracking that tries every route and counts the ones that arrive"
+    - "Greedy: always move toward the nearer wall"
+  answer: 1
+  explanation: >-
+    "Number of unique paths" with moves only down or right is the grid-DP trigger: the
+    moves form a DAG, so every cell's count depends only on cells above and to the left.
+    BFS finds shortest distances, and making it count paths means revisiting cells once per
+    path. Backtracking enumerates up to 2 × 10⁹ routes. Greedy produces one route, not a
+    count.
+
+function:
+  name: uniquePaths
+  params: [{name: m}, {name: n}]
+
+starter_code: |
+  class Solution:
+      def uniquePaths(self, m: int, n: int) -> int:
+          pass
+
+tests:
+  - {args: [3, 7], expected: 28}
+  - {args: [3, 2], expected: 3}
+  - {args: [1, 1], expected: 1, note: "start is the finish: the empty path counts once"}
+  - {args: [1, 10], expected: 1, note: "single row: only straight right"}
+  - {args: [10, 1], expected: 1, note: "single column: only straight down"}
+  - {args: [7, 3], expected: 28, note: "symmetric: m × n and n × m have the same count"}
+  - {args: [4, 4], expected: 20}
+  - {args: [10, 10], expected: 48620, note: "kept small so the exponential brute force still finishes"}
+visualize_test: 0
+
+drills:
+  - title: Seed the border
+    skill: setup
+    goal: Build an m × n table and set the base cases, 1 along the whole first row and first column.
+    instructions: |
+      Return an `m x n` grid (list of lists) with `1` in every cell of the **first row** and
+      the **first column**, and `0` everywhere else.
+
+      These are the base cases of the 2D table, and it's worth knowing *why* they're 1: a
+      cell in the top row can only be reached by moving right the whole way (it has no cell
+      above it), and a cell in the left column only by moving down. One path each. Build the
+      grid with `[[0] * n for _ in range(m)]`, never `[[0] * n] * m`, which makes every row
+      the same list object, so writing one row writes them all.
+    function:
+      name: borderGrid
+      params: [{name: m}, {name: n}]
+    starter_code: |
+      class Solution:
+          def borderGrid(self, m: int, n: int) -> List[List[int]]:
+              pass
+    tests:
+      - {args: [3, 4], expected: [[1, 1, 1, 1], [1, 0, 0, 0], [1, 0, 0, 0]]}
+      - {args: [2, 2], expected: [[1, 1], [1, 0]]}
+      - {args: [1, 3], expected: [[1, 1, 1]], note: "a single row is all border"}
+      - {args: [3, 1], expected: [[1], [1], [1]], note: "a single column is all border"}
+    solution: |
+      class Solution:
+          def borderGrid(self, m: int, n: int) -> List[List[int]]:
+              grid = [[0] * n for _ in range(m)]
+              for r in range(m):
+                  grid[r][0] = 1
+              for c in range(n):
+                  grid[0][c] = 1
+              return grid
+    hint: "Two separate loops: one down the first column, one across the first row."
+
+  - title: Add a diagonal move
+    skill: core
+    goal: Rebuild the grid recurrence from "where could the last move have come from?" when a new move is allowed.
+    instructions: |
+      The robot may now move **right, down, or diagonally down-right** (one step each).
+      Return the number of distinct paths from the top-left to the bottom-right of an
+      `m x n` grid.
+
+      Don't look for a new formula; ask the same question as the main problem. The last move
+      into `(r, c)` came from above `(r - 1, c)`, from the left `(r, c - 1)`, or from the
+      diagonal `(r - 1, c - 1)`. Those are disjoint groups, so add all three. The border is
+      still all 1s (a diagonal move leaves the first row and column immediately). This
+      "list the predecessors and add them" habit is how you'll derive LCS and Edit Distance
+      later in this world.
+    function:
+      name: pathsWithDiagonal
+      params: [{name: m}, {name: n}]
+    starter_code: |
+      class Solution:
+          def pathsWithDiagonal(self, m: int, n: int) -> int:
+              pass
+    tests:
+      - {args: [2, 2], expected: 3, note: "right-down, down-right, or one diagonal"}
+      - {args: [3, 3], expected: 13}
+      - {args: [3, 2], expected: 5}
+      - {args: [1, 5], expected: 1}
+      - {args: [4, 4], expected: 63}
+    solution: |
+      class Solution:
+          def pathsWithDiagonal(self, m: int, n: int) -> int:
+              dp = [[1] * n for _ in range(m)]
+              for r in range(1, m):
+                  for c in range(1, n):
+                      dp[r][c] = dp[r - 1][c] + dp[r][c - 1] + dp[r - 1][c - 1]
+              return dp[m - 1][n - 1]
+    hint: "Same loops as Unique Paths; the only change is one more term in the sum."
+
+  - title: One row is enough
+    skill: edge
+    goal: Compress the 2D table to a single row and see why the in-place update stays correct.
+    instructions: |
+      Return the number of unique paths (right or down moves only) using a **single list of
+      length `n`** instead of an `m x n` table.
+
+      Each cell only reads the cell above and the cell to its left. Keep one `row`, starting
+      as all 1s (the first grid row). To move down a row, sweep left to right doing
+      `row[c] += row[c - 1]`: before the update, `row[c]` still holds the value from the row
+      above, and `row[c - 1]` was already updated, so it is the cell to the left in the
+      *current* row. That's exactly `dp[r - 1][c] + dp[r][c - 1]`. Sweeping right to left
+      would read a stale left neighbour, and starting the sweep at `c = 0` would read
+      `row[-1]`. Watch `m = 1` and `n = 1`.
+    function:
+      name: uniquePathsRow
+      params: [{name: m}, {name: n}]
+    starter_code: |
+      class Solution:
+          def uniquePathsRow(self, m: int, n: int) -> int:
+              pass
+    tests:
+      - {args: [3, 7], expected: 28}
+      - {args: [1, 1], expected: 1}
+      - {args: [5, 1], expected: 1, note: "one column: the inner loop never runs"}
+      - {args: [1, 6], expected: 1, note: "one row: the outer loop never runs"}
+      - {args: [10, 10], expected: 48620}
+      - {args: [23, 12], expected: 193536720, note: "a large grid, O(n) memory"}
+    solution: |
+      class Solution:
+          def uniquePathsRow(self, m: int, n: int) -> int:
+              row = [1] * n  # the first grid row
+              for _ in range(1, m):
+                  for c in range(1, n):
+                      row[c] += row[c - 1]  # old row[c] = above, new row[c - 1] = left
+              return row[n - 1]
+    hint: "Before you overwrite `row[c]`, what does it still hold?"
+
+hints:
+  - >-
+    Stand on the bottom-right cell. The robot only moves right or down, so which cells could
+    it have been on one move earlier? How does the number of paths to this cell relate to the
+    number of paths to those?
+  - >-
+    Let dp[r][c] be the number of paths from (0, 0) to (r, c). The last move came from above
+    or from the left: dp[r][c] = dp[r − 1][c] + dp[r][c − 1]. Every cell in the first row and
+    first column is 1. Fill row by row, left to right.
+  - |
+    dp = m x n grid of zeros
+    set dp[r][0] = 1 for every row, dp[0][c] = 1 for every column
+    for r from 1 to m - 1:
+        for c from 1 to n - 1:
+            dp[r][c] = dp[r - 1][c] + dp[r][c - 1]
+    return dp[m - 1][n - 1]
+
+solution:
+  code: |
+    class Solution:
+        def uniquePaths(self, m: int, n: int) -> int:
+            # dp[r][c] = number of distinct paths from the start (0, 0) to cell (r, c)
+            dp = [[0] * n for _ in range(m)]
+            for r in range(m):
+                dp[r][0] = 1  # first column: the only way is straight down
+            for c in range(n):
+                dp[0][c] = 1  # first row: the only way is straight right
+            for r in range(1, m):
+                for c in range(1, n):
+                    # the last move into (r, c) came from above or from the left
+                    dp[r][c] = dp[r - 1][c] + dp[r][c - 1]
+            return dp[m - 1][n - 1]
+  explanation: |
+    The same five-step recipe, now with two indices:
+
+    1. **State.** `dp[r][c]` = the number of distinct paths from the start `(0, 0)` to cell
+       `(r, c)`. One table cell per grid cell.
+    2. **Recurrence from the last move.** Moves are only right or down, so the last move into
+       `(r, c)` came from `(r - 1, c)` (above) or `(r, c - 1)` (left). The paths through those
+       two predecessors are different paths (their last move differs), and every path uses
+       one of them, so `dp[r][c] = dp[r - 1][c] + dp[r][c - 1]`.
+    3. **Base cases.** A cell in the first row has no cell above it, so it can only be reached
+       by going straight right: 1 path. Likewise every cell in the first column: 1 path. That
+       includes `dp[0][0] = 1`, the empty path, which is why `m = n = 1` returns 1.
+    4. **Fill order.** Each cell reads the cell above (previous row) and the cell to the left
+       (same row, earlier column), so row by row, left to right guarantees both are final.
+    5. **Answer location.** The bottom-right cell, `dp[m - 1][n - 1]`.
+
+    **Recursion → memo → table.** The recursion `paths(r, c) = paths(r - 1, c) + paths(r, c - 1)`
+    makes 2 × answer − 1 calls because it only ever adds 1s. Caching on `(r, c)` cuts that to
+    one computation per cell, O(m · n); the table is that memo filled in a fixed order.
+
+    **O(n) space.** Each row only needs the row above it, so a single list works: start
+    with all 1s and, for each new row, sweep left to right with `row[c] += row[c - 1]`. The
+    old `row[c]` is the cell above and the freshly updated `row[c - 1]` is the cell to the
+    left (that's the edge drill).
+
+    **Closed form.** Every path is exactly `m - 1` downs and `n - 1` rights in some order, so
+    the count is the number of ways to choose which of the `m + n - 2` moves are downs:
+    `C(m + n - 2, m - 1)`. For the `3 x 7` example that's `C(8, 2) = math.comb(8, 2) = 28`,
+    computable in O(min(m, n)) time. It's a great thing to mention, but the DP is what you should code first:
+    it is the version that still works when the interviewer adds obstacles (Unique Paths II)
+    or weights on the cells (Minimum Path Sum).
+  time: O(m · n) — each cell is filled once with one addition
+  space: O(m · n) — the table (O(n) with a single rolling row)
+  brute_force_code: |
+    class Solution:
+        def uniquePaths(self, m: int, n: int) -> int:
+            def paths(r, c):
+                # paths from (0, 0) to (r, c), recomputed every time it's asked
+                if r == 0 or c == 0:
+                    return 1
+                return paths(r - 1, c) + paths(r, c - 1)
+
+            return paths(m - 1, n - 1)
+
+pitch_script: |
+  **(Clarify)** "The robot starts top-left, ends bottom-right, and only moves right or down,
+  one cell at a time, with no obstacles. I return the number of distinct paths, and it's
+  guaranteed to fit under 2 times 10 to the 9. Right?"
+
+  **(Brute force)** "I could recurse: the paths to a cell are the paths to the cell above plus
+  the paths to the cell on the left. That recomputes the same cells through many different
+  call chains, and since it only adds up 1s, it makes about twice as many calls as there are
+  paths, which can be billions."
+
+  **(Trigger)** "'Number of unique paths' with moves only right or down means each cell
+  depends only on its top and left neighbours, which is grid DP. I'll define dp of r, c as
+  the number of paths from the start to cell r, c."
+
+  **(Optimal)** "The last move into r, c came from above or from the left, so dp of r, c is
+  dp of r minus 1, c plus dp of r, c minus 1. The first row and first column are all 1,
+  since there's only one straight path along a wall. I fill row by row, left to right, and
+  return the bottom-right cell."
+
+  **(Complexity)** "O(m times n) time and space. Since each row only uses the row above, I
+  can keep one row of length n and update it in place, which is O(n) space. There's also a
+  closed form, m plus n minus 2 choose m minus 1, because a path is just an arrangement of
+  downs and rights, but the DP generalises to obstacles."
+
+twist:
+  lc: 63
+  title: Unique Paths II
+  why: >-
+    Some cells are now obstacles. The recurrence is the same, except that an obstacle cell
+    has dp = 0 because no path can pass through it. The base cases change too: the first row
+    and column are no longer all 1, they are 1 only until the first obstacle and 0 after it,
+    because a blocked wall cell cuts off everything beyond it. That's also why the closed-form
+    formula stops working and the DP keeps going.
+
+viz:
+  table: dp
+  watch: [r, c, m, n]

@@ -1,0 +1,354 @@
+slug: target-sum
+lc: 494
+
+concept:
+  problem_it_solves: >-
+    "In how many ways can I pick some of these items so they hit an exact total?" Target Sum
+    hides that question behind plus and minus signs. Once you see that every sign assignment is
+    really a choice of which numbers go into the "plus" group, the problem becomes counting
+    subsets with a fixed sum, the counting version of 0/1 knapsack.
+  brute_force: >-
+    Recurse over the array and try both signs for every number: count(i, running) =
+    count(i + 1, running + nums[i]) + count(i + 1, running - nums[i]), and at the end check
+    running == target. The tree has 2^N leaves, and it keeps recomputing the same situation:
+    "I'm at index 7 with a running sum of 3" can be reached by dozens of different sign
+    patterns on the first 7 numbers, and each one re-explores the whole subtree below it.
+  brute_force_complexity: >-
+    O(2^N) time, O(N) recursion depth — fine for N = 20 (about 10⁶ leaves) but 2^40 ≈ 10¹² the
+    moment an OA variant doubles N, and the work is almost all repeated subtrees.
+  key_insight: >-
+    Split the numbers into the ones that get a plus (sum P) and the ones that get a minus
+    (sum N). Then P − N = target and P + N = total, so adding the two equations gives
+    P = (total + target) / 2. The signs vanish: you only need to count subsets of nums that sum
+    to that one value. If total + target is odd, or |target| > total, no subset can work and the
+    answer is 0. Counting subsets is 0/1 knapsack: dp[s] = number of ways to reach sum s, and
+    each number x updates dp[s] += dp[s − x], iterating s backwards so x is used at most once.
+  real_world: >-
+    The same "count the ways to reach each total" array is how risk engines build the
+    probability distribution of total loss from many independent events, and how game servers
+    precompute dice-roll and loot-drop odds tables. Reconciliation tools at payment companies
+    use the reachability version (which invoices could add up to this bank credit?) to flag
+    ambiguous matches for a human to review.
+
+statement:
+  clean: |
+    You are given an integer array `nums` and an integer `target`.
+
+    You want to build an **expression** out of `nums` by adding one of the symbols `'+'` and
+    `'-'` before each integer in `nums` and then concatenating all the integers.
+
+    For example, if `nums = [2, 1]`, you can add a `'+'` before `2` and a `'-'` before `1` and
+    concatenate them to build the expression `"+2-1"`.
+
+    Return the **number of different expressions** that you can build, which evaluates to
+    `target`.
+  oa_story: |
+    **SignSaathi Ledger — OA Round 1**
+
+    SignSaathi digitises the handwritten khata books of kirana shops in Jayanagar and
+    Basavanagudi. Its OCR reads every amount on a page perfectly, but the narrow column that
+    says whether an entry was cash **received** or cash **paid out** is usually smudged. From
+    the cash drawer, the shop owner knows the net change for the day, `target` rupees (it can be
+    negative).
+
+    Each entry was exactly one of the two: received or paid. The auditor wants to know how
+    ambiguous a page is, so for a page of amounts `nums` you must return how many different
+    received/paid labellings of the entries produce exactly the net change `target`. Voided
+    entries appear as ₹0, and their column is smudged too, so both readings of a ₹0 entry count
+    as different labellings. A page has at most 20 entries, each at most ₹1000, and the
+    amounts on a page add up to at most ₹1000.
+  trigger_keywords: ["number of different expressions", "evaluates to"]
+  examples:
+    - input: "nums = [1,1,1,1,1], target = 3"
+      output: "5"
+      explanation: "Exactly one of the five 1s gets a minus sign: -1+1+1+1+1, +1-1+1+1+1, and so on, five ways."
+    - input: "nums = [1], target = 1"
+      output: "1"
+    - input: "nums = [0,0,0,0,0,0,0,0,1], target = 1"
+      output: "256"
+      explanation: "The 1 must be positive; each of the eight zeros can be +0 or -0 independently, so 2^8 = 256."
+  constraints:
+    - "1 <= nums.length <= 20"
+    - "0 <= nums[i] <= 1000"
+    - "0 <= sum(nums[i]) <= 1000"
+    - "-1000 <= target <= 1000"
+
+constraint_quiz:
+  prompt: >-
+    N is at most 20, but the sum of all numbers is at most 1000. Which complexity is the
+    interviewer looking for?
+  options:
+    - "O(2^N): try every sign assignment"
+    - "O(N · S), where S = sum(nums): a DP indexed by sums"
+    - "O(N²): compare every pair of numbers"
+    - "O(N log N): sort, then go greedy"
+  answer: 1
+  explanation: >-
+    2^20 ≈ 10⁶ survives here, but it is the answer that gets you a "can you do better?" and it
+    dies at 2^40 ≈ 10¹² the moment N doubles. The real signal is the small sum bound: a DP whose
+    state is "which sum have I reached?" has at most 1001 states per number, so O(N · S) is
+    about 2 × 10⁴ steps. Pairs (O(N²)) don't capture "pick any subset", and no greedy order of
+    signs works, because a choice that looks good early can make the target unreachable later.
+
+pattern_quiz:
+  prompt: >-
+    Every number gets + or −, you count the assignments that hit an exact total, and the total
+    sum is small. Which pattern fits?
+  options:
+    - "Backtracking with pruning on the running sum"
+    - "Transform to 'count subsets with sum (total + target) / 2' and run 0/1 knapsack counting DP"
+    - "Greedy: give + to the biggest numbers until you pass target"
+    - "Prefix sums with a hash map of seen sums"
+  answer: 1
+  explanation: >-
+    "Number of different expressions" is a counting trigger, and "each number once, choose a
+    side" is take-or-skip, which is 0/1 knapsack. Writing P − N = target and P + N = total turns
+    the signs into a single subset-sum target, so a 1D dp over sums counts it in O(N · S).
+    Backtracking is still 2^N, greedy can't count anything, and prefix sums are for contiguous
+    subarrays, not arbitrary subsets.
+
+function:
+  name: findTargetSumWays
+  params: [{name: nums}, {name: target}]
+
+starter_code: |
+  class Solution:
+      def findTargetSumWays(self, nums: List[int], target: int) -> int:
+          pass
+
+tests:
+  - {args: [[1, 1, 1, 1, 1], 3], expected: 5}
+  - {args: [[1], 1], expected: 1}
+  - {args: [[0, 0, 0, 0, 0, 0, 0, 0, 1], 1], expected: 256, note: "each zero doubles the count: +0 and -0 are different expressions"}
+  - {args: [[1], 2], expected: 0, note: "|target| > total: unreachable"}
+  - {args: [[1, 2, 3], 1], expected: 0, note: "total + target = 7 is odd: no integer P exists"}
+  - {args: [[1, 1, 1, 1, 1], -3], expected: 5, note: negative target}
+  - {args: [[2, 2, 2], -6], expected: 1, note: "P = 0: only the empty plus-group works"}
+  - {args: [[0], 0], expected: 2, note: "a single zero: +0 and -0"}
+  - {args: [[1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 1], expected: 40}
+visualize_test: 0
+
+drills:
+  - title: Turn signs into one subset target
+    skill: setup
+    goal: Derive P = (total + target) / 2 and reject the impossible cases before any DP runs.
+    instructions: |
+      Return the sum `P` that the plus-group must reach, or `-1` if no sign assignment can
+      possibly hit `target`.
+
+      With `P` = sum of the plus numbers and `N` = sum of the minus numbers, `P - N = target`
+      and `P + N = total`, so `P = (total + target) / 2`. Two guards: if `total + target` is
+      **odd**, `P` isn't an integer; and if `|target| > total`, even all-plus or all-minus
+      can't reach it (without this check a very negative target gives a negative `P`, and
+      `[0] * (P + 1)` would quietly build an empty table). This is the step that turns a
+      sign problem into a knapsack problem.
+    function:
+      name: subsetGoal
+      params: [{name: nums}, {name: target}]
+    starter_code: |
+      class Solution:
+          def subsetGoal(self, nums: List[int], target: int) -> int:
+              pass
+    tests:
+      - {args: [[1, 1, 1, 1, 1], 3], expected: 4}
+      - {args: [[1, 2, 3], 1], expected: -1, note: odd total + target}
+      - {args: [[1], 2], expected: -1, note: target bigger than total}
+      - {args: [[100], -200], expected: -1, note: "very negative: (100 - 200) / 2 would be -50"}
+      - {args: [[1, 1, 1, 1, 1], -3], expected: 1}
+      - {args: [[2, 2, 2], -6], expected: 0, note: everything gets a minus}
+    solution: |
+      class Solution:
+          def subsetGoal(self, nums: List[int], target: int) -> int:
+              total = sum(nums)
+              if abs(target) > total or (total + target) % 2 == 1:
+                  return -1
+              return (total + target) // 2
+    hint: "Check `abs(target) > total` and `(total + target) % 2` before dividing."
+
+  - title: Skip or take, on a full table
+    skill: core
+    goal: Write the counting recurrence dp[i][s] = dp[i - 1][s] + dp[i - 1][s - x] on a 2D table.
+    instructions: |
+      Return how many subsets of `nums` sum to exactly `k` (each element used at most once;
+      equal values at different positions are different elements).
+
+      Build `dp[i][s]` = number of subsets of the **first i numbers** that sum to `s`. Row 0 is
+      the empty prefix: only `dp[0][0] = 1` (the empty subset). For row `i`, the newest number
+      is `x = nums[i - 1]`, and every subset either **skips** it (`dp[i - 1][s]`) or **takes**
+      it (`dp[i - 1][s - x]`, only when `s >= x`). Both read the previous row, which is why
+      nobody gets counted twice. This is the recurrence the 1D solution compresses.
+    function:
+      name: countSubsets2D
+      params: [{name: nums}, {name: k}]
+    starter_code: |
+      class Solution:
+          def countSubsets2D(self, nums: List[int], k: int) -> int:
+              pass
+    tests:
+      - {args: [[1, 1, 1, 1, 1], 4], expected: 5}
+      - {args: [[1, 2, 1], 2], expected: 2, note: "{2} and {1, 1}"}
+      - {args: [[2, 3, 5], 5], expected: 2, note: "{5} and {2, 3}"}
+      - {args: [[3], 2], expected: 0}
+      - {args: [[0, 1], 1], expected: 2, note: "{1} and {0, 1}"}
+    solution: |
+      class Solution:
+          def countSubsets2D(self, nums: List[int], k: int) -> int:
+              n = len(nums)
+              dp = [[0] * (k + 1) for _ in range(n + 1)]
+              dp[0][0] = 1
+              for i in range(1, n + 1):
+                  x = nums[i - 1]
+                  for s in range(k + 1):
+                      dp[i][s] = dp[i - 1][s] + (dp[i - 1][s - x] if s >= x else 0)
+              return dp[n][k]
+    hint: "Row i only ever reads row i - 1: the 'skip' cell straight above and the 'take' cell x columns to the left."
+
+  - title: Add one number in place, backwards
+    skill: edge
+    goal: Update a 1D counting row in place from right to left so the new number is used at most once.
+    instructions: |
+      `dp[s]` is the number of subsets (of some numbers already processed) that sum to `s`.
+      Add one more number `x` **in place** and return the updated list.
+
+      Go from the right end down to `s = x`, doing `dp[s] += dp[s - x]`. Going right to left
+      means `dp[s - x]` hasn't been updated yet, so it still counts subsets *without* `x`.
+      Going left to right would reuse `x`: from `[1, 0, 0, 0]` with `x = 1` you'd get
+      `[1, 1, 1, 1]` (as if 1 could be taken three times) instead of `[1, 1, 0, 0]`. Notice what
+      `x = 0` does: `dp[s] += dp[s]` doubles every entry, which is exactly why each zero in
+      Target Sum doubles the answer.
+    function:
+      name: addNumberInPlace
+      params: [{name: dp}, {name: x}]
+    starter_code: |
+      class Solution:
+          def addNumberInPlace(self, dp: List[int], x: int) -> List[int]:
+              pass
+    tests:
+      - {args: [[1, 0, 0, 0], 1], expected: [1, 1, 0, 0], note: "left-to-right would give [1, 1, 1, 1]"}
+      - {args: [[1, 1, 0, 0], 1], expected: [1, 2, 1, 0]}
+      - {args: [[1, 0, 1, 1], 2], expected: [1, 0, 2, 1]}
+      - {args: [[1, 1, 0], 0], expected: [2, 2, 0], note: "a zero doubles every count"}
+      - {args: [[1, 0, 0], 5], expected: [1, 0, 0], note: x larger than every sum in the table}
+    solution: |
+      class Solution:
+          def addNumberInPlace(self, dp: List[int], x: int) -> List[int]:
+              for s in range(len(dp) - 1, x - 1, -1):
+                  dp[s] = dp[s] + dp[s - x]
+              return dp
+    hint: "`range(len(dp) - 1, x - 1, -1)` walks from the last index down to x."
+
+hints:
+  - >-
+    Forget the signs for a moment. If you knew which numbers got a '+', would the rest be
+    forced? What would the '+' numbers have to add up to, given target and the total sum?
+  - >-
+    P − N = target and P + N = total give P = (total + target) / 2, so you're counting subsets
+    that sum to P. Let dp[s] be the number of ways to reach sum s using the numbers seen so
+    far. A new number x is either left out (dp[s] stays) or put in (adds dp[s − x]).
+  - |
+    total = sum(nums)
+    if |target| > total or (total + target) is odd: return 0
+    goal = (total + target) / 2
+    dp = array of goal + 1 zeros; dp[0] = 1     (the empty subset)
+    for each x in nums:
+        for s from goal down to x:               (backwards: x used once)
+            dp[s] = dp[s] + dp[s - x]
+    return dp[goal]
+
+solution:
+  code: |
+    class Solution:
+        def findTargetSumWays(self, nums: List[int], target: int) -> int:
+            total = sum(nums)
+            # plus-group P, minus-group N: P - N = target, P + N = total  =>  P = (total + target) / 2
+            if abs(target) > total or (total + target) % 2 == 1:
+                return 0
+            goal = (total + target) // 2
+            # dp[s] = number of subsets of the numbers processed so far that sum to s
+            dp = [0] * (goal + 1)
+            dp[0] = 1  # the empty subset
+            for x in nums:
+                for s in range(goal, x - 1, -1):  # backwards, so dp[s - x] doesn't include x yet
+                    dp[s] = dp[s] + dp[s - x]  # skip x + take x
+            return dp[goal]
+  explanation: |
+    **The transform.** A sign assignment is the same thing as choosing the plus-group. If it
+    sums to `P` and the minus-group to `N`, then `P - N = target` and `P + N = total`, so
+    `P = (total + target) / 2`. Odd parity or `|target| > total` means no integer `P` in range
+    exists, so the answer is 0. Otherwise, count the subsets of `nums` summing to `P`.
+
+    **The 5-step DP recipe:**
+
+    1. **Define dp in words.** `dp[s]` = number of subsets of the numbers processed so far whose
+       sum is exactly `s`.
+    2. **Recurrence from the last choice.** The last number considered, `x`, is either outside
+       the subset (those subsets were already counted in the old `dp[s]`) or inside it (remove
+       `x` and you have a subset summing to `s - x`: old `dp[s - x]`). So
+       `new dp[s] = old dp[s] + old dp[s - x]`.
+    3. **Base case.** `dp[0] = 1`: the empty subset is one way to make 0. Every other sum
+       starts at 0 ways.
+    4. **Fill order.** Numbers in the outer loop (each one decided once), sums from `goal`
+       **down to** `x`. Going backwards guarantees `dp[s - x]` is still the old value, i.e.
+       "without x". Forwards would let `x` be taken repeatedly, which is the unbounded
+       knapsack of Coin Change II, a different problem.
+    5. **Answer location.** `dp[goal]` after every number has been processed.
+
+    **Why zeros double the count.** For `x = 0` the loop runs `s` all the way down to 0 and does
+    `dp[s] = dp[s] + dp[s - 0]`, doubling every entry. That is correct: `+0` and `-0` are
+    different expressions with the same value, so each zero multiplies the number of ways by 2.
+    `[0, 0, 0, 0, 0, 0, 0, 0, 1]` with target 1 gives 2⁸ = 256.
+
+    **How you get here in an interview.** Start from the brute-force recursion
+    `count(i, running)` and memoise it on `(i, running)`: at most 20 × 2001 states. That is
+    already polynomial. The table version above goes further: the transform shrinks the state
+    to one sum, and because row `i` of a 2D `dp[i][s]` table only reads row `i - 1`, the rows
+    collapse into one list updated right to left.
+  time: O(N · P) where P = (total + target) / 2 ≤ 1000 — at most 20 × 1001 cell updates
+  space: O(P) — one row of counts, compressed from the N × P table
+  brute_force_code: |
+    class Solution:
+        def findTargetSumWays(self, nums: List[int], target: int) -> int:
+            def count(i, running):
+                if i == len(nums):
+                    return 1 if running == target else 0
+                return count(i + 1, running + nums[i]) + count(i + 1, running - nums[i])
+
+            return count(0, 0)
+
+pitch_script: |
+  **(Clarify)** "Every number gets exactly one sign, and two expressions count as different if
+  any position has a different sign, even if that position is a zero? And the total of all
+  numbers is at most 1000?"
+
+  **(Brute force)** "The direct approach recurses over the array trying plus and minus for each
+  number: 2^N leaves. N is 20 so that's about a million, but most of it is repeated work: being
+  at index 10 with running sum 4 happens through many different sign patterns."
+
+  **(Trigger)** "'Count the ways' with 'each item once, pick a side' is 0/1 knapsack counting.
+  And there's an algebra trick: if the plus-group sums to P and the minus-group to N, then
+  P minus N is target and P plus N is total, so P is total plus target over two. The signs
+  disappear and I just count subsets with sum P. If total plus target is odd, or the absolute
+  target exceeds total, the answer is zero."
+
+  **(Optimal)** "dp of s is the number of subsets that sum to s. dp of 0 is 1 for the empty
+  subset. For each number x, I go from P down to x and add dp of s minus x into dp of s. That's
+  'skip x' plus 'take x'. I go backwards so x can only be used once. Zeros double every entry,
+  which is right because plus zero and minus zero are different expressions. The answer is
+  dp of P."
+
+  **(Complexity)** "O(N times P) time, at most 20 times 1001, and O(P) space for one row. If I'd
+  started with memoised recursion on index and running sum, that would be O(N times total)
+  too, just with a bigger constant and recursion overhead."
+
+twist:
+  lc: 474
+  title: Ones and Zeroes
+  why: >-
+    Still 0/1 knapsack over a list of items, but each item (a binary string) now costs two
+    resources, zeros and ones, and you maximise how many items fit. The 1D backwards loop becomes
+    a 2D table dp[z][o] filled backwards in both dimensions, for the same reason: each item may be
+    used once.
+
+viz:
+  table: dp
+  watch: [x, s, goal, total, target]

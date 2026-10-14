@@ -1,0 +1,301 @@
+slug: maximum-average-subarray-i
+lc: 643
+
+concept:
+  problem_it_solves: >-
+    "Of all the contiguous stretches of exactly k elements, which one is best?" Neighbouring
+    stretches overlap in k − 1 elements, so recomputing each one from scratch re-adds almost
+    everything. A sliding window keeps one running sum and updates it with the single element
+    that enters and the single element that leaves.
+  brute_force: >-
+    For every start i, add up nums[i..i+k−1] with a fresh loop (or sum() on a slice) and keep
+    the largest total. Moving the start by one throws away a sum that was correct for k − 1 of
+    the k elements, then adds those same k − 1 elements again.
+  brute_force_complexity: >-
+    O(N·K) time, O(1) space — with N = 10⁵ and k = 5 × 10⁴ that is about 2.5 × 10⁹ additions.
+  key_insight: >-
+    Don't recompute the window, update it. When the window slides one step right, exactly one
+    element enters (nums[r]) and exactly one leaves (nums[l]), so new_sum = old_sum + nums[r]
+    − nums[l]: O(1) per step. And because k is fixed, the window with the biggest sum is the
+    window with the biggest average, so compare sums and divide by k once at the very end.
+  real_world: >-
+    Monitoring systems (Prometheus, Grafana, Datadog) compute "average latency over the last
+    5 minutes" by adding the newest sample and dropping the oldest, never by re-scanning the
+    whole window. Trading charts on apps like Zerodha Kite draw 20-day and 50-day moving
+    averages the same way, and rate limiters keep running counts over a fixed time window.
+
+statement:
+  clean: |
+    You are given an integer array `nums` consisting of `n` elements, and an integer `k`.
+
+    Find a **contiguous subarray** whose **length is equal to k** that has the
+    **maximum average value**, and return this value. Any answer with a calculation error
+    less than `10^-5` will be accepted.
+  oa_story: |
+    **ScoopSaathi — OA Round 1**
+
+    ScoopSaathi delivers ice cream across Indiranagar and Koramangala from one cloud kitchen.
+    Every hour the kitchen logs its net margin in rupees: positive when orders pour in, and
+    negative when a freezer hiccup forces them to bin melted tubs. The hourly numbers for the
+    day are stored in order.
+
+    The ops team can afford one extra rider for a shift of exactly `k` back-to-back hours, and
+    wants to place that shift where the kitchen historically does best. Given the hourly
+    margins and `k`, return the highest possible average margin per hour over any block of
+    `k` consecutive hours (answers within `10^-5` are accepted). A day's log can hold up to
+    100,000 entries, so the check has to run in a single pass.
+  trigger_keywords: ["contiguous subarray", "length is equal to k", "maximum average"]
+  examples:
+    - input: "nums = [1,12,-5,-6,50,3], k = 4"
+      output: "12.75000"
+      explanation: "The window [12,-5,-6,50] sums to 51, and 51 / 4 = 12.75. No other window of length 4 does better."
+    - input: "nums = [5], k = 1"
+      output: "5.00000"
+  constraints:
+    - "n == nums.length"
+    - "1 <= k <= n <= 10^5"
+    - "-10^4 <= nums[i] <= 10^4"
+
+constraint_quiz:
+  prompt: >-
+    N can be 10⁵ and k can be anywhere from 1 to N. What time complexity should you aim for?
+  options: ["O(N·K)", "O(N log N)", "O(N)", "O(K)"]
+  answer: 2
+  explanation: >-
+    O(N·K) looks fine when k is tiny, but k is allowed to be ~N/2, which gives ~2.5 × 10⁹
+    additions. O(N log N) would pass, but there is nothing to sort, and sorting would destroy
+    contiguity anyway. O(N) is achievable because each slide costs one add and one subtract.
+    O(K) is impossible: when k = 1 you still have to read all N elements to find the best one.
+
+pattern_quiz:
+  prompt: >-
+    Every candidate is a contiguous block of exactly k elements, and consecutive blocks overlap
+    in k − 1 elements. Which pattern fits?
+  options:
+    - "Sort the array and average the k largest values"
+    - "Fixed-size sliding window with a running sum"
+    - "Monotonic stack"
+    - "Binary search on the answer"
+  answer: 1
+  explanation: >-
+    Sorting picks the k largest values, but they are usually not next to each other, so the
+    answer must stay contiguous. A monotonic stack answers "next greater" questions, not range
+    totals. Binary search on the average is the tool for the Hard follow-up (#644) where the
+    length is "at least k"; with a fixed length it is overkill. "Contiguous" plus "length
+    exactly k" is the textbook fixed-window trigger: keep one running sum and slide it.
+
+function:
+  name: findMaxAverage
+  params: [{name: nums}, {name: k}]
+  compare: float
+
+starter_code: |
+  class Solution:
+      def findMaxAverage(self, nums: List[int], k: int) -> float:
+          pass
+
+tests:
+  - {args: [[1, 12, -5, -6, 50, 3], 4], expected: 12.75}
+  - {args: [[5], 1], expected: 5.0, note: single element}
+  - {args: [[0, 4, 0, 3, 2], 1], expected: 4.0, note: "k = 1 is just the maximum element"}
+  - {args: [[-1, -12, -5, -6, -50, -3], 2], expected: -5.5, note: "all negative, so best must not start at 0"}
+  - {args: [[3, 1, 2], 3], expected: 2.0, note: "k == n leaves exactly one window"}
+  - {args: [[1, 2, 3, 4, 10], 2], expected: 7.0, note: best window is the last one}
+  - {args: [[7, 1, 1, 1, 1], 2], expected: 4.0, note: best window is the very first one}
+  - {args: [[2, 3, 4, 1, 5], 2], expected: 3.5, note: fractional average}
+  - {args: [[-10000, -10000], 1], expected: -10000.0, note: extreme negative values}
+visualize_test: 0
+
+drills:
+  - title: Where does each window start and end?
+    skill: setup
+    goal: Turn the right end r of a size-k window into its left end with l = r − k + 1.
+    instructions: |
+      Given an array length `n` and a window size `k`, return the `[l, r]` bounds (inclusive)
+      of every window of size `k`, from left to right.
+
+      Off-by-one errors are the number one reason fixed windows break in interviews. The
+      first full window ends at `r = k - 1`, the last one ends at `r = n - 1`, and the window
+      ending at `r` starts at `l = r - k + 1`. Get these three facts right and the slide is easy.
+    function:
+      name: windowBounds
+      params: [{name: n}, {name: k}]
+    starter_code: |
+      class Solution:
+          def windowBounds(self, n: int, k: int) -> List[List[int]]:
+              pass
+    tests:
+      - {args: [6, 4], expected: [[0, 3], [1, 4], [2, 5]]}
+      - {args: [3, 3], expected: [[0, 2]]}
+      - {args: [4, 1], expected: [[0, 0], [1, 1], [2, 2], [3, 3]]}
+      - {args: [1, 1], expected: [[0, 0]]}
+    solution: |
+      class Solution:
+          def windowBounds(self, n: int, k: int) -> List[List[int]]:
+              out = []
+              for r in range(k - 1, n):
+                  l = r - k + 1
+                  out.append([l, r])
+              return out
+    hint: "Loop `r` from `k - 1` to `n - 1`; the window ending at `r` has `k` elements, so it starts at `r - k + 1`."
+
+  - title: Slide the sum, don't recompute it
+    skill: core
+    goal: Update a running window sum in O(1) by adding the entering element and subtracting the leaving one.
+    instructions: |
+      Return a list with the sum of **every** window of size `k`, from left to right.
+
+      Build the first window's sum once, then for each new right end `r`, add `nums[r]` and
+      subtract `nums[r - k]`, the element that just fell out of the left side. Do **not** call
+      `sum()` on each window: that is the O(N·K) brute force in disguise.
+    function:
+      name: windowSums
+      params: [{name: nums}, {name: k}]
+    starter_code: |
+      class Solution:
+          def windowSums(self, nums: List[int], k: int) -> List[int]:
+              pass
+    tests:
+      - {args: [[1, 12, -5, -6, 50, 3], 4], expected: [2, 51, 42]}
+      - {args: [[5], 1], expected: [5]}
+      - {args: [[1, 2, 3, 4], 2], expected: [3, 5, 7]}
+      - {args: [[-1, -2, -3], 3], expected: [-6]}
+    solution: |
+      class Solution:
+          def windowSums(self, nums: List[int], k: int) -> List[int]:
+              window_sum = sum(nums[:k])  # built once
+              sums = [window_sum]
+              for r in range(k, len(nums)):
+                  window_sum += nums[r] - nums[r - k]
+                  sums.append(window_sum)
+              return sums
+    hint: "When `nums[r]` enters a size-`k` window, the element leaving is `nums[r - k]`."
+
+  - title: Seed the best from a real window
+    skill: edge
+    goal: Initialise the best from the first window (not 0) and keep the earliest winner on ties.
+    instructions: |
+      Return the **start index** `l` of the size-`k` window with the largest sum. If several
+      windows tie, return the **earliest** one.
+
+      Two classic bugs live here. Starting `best = 0` silently fails when every window sum is
+      negative: no window ever "beats" 0, so you return a start that was never compared.
+      Seed `best` with the first window instead. And use a strict `>` so a later tie doesn't
+      overwrite an earlier winner.
+    function:
+      name: bestWindowStart
+      params: [{name: nums}, {name: k}]
+    starter_code: |
+      class Solution:
+          def bestWindowStart(self, nums: List[int], k: int) -> int:
+              pass
+    tests:
+      - {args: [[1, 12, -5, -6, 50, 3], 4], expected: 1}
+      - {args: [[-3, -1, -2, -5], 2], expected: 1, note: "all sums negative: -4, -3, -7"}
+      - {args: [[2, 2, 2], 1], expected: 0, note: all tie so keep the earliest}
+      - {args: [[1, 2, 3, 9], 2], expected: 2, note: best at the end}
+      - {args: [[4, 1, 1, 4], 2], expected: 0, note: first and last windows tie}
+    solution: |
+      class Solution:
+          def bestWindowStart(self, nums: List[int], k: int) -> int:
+              window_sum = sum(nums[:k])
+              best, best_l = window_sum, 0  # a real window, not 0
+              for r in range(k, len(nums)):
+                  window_sum += nums[r] - nums[r - k]
+                  if window_sum > best:  # strict: ties keep the earlier start
+                      best, best_l = window_sum, r - k + 1
+              return best_l
+    hint: "Seed `best` with the first window's sum and only replace it when a later window is strictly bigger."
+
+hints:
+  - >-
+    The window starting at i and the window starting at i + 1 share k − 1 elements. If you
+    already know the first sum, how much new work do you really need to get the second?
+  - >-
+    Keep window_sum for nums[l..r]. Each step right, one element enters on the right and one
+    leaves on the left: add nums[r], subtract nums[l], move l forward. Since every window has
+    the same length, which number should you track as "best", the sum or the average?
+  - |
+    window_sum = sum of nums[0 .. k-1]
+    best = window_sum
+    l = 0
+    for r from k to n-1:
+        window_sum = window_sum + nums[r] - nums[l]
+        l = l + 1
+        best = max(best, window_sum)
+    return best / k
+
+solution:
+  code: |
+    class Solution:
+        def findMaxAverage(self, nums: List[int], k: int) -> float:
+            l = 0
+            window_sum = 0
+            for r in range(k):  # build the first window nums[0..k-1]
+                window_sum += nums[r]
+            best = window_sum  # seed with a real window: sums can be negative
+            for r in range(k, len(nums)):
+                window_sum += nums[r] - nums[l]  # nums[r] enters, nums[l] leaves
+                l += 1  # the window is nums[l..r] again, still k long
+                best = max(best, window_sum)
+            return best / k
+  explanation: |
+    The window is always `nums[l..r]` with exactly `k` elements. First we build the sum of
+    the first window, `nums[0..k-1]`. Then each step moves both ends right by one: `nums[r]`
+    joins, `nums[l]` drops out, and the sum is fixed with one addition and one subtraction.
+    That is the entire sliding-window idea: **don't recompute the window, update it.**
+
+    Two small decisions matter. `best` starts as the first window's sum, not `0`, because
+    every window can be negative (`[-1, -12, -5, -6, -50, -3]` with `k = 2` has answer
+    `-5.5`). And we compare **sums**, dividing by `k` only once at the end: with a fixed `k`,
+    the largest sum is the largest average, and integer sums avoid floating-point drift
+    along the way.
+
+    The order inside the loop is "add the new element, remove the old one, then score".
+    Every variable-size window you meet next uses the same rhythm; the only thing that
+    changes is *when* `l` moves.
+  time: O(N) — k steps to build the first window, then one O(1) update per remaining element
+  space: O(1) — just the running sum, the best sum and two indices
+  brute_force_code: |
+    class Solution:
+        def findMaxAverage(self, nums: List[int], k: int) -> float:
+            best = None
+            for i in range(len(nums) - k + 1):
+                total = sum(nums[i:i + k])  # recomputed from scratch every time
+                if best is None or total > best:
+                    best = total
+            return best / k
+
+pitch_script: |
+  **(Clarify)** "So the subarray has to be contiguous and exactly k long, values can be
+  negative, and I return the average as a float, with a small tolerance allowed. k is always
+  between 1 and n, so at least one window exists?"
+
+  **(Brute force)** "The direct approach sums every window of length k from scratch. That's
+  O(N·K) time and O(1) space. With N at 10⁵ and k around half of that, it's billions of
+  additions, so I want something linear."
+
+  **(Trigger)** "'Contiguous' and 'length exactly k' tell me it's a fixed-size sliding window.
+  Two neighbouring windows share k minus 1 elements, so the second sum is just the first sum
+  plus the element that came in minus the element that went out."
+
+  **(Optimal)** "I'll compute the sum of the first k elements and use it as my best. Then I
+  slide: add nums[r], subtract nums[l], move l forward, and update the best sum. Because the
+  length is fixed, the maximum sum gives the maximum average, so I divide by k once at the
+  end. I seed best with the first window rather than zero since everything could be negative."
+
+  **(Complexity)** "That's O(N) time, one add and one subtract per step, and O(1) extra space."
+
+twist:
+  lc: 1343
+  title: Number of Sub-arrays of Size K and Average Greater than or Equal to Threshold
+  why: >-
+    Same fixed window of size k and the same add-right, subtract-left update, but instead of
+    keeping the best sum you count how many windows qualify. Multiply instead of dividing:
+    a window qualifies when window_sum >= threshold * k, which keeps everything in integers.
+
+viz:
+  arrays: [nums]
+  pointers: [l, r]
+  window: [l, r]
+  watch: [window_sum, best, k]

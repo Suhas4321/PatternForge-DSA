@@ -1,0 +1,312 @@
+slug: same-tree
+lc: 100
+
+concept:
+  problem_it_solves: >-
+    "Are these two trees exactly the same, shape and values?" You can't compare trees with one
+    `==`; you have to walk them. Walking both trees in lockstep, one recursive call per pair of
+    matching positions, turns the question into "do these two roots match, and do both pairs of
+    subtrees match?", which stops at the first difference.
+  brute_force: >-
+    Serialise each tree into a list and compare the lists. A plain pre-order or in-order list
+    is *wrong*: [1,2] and [1,null,2] both give pre-order [1, 2], because the list forgets which
+    side a child hung on. Adding a null marker for every missing child fixes correctness, but you
+    still build both complete lists before comparing anything, even when the roots already
+    differ.
+  brute_force_complexity: >-
+    O(N + M) time and O(N + M) extra space, every time — two trees of 100 nodes whose roots differ
+    still get fully serialised (≈ 400 tokens with null markers) before the first comparison.
+  key_insight: >-
+    Write the contract for a call that takes *two* nodes: isSameTree(p, q) returns True if the
+    subtrees rooted at p and q are identical. Then there are only four situations: both None
+    (identical, both empty), exactly one None (different shapes), values differ (different), or
+    values equal, in which case the answer is "left pair is the same AND right pair is the same".
+    Trust the two recursive calls, and let `and` short-circuit at the first False.
+  real_world: >-
+    React's reconciler walks the old and new virtual-DOM trees in lockstep to find what changed,
+    and Jest's toEqual does a recursive deep-equality walk of two objects. Git and Merkle-tree
+    systems (Cassandra anti-entropy repair, IPFS) compare two trees top-down by hash and skip
+    any subtree whose hashes already match.
+
+statement:
+  clean: |
+    Given the roots of two binary trees `p` and `q`, write a function to check if they are the
+    same or not.
+
+    Two binary trees are considered the same if they are **structurally identical**, and the
+    nodes have **the same value**.
+  oa_story: |
+    **VanshVault — OA Round 1**
+
+    VanshVault is a Bengaluru genealogy startup digitising family records. Every lineage record
+    starts from an ancestor, and each person in it lists at most two heirs, in a fixed order:
+    the first heir and the second heir. People are identified by numeric registry IDs. The same
+    family often arrives twice: once from a scanned temple register and once from a relative's
+    upload.
+
+    Before merging two records, the dedup service must decide whether they describe exactly the
+    same lineage: the same ID at the top, and, for every person, the same first heir and the
+    same second heir, all the way down, with nobody missing or extra on either side. Write a
+    function that takes the two records (either may be empty) and returns whether they are
+    identical. Records hold at most 100 people each.
+  trigger_keywords: ["structurally identical", "same value"]
+  examples:
+    - input: "p = [1,2,3], q = [1,2,3]"
+      output: "true"
+    - input: "p = [1,2], q = [1,null,2]"
+      output: "false"
+      explanation: "In p, 2 is the left child; in q it's the right child. Same values, different structure."
+    - input: "p = [1,2,1], q = [1,1,2]"
+      output: "false"
+      explanation: "Same shape, but the values in the children are in swapped positions."
+  constraints:
+    - "The number of nodes in both trees is in the range [0, 100]."
+    - "-10^4 <= Node.val <= 10^4"
+
+constraint_quiz:
+  prompt: >-
+    Tree p has N nodes and tree q has M nodes (each up to 100). What's the best time complexity
+    for deciding whether they're the same?
+  options:
+    - "O(N · M) — compare every node of p against every node of q"
+    - "O(N log N + M log M) — sort both trees' values and compare"
+    - "O(min(N, M)) — walk both in lockstep and stop at the first mismatch"
+    - "O(1) — compare the two roots"
+  answer: 2
+  explanation: >-
+    Comparing every node with every node ignores positions, so it's both slower and wrong.
+    Sorting values throws away the structure, which is half of the definition. The roots alone
+    say nothing about the rest. The lockstep walk only goes deeper while both trees have a node
+    at the same position with the same value, so it touches at most min(N, M) pairs before it
+    either finishes or finds a difference.
+
+pattern_quiz:
+  prompt: >-
+    You must compare two trees position by position, checking both shape and values. Which
+    pattern fits?
+  options:
+    - "Compare the in-order traversals of the two trees"
+    - "Parallel DFS: recurse into (p.left, q.left) and (p.right, q.right) together"
+    - "BFS over p only, checking each value against a set built from q"
+    - "Compare the node counts and the heights of both trees"
+  answer: 1
+  explanation: >-
+    "Structurally identical" plus "same value" means each position in p must be matched with the
+    same position in q, which is exactly what walking both trees together does. In-order lists
+    lose shape (a left-leaning and a right-leaning chain can match), a value set ignores
+    positions completely, and counts and heights are equal for many different trees. A BFS that
+    pushes *pairs* (p_node, q_node) onto a queue also works; it's the iterative version.
+
+function:
+  name: isSameTree
+  params: [{name: p, type: TreeNode}, {name: q, type: TreeNode}]
+
+starter_code: |
+  class Solution:
+      def isSameTree(self, p: Optional[TreeNode], q: Optional[TreeNode]) -> bool:
+          pass
+
+tests:
+  - {args: [[1, 2, 3], [1, 2, 3]], expected: true}
+  - {args: [[1, 2], [1, null, 2]], expected: false, note: "same values, child on a different side"}
+  - {args: [[1, 2, 1], [1, 1, 2]], expected: false, note: "same shape, values swapped"}
+  - {args: [[], []], expected: true, note: "both empty: identical"}
+  - {args: [[], [0]], expected: false, note: exactly one tree is empty}
+  - {args: [[1], [1]], expected: true, note: single nodes}
+  - {args: [[1, 2, 3], [1, 2, 4]], expected: false, note: "roots match, a leaf differs"}
+  - {args: [[1, 2, 3, 4], [1, 2, 3, null, 4]], expected: false, note: "deep down, 4 hangs on a different side"}
+  - {args: [[5, 4, 7, 3, null, 2, null, -1, null, 9], [5, 4, 7, 3, null, 2, null, -1, null, 9]], expected: true, note: "larger identical trees with negatives"}
+visualize_test: 7
+
+drills:
+  - title: Compare one pair of nodes
+    skill: setup
+    goal: Handle the three base situations for a pair of nodes (both None, one None, both present).
+    instructions: |
+      Return `True` if the two **roots alone** match: both are `None`, or both exist and have
+      the same value. Return `False` if exactly one is `None` or the values differ. Ignore the
+      children completely.
+
+      These are the base cases of every two-tree recursion. The order of checks matters: you
+      can't read `p.val` until you know `p` isn't `None`, so deal with the `None` cases first.
+    function:
+      name: rootsMatch
+      params: [{name: p, type: TreeNode}, {name: q, type: TreeNode}]
+    starter_code: |
+      class Solution:
+          def rootsMatch(self, p: Optional[TreeNode], q: Optional[TreeNode]) -> bool:
+              pass
+    tests:
+      - {args: [[], []], expected: true, note: both empty}
+      - {args: [[1], []], expected: false, note: one empty}
+      - {args: [[1, 2], [1, 3]], expected: true, note: "roots equal, children ignored"}
+      - {args: [[2], [3]], expected: false}
+    solution: |
+      class Solution:
+          def rootsMatch(self, p: Optional[TreeNode], q: Optional[TreeNode]) -> bool:
+              if p is None and q is None:
+                  return True
+              if p is None or q is None:
+                  return False
+              return p.val == q.val
+    hint: "Check `p is None and q is None` first, then `p is None or q is None`, and only then compare values."
+
+  - title: Walk two trees in lockstep
+    skill: core
+    goal: Recurse into matching positions of two trees at once and combine the answers.
+    instructions: |
+      Return the **number of positions where both trees have a node** (values don't matter).
+      Position means "same path from the root": root, root.left, root.left.right, and so on.
+
+      This drills the core move of Same Tree: one call handles one *pair* of nodes, and it
+      makes two recursive calls, `(p.left, q.left)` and `(p.right, q.right)`, never mixing a
+      left with a right. As soon as either side is `None`, there's no shared position below,
+      so that pair contributes 0.
+    function:
+      name: overlapCount
+      params: [{name: p, type: TreeNode}, {name: q, type: TreeNode}]
+    starter_code: |
+      class Solution:
+          def overlapCount(self, p: Optional[TreeNode], q: Optional[TreeNode]) -> int:
+              pass
+    tests:
+      - {args: [[1, 2, 3], [9, 8, 7]], expected: 3, note: "same shape, different values"}
+      - {args: [[1, 2], [1, null, 2]], expected: 1, note: "only the roots overlap"}
+      - {args: [[1, 2, 3, 4], [1, 2, null, 5, 6]], expected: 3}
+      - {args: [[], [1]], expected: 0}
+    solution: |
+      class Solution:
+          def overlapCount(self, p: Optional[TreeNode], q: Optional[TreeNode]) -> int:
+              if p is None or q is None:
+                  return 0
+              return 1 + self.overlapCount(p.left, q.left) + self.overlapCount(p.right, q.right)
+    hint: "If either node is None, nothing below overlaps. Otherwise: this pair (1) + left pair + right pair."
+
+  - title: Why null markers matter
+    skill: edge
+    goal: Serialise a tree in pre-order with a marker for every missing child, so different shapes never collide.
+    instructions: |
+      Return the **pre-order** traversal of the tree (node, left subtree, right subtree), but
+      append `None` every time you reach an empty child.
+
+      Without markers, `[1,2]` and `[1,null,2]` both serialise to `[1, 2]` and look identical.
+      With markers they become `[1, 2, None, None, None]` and `[1, None, 2, None, None]`. This
+      is the brute-force way to compare trees, and the same idea powers the fast O(m + n)
+      approach in the next lesson, Subtree of Another Tree.
+    function:
+      name: serialize
+      params: [{name: root, type: TreeNode}]
+    starter_code: |
+      class Solution:
+          def serialize(self, root: Optional[TreeNode]) -> List[Optional[int]]:
+              pass
+    tests:
+      - {args: [[1, 2]], expected: [1, 2, null, null, null]}
+      - {args: [[1, null, 2]], expected: [1, null, 2, null, null], note: "differs from [1,2] only thanks to the markers"}
+      - {args: [[]], expected: [null]}
+      - {args: [[1, 2, 3]], expected: [1, 2, null, null, 3, null, null]}
+    solution: |
+      class Solution:
+          def serialize(self, root: Optional[TreeNode]) -> List[Optional[int]]:
+              if root is None:
+                  return [None]
+              return [root.val] + self.serialize(root.left) + self.serialize(root.right)
+    hint: "An empty subtree serialises to `[None]`, not to `[]`."
+
+hints:
+  - >-
+    If the two roots match, what else has to be true for the two whole trees to match? Can you
+    phrase it as the same question asked about two smaller pairs of trees?
+  - >-
+    isSameTree(p, q) has four cases: both None → True; exactly one None → False; different
+    values → False; otherwise the left pair must match and the right pair must match. Check the
+    None cases before touching .val.
+  - |
+    isSameTree(p, q):
+        if p and q are both empty: return true
+        if exactly one is empty:   return false
+        if p.val != q.val:         return false
+        return isSameTree(p.left, q.left) and isSameTree(p.right, q.right)
+
+solution:
+  code: |
+    class Solution:
+        def isSameTree(self, p: Optional[TreeNode], q: Optional[TreeNode]) -> bool:
+            if p is None and q is None:  # both ran out at the same position
+                return True
+            if p is None or q is None:  # exactly one ran out: the shapes differ
+                return False
+            if p.val != q.val:
+                return False
+            # same value here: both pairs of subtrees must match too ("and" stops at the first False)
+            return self.isSameTree(p.left, q.left) and self.isSameTree(p.right, q.right)
+  explanation: |
+    **What does each call return to its parent?** A bool: "are the two subtrees I was given
+    identical?". The parent combines its children's answers with `and`.
+
+    **Four cases, in this order.** Both `None` means both subtrees are empty at this position:
+    identical. Exactly one `None` means one tree has a node where the other has nothing: not
+    identical. Only after ruling out `None` is it safe to read `.val`. If the values differ,
+    stop. If they're equal, the trees are identical exactly when the left pair matches *and*
+    the right pair matches, and the two recursive calls answer that (trust them).
+
+    **Why this catches shape differences.** `[1,2]` vs `[1,null,2]`: the roots match, then the
+    left pair is `(2, None)`, which hits the "exactly one None" case and returns False. Values
+    alone would never notice.
+
+    **Early exit.** Python's `and` doesn't evaluate the right call if the left one returned
+    False, so the walk stops at the first difference it finds. In the visualizer, follow both
+    trees: the active call always sits on the same position in each.
+
+    **Alternative.** Iteratively, push pairs `(p, q)` onto a stack or queue and apply the same
+    four checks to each pair you pop.
+  time: O(min(N, M)) — the walk only continues below positions where both trees have equal nodes
+  space: O(min(H_p, H_q)) — the recursion only goes as deep as both trees share a path; O(N) for skewed trees
+  brute_force_code: |
+    class Solution:
+        def isSameTree(self, p: Optional[TreeNode], q: Optional[TreeNode]) -> bool:
+            def serialize(node, out):
+                if node is None:
+                    out.append(None)  # the marker keeps [1,2] and [1,null,2] apart
+                    return
+                out.append(node.val)
+                serialize(node.left, out)
+                serialize(node.right, out)
+
+            a, b = [], []
+            serialize(p, a)
+            serialize(q, b)
+            return a == b
+
+pitch_script: |
+  **(Clarify)** "Same means same shape and the same value at every position, right? And either
+  tree could be empty, in which case they're the same only if both are empty?"
+
+  **(Brute force)** "I could serialise both trees in pre-order with null markers and compare the
+  lists. The markers are essential, otherwise a left child and a right child look the same.
+  That's linear, but it always builds both full lists even if the roots differ."
+
+  **(Trigger)** "Since I'm comparing positions, I'll walk both trees together. Two trees are the
+  same if their roots match and both pairs of subtrees are the same, which is the same question
+  on smaller trees."
+
+  **(Optimal)** "My function takes two nodes. If both are null, return true. If only one is
+  null, return false. If the values differ, return false. Otherwise return same of the left
+  children and same of the right children. The and short-circuits, so I stop at the first
+  mismatch."
+
+  **(Complexity)** "I visit each shared position at most once, so O(min(N, M)) time, and the
+  recursion depth is bounded by the shallower shared height: O(H) space, O(N) in the worst
+  case for a skewed tree."
+
+twist:
+  lc: 617
+  title: Merge Two Binary Trees
+  why: >-
+    Same lockstep walk over two trees, but the call now returns a node instead of a bool. The
+    None cases change meaning: if one side is None, just return the other side (its whole
+    subtree is reused as-is); if both exist, create a node with the summed value whose left is
+    merge(p.left, q.left) and whose right is merge(p.right, q.right). Same pairing, different
+    answer sent back to the parent.
+
+viz: {}  # both trees are drawn; the active call's p is highlighted, q is labelled

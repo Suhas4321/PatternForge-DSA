@@ -1,0 +1,320 @@
+slug: binary-search
+lc: 704
+
+concept:
+  problem_it_solves: >-
+    "Is this value in a sorted list, and where?" Sortedness means one comparison tells you
+    more than "yes" or "no": if the middle value is too small, then everything to its left
+    is too small as well. So each probe can throw away half of what is left, and a list of
+    10⁴ values needs at most 14 probes instead of 10⁴.
+  brute_force: >-
+    Scan from index 0 and compare every element with target. It ignores the one thing the
+    problem gives you: after seeing that nums[i] < target, you still read nums[i + 1],
+    nums[i + 2], … one by one, even though sortedness already told you about all of them.
+  brute_force_complexity: O(N) time, O(1) space — 10⁴ elements means up to 10⁴ comparisons, where 14 would do.
+  key_insight: >-
+    Keep a range [lo, hi] with one promise: "if target exists, it is inside [lo, hi]".
+    Probe the middle. If nums[mid] is too small, mid and everything left of it can't be the
+    answer, so lo = mid + 1. If it is too big, hi = mid − 1. Each probe keeps the promise
+    and halves the range, and when the range is empty (lo > hi) the promise says target was
+    never there.
+  real_world: >-
+    Database indexes (B+ trees in PostgreSQL and MySQL InnoDB) binary search the sorted keys
+    inside each page, and Kafka binary searches its offset index files to find a message.
+    git bisect runs the same halving over commit history. The famous overflow bug, where
+    (lo + hi) / 2 exceeds the int range, sat in Java's Arrays.binarySearch for about nine
+    years until it was fixed in 2006.
+
+statement:
+  clean: |
+    Given an array of integers `nums` which is **sorted in ascending order**, and an integer
+    `target`, write a function to search `target` in `nums`. If `target` exists, return its
+    **index**. Otherwise, return `-1`.
+
+    All the integers in `nums` are unique. You must write an algorithm with
+    O(log n) runtime complexity.
+  oa_story: |
+    **MandiMetrics — OA Round 1**
+
+    MandiMetrics digitises the Yeshwanthpur APMC market. Every auction lot that enters the
+    yard is given a numeric lot code, and the day's lot register is printed with codes
+    increasing from top to bottom; no code repeats. Traders on the MandiMetrics app type in
+    a lot code to see where it sits in the register, so they can jump straight to its bids.
+
+    Given the register as a list of lot codes and the code a trader typed, return the
+    (0-indexed) position of that code, or `-1` if the lot was never registered. The app runs
+    on budget phones over patchy 2G at the mandi, and every read of a register entry is a
+    separate network call, so the lookup must touch as few entries as possible: a register
+    of 10,000 lots should need only a handful of reads.
+  trigger_keywords: ["sorted in ascending order", "O(log n) runtime complexity"]
+  examples:
+    - input: "nums = [-1,0,3,5,9,12], target = 9"
+      output: "4"
+      explanation: "9 exists in nums and its index is 4."
+    - input: "nums = [-1,0,3,5,9,12], target = 2"
+      output: "-1"
+      explanation: "2 does not exist in nums, so return -1."
+  constraints:
+    - "1 <= nums.length <= 10^4"
+    - "-10^4 < nums[i], target < 10^4"
+    - "All the integers in nums are unique."
+    - "nums is sorted in ascending order."
+
+constraint_quiz:
+  prompt: >-
+    N is at most 10⁴ and the statement demands O(log n). Which complexity does that rule
+    in, and why is the plain scan not enough?
+  options: ["O(N)", "O(log N)", "O(N log N)", "O(1)"]
+  answer: 1
+  explanation: >-
+    O(N) would pass the clock at 10⁴ elements, but the statement explicitly forbids it, and
+    in an interview a linear scan here signals you missed the sorted input. O(log N) is
+    about 14 probes for 10⁴ elements. O(N log N) is worse than just scanning (it is the
+    cost of sorting, and the input is already sorted). O(1) is impossible: without looking
+    at any element you can't know whether target is present.
+
+pattern_quiz:
+  prompt: The array is sorted, values are unique, and you need O(log n). Which pattern fits?
+  options:
+    - "Linear scan with an early exit once nums[i] > target"
+    - "Put the values in a hash set, then look up target"
+    - "Binary search: compare the middle element and discard half the range"
+    - "Two pointers moving inward from both ends"
+  answer: 2
+  explanation: >-
+    "Sorted" plus "O(log n)" is the loudest binary search trigger there is. The early-exit
+    scan is still O(N) in the worst case. A hash set gives O(1) lookups but costs O(N) time
+    to build and O(N) space, and it can't give you the index cheaply. Two pointers from the
+    ends move one step per comparison, so they are O(N) too. Only halving reaches O(log N).
+
+function:
+  name: search
+  params: [{name: nums}, {name: target}]
+
+starter_code: |
+  class Solution:
+      def search(self, nums: List[int], target: int) -> int:
+          pass
+
+tests:
+  - {args: [[-1, 0, 3, 5, 9, 12], 9], expected: 4}
+  - {args: [[-1, 0, 3, 5, 9, 12], 2], expected: -1, note: absent value that falls between two elements}
+  - {args: [[5], 5], expected: 0, note: "single element, found: needs lo <= hi, not lo < hi"}
+  - {args: [[5], -5], expected: -1, note: single element and not found}
+  - {args: [[-1, 0, 3, 5, 9, 12], -1], expected: 0, note: target at the left end}
+  - {args: [[-1, 0, 3, 5, 9, 12], 12], expected: 5, note: target at the right end}
+  - {args: [[2, 4, 6, 8, 10, 12, 14], 1], expected: -1, note: smaller than everything (hi falls to -1)}
+  - {args: [[2, 4, 6, 8, 10, 12, 14], 15], expected: -1, note: larger than everything (lo runs to len(nums))}
+  - {args: [[-9999, -42, 0, 7, 9999], 9999], expected: 4, note: extreme values}
+visualize_test: 0
+
+drills:
+  - title: Watch the search space halve
+    skill: setup
+    goal: Write the lo/hi initialisation and the `while lo <= hi` loop, and see the range shrink by half each step.
+    instructions: |
+      Pretend the target is larger than every element, so every probe moves right
+      (`lo = mid + 1`). Starting from `lo, hi = 0, n - 1`, return the **size of the search
+      space** (`hi - lo + 1`) at the start of every iteration.
+
+      This is the skeleton of every binary search in this world: two indices that bound the
+      remaining candidates, a loop that runs **while the range is non-empty** (`lo <= hi`,
+      so a one-element range is still checked), and a midpoint computed as
+      `lo + (hi - lo) // 2`. The output shows why it is O(log N): 8 → 4 → 2 → 1.
+    function:
+      name: searchSpaceSizes
+      params: [{name: n}]
+    starter_code: |
+      class Solution:
+          def searchSpaceSizes(self, n: int) -> List[int]:
+              pass
+    tests:
+      - {args: [6], expected: [6, 3, 1]}
+      - {args: [8], expected: [8, 4, 2, 1]}
+      - {args: [7], expected: [7, 3, 1]}
+      - {args: [1], expected: [1], note: a one-element range still runs once}
+      - {args: [0], expected: [], note: "empty range: hi = -1, the loop never runs"}
+    solution: |
+      class Solution:
+          def searchSpaceSizes(self, n: int) -> List[int]:
+              lo, hi = 0, n - 1
+              sizes = []
+              while lo <= hi:
+                  sizes.append(hi - lo + 1)
+                  mid = lo + (hi - lo) // 2
+                  lo = mid + 1  # target is bigger than nums[mid]: drop mid and its left
+              return sizes
+    hint: "Record `hi - lo + 1` first, then compute `mid` and set `lo = mid + 1`."
+
+  - title: The three-way decision at mid
+    skill: core
+    goal: Compare nums[mid] with target and move the correct bound past mid, never onto it.
+    instructions: |
+      Run the classic search, but return the list of **values** `nums[mid]` you probed, in
+      order, stopping when you find `target` or the range becomes empty.
+
+      This drills the heart of the algorithm: equal means stop; too small means the answer
+      can only be to the right, so `lo = mid + 1`; too big means `hi = mid - 1`. The `+ 1`
+      and `- 1` matter: mid has been checked and ruled out, and keeping it in the range is
+      how infinite loops start.
+    function:
+      name: probedValues
+      params: [{name: nums}, {name: target}]
+    starter_code: |
+      class Solution:
+          def probedValues(self, nums: List[int], target: int) -> List[int]:
+              pass
+    tests:
+      - {args: [[-1, 0, 3, 5, 9, 12], 9], expected: [3, 9]}
+      - {args: [[-1, 0, 3, 5, 9, 12], 2], expected: [3, -1, 0]}
+      - {args: [[1, 3, 5, 7, 9, 11, 13], 13], expected: [7, 11, 13]}
+      - {args: [[5], 5], expected: [5]}
+    solution: |
+      class Solution:
+          def probedValues(self, nums: List[int], target: int) -> List[int]:
+              lo, hi = 0, len(nums) - 1
+              seen = []
+              while lo <= hi:
+                  mid = lo + (hi - lo) // 2
+                  seen.append(nums[mid])
+                  if nums[mid] == target:
+                      break
+                  if nums[mid] < target:
+                      lo = mid + 1
+                  else:
+                      hi = mid - 1
+              return seen
+    hint: "Append `nums[mid]` before deciding; `break` on equality, otherwise move `lo` or `hi` past `mid`."
+
+  - title: Where the pointers land on a miss
+    skill: edge
+    goal: Know exactly where lo and hi end up when target is absent, and why the loop's exit means "not found".
+    instructions: |
+      Every target in these tests is **absent**. Run the search (no early return needed) and
+      return `[lo, hi]` as they are **after** the loop ends.
+
+      You'll see the same shape every time: `hi == lo - 1`, so the range is empty, which is
+      exactly when returning `-1` is safe. And `lo` is always the index where target *would*
+      be inserted. That fact is the whole of the next lesson, Search Insert Position.
+    function:
+      name: finalBounds
+      params: [{name: nums}, {name: target}]
+    starter_code: |
+      class Solution:
+          def finalBounds(self, nums: List[int], target: int) -> List[int]:
+              pass
+    tests:
+      - {args: [[-1, 0, 3, 5, 9, 12], 2], expected: [2, 1]}
+      - {args: [[-1, 0, 3, 5, 9, 12], 13], expected: [6, 5], note: lo runs past the end}
+      - {args: [[-1, 0, 3, 5, 9, 12], -5], expected: [0, -1], note: hi runs past the start}
+      - {args: [[5], 7], expected: [1, 0]}
+    solution: |
+      class Solution:
+          def finalBounds(self, nums: List[int], target: int) -> List[int]:
+              lo, hi = 0, len(nums) - 1
+              while lo <= hi:
+                  mid = lo + (hi - lo) // 2
+                  if nums[mid] < target:
+                      lo = mid + 1
+                  else:
+                      hi = mid - 1
+              return [lo, hi]
+    hint: "Same loop without the equality return; the answer is just `[lo, hi]` after it."
+
+hints:
+  - >-
+    You compare target with the middle element and it is smaller. What do you now know
+    about every element to the right of the middle, without reading any of them?
+  - >-
+    Keep lo and hi so that target, if present, is always inside [lo, hi]. At each step look
+    at mid: equal means done, too small means lo = mid + 1, too big means hi = mid − 1. The
+    loop must run while lo <= hi, because a range with one element still needs checking.
+  - |
+    lo = 0, hi = len(nums) - 1
+    while lo <= hi:
+        mid = lo + (hi - lo) // 2
+        if nums[mid] == target: return mid
+        if nums[mid] < target: lo = mid + 1     # answer can only be right of mid
+        else:                  hi = mid - 1     # answer can only be left of mid
+    return -1                                   # range is empty
+
+solution:
+  code: |
+    class Solution:
+        def search(self, nums: List[int], target: int) -> int:
+            lo, hi = 0, len(nums) - 1  # invariant: if target exists, it is in nums[lo..hi]
+            while lo <= hi:  # range is non-empty
+                mid = lo + (hi - lo) // 2  # same as (lo + hi) // 2, but can't overflow in Java/C++
+                if nums[mid] == target:
+                    return mid
+                if nums[mid] < target:
+                    lo = mid + 1  # mid and everything left of it are too small
+                else:
+                    hi = mid - 1  # mid and everything right of it are too big
+            return -1  # lo > hi: the range is empty, so target was never there
+  explanation: |
+    The whole algorithm is one promise, the **loop invariant**: *if target is in the array,
+    it is inside `nums[lo..hi]`*. It is true at the start (the range is the whole array),
+    and every move keeps it true. If `nums[mid] < target`, then because the array is sorted
+    `nums[0..mid]` are all smaller than target, so throwing them away with `lo = mid + 1`
+    can't lose the answer. The `hi = mid - 1` case is the mirror image.
+
+    The loop runs `while lo <= hi`, meaning "while the range still holds at least one
+    element". With `lo < hi` you would stop with one unchecked candidate, and `[5]` with
+    target 5 would wrongly return -1. When the loop exits, `lo == hi + 1`: the range is
+    empty, and the invariant tells you target isn't anywhere.
+
+    Both moves skip **past** mid (`+ 1` / `- 1`) because mid was just checked. That is also
+    what guarantees progress: the range shrinks by at least one every iteration, so the loop
+    always ends.
+
+    `mid = lo + (hi - lo) // 2` gives the same number as `(lo + hi) // 2`. In Python
+    integers never overflow, but in Java or C++ `lo + hi` can exceed 2³¹ − 1 on huge arrays
+    and wrap to a negative index. Writing it the safe way everywhere is a good habit, and
+    interviewers notice it.
+  time: O(log N) — the range halves on every probe, so at most ⌊log₂ N⌋ + 1 iterations (14 for N = 10⁴)
+  space: O(1) — three integer indices
+  brute_force_code: |
+    class Solution:
+        def search(self, nums: List[int], target: int) -> int:
+            for i, x in enumerate(nums):
+                if x == target:
+                    return i
+            return -1
+
+pitch_script: |
+  **(Clarify)** "The array is sorted ascending with unique values, I return the index of
+  target or -1 if it's missing, and the requirement is O(log n). Can the array be empty? The
+  constraints say at least one element, but my code will handle empty anyway."
+
+  **(Brute force)** "A linear scan works and is O(N) time, O(1) space, but it throws away
+  the sortedness. Once I see a value smaller than target, I already know everything before
+  it is smaller too."
+
+  **(Trigger)** "Sorted input plus a log n requirement says binary search. One comparison
+  with the middle element tells me which half can't contain target, so I can discard it."
+
+  **(Optimal)** "I keep lo and hi with the invariant that target, if present, is inside
+  lo to hi. While lo is at most hi, I take mid as lo plus half the gap, which avoids
+  overflow in languages with fixed-size ints. If nums[mid] equals target I return mid. If
+  it's smaller I move lo to mid plus one, otherwise hi to mid minus one; I skip past mid
+  because it's already been checked. When lo passes hi the range is empty, so I return -1."
+
+  **(Complexity)** "The range halves each iteration, so it's O(log N) time, about 14 probes
+  for 10⁴ elements, and O(1) extra space."
+
+twist:
+  lc: 374
+  title: Guess Number Higher or Lower
+  why: >-
+    There's no array at all: the search space is the numbers 1..n, and instead of reading
+    nums[mid] you call guess(mid), which says higher, lower or correct. The template is
+    identical with lo = 1, hi = n. Because n can be 2³¹ − 1, this is exactly where
+    (lo + hi) / 2 overflows in Java or C++, so lo + (hi − lo) / 2 stops being a style point
+    and becomes the difference between passing and failing.
+
+viz:
+  arrays: [nums]
+  pointers: [lo, hi, mid]
+  window: [lo, hi]
+  watch: [target]

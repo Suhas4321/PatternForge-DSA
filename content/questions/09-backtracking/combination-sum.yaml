@@ -1,0 +1,397 @@
+slug: combination-sum
+lc: 39
+
+concept:
+  problem_it_solves: >-
+    "Which multisets of these numbers add up exactly to the target, if each number can be used
+    as many times as you like?" Unlimited reuse makes the search tree deeper (2 + 2 + 2 + …), and
+    order must not matter ([2, 2, 3] and [3, 2, 2] are one answer). Backtracking with a start
+    index handles both: you may pick the same number again, but never go back to an earlier one.
+  brute_force: >-
+    At every step, try *every* candidate again, from the first one, until the running sum hits
+    or passes the target; then sort each hit and dedupe with a set. This explores every
+    ordering of every combination: [2, 2, 3] is built as 2+2+3, 2+3+2 and 3+2+2, and two of
+    those are thrown away. It also keeps adding numbers after the sum is already too big
+    unless you check for that.
+  brute_force_complexity: >-
+    O(N^(T/M + 1)) time (T = target, M = min(candidates)), the same worst-case bound as
+    backtracking, but with no ordering rule the tree really is that big: a combination of
+    length L is rebuilt once per distinct ordering, up to L! times, before the set removes the
+    copies. For [2, 3, 6, 7] and target 7 it reaches 2+2+3 three times to keep it once.
+  key_insight: >-
+    Fix an order on choices: combinations are built in non-decreasing index order. dfs(start,
+    remain) may pick candidates[i] for any i ≥ start, and then recurses with dfs(i, remain −
+    candidates[i]). Passing i (not i + 1) allows picking the same number again; never going
+    below i means [3, 2] can't be built after [2, 3] exists. Sort the candidates and you can
+    stop the loop the moment one candidate is bigger than what remains, because every later
+    one is bigger too.
+  real_world: >-
+    ATMs and cash-recycling machines decide which note combinations dispense an amount from
+    the denominations in the cassettes. E-commerce checkouts that stack vouchers or gift
+    cards to hit an exact bill, and cloud cost tools that combine instance sizes to reach a
+    capacity target, run the same search with pruning on the remaining amount.
+
+statement:
+  clean: |
+    Given an array of **distinct** integers `candidates` and a target integer `target`, return
+    a list of all **unique combinations** of `candidates` where the chosen numbers
+    sum to target. You may return the combinations in **any order**.
+
+    The **same** number may be chosen from `candidates` an **unlimited number of times**. Two
+    combinations are unique if the frequency of at least one of the chosen numbers is
+    different.
+
+    The test cases are generated such that the number of unique combinations that sum up to
+    `target` is less than `150` combinations for the given input.
+  oa_story: |
+    **CoinKatha — OA Round 1**
+
+    CoinKatha is a Koramangala fintech that issues digital gift vouchers for corporate reward
+    programmes. Vouchers come in a fixed set of distinct denominations, and the treasury can
+    mint as many vouchers of any denomination as needed. When an employee redeems their reward
+    balance of `target` rupees, the app shows every way the balance can be paid out exactly in
+    vouchers, so the employee can pick the split they like.
+
+    Given the list of denominations and the balance, return every distinct payout: a payout is
+    a list of voucher denominations whose values add up exactly to the balance. Two payouts are
+    the same if they use the same number of vouchers of each denomination, whatever the order,
+    and no payout may be listed twice. Balances are at most 40 rupees, the smallest voucher is
+    2 rupees, and there are fewer than 150 valid payouts for any input.
+  trigger_keywords: ["unique combinations", "sum to target", "unlimited number of times"]
+  examples:
+    - input: "candidates = [2,3,6,7], target = 7"
+      output: "[[2,2,3],[7]]"
+      explanation: "2 can be used twice: 2 + 2 + 3 = 7. 7 alone is also a combination."
+    - input: "candidates = [2,3,5], target = 8"
+      output: "[[2,2,2,2],[2,3,3],[3,5]]"
+    - input: "candidates = [2], target = 1"
+      output: "[]"
+      explanation: "Nothing small enough to make 1."
+  constraints:
+    - "1 <= candidates.length <= 30"
+    - "2 <= candidates[i] <= 40"
+    - "All elements of candidates are distinct."
+    - "1 <= target <= 40"
+
+constraint_quiz:
+  prompt: >-
+    target ≤ 40, every candidate is at least 2, there are at most 30 candidates, and fewer than
+    150 answers. What does that tell you about the search you can afford?
+  options:
+    - "Only O(N log N) passes, so a greedy choice is required"
+    - "Exponential backtracking is fine: no combination is longer than target / min = 20, and pruning on the remaining sum keeps the tree small"
+    - "You must use an O(N · target) DP table, because backtracking is too slow for N = 30"
+    - "Enumerate all 2^30 subsets of candidates and check each sum"
+  answer: 1
+  explanation: >-
+    The tiny target and the "fewer than 150 combinations" guarantee are the signal that an
+    exhaustive search is intended. Each path is at most 40 / 2 = 20 numbers deep, and sorting
+    lets you cut a branch as soon as a candidate exceeds what remains. Greedy can't list every
+    answer. A DP table can count combinations (Coin Change II) but listing them still needs a
+    search. 2^30 subsets is 10⁹ checks, and subsets can't even reuse a number.
+
+pattern_quiz:
+  prompt: >-
+    Return all unique combinations that sum to a target when each number may be used any
+    number of times. Which pattern fits?
+  options:
+    - "Backtracking with a start index, recursing on the same index i to allow reuse"
+    - "Backtracking with a used[] array, like Permutations"
+    - "Sliding window over the sorted candidates"
+    - "Two pointers from both ends of the sorted candidates"
+  answer: 0
+  explanation: >-
+    "All unique combinations" means generate them, so backtracking. Order must not matter, so
+    you need the start index from Subsets: it builds each multiset in one fixed order. Reuse is
+    the twist: recurse with i instead of i + 1 so the same number stays available. used[] is
+    for orderings and would produce [2, 3] and [3, 2] separately. Windows and two pointers find
+    pairs or contiguous ranges, not multisets of any length.
+
+function:
+  name: combinationSum
+  params: [{name: candidates}, {name: target}]
+  compare: unordered_nested
+
+starter_code: |
+  class Solution:
+      def combinationSum(self, candidates: List[int], target: int) -> List[List[int]]:
+          pass
+
+tests:
+  - {args: [[2, 3, 6, 7], 7], expected: [[2, 2, 3], [7]]}
+  - {args: [[2, 3, 5], 8], expected: [[2, 2, 2, 2], [2, 3, 3], [3, 5]]}
+  - {args: [[2], 1], expected: [], note: "no combination: return an empty list"}
+  - {args: [[2, 3], 6], expected: [[2, 2, 2], [3, 3]], note: "reuse: 2 + 2 + 2, and 3 + 3 appears once"}
+  - {args: [[7, 3, 2], 7], expected: [[2, 2, 3], [7]], note: "unsorted input: sort before you rely on break"}
+  - {args: [[8, 10], 5], expected: [], note: every candidate is bigger than the target}
+  - {args: [[5, 10, 25], 30], expected: [[5, 5, 5, 5, 5, 5], [5, 5, 5, 5, 10], [5, 5, 10, 10], [5, 25], [10, 10, 10]]}
+  - {args: [[2], 40], expected: [[2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2]], note: "deepest case: one candidate reused 20 times"}
+  - {args: [[40], 40], expected: [[40]], note: "a single candidate equal to the target"}
+visualize_test: 3
+
+drills:
+  - title: Sort, then break at the first overshoot
+    skill: setup
+    goal: Sort the candidates and stop the loop at the first candidate larger than the remaining amount.
+    instructions: |
+      Return, in ascending order, every candidate that is **at most** `remain`, using a sorted
+      loop that **breaks** at the first candidate that is too big (no filtering of the whole
+      list).
+
+      This is the pruning step of Combination Sum. Once the candidates are sorted, if
+      `candidates[i] > remain` then every later candidate is bigger as well, so `break` (end
+      the whole loop), not `continue`. Use `>` and not `>=`: a candidate equal to `remain`
+      finishes the combination exactly, and you must keep it.
+    function:
+      name: affordable
+      params: [{name: candidates}, {name: remain}]
+    starter_code: |
+      class Solution:
+          def affordable(self, candidates: List[int], remain: int) -> List[int]:
+              pass
+    tests:
+      - {args: [[7, 3, 2, 6], 5], expected: [2, 3]}
+      - {args: [[8, 10], 5], expected: [], note: nothing fits}
+      - {args: [[2, 3], 3], expected: [2, 3], note: "equal to remain is allowed"}
+      - {args: [[4], 4], expected: [4]}
+    solution: |
+      class Solution:
+          def affordable(self, candidates: List[int], remain: int) -> List[int]:
+              out = []
+              for c in sorted(candidates):
+                  if c > remain:
+                      break
+                  out.append(c)
+              return out
+    hint: "`break` is only safe because the list is sorted."
+
+  - title: Recurse on i, not i + 1
+    skill: core
+    goal: Allow reuse by recursing with the same start index, while the start index still prevents reordered duplicates.
+    instructions: |
+      Return the **number** of combinations of `coins` (each usable any number of times) that
+      add up to `amount`. Order doesn't matter: 1 + 2 + 2 and 2 + 1 + 2 are the same
+      combination.
+
+      Write `dfs(start, remain)` that returns a count: 1 when `remain == 0`, otherwise the
+      sum of `dfs(i, remain - coins[i])` over `i` from `start`. The start index is doing two
+      jobs. Recursing on **`i`** keeps `coins[i]` available, so 2 + 2 is possible. Never going
+      **below** `i` means a combination can only be built in one order. Change it to `i + 1`
+      and you lose reuse (`[2], 4` would give 0); loop from 0 instead of `start` and you count
+      orderings (`[1, 2], 3` would give 3 instead of 2).
+    function:
+      name: countCombinations
+      params: [{name: coins}, {name: amount}]
+    starter_code: |
+      class Solution:
+          def countCombinations(self, coins: List[int], amount: int) -> int:
+              pass
+    tests:
+      - {args: [[1, 2, 5], 5], expected: 4, note: "5, 2+2+1, 2+1+1+1, 1+1+1+1+1"}
+      - {args: [[2], 3], expected: 0}
+      - {args: [[2], 4], expected: 1, note: "reuse: 2 + 2"}
+      - {args: [[1, 2], 3], expected: 2, note: "1+1+1 and 1+2; 2+1 is the same combination"}
+      - {args: [[3, 5, 2], 8], expected: 3}
+    solution: |
+      class Solution:
+          def countCombinations(self, coins: List[int], amount: int) -> int:
+              coins.sort()
+
+              def dfs(start, remain):
+                  if remain == 0:
+                      return 1
+                  total = 0
+                  for i in range(start, len(coins)):
+                      if coins[i] > remain:
+                          break
+                      total += dfs(i, remain - coins[i])
+                  return total
+
+              return dfs(0, amount)
+    hint: "The recursive call is `dfs(i, remain - coins[i])`."
+
+  - title: Stop at the first answer
+    skill: edge
+    goal: Return as soon as one combination is found by propagating True up the call stack, and return [] when there is none.
+    instructions: |
+      Return the **first** combination found when candidates are sorted and tried smallest
+      first (that is the lexicographically smallest one), or `[]` if none exists.
+      `[2, 3, 6, 7], 7` gives `[2, 2, 3]`.
+
+      OA variants often ask for *one* way, or whether *any* way exists. Make `dfs` return
+      `True` the moment `remain == 0`, and have every caller return `True` straight away when
+      its child does, **without popping**, so `path` still holds the answer when the top call
+      returns. If the loop finishes with no success, pop as usual and return `False`. The
+      edge case is the empty result: when the top call returns `False`, return `[]`.
+    function:
+      name: firstCombination
+      params: [{name: candidates}, {name: target}]
+    starter_code: |
+      class Solution:
+          def firstCombination(self, candidates: List[int], target: int) -> List[int]:
+              pass
+    tests:
+      - {args: [[2, 3, 6, 7], 7], expected: [2, 2, 3]}
+      - {args: [[2], 1], expected: [], note: no combination at all}
+      - {args: [[3, 5], 5], expected: [5], note: "3 + … dead-ends first, then 5 works"}
+      - {args: [[5, 3], 11], expected: [3, 3, 5], note: unsorted input}
+      - {args: [[7, 4], 15], expected: [4, 4, 7]}
+    solution: |
+      class Solution:
+          def firstCombination(self, candidates: List[int], target: int) -> List[int]:
+              candidates.sort()
+              path = []
+
+              def dfs(start, remain):
+                  if remain == 0:
+                      return True
+                  for i in range(start, len(candidates)):
+                      if candidates[i] > remain:
+                          break
+                      path.append(candidates[i])
+                      if dfs(i, remain - candidates[i]):
+                          return True  # keep path intact: it is the answer
+                      path.pop()
+                  return False
+
+              return path[:] if dfs(0, target) else []
+    hint: "`if dfs(...): return True` goes right after the recursive call, before the pop."
+
+hints:
+  - >-
+    Think of it as Subsets where each element can be taken again. Which part of the Subsets
+    loop stops you from taking nums[i] twice, and which part stops [3, 2] from being built
+    after [2, 3]? Keep the second, drop the first.
+  - >-
+    dfs(start, remain): if remain is 0, record a copy of path. Otherwise loop i from start;
+    if candidates[i] is bigger than remain, stop (the list is sorted). Else append it, recurse
+    with dfs(i, remain − candidates[i]) — i, not i + 1, so it can be picked again — and pop.
+  - |
+    sort candidates
+    dfs(start, remain):
+        if remain == 0: record a copy of path; return
+        for i from start to n - 1:
+            if candidates[i] > remain: break        (sorted: all later ones overshoot too)
+            append candidates[i]                    (choose)
+            dfs(i, remain - candidates[i])          (explore; i, so it can be reused)
+            pop                                     (un-choose)
+    dfs(0, target); return res
+
+solution:
+  code: |
+    class Solution:
+        def combinationSum(self, candidates: List[int], target: int) -> List[List[int]]:
+            candidates.sort()  # ascending, so the first candidate that is too big ends the loop
+            res = []
+            path = []
+
+            def dfs(start, remain):
+                if remain == 0:  # path adds up to exactly target
+                    res.append(path[:])
+                    return
+                for i in range(start, len(candidates)):
+                    c = candidates[i]
+                    if c > remain:  # c and every later candidate would overshoot
+                        break
+                    path.append(c)  # choose
+                    dfs(i, remain - c)  # explore: i, not i + 1, so c can be picked again
+                    path.pop()  # un-choose
+
+            dfs(0, target)
+            return res
+  explanation: |
+    **The one change from Subsets.** Start from the loop form of the Subsets template:
+    loop `i` from `start`, choose, `dfs(i + 1)`, un-choose. Combination Sum changes the
+    recursive call to **`dfs(i, …)`**. The start index still means "never go back to an
+    earlier candidate", which is what makes `[2, 3]` and `[3, 2]` impossible to build twice.
+    But "the same one again" is now allowed, which is what unlimited reuse means. The rest is
+    bookkeeping for a sum: `remain` replaces "how many elements", the leaf is `remain == 0`
+    instead of "every node", and the sort lets you prune.
+
+    **The tree for `[2, 3]`, target 6.** Edges are the candidate picked; each node shows
+    `(start, remain)`:
+
+    ```
+                       dfs(0, 6)
+                   +2 /         \ +3
+             dfs(0, 4)          dfs(1, 3)
+           +2 /     \ +3            | +3
+      dfs(0, 2)   dfs(1, 1)      dfs(1, 0) → [3, 3]
+         | +2       (3 > 1: break)
+      dfs(0, 0) → [2, 2, 2]
+    ```
+
+    Inside `dfs(0, 2)` the loop reaches 3, sees `3 > 2` and stops. Note what's missing: no
+    node ever picks 2 after 3, because once the loop has moved to index 1, recursive calls
+    start at 1.
+
+    **Pruning.** Without sorting you'd recurse into negative `remain` and need an
+    `if remain < 0: return` base case, which works but pays for a call per overshoot. With
+    sorted candidates, the first `c > remain` proves that every later candidate overshoots
+    too, so `break` cuts all of them at once. Use `>`, not `>=`: `c == remain` is a hit.
+
+    **Why it terminates.** Every candidate is at least 2, so `remain` strictly decreases on
+    every call, and the depth is at most `target / min(candidates)` = 20.
+  time: >-
+    O(N^(T/M + 1)) worst case, where T = target and M = min(candidates): the tree is at most
+    T/M deep with at most N children per node; pruning makes it far smaller in practice, and
+    each answer costs O(T/M) to copy
+  space: O(T/M) — recursion depth and path length are at most target / min(candidates) (output not counted)
+  brute_force_code: |
+    class Solution:
+        def combinationSum(self, candidates: List[int], target: int) -> List[List[int]]:
+            seen = set()
+            seq = []
+
+            def go(remain):
+                if remain == 0:
+                    seen.add(tuple(sorted(seq)))  # every ordering collapses to one key
+                    return
+                if remain < 0:
+                    return
+                for c in candidates:  # no start index: every order gets explored
+                    seq.append(c)
+                    go(remain - c)
+                    seq.pop()
+
+            go(target)
+            return [list(t) for t in seen]
+
+pitch_script: |
+  **(Clarify)** "Candidates are distinct and positive, each can be used any number of times,
+  and two combinations are the same if they use the same counts, so order doesn't matter. I
+  return all of them in any order, or an empty list if there are none."
+
+  **(Brute force)** "I could recurse by trying every candidate at every step until I hit or
+  pass the target, then sort each hit and dedupe with a set. That builds every ordering of
+  every combination, so 2+2+3 gets built three times, and it's wasted work."
+
+  **(Trigger)** "'All unique combinations' with a small target means backtracking. Order not
+  mattering means a start index, like Subsets. 'Unlimited number of times' means I recurse on
+  the same index instead of the next one."
+
+  **(Optimal)** "I sort the candidates and write dfs(start, remain). If remain is 0, I record a
+  copy of the path. Otherwise I loop i from start; if candidates[i] is more than remain I break,
+  since everything after it is bigger. Otherwise I append it, recurse with dfs(i, remain minus
+  candidates[i]) so it can be reused, and pop. Starting from i, never earlier, is what stops
+  [3, 2] from appearing after [2, 3]."
+
+  **(Complexity)** "The depth is at most target over the smallest candidate, here 20, and each
+  node has at most N children, so the worst case is exponential, O(N^(T/M + 1)), but the
+  pruning and the guarantee of fewer than 150 answers keep it small. Extra space is O(T/M) for
+  the recursion and the path."
+
+twist:
+  lc: 216
+  title: Combination Sum III
+  why: >-
+    Now the candidates are fixed as 1 to 9, each usable at most once, and the combination must
+    have exactly k numbers. Two lines change: recurse with i + 1 instead of i (no reuse, back
+    to the Subsets rule), and the base case needs both remain == 0 and len(path) == k, with an
+    extra prune when the path already has k numbers but remain isn't 0. The sorted-break on
+    "number bigger than remain" still applies, since 1 to 9 is already sorted.
+
+viz:
+  arrays: [candidates, path]
+  pointers: [start, i]
+  watch: [remain, c]

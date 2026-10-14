@@ -1,0 +1,355 @@
+slug: network-delay-time
+lc: 743
+
+concept:
+  problem_it_solves: >-
+    "What is the fastest way to get from one source to every node when edges have different
+    costs?" BFS answers that only when every edge costs the same. With weights, the node you
+    discover first is not necessarily the one you can reach soonest, so you need an order that
+    always settles the closest unsettled node next. That is Dijkstra's algorithm.
+  brute_force: >-
+    Bellman-Ford: relax every edge (if dist[u] + w < dist[v], improve dist[v]) and repeat the
+    whole pass n − 1 times, since a shortest path uses at most n − 1 edges. It works, but most
+    passes re-relax edges out of nodes whose distance hasn't changed, which is wasted work.
+  brute_force_complexity: >-
+    O(V · E) time, O(V) space — fine for n = 100 and 6000 edges (6 × 10⁵ steps), but 10⁵ nodes
+    and 2 × 10⁵ edges would be 2 × 10¹⁰ steps.
+  key_insight: >-
+    Process nodes in order of their arrival time. Keep a min-heap of (time, node). The smallest
+    time popped is final: every other route to that node would have to go through some node still
+    in the heap with an equal or larger time, and weights are never negative, so it can't arrive
+    earlier. When you pop a node, relax its outgoing edges and push any improved neighbour times.
+    A node can be pushed several times as better routes appear; when an older, larger entry is
+    popped later, skip it (it's stale). The signal reaches everyone when the slowest node gets it,
+    so the answer is the maximum shortest time, or −1 if some node is never reached.
+  real_world: >-
+    Link-state routing protocols (OSPF, IS-IS) run Dijkstra on every router to build forwarding
+    tables from link latencies. Google Maps and Ola/Uber ETA engines run Dijkstra variants (A*,
+    contraction hierarchies) on road graphs weighted by travel time, and CDN and service-mesh
+    controllers pick lowest-latency paths between points of presence the same way.
+
+statement:
+  clean: |
+    You are given a network of `n` nodes, labelled from `1` to `n`. You are also given `times`, a
+    list of travel times as **directed edges** `times[i] = (ui, vi, wi)`, where `ui` is the source
+    node, `vi` is the target node, and `wi` is the time it takes for a signal to travel from the
+    source to the target.
+
+    We will send a signal from a given node `k`. Return the **minimum time** it takes for
+    **all the n nodes to receive the signal**. If it is impossible for all the `n` nodes to receive
+    the signal, return `-1`.
+  oa_story: |
+    **PingPeacock — OA Round 1**
+
+    PingPeacock runs a CDN for Indian OTT apps, with edge servers numbered `1` to `n` in data
+    centres from Whitefield to Chennai. When a cricket highlight is re-encoded, the origin server
+    `k` sends a cache-purge message. Servers forward it along one-way replication links; the link
+    `[u, v, w]` means server `u` forwards to server `v` and the hop takes `w` milliseconds. A server
+    forwards the purge on all its links as soon as it first receives it.
+
+    The SRE team needs to know how many milliseconds after the purge starts every server has
+    received it, so they can tell the product team when stale highlights are gone everywhere. If
+    some server can never receive the purge through the links, report `-1` so the team can fix
+    the replication topology. There are at most 100 servers and 6000 links, and hop times are
+    between 0 and 100 ms.
+  trigger_keywords: ["directed edges", "minimum time", "all the n nodes to receive the signal"]
+  examples:
+    - input: "times = [[2,1,1],[2,3,1],[3,4,1]], n = 4, k = 2"
+      output: "2"
+      explanation: "Nodes 1 and 3 receive the signal at time 1, node 4 at time 2 via 3."
+    - input: "times = [[1,2,1]], n = 2, k = 1"
+      output: "1"
+    - input: "times = [[1,2,1]], n = 2, k = 2"
+      output: "-1"
+      explanation: "The only edge points from 1 to 2, so node 1 can never hear from node 2."
+  constraints:
+    - "1 <= k <= n <= 100"
+    - "1 <= times.length <= 6000"
+    - "times[i].length == 3"
+    - "1 <= ui, vi <= n"
+    - "ui != vi"
+    - "0 <= wi <= 100"
+    - "All the pairs (ui, vi) are unique (no multiple edges)."
+
+constraint_quiz:
+  prompt: >-
+    With n <= 100 and 6000 edges, several approaches pass. Which complexity is the one to present
+    as optimal, the one that still works if n grows to 10⁵ with 2 × 10⁵ edges?
+  options:
+    - "O(V³) — Floyd–Warshall, all pairs"
+    - "O(V · E) — Bellman-Ford"
+    - "O(E log V) — Dijkstra with a binary heap"
+    - "O(V + E) — plain BFS"
+  answer: 2
+  explanation: >-
+    Floyd–Warshall computes every pair (10¹⁵ steps at 10⁵ nodes) when only one source matters.
+    Bellman-Ford is 2 × 10¹⁰ at that size. Plain BFS is fast but wrong: it finds the fewest hops,
+    not the least time, so a 1-hop edge of weight 10 beats a 2-hop route of total 3. Dijkstra with
+    a heap is O(E log V), a few million steps, and it needs non-negative weights, which the
+    constraints guarantee.
+
+pattern_quiz:
+  prompt: >-
+    Directed, weighted edges with non-negative weights, one source, and you need the earliest
+    arrival time at every node. Which pattern fits?
+  options:
+    - "BFS level by level from k"
+    - "Dijkstra: min-heap of (time, node), skipping stale entries"
+    - "Topological sort, then relax edges in order"
+    - "Union-Find to check that all nodes are connected"
+  answer: 1
+  explanation: >-
+    "Minimum time", "weighted" and "from a source" are the shortest-path triggers, and
+    non-negative weights mean Dijkstra applies. BFS ignores weights. A topological-order
+    relaxation only works on DAGs, and this graph may have cycles. Union-Find tells you whether
+    nodes are connected (and ignores direction) but says nothing about times.
+
+function:
+  name: networkDelayTime
+  params: [{name: times}, {name: n}, {name: k}]
+
+starter_code: |
+  class Solution:
+      def networkDelayTime(self, times: List[List[int]], n: int, k: int) -> int:
+          pass
+
+tests:
+  - {args: [[[2, 1, 1], [2, 3, 1], [3, 4, 1]], 4, 2], expected: 2}
+  - {args: [[[1, 2, 1]], 2, 1], expected: 1}
+  - {args: [[[1, 2, 1]], 2, 2], expected: -1, note: edges are one-way}
+  - {args: [[[1, 2, 10], [1, 3, 1], [3, 2, 2]], 3, 1], expected: 3, note: "the 2-hop route (1 + 2) beats the direct edge (10): fewest hops is not fastest"}
+  - {args: [[[1, 2, 5], [1, 3, 1], [3, 2, 1], [2, 4, 1]], 4, 1], expected: 3, note: "node 2 is pushed at time 5, then improved to 2; the stale (5, 2) entry must be skipped"}
+  - {args: [[[1, 2, 1], [3, 1, 1]], 3, 1], expected: -1, note: "node 3 has an edge, but only out of it, so it is unreachable"}
+  - {args: [[[1, 2, 2], [2, 3, 3], [3, 1, 1], [3, 4, 0]], 4, 1], expected: 5, note: "a cycle back to the source and a zero-weight edge"}
+  - {args: [[[1, 2, 3], [1, 3, 7], [1, 4, 2]], 4, 1], expected: 7, note: "the answer is the slowest arrival, not the sum"}
+visualize_test: 4
+
+drills:
+  - title: Weighted adjacency, 1-indexed
+    skill: setup
+    goal: Turn a directed weighted edge list into an adjacency list indexed by node label 1..n.
+    instructions: |
+      Return `adj`, a list of length `n + 1` where `adj[u]` lists `[v, w]` for every edge
+      `[u, v, w]`, in input order. `adj[0]` stays empty because nodes are labelled from 1.
+
+      Dijkstra repeatedly asks "where can I go from this node, and at what cost?". The edge list
+      can't answer that without a full scan, so build the lookup first. Sizing it `n + 1` avoids
+      the off-by-one of converting labels to 0-based indices everywhere.
+    function:
+      name: buildAdj
+      params: [{name: n}, {name: times}]
+    starter_code: |
+      class Solution:
+          def buildAdj(self, n: int, times: List[List[int]]) -> List[List[List[int]]]:
+              pass
+    tests:
+      - {args: [4, [[2, 1, 1], [2, 3, 1], [3, 4, 1]]], expected: [[], [], [[1, 1], [3, 1]], [[4, 1]], []]}
+      - {args: [2, [[1, 2, 1]]], expected: [[], [[2, 1]], []]}
+      - {args: [3, [[3, 1, 0], [1, 3, 9]]], expected: [[], [[3, 9]], [], [[1, 0]]], note: "one edge each way: they're different edges"}
+      - {args: [3, [[1, 2, 4]]], expected: [[], [[2, 4]], [], []], note: node 3 has no outgoing edges but still gets an entry}
+    solution: |
+      class Solution:
+          def buildAdj(self, n: int, times: List[List[int]]) -> List[List[List[int]]]:
+              adj = [[] for _ in range(n + 1)]  # index 0 unused: labels are 1..n
+              for u, v, w in times:
+                  adj[u].append([v, w])
+              return adj
+    hint: "Only `adj[u]` gets the edge: the graph is directed."
+
+  - title: The heap settles nodes in time order
+    skill: core
+    goal: Pop (time, node) from a min-heap, finalise a node the first time it is popped, skip later stale pops, and push neighbours.
+    instructions: |
+      `adj` is the 1-indexed weighted adjacency list from the previous drill (`adj[u]` holds
+      `[v, w]` pairs). Run Dijkstra from `k` and return the nodes in the order they are
+      **finalised**, as `[node, time]` pairs. A node is finalised the first time it is popped; any
+      later pop of the same node is a stale, larger entry and must be skipped. (Tests have no
+      ties, so the order is unique.)
+
+      Watch the output: times only go up. That is the invariant that makes Dijkstra correct: the
+      heap always hands you the unfinalised node with the smallest known time, and with
+      non-negative weights nothing popped later can improve it. Unreachable nodes never appear.
+    function:
+      name: finalizeOrder
+      params: [{name: adj}, {name: k}]
+    starter_code: |
+      class Solution:
+          def finalizeOrder(self, adj: List[List[List[int]]], k: int) -> List[List[int]]:
+              pass
+    tests:
+      - {args: [[[], [[2, 10], [3, 1]], [], [[2, 2]]], 1], expected: [[1, 0], [3, 1], [2, 3]], note: "2 is pushed at 10 first, but finalised at 3"}
+      - {args: [[[], [[2, 5], [3, 1]], [[4, 1]], [[2, 1]], []], 1], expected: [[1, 0], [3, 1], [2, 2], [4, 3]], note: "the stale (5, 2) entry is popped last and skipped"}
+      - {args: [[[], [[2, 3], [3, 7], [4, 2]], [], [], []], 1], expected: [[1, 0], [4, 2], [2, 3], [3, 7]]}
+      - {args: [[[], [[2, 1]], [], [[1, 1]]], 1], expected: [[1, 0], [2, 1]], note: node 3 is never reached}
+    solution: |
+      class Solution:
+          def finalizeOrder(self, adj: List[List[List[int]]], k: int) -> List[List[int]]:
+              done, out, heap = set(), [], [(0, k)]
+              while heap:
+                  d, u = heapq.heappop(heap)
+                  if u in done:
+                      continue  # stale entry: u was already finalised with a smaller time
+                  done.add(u)
+                  out.append([u, d])
+                  for v, w in adj[u]:
+                      if v not in done:
+                          heapq.heappush(heap, (d + w, v))
+              return out
+    hint: "Push tuples `(time, node)` so the heap orders by time; check `if u in done: continue` right after popping."
+
+  - title: Stop at the pop, not the push
+    skill: edge
+    goal: Return the earliest arrival at one target, exiting when the target is popped (not pushed), and -1 when it is unreachable.
+    instructions: |
+      Using the same 1-indexed `adj`, return the earliest time the signal from `k` reaches
+      `target`, or `-1` if it never does.
+
+      You can stop early, but only when `target` is **popped**: that is the moment its time is
+      final. The first time you **push** it, a cheaper route may still be waiting in the heap (see
+      the first test, where the direct edge of 10 is pushed before the route of 3 is found). Also
+      handle `target == k` (time 0) and edges that point the wrong way. This version keeps a
+      `best` array and skips entries with `d > best[u]`, the other common way to detect staleness.
+    function:
+      name: minDelayTo
+      params: [{name: adj}, {name: k}, {name: target}]
+    starter_code: |
+      class Solution:
+          def minDelayTo(self, adj: List[List[List[int]]], k: int, target: int) -> int:
+              pass
+    tests:
+      - {args: [[[], [[2, 10], [3, 1]], [], [[2, 2]]], 1, 2], expected: 3, note: "first push of node 2 says 10; the pop says 3"}
+      - {args: [[[], [[2, 1]], []], 1, 1], expected: 0, note: the target is the source}
+      - {args: [[[], [[2, 1]], []], 2, 1], expected: -1, note: edges are one-way}
+      - {args: [[[], [[2, 5], [3, 1]], [[4, 1]], [[2, 1]], []], 1, 4], expected: 3}
+      - {args: [[[], [[2, 1]], [], [[1, 1]]], 1, 3], expected: -1, note: the only edge at node 3 points out of it}
+    solution: |
+      class Solution:
+          def minDelayTo(self, adj: List[List[List[int]]], k: int, target: int) -> int:
+              best = [float("inf")] * len(adj)
+              best[k] = 0
+              heap = [(0, k)]
+              while heap:
+                  d, u = heapq.heappop(heap)
+                  if u == target:
+                      return d  # popped means final
+                  if d > best[u]:
+                      continue
+                  for v, w in adj[u]:
+                      if d + w < best[v]:
+                          best[v] = d + w
+                          heapq.heappush(heap, (best[v], v))
+              return -1
+    hint: "Put the `if u == target: return d` check right after `heappop`, before relaxing anything."
+
+hints:
+  - >-
+    If all edges took 1 ms, plain BFS would give every node's arrival time. Why does that break
+    with different weights, and which node can you be completely sure about at any moment?
+  - >-
+    Keep the best known time for every node and a min-heap of (time, node). Pop the smallest; if it
+    is larger than the best known time, it's a stale entry, skip it. Otherwise try every outgoing
+    edge and push any neighbour whose time improves. When the heap is empty, what do the best
+    times tell you about the answer?
+  - |
+    adj[u] = list of (v, w) for each edge
+    dist = infinity for nodes 1..n; dist[k] = 0
+    heap = [(0, k)]
+    while heap:
+        d, node = pop smallest
+        if d > dist[node]: skip (stale)
+        for (nxt, w) in adj[node]:
+            if d + w < dist[nxt]: dist[nxt] = d + w; push (dist[nxt], nxt)
+    slowest = max of dist over nodes 1..n
+    return slowest if it is finite, else -1
+
+solution:
+  code: |
+    class Solution:
+        def networkDelayTime(self, times: List[List[int]], n: int, k: int) -> int:
+            adj = {node: [] for node in range(1, n + 1)}  # node -> [(neighbour, weight)]
+            for u, v, w in times:
+                adj[u].append((v, w))
+
+            dist = {node: float("inf") for node in range(1, n + 1)}
+            dist[k] = 0
+            heap = [(0, k)]  # (arrival time, node), smallest time on top
+            while heap:
+                d, node = heapq.heappop(heap)
+                if d > dist[node]:
+                    continue  # stale entry: node was already reached faster
+                for nxt, w in adj[node]:
+                    if d + w < dist[nxt]:
+                        dist[nxt] = d + w
+                        heapq.heappush(heap, (dist[nxt], nxt))
+
+            slowest = max(dist.values())  # everyone has it once the slowest node does
+            return slowest if slowest < float("inf") else -1
+  explanation: |
+    The signal spreads along every path at once, so each node receives it at its **shortest-path
+    time** from `k`, and all nodes have it once the **slowest** one does: the answer is the maximum
+    shortest distance, or `-1` if any node stays at infinity.
+
+    **Dijkstra** computes those distances. The heap holds candidate `(time, node)` arrivals. The
+    smallest one popped is final: any other route to that node must leave the settled region
+    through some node in the heap whose time is already at least as large, and weights are
+    non-negative, so that route can't be faster. We then relax the node's outgoing edges.
+
+    We don't decrease keys inside the heap (Python's `heapq` can't); instead we push a new entry
+    every time a node improves. That leaves older, larger entries behind, so a popped entry with
+    `d > dist[node]` is **stale** and skipped. Test 5 is exactly that: node 2 is pushed at time 5,
+    then improved to 2 through node 3, and the leftover `(5, 2)` must not relax node 4 again.
+
+    BFS would be wrong (test 4: the direct edge of 10 has fewer hops but arrives later), and
+    marking nodes visited when they are **pushed** instead of popped is the classic bug that turns
+    Dijkstra back into BFS. Zero-weight edges are fine; negative ones would break the "popped means
+    final" argument.
+  time: O(E log E) — each edge can push one heap entry, and each push/pop costs O(log E); log E <= 2 log V, so this is O(E log V)
+  space: O(V + E) — the adjacency map, dist, and up to E heap entries
+  brute_force_code: |
+    class Solution:
+        def networkDelayTime(self, times: List[List[int]], n: int, k: int) -> int:
+            # Bellman-Ford: a shortest path has at most n - 1 edges, so n - 1 full passes suffice
+            dist = [float("inf")] * (n + 1)
+            dist[k] = 0
+            for _ in range(n - 1):
+                for u, v, w in times:
+                    if dist[u] + w < dist[v]:
+                        dist[v] = dist[u] + w
+            slowest = max(dist[1:])
+            return slowest if slowest < float("inf") else -1
+
+pitch_script: |
+  **(Clarify)** "Nodes are 1 to n, edges are directed with non-negative times, and I return the
+  time when the last node receives the signal from k, or -1 if some node never does. So the
+  answer is the maximum over all nodes of the shortest time from k, right?"
+
+  **(Brute force)** "Bellman-Ford would work: relax every edge n minus 1 times. That's O(V times E),
+  around 6 × 10⁵ here, fine for these limits but it doesn't scale and re-relaxes edges that
+  haven't changed."
+
+  **(Trigger)** "Single source, weighted edges, non-negative weights, minimum time: that's
+  Dijkstra. Plain BFS would give fewest hops, not least time."
+
+  **(Optimal)** "I build an adjacency list, set every distance to infinity except k at zero, and
+  push (0, k) on a min-heap. I pop the smallest time; if it's bigger than the recorded distance
+  it's a stale entry and I skip it. Otherwise I relax each outgoing edge and push neighbours that
+  improve. At the end I take the maximum distance and return -1 if it's still infinity."
+
+  **(Complexity)** "Each edge can push at most one entry, so O(E log E), which is O(E log V), and
+  O(V + E) space. Since n is only 100, an O(V²) array-based Dijkstra would also be fine here."
+
+twist:
+  lc: 1631
+  title: Path With Minimum Effort
+  why: >-
+    Now the graph is a grid (each cell connects to its 4 neighbours) and the cost of a route is the
+    largest height difference along it, not the sum. Dijkstra still works because extending a path
+    can never make its cost smaller: relax with max(d, abs(h[a] − h[b])) instead of d + w, pop
+    (effort, r, c) from the heap, skip stale entries, and you can return the moment the
+    bottom-right cell is popped, exactly like the early-exit drill.
+
+viz:
+  graph: adj
+  node: node
+  dist: dist
+  watch: [d, nxt, w]

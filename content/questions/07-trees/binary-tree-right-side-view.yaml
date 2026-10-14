@@ -1,0 +1,345 @@
+slug: binary-tree-right-side-view
+lc: 199
+
+concept:
+  problem_it_solves: >-
+    "Which node is the last one on each level?" Standing to the right of the tree, you see one
+    node per depth: the rightmost node at that depth. That is a per-level question, so the
+    level-by-level BFS from the previous lesson answers it directly; you just keep one value per
+    round instead of the whole level.
+  brute_force: >-
+    The tempting shortcut is to follow `.right` pointers from the root, but it is wrong: in
+    [1,2,3,4] the node 4 hangs off the *left* side and is still visible, because nothing is to
+    its right on that level. A correct naive approach finds the height H and, for each depth d,
+    runs a fresh DFS from the root to find the rightmost node at depth d, re-walking the upper
+    levels every time.
+  brute_force_complexity: O(N · H) time, O(H) space — on a skewed tree that is O(N²) node visits.
+  key_insight: >-
+    "Visible from the right" means "last in its level", not "reachable by going right". Run
+    the level BFS: at the start of each round, size = len(queue) is the number of nodes on the
+    level, and they come out left to right. The node popped at position size - 1 is the one
+    you see. Equivalently, a DFS that visits right before left sees each depth's rightmost
+    node first, so it records a node whenever its depth equals the number of values recorded
+    so far.
+  real_world: >-
+    UIs that collapse a hierarchy into one row per tier (org charts, network topology maps,
+    nested comment threads in "compact" mode) walk the tree level by level and keep a single
+    representative per depth. More generally, "BFS, then one summary per level" (last item,
+    max, count) is how monitoring tools report per-hop figures for a request fan-out tree, for
+    example how many downstream calls a gateway made at depth 1, 2 and 3.
+
+statement:
+  clean: |
+    Given the `root` of a binary tree, imagine yourself standing on the **right side** of it.
+    Return the values of the nodes **you can see**, ordered from **top to bottom**.
+
+    You see exactly one node per level: the rightmost node on that level, even if it is a left
+    child. An empty tree returns an empty list.
+  oa_story: |
+    **TowerTrack Networks — OA Round 1**
+
+    TowerTrack maintains the mobile tower backbone for a telecom operator across Bengaluru. The
+    network is organised as a hierarchy: a core switch at Whitefield feeds up to two
+    aggregation towers, each of which feeds up to two more, and so on. On the topology screen
+    every tier is drawn as one row, with each tower's west feed drawn to the left of its east
+    feed.
+
+    The NOC wall display is narrow, so it shows a single tower ID per tier: the one drawn at
+    the far east end of that row, because that is where the newest fibre links land. Given the
+    hierarchy, return the tower IDs the wall display shows, from the core switch's tier down to
+    the deepest tier. A tower can be the easternmost of its row even if it is a west feed, as
+    long as nothing in that row is drawn east of it. With no towers, the display is empty.
+  trigger_keywords: ["right side", "you can see", "top to bottom"]
+  examples:
+    - input: "root = [1,2,3,null,5,null,4]"
+      output: "[1,3,4]"
+      explanation: "Levels are [1], [2,3], [5,4]. The last node of each level is 1, 3, 4."
+    - input: "root = [1,2,3,4,null,null,null,5]"
+      output: "[1,3,4,5]"
+      explanation: "Levels 2 and 3 contain only left-side nodes (4, then 5), so you still see them."
+    - input: "root = [1,null,3]"
+      output: "[1,3]"
+  constraints:
+    - "The number of nodes in the tree is in the range [0, 100]"
+    - "-100 <= Node.val <= 100"
+
+constraint_quiz:
+  prompt: >-
+    N is at most 100 here, so almost anything passes. In an interview, what complexity should
+    you present as optimal, and why?
+  options:
+    - "O(H) — just follow the right pointers"
+    - "O(N · H) — find the rightmost node at each depth separately"
+    - "O(N) — one BFS or DFS over the whole tree"
+    - "O(N log N) — sort nodes by (depth, position)"
+  answer: 2
+  explanation: >-
+    Following right pointers is O(H) but gives the wrong answer whenever a left subtree is
+    deeper than the right one. A search per depth is correct but re-walks the top levels, O(N²)
+    on a chain. Sorting by position adds a log factor for an order BFS already produces. You
+    can't do better than O(N) in general: the visible node on the bottom level could be any
+    node, so every node might need to be looked at. Interviewers expect O(N) regardless of the
+    small limit.
+
+pattern_quiz:
+  prompt: >-
+    You need exactly one node per depth, the last one on that level when read left to right.
+    Which pattern fits?
+  options:
+    - "Walk the right spine: root, root.right, root.right.right, ..."
+    - "Level-order BFS, keeping the last node of each level"
+    - "In-order traversal, keeping the last value"
+    - "Binary search on the depth"
+  answer: 1
+  explanation: >-
+    "One value per level" plus "rightmost" is the level-BFS trigger: with the len(queue)
+    snapshot you know exactly which pop is the last one on its level. The right spine misses
+    left nodes that stick out below a shorter right subtree. In-order and binary search don't
+    group nodes by depth at all.
+
+function:
+  name: rightSideView
+  params: [{name: root, type: TreeNode}]
+
+starter_code: |
+  # Definition for a binary tree node.
+  # class TreeNode:
+  #     def __init__(self, val=0, left=None, right=None):
+  #         self.val = val
+  #         self.left = left
+  #         self.right = right
+  class Solution:
+      def rightSideView(self, root: Optional[TreeNode]) -> List[int]:
+          pass
+
+tests:
+  - {args: [[1, 2, 3, null, 5, null, 4]], expected: [1, 3, 4]}
+  - {args: [[1, 2, 3, 4, null, null, null, 5]], expected: [1, 3, 4, 5]}
+  - {args: [[1, null, 3]], expected: [1, 3]}
+  - {args: [[]], expected: [], note: empty tree}
+  - {args: [[1, 2, 3, 4]], expected: [1, 3, 4], note: "a left node peeks out below a shorter right side"}
+  - {args: [[1, 2, null, 3]], expected: [1, 2, 3], note: "left-only chain: every node is visible"}
+  - {args: [[1, 2, 3, null, 5, 6]], expected: [1, 3, 6], note: "the visible node on level 2 is a left child"}
+  - {args: [[-1, -2, -3, -4]], expected: [-1, -3, -4], note: negative values}
+visualize_test: 0
+
+drills:
+  - title: Count the levels with BFS
+    skill: setup
+    goal: Set up the deque and the per-level round so you know when one level ends.
+    instructions: |
+      Return the **number of levels** in the tree (its height), using a level-by-level BFS.
+      An empty tree has 0 levels.
+
+      Every per-level question, including the right side view, is built on this loop: each
+      round of the `while` drains exactly `len(queue)` nodes, which is one whole level. Count
+      the rounds and you have the height; pick one node per round and you have a view.
+    function:
+      name: countLevels
+      params: [{name: root, type: TreeNode}]
+    starter_code: |
+      class Solution:
+          def countLevels(self, root: Optional[TreeNode]) -> int:
+              pass
+    tests:
+      - {args: [[1, 2, 3, null, 5, null, 4]], expected: 3}
+      - {args: [[1, 2, 3, 4, null, null, null, 5]], expected: 4}
+      - {args: [[]], expected: 0, note: empty tree}
+      - {args: [[7]], expected: 1}
+    solution: |
+      class Solution:
+          def countLevels(self, root: Optional[TreeNode]) -> int:
+              levels = 0
+              queue = deque([root] if root else [])
+              while queue:
+                  levels += 1
+                  for _ in range(len(queue)):
+                      node = queue.popleft()
+                      queue.extend(c for c in (node.left, node.right) if c)
+              return levels
+    hint: "One trip around the `while` loop is one level; increment a counter per trip."
+
+  - title: Pick a node by its position in the level
+    skill: core
+    goal: Use the index inside the level round to choose which node represents the level.
+    instructions: |
+      Return the **left side view**: the first node of each level, top to bottom.
+
+      This is the mirror of the real problem and trains the same micro-skill. Inside a round,
+      `for i in range(size)` pops the level's nodes left to right, so `i == 0` is the leftmost
+      and `i == size - 1` is the rightmost. Which side you "see" is only a question of which
+      index you keep. Children must still be pushed left then right, or the positions stop
+      meaning left-to-right.
+    function:
+      name: leftSideView
+      params: [{name: root, type: TreeNode}]
+    starter_code: |
+      class Solution:
+          def leftSideView(self, root: Optional[TreeNode]) -> List[int]:
+              pass
+    tests:
+      - {args: [[1, 2, 3, null, 5, null, 4]], expected: [1, 2, 5]}
+      - {args: [[1, null, 3, 4]], expected: [1, 3, 4], note: "right-only nodes are visible from the left too"}
+      - {args: [[]], expected: []}
+      - {args: [[1, 2, 3, 4, 5, 6, 7]], expected: [1, 2, 4]}
+    solution: |
+      class Solution:
+          def leftSideView(self, root: Optional[TreeNode]) -> List[int]:
+              view = []
+              queue = deque([root] if root else [])
+              while queue:
+                  size = len(queue)
+                  for i in range(size):
+                      node = queue.popleft()
+                      if i == 0:
+                          view.append(node.val)
+                      queue.extend(c for c in (node.left, node.right) if c)
+              return view
+    hint: "Freeze `size = len(queue)` before the `for`, and keep the node where `i == 0`."
+
+  - title: Right-first DFS with a depth check
+    skill: edge
+    goal: Solve the view with DFS by visiting right before left and recording a node only when its depth is new.
+    instructions: |
+      Return the right side view again, but with a **recursive DFS** instead of BFS.
+
+      Pass the depth **down** the recursion and visit the right child before the left. The
+      first node a right-first DFS reaches at any depth is the rightmost node there. You know
+      a depth is new when `depth == len(view)`: `view` already has one entry for each depth
+      0 .. depth - 1. This handles the classic edge case, a left node sticking out below a
+      shorter right subtree, without any special code: the DFS falls back to the left subtree
+      and finds that depth unseen.
+    function:
+      name: rightViewDFS
+      params: [{name: root, type: TreeNode}]
+    starter_code: |
+      class Solution:
+          def rightViewDFS(self, root: Optional[TreeNode]) -> List[int]:
+              pass
+    tests:
+      - {args: [[1, 2, 3, null, 5, null, 4]], expected: [1, 3, 4]}
+      - {args: [[1, 2, 3, 4]], expected: [1, 3, 4], note: "the left node 4 is still the rightmost at depth 2"}
+      - {args: [[1, 2, 3, 4, null, null, null, 5]], expected: [1, 3, 4, 5]}
+      - {args: [[]], expected: []}
+    solution: |
+      class Solution:
+          def rightViewDFS(self, root: Optional[TreeNode]) -> List[int]:
+              view = []
+
+              def dfs(node, depth):
+                  if not node:
+                      return
+                  if depth == len(view):  # first visit to this depth = rightmost node
+                      view.append(node.val)
+                  dfs(node.right, depth + 1)
+                  dfs(node.left, depth + 1)
+
+              dfs(root, 0)
+              return view
+    hint: "Swap the usual order: recurse on `node.right` first."
+
+hints:
+  - >-
+    Is the visible node always reachable by going right from the root? Draw [1,2,3,4] and
+    check. If not, what property does the visible node on each level actually have?
+  - >-
+    The visible node is the last node of its level when read left to right. Run a level BFS,
+    snapshot size = len(queue) at the start of each round, and record the node popped at
+    position size - 1.
+  - |
+    if root is empty: return []
+    view = [], queue = [root]
+    while queue is not empty:
+        size = len(queue)
+        for i from 0 to size - 1:
+            node = pop from the front
+            if i is size - 1: add node.val to view
+            push node.left, node.right (if they exist)
+    return view
+
+solution:
+  code: |
+    class Solution:
+        def rightSideView(self, root: Optional[TreeNode]) -> List[int]:
+            if not root:
+                return []
+            view = []
+            queue = deque([root])
+            while queue:
+                size = len(queue)  # nodes on the current level, left to right
+                for i in range(size):
+                    node = queue.popleft()
+                    if i == size - 1:  # last on its level: the one you see
+                        view.append(node.val)
+                    if node.left:
+                        queue.append(node.left)
+                    if node.right:
+                        queue.append(node.right)
+            return view
+  explanation: |
+    This is the level-order BFS with one change: instead of keeping the whole level, keep the
+    node at position `size - 1`. At the top of each round the queue holds exactly one level in
+    left-to-right order (children are pushed left before right), so that position is the
+    rightmost node on the level, which is precisely the node you can see from the right.
+
+    The subtle part is the definition of "visible". Following `.right` pointers fails on
+    `[1,2,3,4]`: node 4 is a left descendant, but nothing else is on level 2, so it is
+    visible. Thinking "last node per level" instead of "go right" makes that case automatic.
+
+    The DFS alternative passes the depth down and visits **right before left**; whenever
+    `depth == len(view)` it is the first node seen at that depth, hence the rightmost. It uses
+    O(H) stack space instead of O(W) queue space, so it is better on wide, shallow trees and
+    worse on deep, narrow ones. Both are O(N) time.
+  time: O(N) — each node is pushed and popped once
+  space: O(W) — the queue holds at most one level (plus the next level's partial fill), W = widest level
+  brute_force_code: |
+    class Solution:
+        def rightSideView(self, root: Optional[TreeNode]) -> List[int]:
+            def height(node):
+                return 0 if not node else 1 + max(height(node.left), height(node.right))
+
+            def rightmost_at(node, d):  # re-walks from the root for every depth
+                if not node:
+                    return None
+                if d == 0:
+                    return node.val
+                found = rightmost_at(node.right, d - 1)
+                return found if found is not None else rightmost_at(node.left, d - 1)
+
+            return [rightmost_at(root, d) for d in range(height(root))]
+
+pitch_script: |
+  **(Clarify)** "So I return one value per level, top to bottom, and it's the rightmost node on
+  that level, even if it's a left child, as long as nothing is to its right on that level?
+  And an empty tree gives an empty list?"
+
+  **(Brute force)** "Following right pointers alone is wrong, for example in 1, 2, 3, 4 the
+  node 4 is a left child but it's visible. A correct naive way is, for each depth, search the
+  tree for the rightmost node at that depth, which is O(N times H)."
+
+  **(Trigger)** "'One node per level' is a level-order BFS signal. If I process the tree one
+  level at a time, left to right, the visible node is simply the last one I pop in each
+  level."
+
+  **(Optimal)** "I keep a queue starting with the root. At the start of each round I store the
+  queue's size, which is the number of nodes on this level. I pop that many nodes, pushing
+  their children left then right, and when the index equals size minus one I record that
+  node's value. Alternatively, a DFS that goes right before left and records a node whenever
+  its depth equals the length of my answer list gives the same result."
+
+  **(Complexity)** "Each node is visited once, so O(N) time. The queue holds at most about one
+  level, so O(W) space for BFS, or O(H) recursion stack for the DFS version."
+
+twist:
+  lc: 515
+  title: Find Largest Value in Each Tree Row
+  why: >-
+    Still one answer per level, but now it depends on every node in the level, not just the
+    last one. Keep the same BFS with the size snapshot, start each round with
+    level_max = -infinity, update it on every pop, and append it after the round. Values can be
+    as small as -2^31, so starting the running max at 0 or at a small constant is the bug to
+    avoid.
+
+viz:
+  arrays: [queue, view]
+  watch: [i, size]

@@ -1,0 +1,347 @@
+slug: merge-k-sorted-lists
+lc: 23
+
+concept:
+  problem_it_solves: >-
+    "Out of k sorted sources, which one holds the next smallest item?" Only the current front
+    of each source can be the answer, so there are always exactly k candidates. A min-heap of
+    those k fronts hands you the smallest one in O(log k), and after you take it, the only new
+    candidate is the next item from the same source.
+  brute_force: >-
+    At every step, scan the heads of all k lists, take the smallest, and advance that list.
+    Each scan re-compares k − 1 heads that haven't changed since the previous step; only one
+    head moved. (Dumping every value into an array and sorting is O(N log N) and throws away
+    the fact that each list is already sorted.)
+  brute_force_complexity: O(N · k) time, O(1) extra space — N = 10⁴ nodes across k = 10⁴ lists means up to 10⁸ head comparisons.
+  key_insight: >-
+    You never need to compare all N nodes against each other, only the k current heads. Keep
+    those heads in a min-heap as (value, list index, node). Pop the smallest, append it to the
+    answer, and push its `next` (if any) back in. The heap never holds more than k entries, so
+    each of the N steps costs O(log k) instead of O(k).
+  real_world: >-
+    This is the k-way merge at the heart of external sorting and of LSM-tree databases
+    (RocksDB, Cassandra, LevelDB compaction merges k sorted SSTables with a heap). Elasticsearch
+    merges sorted results from k shards the same way, and Kafka consumers merging time-ordered
+    partitions use a heap of partition heads.
+
+statement:
+  clean: |
+    You are given an array `lists` of k linked lists, where
+    **each linked list is sorted in ascending order**.
+
+    **Merge all the linked-lists into one sorted linked-list** and return it.
+  oa_story: |
+    **FeedFusion — OA Round 2**
+
+    FeedFusion builds the "For You" feed for a Bengaluru short-video app. Posts are stored on
+    `k` regional shards (Karnataka, Tamil Nadu, Maharashtra, and so on), and each shard returns
+    its candidate posts as a singly linked chain of publish timestamps, oldest first. Some
+    shards return an empty chain when they have nothing new.
+
+    The feed service must stitch all the chains into a single chain ordered by timestamp,
+    oldest first, reusing the nodes it was given. Return the head of the combined chain (or
+    nothing if every shard came back empty). A busy evening can bring ten thousand shards and
+    ten thousand posts in total, and the feed must render instantly.
+  trigger_keywords: ["k linked lists", "each linked list is sorted in ascending order", "merge all the linked-lists into one sorted linked-list"]
+  examples:
+    - input: "lists = [[1,4,5],[1,3,4],[2,6]]"
+      output: "[1,1,2,3,4,4,5,6]"
+      explanation: "The three sorted lists 1->4->5, 1->3->4 and 2->6 merge into 1->1->2->3->4->4->5->6."
+    - input: "lists = []"
+      output: "[]"
+      explanation: "No lists at all: the result is the empty list."
+    - input: "lists = [[]]"
+      output: "[]"
+      explanation: "One list, and it is empty: there is still nothing to merge."
+  constraints:
+    - "k == lists.length"
+    - "0 <= k <= 10^4"
+    - "0 <= lists[i].length <= 500"
+    - "-10^4 <= lists[i][j] <= 10^4"
+    - "lists[i] is sorted in ascending order."
+    - "The sum of lists[i].length will not exceed 10^4."
+
+constraint_quiz:
+  prompt: >-
+    N ≤ 10⁴ nodes in total, spread over k ≤ 10⁴ lists that are each already sorted. What is
+    the best bound you should aim for?
+  options: ["O(N · k)", "O(N log N)", "O(N log k)", "O(N)"]
+  answer: 2
+  explanation: >-
+    Scanning k heads per node is O(N · k), up to 10⁸ comparisons. Sorting everything is
+    O(N log N) and passes, but it ignores that the lists are sorted and needs an O(N) array.
+    A heap of the k heads (or pairwise divide-and-conquer merging) gives O(N log k), which is
+    better whenever k is much smaller than N. O(N) is out of reach for comparison-based
+    merging: with k lists of one element each, merging them is sorting k numbers.
+
+pattern_quiz:
+  prompt: >-
+    You have k sorted sequences and must repeatedly take the smallest current front. Which
+    pattern fits?
+  options:
+    - "Two pointers, one per list"
+    - "Min-heap of the k current heads (k-way merge)"
+    - "Monotonic stack"
+    - "Binary search each list for the next value"
+  answer: 1
+  explanation: >-
+    "k sorted lists, merge into one sorted list" is the k-way-merge trigger. Two pointers are
+    perfect for k = 2 but need k pointers and an O(k) scan to find the smallest front for
+    general k. A heap is exactly a structure that keeps the smallest of k candidates available
+    in O(log k) while candidates are replaced. Nothing here is "next greater", and binary
+    search can't tell you which list holds the next value.
+
+function:
+  name: mergeKLists
+  params: [{name: lists, type: "ListNode[]"}]
+  returns: ListNode
+
+starter_code: |
+  # Definition for singly-linked list.
+  # class ListNode:
+  #     def __init__(self, val=0, next=None):
+  #         self.val = val
+  #         self.next = next
+  class Solution:
+      def mergeKLists(self, lists: List[Optional[ListNode]]) -> Optional[ListNode]:
+          pass
+
+tests:
+  - {args: [[[1, 4, 5], [1, 3, 4], [2, 6]]], expected: [1, 1, 2, 3, 4, 4, 5, 6]}
+  - {args: [[]], expected: [], note: "no lists at all"}
+  - {args: [[[]]], expected: [], note: "one list that is empty"}
+  - {args: [[[], [2], [], [1, 3]]], expected: [1, 2, 3], note: "empty lists mixed in must be skipped"}
+  - {args: [[[1, 2, 3]]], expected: [1, 2, 3], note: "a single list comes back unchanged"}
+  - {args: [[[1, 1, 1], [1, 1], [1]]], expected: [1, 1, 1, 1, 1, 1], note: "all values equal: the index tie-breaker is what keeps heapq from comparing nodes"}
+  - {args: [[[-10, -5, 0], [-7, -5, 8]]], expected: [-10, -7, -5, -5, 0, 8], note: "negatives and a duplicate across lists"}
+  - {args: [[[5], [4], [3], [2], [1]]], expected: [1, 2, 3, 4, 5], note: "many one-node lists in reverse order"}
+  - {args: [[[10000], [-10000, 0, 10000]]], expected: [-10000, 0, 10000, 10000], note: "extremes, with a tie on the last value"}
+visualize_test: 0
+
+drills:
+  - title: Seed the heap, with a tie-breaker
+    skill: setup
+    goal: Push one (value, list index, node) entry per non-empty list and see the order heapq releases them in.
+    instructions: |
+      Push the **head** of every non-empty list into a min-heap as `(node.val, i, node)`, then
+      pop everything and return the list indices `i` in the order they come out.
+
+      Two things to get right before the merge loop even starts. Empty lists (`None` heads)
+      must be skipped, or `node.val` crashes. And the index `i` must sit **between** the value
+      and the node: when two values tie, Python compares the next tuple element, and comparing
+      two `ListNode`s raises `TypeError`. Each list has at most one node in the heap at a time,
+      so `i` is always unique and the comparison never reaches the node.
+    function:
+      name: headOrder
+      params: [{name: lists, type: "ListNode[]"}]
+    starter_code: |
+      class Solution:
+          def headOrder(self, lists: List[Optional[ListNode]]) -> List[int]:
+              pass
+    tests:
+      - {args: [[[1, 4, 5], [1, 3, 4], [2, 6]]], expected: [0, 1, 2], note: "heads 1 and 1 tie: index decides"}
+      - {args: [[[2], [], [1]]], expected: [2, 0], note: "the empty list is skipped"}
+      - {args: [[[7], [7], [7]]], expected: [0, 1, 2], note: "three-way tie"}
+      - {args: [[]], expected: []}
+      - {args: [[[], []]], expected: []}
+    solution: |
+      class Solution:
+          def headOrder(self, lists: List[Optional[ListNode]]) -> List[int]:
+              heap = []
+              for i, node in enumerate(lists):
+                  if node:
+                      heapq.heappush(heap, (node.val, i, node))
+              order = []
+              while heap:
+                  order.append(heapq.heappop(heap)[1])
+              return order
+    hint: "`if node:` filters out empty lists; the tuple is `(node.val, i, node)` in that order."
+
+  - title: Replace the popped item with its successor
+    skill: core
+    goal: In a k-way merge, after popping the smallest item, push the next item from the same source.
+    instructions: |
+      Merge `k` sorted **arrays** (plain Python lists, not linked lists) into one sorted list.
+      Use a heap of `(value, array index, position in that array)`.
+
+      This is the heart of every k-way merge: the heap always holds exactly one candidate per
+      source that still has items. When you pop the smallest, its source loses its candidate,
+      so you push that source's next item (if it has one). With linked lists "the next item"
+      is `node.next`; with arrays it is position `j + 1`. The same move solves Kth Smallest in
+      a Sorted Matrix and Smallest Range Covering Elements from K Lists.
+    function:
+      name: mergeKArrays
+      params: [{name: arrays}]
+    starter_code: |
+      class Solution:
+          def mergeKArrays(self, arrays: List[List[int]]) -> List[int]:
+              pass
+    tests:
+      - {args: [[[1, 4, 5], [1, 3, 4], [2, 6]]], expected: [1, 1, 2, 3, 4, 4, 5, 6]}
+      - {args: [[[], [3], [1, 2]]], expected: [1, 2, 3], note: "empty array: never seeded"}
+      - {args: [[[5, 6, 7], [1]]], expected: [1, 5, 6, 7], note: "one source runs out first"}
+      - {args: [[]], expected: []}
+    solution: |
+      class Solution:
+          def mergeKArrays(self, arrays: List[List[int]]) -> List[int]:
+              heap = [(arr[0], i, 0) for i, arr in enumerate(arrays) if arr]
+              heapq.heapify(heap)
+              out = []
+              while heap:
+                  val, i, j = heapq.heappop(heap)
+                  out.append(val)
+                  if j + 1 < len(arrays[i]):
+                      heapq.heappush(heap, (arrays[i][j + 1], i, j + 1))
+              return out
+    hint: "After `val, i, j = heappop(heap)`, the only new candidate is `arrays[i][j + 1]`."
+
+  - title: Dummy head and the leftover tail
+    skill: edge
+    goal: Splice nodes onto a dummy head, attach whatever is left over, and return dummy.next.
+    instructions: |
+      Merge **two** sorted linked lists `a` and `b` by relinking their nodes, and return the
+      head of the merged list.
+
+      This is the building block of the divide-and-conquer alternative (merge the lists in
+      pairs, halving their number each round, also O(N log k)), and it drills the splice
+      mechanics the heap solution relies on. The edges people get wrong: either list (or both)
+      can be empty, the leftover of the longer list must be attached in one step
+      (`tail.next = a or b`), and the answer is `dummy.next`, not `dummy`.
+    function:
+      name: mergeTwo
+      params: [{name: a, type: ListNode}, {name: b, type: ListNode}]
+      returns: ListNode
+    starter_code: |
+      class Solution:
+          def mergeTwo(self, a: Optional[ListNode], b: Optional[ListNode]) -> Optional[ListNode]:
+              pass
+    tests:
+      - {args: [[1, 3, 5], [2, 4]], expected: [1, 2, 3, 4, 5]}
+      - {args: [[], []], expected: [], note: both empty}
+      - {args: [[], [0]], expected: [0], note: one side empty}
+      - {args: [[1, 1], [1]], expected: [1, 1, 1]}
+      - {args: [[1, 2], [5, 6, 7]], expected: [1, 2, 5, 6, 7], note: "a runs out: attach all of b at once"}
+    solution: |
+      class Solution:
+          def mergeTwo(self, a: Optional[ListNode], b: Optional[ListNode]) -> Optional[ListNode]:
+              dummy = tail = ListNode()
+              while a and b:
+                  if a.val <= b.val:
+                      tail.next, a = a, a.next
+                  else:
+                      tail.next, b = b, b.next
+                  tail = tail.next
+              tail.next = a or b  # at most one list still has nodes
+              return dummy.next
+    hint: "When the loop ends, at most one of `a`, `b` is non-empty and it is already sorted."
+
+hints:
+  - >-
+    At any moment, only k nodes can possibly be the next smallest: the current head of each
+    list. How can you keep the smallest of k changing candidates available without scanning
+    all k every time?
+  - >-
+    Put the k heads in a min-heap. Pop the smallest, link it after your tail, and push its
+    `next` into the heap if it exists. In Python, store (value, list index, node) so ties on
+    value never make heapq compare two ListNodes.
+  - |
+    heap = [(head.val, i, head) for every non-empty list i]
+    heapify(heap)
+    dummy = tail = new node
+    while heap not empty:
+        val, i, node = pop smallest
+        tail.next = node; tail = node
+        if node.next exists: push (node.next.val, i, node.next)
+    return dummy.next
+
+solution:
+  code: |
+    class Solution:
+        def mergeKLists(self, lists: List[Optional[ListNode]]) -> Optional[ListNode]:
+            # (value, list index, node): the index breaks ties, so heapq never compares nodes
+            heap = [(node.val, i, node) for i, node in enumerate(lists) if node]
+            heapq.heapify(heap)
+            dummy = tail = ListNode()
+            while heap:
+                val, i, node = heapq.heappop(heap)
+                tail.next = node  # reuse the node itself, no copying
+                tail = node
+                if node.next:
+                    heapq.heappush(heap, (node.next.val, i, node.next))
+            return dummy.next
+  explanation: |
+    **Why only k candidates.** Every list is sorted, so the smallest node that hasn't been
+    merged yet must be the current head of some list. The heap holds exactly those heads, one
+    per non-empty list, so it never has more than `k` entries. Pop the smallest, splice it
+    onto the result, and the only thing that changed is that its list has a new head:
+    `node.next`. Push that, and the invariant holds again.
+
+    **Why the index is in the tuple.** `heapq` compares tuples element by element. If two
+    heads have the same value, it moves on to the second element; if that were the node,
+    Python would try `ListNode < ListNode` and raise `TypeError`, because `ListNode` defines no
+    ordering. Putting the list index `i` second fixes it, and `i` is always unique in the heap
+    because each list has at most one node in it at a time. (If a problem lets one source have
+    several entries in the heap, use a global counter instead.)
+
+    **Edge cases.** `if node` skips empty lists both in `[]` and `[[]]`, so the heap starts
+    empty and `dummy.next` is `None`, the empty list. The dummy head means the first splice
+    needs no special case.
+
+    **Alternative.** Divide and conquer: merge lists in pairs (0 with 1, 2 with 3, …), halving
+    the number of lists each round. Every node is touched once per round and there are
+    `log k` rounds, so it is also O(N log k), with O(1) extra space if done iteratively.
+  time: O(N log k) — each of the N nodes is pushed and popped once, and the heap holds at most k entries
+  space: O(k) — the heap; the merged list reuses the input nodes
+  brute_force_code: |
+    class Solution:
+        def mergeKLists(self, lists: List[Optional[ListNode]]) -> Optional[ListNode]:
+            heads = list(lists)
+            dummy = tail = ListNode()
+            while True:
+                best = -1
+                for i, node in enumerate(heads):  # rescan all k heads for every node
+                    if node and (best == -1 or node.val < heads[best].val):
+                        best = i
+                if best == -1:
+                    return dummy.next
+                tail.next = heads[best]
+                tail = tail.next
+                heads[best] = heads[best].next
+
+pitch_script: |
+  **(Clarify)** "So I get k linked lists, each sorted ascending, and I return one sorted list.
+  Some lists, or the whole input, can be empty, and I can reuse the existing nodes instead of
+  creating new ones, right?"
+
+  **(Brute force)** "The simplest correct approach scans all k heads at every step, takes the
+  smallest and advances that list. That's O(N times k), up to 10⁸ comparisons here, and almost
+  all of that work re-compares heads that didn't change. Collecting everything and sorting is
+  O(N log N) but ignores the fact that the lists are already sorted."
+
+  **(Trigger)** "k sorted sources and I keep needing the smallest current front: that's a k-way
+  merge, and a min-heap is the natural structure for 'smallest of k candidates that keep
+  getting replaced'."
+
+  **(Optimal)** "I put the head of every non-empty list into a min-heap as a tuple of value,
+  list index and node. The index is there because in Python, if two values tie, heapq would
+  compare the nodes and crash. Then I pop the smallest, attach it to a dummy-headed result,
+  and push its next node if it has one. When the heap is empty I return dummy.next."
+
+  **(Complexity)** "Every node goes into and out of a heap of size at most k, so O(N log k)
+  time and O(k) extra space. An alternative is divide and conquer, merging lists in pairs for
+  log k rounds, which is also O(N log k) and can be done with O(1) extra space."
+
+twist:
+  lc: 378
+  title: Kth Smallest Element in a Sorted Matrix
+  why: >-
+    Each row of an n × n matrix is a sorted "list", and you want the kth item of their merge
+    rather than the whole merge. Seed the heap with (matrix[r][0], r, 0) for each row, then pop
+    k times, pushing (matrix[r][c + 1], r, c + 1) after each pop; the kth pop is the answer.
+    Same replace-with-successor move, stopped early, in O(k log n).
+
+viz:
+  heaps: [heap]
+  arrays: [lists]
+  pointers: [i]
+  watch: [val]

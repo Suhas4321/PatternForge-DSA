@@ -1,0 +1,386 @@
+slug: rotting-oranges
+lc: 994
+
+concept:
+  problem_it_solves: >-
+    "If something spreads one step per minute from several places at once, when does it reach
+    everything?" The minute a cell is reached is its shortest distance to the *nearest* starting
+    cell. BFS explores a graph in rings of increasing distance, so if you start it from every source
+    at the same time, ring k is exactly the set of cells that rot at minute k.
+  brute_force: >-
+    Simulate minute by minute: scan the whole grid, collect every fresh orange that touches a rotten
+    one, rot them all at once, and repeat until a minute changes nothing. Each minute re-reads every
+    cell, including all the oranges that rotted long ago or that are nowhere near the spreading
+    front, and a long chain of oranges needs as many minutes as it has cells.
+  brute_force_complexity: >-
+    O((M·N)²) time, O(M·N) space — fine for LeetCode's 10 × 10 grid, but a 1000 × 1000 warehouse
+    floor with a snake-shaped chain needs up to ~5 × 10⁵ minutes × 10⁶ cells = 5 × 10¹¹ reads.
+  key_insight: >-
+    Put **all** rotten oranges in the queue before the BFS starts (multi-source BFS). Then process the
+    queue one level at a time: everything in the queue right now rotted at the same minute, and every
+    fresh neighbour they infect rots at the next minute. Counting levels counts minutes, and each
+    orange enters the queue exactly once, so the whole spread is O(M·N). Two bookkeeping details
+    finish it: count the fresh oranges up front and decrement as they rot (any left over means -1),
+    and stop as soon as no fresh oranges remain so the last, empty level doesn't add a phantom minute.
+  real_world: >-
+    Multi-source BFS is how contact-tracing and epidemic models compute "infected by day k" from
+    several patients zero, how ride-hailing apps (Ola, Uber) compute the distance from every map cell
+    to the nearest available driver, and how game maps precompute distance-to-nearest-exit fields.
+    Message propagation in gossip protocols (Cassandra, Consul) spreads in exactly these rounds.
+
+statement:
+  clean: |
+    You are given an `m x n` grid where each cell has one of three values:
+
+    - `0`: an empty cell,
+    - `1`: a fresh orange,
+    - `2`: a rotten orange.
+
+    **Every minute**, any fresh orange that is **4-directionally adjacent** to a rotten orange becomes
+    rotten.
+
+    Return the **minimum number of minutes** that must elapse until no cell has a fresh orange. If
+    this is impossible, return `-1`.
+  oa_story: |
+    **MangoMandi Fresh — OA Round 1**
+
+    MangoMandi runs a cold-storage warehouse near the Yeshwanthpur APMC yard, where mango crates sit
+    on a floor plan of slots. Each slot is empty (`0`), holds a fresh crate (`1`), or holds a crate
+    that has started to spoil (`2`). Spoilage spreads through the ethylene gas a bad crate gives off:
+    each minute, every fresh crate sharing a wall with a spoiled one (front, back, left or right, not
+    corner to corner) spoils too. Empty slots stop the spread.
+
+    The quality team wants to know how long they have before the entire stock is lost: the number of
+    minutes until no fresh crate remains. If some fresh crates can never be reached by the spoilage,
+    report `-1` so they know part of the stock is safe forever. If there are no fresh crates at all,
+    the answer is `0`.
+  trigger_keywords: ["every minute", "4-directionally adjacent", "minimum number of minutes"]
+  examples:
+    - input: "grid = [[2,1,1],[1,1,0],[0,1,1]]"
+      output: "4"
+      explanation: >-
+        Minute 1 rots (0,1) and (1,0); minute 2 rots (0,2) and (1,1); minute 3 rots (2,1); minute 4
+        rots (2,2).
+    - input: "grid = [[2,1,1],[0,1,1],[1,0,1]]"
+      output: "-1"
+      explanation: >-
+        The orange in the bottom-left corner has an empty cell above it and to its right, so rotting
+        never reaches it.
+    - input: "grid = [[0,2]]"
+      output: "0"
+      explanation: "There are no fresh oranges at minute 0, so the answer is 0."
+  constraints:
+    - "m == grid.length"
+    - "n == grid[i].length"
+    - "1 <= m, n <= 10"
+    - "grid[i][j] is 0, 1, or 2"
+
+constraint_quiz:
+  prompt: >-
+    LeetCode's grid is at most 10 × 10, but MangoMandi's real warehouse floor is 1000 × 1000 slots
+    (10⁶ cells). What complexity should your solution have?
+  options:
+    - "O((M·N)²) — rescan the whole floor once per minute"
+    - "O(M·N · log(M·N)) — Dijkstra from the rotten crates"
+    - "O(M·N) — multi-source BFS, each cell enqueued at most once"
+    - "O(M + N) — the answer is a distance, so walk rows and columns"
+  answer: 2
+  explanation: >-
+    Rescanning per minute is quadratic: up to 10¹¹ reads or more on a long chain. Dijkstra gives the
+    right answer but pays a heap log factor for nothing, because every step costs exactly one
+    minute and BFS already processes cells in distance order. O(M + N) can't even read the floor.
+    Multi-source BFS enqueues each crate once and checks 4 neighbours: O(M·N), about 4 × 10⁶ steps.
+
+pattern_quiz:
+  prompt: >-
+    Several sources spread to their neighbours simultaneously, one step per minute, and you need the
+    minute at which the last cell is reached. Which pattern fits?
+  options:
+    - "DFS from each rotten orange, recording the depth at which each fresh orange is reached"
+    - "Multi-source BFS: start with every rotten orange in the queue and count levels"
+    - "Run a single-source BFS from each rotten orange and take the maximum"
+    - "Dynamic programming over the grid from top-left to bottom-right"
+  answer: 1
+  explanation: >-
+    "Spread / minutes" from several places at once is the multi-source BFS trigger: one queue seeded
+    with every source, processed level by level, where level k is minute k. DFS depth is the length
+    of whatever path it happened to take, not the shortest one. Separate BFS runs per source cost
+    O(sources · M·N) and taking their maximum is wrong: each orange rots from its *nearest* source,
+    so you need the minimum over sources, which one combined BFS gives for free. A top-left DP can't
+    see spread that comes from below or the right.
+
+function:
+  name: orangesRotting
+  params: [{name: grid}]
+
+starter_code: |
+  class Solution:
+      def orangesRotting(self, grid: List[List[int]]) -> int:
+          pass
+
+tests:
+  - {args: [[[2, 1, 1], [1, 1, 0], [0, 1, 1]]], expected: 4}
+  - {args: [[[2, 1, 1], [0, 1, 1], [1, 0, 1]]], expected: -1}
+  - {args: [[[0, 2]]], expected: 0, note: "no fresh oranges: 0 minutes"}
+  - {args: [[[0]]], expected: 0, note: "1x1 empty cell: nothing fresh, so 0"}
+  - {args: [[[1]]], expected: -1, note: "fresh orange with no rotten source"}
+  - {args: [[[2, 2], [2, 2]]], expected: 0, note: "already all rotten"}
+  - {args: [[[2, 1, 1, 1, 1, 2]]], expected: 2, note: "two sources meet in the middle: 2, not 4"}
+  - {args: [[[2], [1], [1], [1]]], expected: 3, note: "single column chain"}
+visualize_test: 0
+
+drills:
+  - title: Seed the queue with every source
+    skill: setup
+    goal: Do the one scan that finds all rotten oranges (the BFS sources) and counts the fresh ones.
+    instructions: |
+      Return `[sources, fresh]`, where `sources` is the list of `[r, c]` of every rotten orange (`2`)
+      in row-major order and `fresh` is the number of fresh oranges (`1`).
+
+      This single scan sets up the entire solution. Every rotten orange goes into the BFS queue
+      **before** the BFS starts, because they all start spreading at minute 0; seeding only one of
+      them and adding the others later would give them an unfair head start or delay. The fresh
+      count is how you'll know at the end whether anything was left unreachable.
+    function:
+      name: seedSources
+      params: [{name: grid}]
+    starter_code: |
+      class Solution:
+          def seedSources(self, grid: List[List[int]]) -> List:
+              pass
+    tests:
+      - {args: [[[2, 1, 1], [1, 1, 0], [0, 1, 1]]], expected: [[[0, 0]], 6]}
+      - {args: [[[2, 1, 2], [0, 1, 0]]], expected: [[[0, 0], [0, 2]], 2], note: "two sources"}
+      - {args: [[[1, 1]]], expected: [[], 2], note: "no sources at all"}
+      - {args: [[[0]]], expected: [[], 0]}
+    solution: |
+      class Solution:
+          def seedSources(self, grid: List[List[int]]) -> List:
+              sources, fresh = [], 0
+              for r in range(len(grid)):
+                  for c in range(len(grid[0])):
+                      if grid[r][c] == 2:
+                          sources.append([r, c])
+                      elif grid[r][c] == 1:
+                          fresh += 1
+              return [sources, fresh]
+    hint: "One double loop with two branches: `== 2` appends to `sources`, `== 1` increments `fresh`."
+
+  - title: One level of the queue is one minute
+    skill: core
+    goal: Process the BFS queue level by level with `for _ in range(len(queue))` and count what each level infects.
+    instructions: |
+      Run the spread and return a list with the number of oranges that rot at minute 1, minute 2, and
+      so on. Don't include a final minute in which nothing rots.
+
+      The level loop is the key move of every "minutes / steps / levels" BFS. `len(queue)` taken at the
+      start of a level is the number of oranges that rotted in the previous minute; pop exactly that
+      many, and everything they append belongs to the next minute. Mark a neighbour rotten (`2`) the
+      moment you append it, so a fresh orange touching two rotten ones is only queued once.
+    function:
+      name: rotPerMinute
+      params: [{name: grid}]
+    starter_code: |
+      class Solution:
+          def rotPerMinute(self, grid: List[List[int]]) -> List[int]:
+              pass
+    tests:
+      - {args: [[[2, 1, 1], [1, 1, 0], [0, 1, 1]]], expected: [2, 2, 1, 1]}
+      - {args: [[[2, 1, 1, 1, 1, 2]]], expected: [2, 2], note: "both sources spread in the same minute"}
+      - {args: [[[2, 1, 1], [0, 1, 1], [1, 0, 1]]], expected: [1, 2, 1, 1], note: "the unreachable orange never appears"}
+      - {args: [[[2, 1], [1, 1]]], expected: [2, 1]}
+      - {args: [[[0, 2]]], expected: [], note: "nothing to rot"}
+    solution: |
+      class Solution:
+          def rotPerMinute(self, grid: List[List[int]]) -> List[int]:
+              rows, cols = len(grid), len(grid[0])
+              queue = deque((r, c) for r in range(rows) for c in range(cols) if grid[r][c] == 2)
+              counts = []
+              while queue:
+                  rotted = 0
+                  for _ in range(len(queue)):  # exactly this minute's oranges
+                      r, c = queue.popleft()
+                      for nr, nc in ((r + 1, c), (r - 1, c), (r, c + 1), (r, c - 1)):
+                          if 0 <= nr < rows and 0 <= nc < cols and grid[nr][nc] == 1:
+                              grid[nr][nc] = 2
+                              rotted += 1
+                              queue.append((nr, nc))
+                  if rotted:
+                      counts.append(rotted)
+              return counts
+    hint: "Freeze the level size with `for _ in range(len(queue)):` before popping."
+
+  - title: Zero, minus one, and the phantom minute
+    skill: edge
+    goal: Stop the BFS when nothing fresh is left and turn leftovers into -1.
+    instructions: |
+      The same spread on a single row: `row[i]` is `0`, `1` or `2`, and a rotten orange infects
+      `i - 1` and `i + 1` each minute. Return the minutes until no fresh orange remains, or `-1` if
+      that never happens.
+
+      The three answers people get wrong: with **no fresh oranges** the answer is `0`, even if there
+      are no rotten ones either. With fresh oranges but **no rotten** ones, it's `-1`. And if your loop
+      is just `while queue:`, the last level (oranges that rotted but have nobody left to infect)
+      still adds a minute. Loop `while queue and fresh > 0`, then return `minutes if fresh == 0 else -1`.
+    function:
+      name: rotRow
+      params: [{name: row}]
+    starter_code: |
+      class Solution:
+          def rotRow(self, row: List[int]) -> int:
+              pass
+    tests:
+      - {args: [[2, 1, 1]], expected: 2}
+      - {args: [[0, 0]], expected: 0, note: "no fresh oranges: 0"}
+      - {args: [[1]], expected: -1, note: "no source"}
+      - {args: [[2, 1, 0, 1]], expected: -1, note: "empty cell blocks the spread"}
+      - {args: [[2]], expected: 0}
+      - {args: [[2, 1, 1, 1, 2]], expected: 2, note: "the last level must not add a minute"}
+    solution: |
+      class Solution:
+          def rotRow(self, row: List[int]) -> int:
+              queue = deque(i for i, x in enumerate(row) if x == 2)
+              fresh, minutes = row.count(1), 0
+              while queue and fresh > 0:  # stop once nothing is left to rot
+                  for _ in range(len(queue)):
+                      i = queue.popleft()
+                      for j in (i - 1, i + 1):
+                          if 0 <= j < len(row) and row[j] == 1:
+                              row[j] = 2
+                              fresh -= 1
+                              queue.append(j)
+                  minutes += 1
+              return minutes if fresh == 0 else -1
+    hint: "Track `fresh`; it decides both when to stop and whether the answer is -1."
+
+hints:
+  - >-
+    All the rotten oranges start spreading at the same moment. If you think of the grid as a graph,
+    the minute an orange rots is its distance to the nearest rotten orange. Which traversal visits
+    nodes in order of distance, and how do you give it several starting points?
+  - >-
+    Put every rotten orange in one queue and count the fresh ones. Then process the queue in levels:
+    pop everything that's in it right now, rot their fresh neighbours and push them. One level = one
+    minute. Every time an orange rots, decrement the fresh count.
+  - |
+    queue = every rotten (r, c);  fresh = number of 1s;  minutes = 0
+    while queue not empty and fresh > 0:
+        repeat len(queue) times:
+            (r, c) = pop front
+            for each in-bounds neighbour that is fresh:
+                make it rotten, fresh -= 1, push it
+        minutes += 1
+    return minutes if fresh == 0 else -1
+
+solution:
+  code: |
+    class Solution:
+        def orangesRotting(self, grid: List[List[int]]) -> int:
+            rows, cols = len(grid), len(grid[0])
+            queue = deque()
+            fresh = 0
+            for r in range(rows):
+                for c in range(cols):
+                    if grid[r][c] == 2:
+                        queue.append((r, c))  # every source starts at minute 0
+                    elif grid[r][c] == 1:
+                        fresh += 1
+
+            minutes = 0
+            while queue and fresh > 0:  # fresh > 0: don't count a final minute that rots nothing
+                for _ in range(len(queue)):  # exactly the oranges that rotted last minute
+                    r, c = queue.popleft()
+                    for dr, dc in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                        nr, nc = r + dr, c + dc
+                        if 0 <= nr < rows and 0 <= nc < cols and grid[nr][nc] == 1:
+                            grid[nr][nc] = 2  # mark when enqueued, so it's queued once
+                            fresh -= 1
+                            queue.append((nr, nc))
+                minutes += 1
+            return minutes if fresh == 0 else -1
+  explanation: |
+    **One thing changed from the island problems: the traversal is BFS, and it starts everywhere at
+    once.** The grid is still a graph with 4-neighbour edges. The minute an orange rots equals its
+    shortest distance to the *nearest* rotten orange, and BFS is the traversal that visits nodes in
+    order of distance.
+
+    **Multi-source seeding.** All rotten oranges go into the queue before the loop. That's
+    equivalent to a single BFS from an imaginary "super source" connected to every rotten orange,
+    so each fresh orange is reached first by whichever rotten orange is closest. On `[2,1,1,1,1,2]`
+    the two ends meet in the middle after 2 minutes; a BFS from just one end would say 4.
+
+    **Levels are minutes.** At the start of each round, `len(queue)` is exactly the number of
+    oranges that rotted in the previous minute. Popping that many and pushing their fresh
+    neighbours builds the next minute's front. Marking a neighbour rotten *when it's pushed* (not
+    when it's popped) stops a fresh orange between two rotten ones from being queued twice.
+
+    **The three endings.**
+    - No fresh oranges at the start: the loop never runs and the answer is `0`, even on `[[0]]`.
+    - Fresh oranges left when the queue empties: some are walled off by empty cells, or there was no
+      rotten orange at all, so return `-1`.
+    - `fresh > 0` in the loop condition: the oranges that rot in the final minute are still in the
+      queue afterwards. Without the check, the loop would process them, rot nothing, and add one
+      extra minute.
+  time: O(M·N) — the seeding scan reads every cell once, and each orange is enqueued and dequeued at most once
+  space: O(M·N) — the queue can hold a large fraction of the grid (e.g. every rotten orange at the start)
+  brute_force_code: |
+    class Solution:
+        def orangesRotting(self, grid: List[List[int]]) -> int:
+            rows, cols = len(grid), len(grid[0])
+            minutes = 0
+            while True:
+                # snapshot first: oranges rotting this minute must not infect others this minute
+                to_rot = []
+                for r in range(rows):
+                    for c in range(cols):
+                        if grid[r][c] != 1:
+                            continue
+                        for nr, nc in ((r + 1, c), (r - 1, c), (r, c + 1), (r, c - 1)):
+                            if 0 <= nr < rows and 0 <= nc < cols and grid[nr][nc] == 2:
+                                to_rot.append((r, c))
+                                break
+                if not to_rot:
+                    break
+                for r, c in to_rot:
+                    grid[r][c] = 2
+                minutes += 1
+            if any(cell == 1 for row in grid for cell in row):
+                return -1
+            return minutes
+
+pitch_script: |
+  **(Clarify)** "So rotting spreads up, down, left and right, one step per minute, from all rotten
+  oranges simultaneously. I return the minutes until no fresh orange is left, -1 if some can never
+  rot, and 0 if there are no fresh oranges to begin with. Right?"
+
+  **(Brute force)** "I could simulate minute by minute: scan the grid, find fresh oranges next to
+  rotten ones, rot them together, and repeat. That rescans every cell each minute, so it's O((M·N)²)
+  in the worst case, like a long snake of oranges."
+
+  **(Trigger)** "'Spreads every minute from several sources' means each orange rots at its shortest
+  distance from the nearest rotten one. Shortest distance in an unweighted graph is BFS, and several
+  simultaneous sources means a multi-source BFS: all the rotten oranges go into the queue first."
+
+  **(Optimal)** "I scan once to enqueue every rotten orange and count the fresh ones. Then I process
+  the queue level by level: for the current queue size, pop an orange and rot each fresh in-bounds
+  neighbour, decrementing the fresh count and pushing it. Each level is one minute. I keep going while
+  the queue is non-empty and fresh is still positive, so the last level doesn't add an extra minute.
+  At the end, if fresh is zero I return the minutes, otherwise -1."
+
+  **(Complexity)** "Every cell is enqueued at most once and checks four neighbours, so O(M·N) time
+  and O(M·N) space for the queue."
+
+twist:
+  lc: 542
+  title: 01 Matrix
+  why: >-
+    Now you return the distance from every cell to its nearest 0, not just the time the last cell is
+    reached. Same multi-source BFS: seed the queue with every 0 at distance 0, mark every 1 as
+    unvisited (e.g. distance -1), and when you pop a cell, give each unvisited neighbour
+    distance = current + 1 and push it. You store a distance per cell instead of counting levels,
+    and there's no "-1 if unreachable" case because the problem guarantees at least one 0.
+
+viz:
+  grid: grid
+  cell: [r, c]
+  watch: [minutes, fresh]

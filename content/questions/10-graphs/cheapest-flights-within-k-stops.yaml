@@ -1,0 +1,362 @@
+slug: cheapest-flights-within-k-stops
+lc: 787
+
+concept:
+  problem_it_solves: >-
+    "What is the cheapest route if I may use at most a fixed number of edges?" A plain shortest
+    path only minimises cost. Here a route is only allowed if it is short enough in hops, so the
+    cheapest route overall may be illegal and you have to track cost and edge count together.
+    Bellman-Ford fits naturally, because its round i computes exactly "cheapest using at most i
+    edges".
+  brute_force: >-
+    Enumerate every route from src with at most k + 1 flights (DFS with a flight budget) and keep
+    the cheapest one that ends at dst. The same partial routes (src → a → b ...) are re-explored
+    for every way of continuing them, so the work multiplies at every layover.
+  brute_force_complexity: >-
+    O(d^(k+1)) time, O(k) space, where d is the number of flights out of a city — with 99 outgoing
+    flights and k = 5 that's about 99⁶ ≈ 10¹² routes.
+  key_insight: >-
+    Let round i compute the cheapest cost to every city using at most i flights. Round i + 1 only
+    needs round i: try every flight u → v and offer dist[u] + price to v. k stops means k + 1
+    flights, so run k + 1 rounds. The crucial detail is to read from last round's array and write
+    into a copy: if you update in place, a city improved earlier in the same round can be used
+    again within that round, so one round can chain several flights and the hop limit silently
+    breaks. Plain Dijkstra on price fails for the same reason in reverse: it settles a city with
+    its cheapest cost and throws away a pricier route that used fewer flights, which may be the
+    only one that still fits the limit.
+  real_world: >-
+    Fare search engines (Amadeus, Skyscanner, the MakeMyTrip and ixigo backends) search
+    itineraries with a cap on connections. Network routing uses the same "bounded hop count"
+    shortest paths: RIP is distance-vector Bellman-Ford with a 15-hop limit, and BGP prefers routes
+    with shorter AS paths. Delivery platforms bound the number of hand-offs between hubs when
+    routing parcels.
+
+statement:
+  clean: |
+    There are `n` cities connected by some number of flights. You are given an array `flights`
+    where `flights[i] = [fromi, toi, pricei]` means there is a flight from city `fromi` to city
+    `toi` with cost `pricei`.
+
+    You are also given three integers `src`, `dst` and `k`. Return the **cheapest price** from
+    `src` to `dst` with **at most k stops**. If there is no such route, return `-1`.
+
+    A stop is an intermediate city, so a route with at most `k` stops uses at most `k + 1` flights.
+  oa_story: |
+    **UdanSasta — OA Round 1**
+
+    UdanSasta is a budget fare aggregator built by a small team in Indiranagar. Its catalogue has
+    `n` airports, numbered `0` to `n - 1`, and a list of one-way fares `[from, to, price]` pulled
+    from low-cost carriers. A student flying home for Diwali enters an origin `src`, a destination
+    `dst`, and how many layovers `k` they can tolerate (nobody wants four connections with a
+    backpack).
+
+    Show the lowest total fare for an itinerary from `src` to `dst` that changes planes at most `k`
+    times. If no itinerary satisfies the layover limit, show `-1` so the app can suggest trains
+    instead. There are at most 100 airports, and every fare is between 1 and 10,000 rupees.
+  trigger_keywords: ["cheapest price", "at most k stops"]
+  examples:
+    - input: "n = 4, flights = [[0,1,100],[1,2,100],[2,0,100],[1,3,600],[2,3,200]], src = 0, dst = 3, k = 1"
+      output: "700"
+      explanation: >-
+        0 → 1 → 3 costs 700 with one stop. 0 → 1 → 2 → 3 costs only 400 but has two stops, so it
+        isn't allowed.
+    - input: "n = 3, flights = [[0,1,100],[1,2,100],[0,2,500]], src = 0, dst = 2, k = 1"
+      output: "200"
+      explanation: "0 → 1 → 2 uses one stop and costs 200."
+    - input: "n = 3, flights = [[0,1,100],[1,2,100],[0,2,500]], src = 0, dst = 2, k = 0"
+      output: "500"
+      explanation: "With no stops allowed, only the direct flight counts."
+  constraints:
+    - "1 <= n <= 100"
+    - "0 <= flights.length <= (n * (n - 1) / 2)"
+    - "flights[i].length == 3"
+    - "0 <= fromi, toi < n"
+    - "fromi != toi"
+    - "1 <= pricei <= 10^4"
+    - "There will not be any multiple flights between two cities."
+    - "0 <= src, dst, k < n"
+    - "src != dst"
+
+constraint_quiz:
+  prompt: >-
+    n <= 100, so there are at most 4950 flights (E), and k < 100. Which approach is both correct and
+    fast enough?
+  options:
+    - "Enumerate every route with at most k + 1 flights"
+    - "O(k · E) — k + 1 rounds of Bellman-Ford relaxation"
+    - "O(E log V) — plain Dijkstra on price, then check the stops"
+    - "O(V + E) — BFS for the route with the fewest flights"
+  answer: 1
+  explanation: >-
+    Enumerating routes is exponential in k. Plain Dijkstra is fast but wrong: it keeps only the
+    cheapest way into each city, which may use too many flights, and discards the pricier route
+    with fewer flights that was the only legal one. Fewest-flights BFS ignores price. k + 1
+    Bellman-Ford rounds over all flights are at most 100 × 4950 ≈ 5 × 10⁵ relaxations, and each
+    round is exactly "one more flight allowed".
+
+pattern_quiz:
+  prompt: >-
+    Minimise the total price, but only routes with at most k + 1 edges are allowed. Which pattern
+    fits?
+  options:
+    - "Dijkstra on price with a visited set"
+    - "Bellman-Ford limited to k + 1 rounds, reading from the previous round's copy"
+    - "Topological sort, then relax in order"
+    - "Greedy: always take the cheapest outgoing flight"
+  answer: 1
+  explanation: >-
+    "Cheapest" plus "at most k stops" is the bounded-edges shortest-path trigger. Bellman-Ford's
+    round i is exactly "cheapest with at most i edges", so you stop after k + 1 rounds. Dijkstra
+    with a visited set settles each city once by price and loses fewer-hop alternatives. The
+    flight graph can have cycles, so topological order doesn't exist, and the greedy choice can
+    lead into a dead end.
+
+function:
+  name: findCheapestPrice
+  params: [{name: n}, {name: flights}, {name: src}, {name: dst}, {name: k}]
+
+starter_code: |
+  class Solution:
+      def findCheapestPrice(self, n: int, flights: List[List[int]], src: int, dst: int, k: int) -> int:
+          pass
+
+tests:
+  - {args: [4, [[0, 1, 100], [1, 2, 100], [2, 0, 100], [1, 3, 600], [2, 3, 200]], 0, 3, 1], expected: 700}
+  - {args: [3, [[0, 1, 100], [1, 2, 100], [0, 2, 500]], 0, 2, 1], expected: 200}
+  - {args: [3, [[0, 1, 100], [1, 2, 100], [0, 2, 500]], 0, 2, 0], expected: 500, note: "without the copy, 0 → 1 → 2 leaks into the first round and gives 200"}
+  - {args: [3, [[0, 1, 100]], 0, 2, 1], expected: -1, note: no route at all}
+  - {args: [4, [[0, 1, 1], [1, 2, 1], [2, 3, 1]], 0, 3, 1], expected: -1, note: "a route exists but needs 2 stops"}
+  - {args: [4, [[0, 1, 1], [1, 2, 1], [2, 3, 1], [0, 3, 10]], 0, 3, 1], expected: 10, note: "flights listed in chain order: an in-place update would find 3 in one round"}
+  - {args: [5, [[0, 1, 5], [1, 2, 5], [2, 3, 5], [3, 4, 5], [0, 4, 100], [0, 2, 15]], 0, 4, 2], expected: 25, note: "plain Dijkstra settles city 2 at 10 via two flights, loses the 15 direct one, and answers 100"}
+  - {args: [5, [[0, 1, 5], [1, 2, 5], [2, 3, 5], [3, 4, 5], [0, 4, 100], [0, 2, 15]], 0, 4, 3], expected: 20, note: one more stop allowed unlocks the 4-flight route}
+visualize_test: 1
+
+drills:
+  - title: Stops are flights minus one
+    skill: setup
+    goal: Expand a BFS frontier one flight at a time for exactly k + 1 levels to find what is reachable within k stops.
+    instructions: |
+      Ignore prices. Return the sorted list of cities (not counting `src`) that can be reached
+      from `src` with **at most `k` stops**.
+
+      Expand the frontier level by level: level 1 is every city one flight away, level 2 two
+      flights, and so on. `k` stops allows `k + 1` flights, so you expand exactly `k + 1` times.
+      This off-by-one decides the number of rounds in the real solution too: one round too many
+      and example 1 returns 400 (two stops) instead of 700, one too few and it returns -1. Keep a `seen` set so a city isn't expanded twice.
+    function:
+      name: citiesWithinStops
+      params: [{name: n}, {name: flights}, {name: src}, {name: k}]
+    starter_code: |
+      class Solution:
+          def citiesWithinStops(self, n: int, flights: List[List[int]], src: int, k: int) -> List[int]:
+              pass
+    tests:
+      - {args: [4, [[0, 1, 100], [1, 2, 100], [2, 0, 100], [1, 3, 600], [2, 3, 200]], 0, 1], expected: [1, 2, 3]}
+      - {args: [4, [[0, 1, 100], [1, 2, 100], [2, 0, 100], [1, 3, 600], [2, 3, 200]], 0, 0], expected: [1], note: "k = 0 still allows one flight"}
+      - {args: [4, [[0, 1, 1], [1, 2, 1], [2, 3, 1]], 0, 1], expected: [1, 2]}
+      - {args: [3, [], 0, 2], expected: [], note: no flights}
+      - {args: [2, [[0, 1, 1], [1, 0, 1]], 0, 3], expected: [1], note: flying back to src doesn't count it}
+    solution: |
+      class Solution:
+          def citiesWithinStops(self, n: int, flights: List[List[int]], src: int, k: int) -> List[int]:
+              adj = [[] for _ in range(n)]
+              for u, v, _ in flights:
+                  adj[u].append(v)
+              seen, frontier = {src}, [src]
+              for _ in range(k + 1):  # k stops = k + 1 flights = k + 1 levels
+                  frontier = [v for u in frontier for v in adj[u] if v not in seen]
+                  seen.update(frontier)
+              return sorted(seen - {src})
+    hint: "Loop `for _ in range(k + 1)` and rebuild `frontier` from the previous frontier's neighbours."
+
+  - title: One round, read old, write new
+    skill: core
+    goal: Run a single Bellman-Ford round that reads last round's costs and writes into a copy, so a round adds at most one flight.
+    instructions: |
+      `dist[c]` is the cheapest known cost to city `c` using at most `i` flights, or `-1` if no
+      such route exists yet. Return the costs using at most `i + 1` flights after one round over
+      all `flights`.
+
+      Start `new` as a copy of `dist` (a route with fewer flights is still allowed), and for each
+      flight `u → v` offer `dist[u] + price` to `new[v]`. Read from `dist`, never from `new`:
+      otherwise a city you just improved in this round could feed another flight in the same
+      round. In the first test that bug gives city 2 the cost 200 after one round, using two
+      flights.
+    function:
+      name: relaxRound
+      params: [{name: dist}, {name: flights}]
+    starter_code: |
+      class Solution:
+          def relaxRound(self, dist: List[int], flights: List[List[int]]) -> List[int]:
+              pass
+    tests:
+      - {args: [[0, -1, -1], [[0, 1, 100], [1, 2, 100], [0, 2, 500]]], expected: [0, 100, 500], note: "2 must not get 200 in the same round"}
+      - {args: [[0, 100, 500], [[0, 1, 100], [1, 2, 100], [0, 2, 500]]], expected: [0, 100, 200], note: second round}
+      - {args: [[0, -1, -1, -1], [[0, 1, 100], [1, 2, 100], [2, 0, 100], [1, 3, 600], [2, 3, 200]]], expected: [0, 100, -1, -1]}
+      - {args: [[0, 100, -1, -1], [[0, 1, 100], [1, 2, 100], [2, 0, 100], [1, 3, 600], [2, 3, 200]]], expected: [0, 100, 200, 700]}
+      - {args: [[0, 5, -1], [[0, 1, 10]]], expected: [0, 5, -1], note: a round never makes a cost worse}
+    solution: |
+      class Solution:
+          def relaxRound(self, dist: List[int], flights: List[List[int]]) -> List[int]:
+              new = dist[:]  # fewer flights is still allowed
+              for u, v, price in flights:
+                  if dist[u] == -1:
+                      continue  # u isn't reachable yet with i flights
+                  if new[v] == -1 or dist[u] + price < new[v]:
+                      new[v] = dist[u] + price
+              return new
+    hint: "Check `dist[u]` (old round) for reachability and cost, and compare against `new[v]`."
+
+  - title: Put the stop count into Dijkstra's state
+    skill: edge
+    goal: Fix Dijkstra for a hop limit by popping (cost, city, flights) and skipping a city only when it was already popped with fewer or equal flights.
+    instructions: |
+      `adj[u]` lists `[v, price]` pairs (0-indexed). Return the cheapest price from `src` to `dst`
+      with at most `k` stops, or `-1`, using a heap of `(cost, city, flights_used)`.
+
+      Plain Dijkstra marks a city done the first time it is popped. That's wrong here: in the
+      first test city 2 is popped first at cost 10 after two flights, and the 15 route with one
+      flight, the only one that leaves room to reach city 4, gets thrown away. The fix is to make
+      the stop count part of the state: skip a popped entry only if the city was already popped
+      with **fewer or equal** flights (that earlier entry was also cheaper, so it dominates), and
+      never expand an entry that has used all `k + 1` flights. Return as soon as `dst` is popped.
+    function:
+      name: cheapestWithStopState
+      params: [{name: adj}, {name: src}, {name: dst}, {name: k}]
+    starter_code: |
+      class Solution:
+          def cheapestWithStopState(self, adj: List[List[List[int]]], src: int, dst: int, k: int) -> int:
+              pass
+    tests:
+      - {args: [[[[1, 5], [4, 100], [2, 15]], [[2, 5]], [[3, 5]], [[4, 5]], []], 0, 4, 2], expected: 25, note: "plain Dijkstra answers 100 here"}
+      - {args: [[[[1, 100]], [[2, 100], [3, 600]], [[0, 100], [3, 200]], []], 0, 3, 1], expected: 700}
+      - {args: [[[[1, 100], [2, 500]], [[2, 100]], []], 0, 2, 0], expected: 500}
+      - {args: [[[[1, 100], [2, 500]], [[2, 100]], []], 0, 2, 1], expected: 200}
+      - {args: [[[[1, 1]], [[2, 1]], [[3, 1]], []], 0, 3, 1], expected: -1, note: needs too many stops}
+    solution: |
+      class Solution:
+          def cheapestWithStopState(self, adj: List[List[List[int]]], src: int, dst: int, k: int) -> int:
+              heap = [(0, src, 0)]  # (cost, city, flights used)
+              fewest = {}  # city -> fewest flights among its popped entries
+              while heap:
+                  cost, u, used = heapq.heappop(heap)
+                  if u == dst:
+                      return cost
+                  if used == k + 1 or fewest.get(u, k + 2) <= used:
+                      continue  # out of flights, or dominated by a cheaper, shorter entry
+                  fewest[u] = used
+                  for v, price in adj[u]:
+                      heapq.heappush(heap, (cost + price, v, used + 1))
+              return -1
+    hint: "An entry is useless only if an earlier pop of the same city was both cheaper and used no more flights."
+
+hints:
+  - >-
+    The cheapest route overall might use too many flights. If you knew the cheapest cost to every
+    city using at most i flights, how would you get the cheapest using at most i + 1?
+  - >-
+    One round = try every flight u → v and offer cost[u] + price to v. k stops means k + 1 flights,
+    so k + 1 rounds. Why must each round read the costs from before the round started, not the
+    ones being updated?
+  - |
+    dist = infinity everywhere, dist[src] = 0
+    repeat k + 1 times:
+        new_dist = copy of dist
+        for (u, v, price) in flights:
+            if dist[u] + price < new_dist[v]: new_dist[v] = dist[u] + price
+        dist = new_dist
+    return dist[dst] if finite, else -1
+
+solution:
+  code: |
+    class Solution:
+        def findCheapestPrice(self, n: int, flights: List[List[int]], src: int, dst: int, k: int) -> int:
+            INF = float("inf")
+            dist = [INF] * n  # dist[c] = cheapest cost to c using at most `round` flights
+            dist[src] = 0
+            for _ in range(k + 1):  # k stops = at most k + 1 flights
+                new_dist = dist[:]  # read last round, write this round
+                for u, v, price in flights:
+                    if dist[u] + price < new_dist[v]:
+                        new_dist[v] = dist[u] + price
+                dist = new_dist
+            return dist[dst] if dist[dst] < INF else -1
+  explanation: |
+    This is **Bellman-Ford with a round limit**. The invariant: after round `i`, `dist[c]` is the
+    cheapest price to reach `c` using **at most `i` flights**. Round 0 is just `dist[src] = 0`.
+    A route with at most `i + 1` flights is either a route with at most `i` flights (kept because
+    `new_dist` starts as a copy), or a route with at most `i` flights to some `u` followed by one
+    flight `u → v`, which is what the inner loop offers. `k` stops means `k + 1` flights, so after
+    `k + 1` rounds `dist[dst]` is the answer.
+
+    **Why the copy matters.** The inner loop reads `dist[u]`, the previous round's value. If you
+    updated `dist` in place, a city improved earlier in the loop could be used again later in the
+    same loop, so one round could chain two or more flights. With `k = 0` in test 3 the in-place
+    version processes `0 → 1` (city 1 = 100) and then `1 → 2` (city 2 = 200), answering 200 with
+    a stop that wasn't allowed. Classic Bellman-Ford doesn't care about this because it runs
+    until nothing changes; a hop limit does.
+
+    **Why plain Dijkstra fails.** Dijkstra settles each city once, at its cheapest cost, and
+    ignores how many flights that took. In test 7 it settles city 2 at 10 (two flights) and throws
+    away the 15 route (one flight); from there city 4 needs four flights, too many, so it answers
+    100 instead of 25. Dijkstra works only if the state is (city, flights used), as in the edge
+    drill. A BFS by levels with a "best cost so far" array is another correct option.
+  time: O(k · E) — k + 1 rounds, each relaxing every flight once
+  space: O(n) — two cost arrays of size n
+  brute_force_code: |
+    class Solution:
+        def findCheapestPrice(self, n: int, flights: List[List[int]], src: int, dst: int, k: int) -> int:
+            adj = [[] for _ in range(n)]
+            for u, v, price in flights:
+                adj[u].append((v, price))
+            best = float("inf")
+
+            def dfs(city, cost, flights_left):
+                nonlocal best
+                if city == dst:
+                    best = min(best, cost)
+                    return
+                if flights_left == 0:
+                    return
+                for nxt, price in adj[city]:
+                    dfs(nxt, cost + price, flights_left - 1)
+
+            dfs(src, 0, k + 1)  # try every route with at most k + 1 flights
+            return best if best < float("inf") else -1
+
+pitch_script: |
+  **(Clarify)** "A stop is an intermediate city, so k stops means at most k + 1 flights. Prices
+  are positive, flights are one-way, and I return -1 if no route fits the limit. Right?"
+
+  **(Brute force)** "I could DFS every route with at most k + 1 flights and keep the cheapest that
+  ends at dst. That's exponential in k, since partial routes get re-explored for every
+  continuation."
+
+  **(Trigger)** "It looks like Dijkstra, but the stop limit breaks it: Dijkstra keeps only the
+  cheapest way into each city and can throw away a slightly pricier route with fewer flights,
+  which might be the only legal one. 'At most k edges' is exactly what Bellman-Ford's rounds
+  compute: round i gives the cheapest cost using at most i edges."
+
+  **(Optimal)** "I keep a cost array with src at zero and run k + 1 rounds. In each round I copy
+  the array, and for every flight u to v I offer cost[u] + price to the copy. Reading from the old
+  array is essential, otherwise one round could chain several flights. After the rounds I return
+  the cost at dst, or -1 if it's still infinity."
+
+  **(Complexity)** "That's k + 1 passes over the flights, O(k · E) time, about half a million
+  operations at the limits, and O(n) space for the two arrays."
+
+twist:
+  lc: 1928
+  title: Minimum Cost to Reach Destination in Time
+  why: >-
+    Now every city charges a passing fee, edges have travel times, and the limit is total time
+    (maxTime) instead of the number of flights. The same lesson applies: a cheaper arrival that
+    used more time can't simply replace a pricier, faster one, so the state is (city, time used).
+    Either fill dp[t][city] = minimum fee to be at city at time t over t = 0..maxTime (a
+    Bellman-Ford-like sweep over time), or run Dijkstra on fee and only expand an entry if it
+    reaches the city in less time than any earlier pop, the same domination rule as the edge drill.
+
+viz:
+  edges: flights
+  dist: dist
+  watch: [u, v, price]

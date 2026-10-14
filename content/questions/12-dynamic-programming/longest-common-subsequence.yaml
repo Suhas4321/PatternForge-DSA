@@ -1,0 +1,354 @@
+slug: longest-common-subsequence
+lc: 1143
+
+concept:
+  problem_it_solves: >-
+    "How much of these two sequences can I line up, in order, without moving anything?" That
+    question sits under every diff tool, DNA alignment and merge: you keep the characters both
+    strings share in the same relative order and skip the rest. Two-string DP answers it by
+    solving it for every pair of prefixes, smallest first, so each answer is built from three
+    answers you already have.
+  brute_force: >-
+    Recurse from the front: if text1[i] == text2[j], take both and move on; otherwise try
+    skipping a character of text1 and, separately, a character of text2, and keep the better
+    result. On strings with few matches every mismatch splits into two calls, and the same
+    (i, j) pair is reached along a huge number of different skip paths. Each time, its whole
+    subtree is recomputed from scratch.
+  brute_force_complexity: >-
+    O(2^(m+n)) time in the worst case, O(m + n) recursion depth — two strings of length 1000
+    is unthinkable, and even 20 + 20 characters with no matches is around 10¹¹ calls.
+  key_insight: >-
+    There are only (m + 1) × (n + 1) distinct questions: "what is the LCS of the first i
+    characters of text1 and the first j characters of text2?" Answer each once in a table.
+    Look only at the two **last** characters: if they match, they can end the common
+    subsequence, so dp[i][j] = dp[i − 1][j − 1] + 1 (the diagonal). If they don't, they can't
+    both be the final matched pair, so throw one away and keep the better result:
+    max(dp[i − 1][j], dp[i][j − 1]) (up or left). An extra row and column of zeros for the empty
+    prefix make the first real row work with no special cases.
+  real_world: >-
+    `diff` and `git diff` compute a shortest edit script, which is the dual of an LCS: the
+    lines in the LCS are the unchanged lines and everything else is a + or − line. Three-way
+    merge tools, plagiarism checkers (MOSS) and bioinformatics alignment (Needleman–Wunsch,
+    which is this table with scores) all fill the same prefix-by-prefix grid.
+
+statement:
+  clean: |
+    Given two strings `text1` and `text2`, return the length of their
+    **longest common subsequence**. If there is no common subsequence, return `0`.
+
+    A **subsequence** of a string is a new string generated from the original string with some
+    characters (can be none) deleted **without changing the relative order** of the remaining
+    characters. For example, `"ace"` is a subsequence of `"abcde"`.
+
+    A **common subsequence** of two strings is a subsequence that is common to both strings.
+  oa_story: |
+    **DiffDekho Code Review — OA Round 2**
+
+    DiffDekho is a code-review startup in HSR Layout whose side-by-side viewer is used by fintech
+    teams across Bengaluru. To render big files fast, the viewer first compresses every line
+    into a single lowercase letter (a hash bucket), so each version of a file becomes a string:
+    the old version is `text1` and the new version is `text2`.
+
+    The viewer wants to show as many lines as possible as "unchanged". A line can only be shown
+    as unchanged if it appears in both versions, and all unchanged lines must appear in the same
+    order in both versions (lines in between may be added or removed freely). Return the
+    maximum number of unchanged lines the viewer can show. Each version has between 1 and 1000
+    lines.
+  trigger_keywords: ["longest common subsequence", "without changing the relative order"]
+  examples:
+    - input: "text1 = \"abcde\", text2 = \"ace\""
+      output: "3"
+      explanation: "The longest common subsequence is \"ace\"."
+    - input: "text1 = \"abc\", text2 = \"abc\""
+      output: "3"
+      explanation: "The whole string \"abc\" is common to both."
+    - input: "text1 = \"abc\", text2 = \"def\""
+      output: "0"
+      explanation: "No character appears in both strings."
+  constraints:
+    - "1 <= text1.length, text2.length <= 1000"
+    - "text1 and text2 consist of only lowercase English characters."
+
+constraint_quiz:
+  prompt: Both strings can be 1000 characters long. What complexity should you aim for?
+  options:
+    - "O(2^m): enumerate every subsequence of text1 and check it against text2"
+    - "O(m · n): one table cell per pair of prefixes"
+    - "O((m + n) log(m + n)): sort the characters and merge"
+    - "O(m + n): one pass with two pointers"
+  answer: 1
+  explanation: >-
+    2^1000 subsequences is hopeless. m · n = 10⁶ cells with O(1) work each is fast. Sorting
+    destroys the order, which is the whole point of a subsequence. A single two-pointer pass
+    has to decide greedily whether to skip a character of text1 or of text2, and either guess
+    can be wrong ("ab" vs "ba"), so linear time doesn't work; you need to keep both options
+    open, which is what the table does.
+
+pattern_quiz:
+  prompt: >-
+    Two strings, a "subsequence" that keeps relative order, and you want the longest one they
+    share. Which pattern fits?
+  options:
+    - "Sliding window over both strings"
+    - "Two-string DP: dp[i][j] over prefixes, match → diagonal + 1, else max(up, left)"
+    - "Hash set of characters in text1, then count hits in text2"
+    - "Two pointers with a greedy skip"
+  answer: 1
+  explanation: >-
+    "Longest" plus "subsequence" plus "two strings" is the two-string DP trigger: the state is a
+    pair of prefix lengths and every step decides the fate of the last characters. A window
+    only handles contiguous substrings. A character set ignores order ("abc" and "cba" share all
+    three letters but have LCS 1). Greedy two pointers can skip the wrong character and never
+    recover.
+
+function:
+  name: longestCommonSubsequence
+  params: [{name: text1}, {name: text2}]
+
+starter_code: |
+  class Solution:
+      def longestCommonSubsequence(self, text1: str, text2: str) -> int:
+          pass
+
+tests:
+  - {args: ["abcde", "ace"], expected: 3}
+  - {args: ["abc", "abc"], expected: 3}
+  - {args: ["abc", "def"], expected: 0}
+  - {args: ["a", "a"], expected: 1, note: single characters}
+  - {args: ["bsbininm", "jmjkbkjkv"], expected: 1, note: "only one character can be matched in order"}
+  - {args: ["oxcpqrsvwf", "shmtulqrypy"], expected: 2, note: "\"qr\": few matches, lots of skipping"}
+  - {args: ["aaaa", "aa"], expected: 2, note: "duplicates: each character is matched at most once"}
+  - {args: ["abcba", "abcbcba"], expected: 5, note: "the shorter string is the whole answer"}
+  - {args: ["ezupkr", "ubmrapg"], expected: 2}
+visualize_test: 0
+
+drills:
+  - title: The empty-prefix grid and the i − 1 offset
+    skill: setup
+    goal: Build an (m + 1) × (n + 1) grid where cell (i, j) compares text1[i − 1] with text2[j − 1].
+    instructions: |
+      Return a grid with `len(text1) + 1` rows and `len(text2) + 1` columns. Row 0 and column 0
+      are all `0`. For `i, j >= 1`, cell `[i][j]` is `1` if `text1[i - 1] == text2[j - 1]`,
+      otherwise `0`.
+
+      This is the skeleton of every two-string DP. Row `i` means "the first `i` characters of
+      text1", so its **last** character is `text1[i - 1]`, not `text1[i]`. The extra row and
+      column stand for the empty prefix, which is why the indices shift by one. Getting this
+      offset right once means you never write `if i == 0` special cases again.
+    function:
+      name: matchGrid
+      params: [{name: text1}, {name: text2}]
+    starter_code: |
+      class Solution:
+          def matchGrid(self, text1: str, text2: str) -> List[List[int]]:
+              pass
+    tests:
+      - {args: ["ab", "ba"], expected: [[0, 0, 0], [0, 0, 1], [0, 1, 0]]}
+      - {args: ["a", "a"], expected: [[0, 0], [0, 1]]}
+      - {args: ["abc", "c"], expected: [[0, 0], [0, 0], [0, 0], [0, 1]]}
+      - {args: ["aa", "a"], expected: [[0, 0], [0, 1], [0, 1]]}
+    solution: |
+      class Solution:
+          def matchGrid(self, text1: str, text2: str) -> List[List[int]]:
+              m, n = len(text1), len(text2)
+              grid = [[0] * (n + 1) for _ in range(m + 1)]
+              for i in range(1, m + 1):
+                  for j in range(1, n + 1):
+                      if text1[i - 1] == text2[j - 1]:
+                          grid[i][j] = 1
+              return grid
+    hint: "Loop `i` from 1 to m and `j` from 1 to n, and compare `text1[i - 1]` with `text2[j - 1]`."
+
+  - title: Fill the LCS table
+    skill: core
+    goal: Apply match → diagonal + 1, mismatch → max(up, left) to every cell, row by row.
+    instructions: |
+      Return the **whole** LCS table: `dp[i][j]` = length of the LCS of `text1[:i]` and
+      `text2[:j]`, with a zero row and zero column for the empty prefixes.
+
+      For each cell, look at the last characters `text1[i - 1]` and `text2[j - 1]`. Equal: they
+      end the common subsequence together, so take the diagonal `dp[i - 1][j - 1]` and add 1.
+      Different: one of them has to go, so take the better of dropping text1's last character
+      (`dp[i - 1][j]`, up) or text2's (`dp[i][j - 1]`, left). Seeing the full table makes the
+      pattern visible: values never decrease to the right or downwards.
+    function:
+      name: lcsTable
+      params: [{name: text1}, {name: text2}]
+    starter_code: |
+      class Solution:
+          def lcsTable(self, text1: str, text2: str) -> List[List[int]]:
+              pass
+    tests:
+      - {args: ["abc", "ac"], expected: [[0, 0, 0], [0, 1, 1], [0, 1, 1], [0, 1, 2]]}
+      - {args: ["ab", "ba"], expected: [[0, 0, 0], [0, 0, 1], [0, 1, 1]], note: "greedy can't decide, the table can"}
+      - {args: ["a", "b"], expected: [[0, 0], [0, 0]]}
+      - {args: ["aab", "ab"], expected: [[0, 0, 0], [0, 1, 1], [0, 1, 1], [0, 1, 2]]}
+    solution: |
+      class Solution:
+          def lcsTable(self, text1: str, text2: str) -> List[List[int]]:
+              m, n = len(text1), len(text2)
+              dp = [[0] * (n + 1) for _ in range(m + 1)]
+              for i in range(1, m + 1):
+                  for j in range(1, n + 1):
+                      if text1[i - 1] == text2[j - 1]:
+                          dp[i][j] = dp[i - 1][j - 1] + 1
+                      else:
+                          dp[i][j] = max(dp[i - 1][j], dp[i][j - 1])
+              return dp
+    hint: "Mismatch: `max(dp[i - 1][j], dp[i][j - 1])`. Match: the diagonal plus one."
+
+  - title: "Substring, not subsequence: reset and track the best"
+    skill: edge
+    goal: See how the mismatch rule and the answer location change when the match must be contiguous.
+    instructions: |
+      Return the length of the longest common **substring** (contiguous characters) of the two
+      strings.
+
+      Same table, two changed decisions, and both are exactly the places people mix up. Now
+      `dp[i][j]` = length of the longest common substring that **ends at** `text1[i - 1]` and
+      `text2[j - 1]`. On a mismatch, nothing can end here, so the cell is `0` (no carrying
+      forward of `max(up, left)`). And because the best substring can end anywhere, the answer
+      is the **maximum over all cells**, not `dp[m][n]`. For `"abcde"` and `"abfde"` the LCS is
+      4 (`"abde"`) but the longest common substring is 2.
+    function:
+      name: longestCommonSubstring
+      params: [{name: text1}, {name: text2}]
+    starter_code: |
+      class Solution:
+          def longestCommonSubstring(self, text1: str, text2: str) -> int:
+              pass
+    tests:
+      - {args: ["abcde", "abfde"], expected: 2, note: "LCS would be 4"}
+      - {args: ["abc", "def"], expected: 0}
+      - {args: ["xabcy", "zabcw"], expected: 3, note: the best run is in the middle}
+      - {args: ["aaa", "aa"], expected: 2}
+      - {args: ["ababc", "babca"], expected: 4}
+    solution: |
+      class Solution:
+          def longestCommonSubstring(self, text1: str, text2: str) -> int:
+              m, n = len(text1), len(text2)
+              dp = [[0] * (n + 1) for _ in range(m + 1)]
+              best = 0
+              for i in range(1, m + 1):
+                  for j in range(1, n + 1):
+                      if text1[i - 1] == text2[j - 1]:
+                          dp[i][j] = dp[i - 1][j - 1] + 1
+                          best = max(best, dp[i][j])
+              return best
+    hint: "Mismatched cells stay 0; keep a running `best` because the answer can end at any cell."
+
+hints:
+  - >-
+    Compare only the last character of each string. If they're equal, should both be part of
+    the answer? If they're different, can both of them be the final matched pair?
+  - >-
+    Let dp[i][j] be the LCS length of the first i characters of text1 and the first j of text2.
+    Equal last characters: dp[i − 1][j − 1] + 1. Different: drop one of them, i.e.
+    max(dp[i − 1][j], dp[i][j − 1]). Row 0 and column 0 are the empty prefix, all zeros.
+  - |
+    m, n = lengths
+    dp = (m + 1) x (n + 1) grid of zeros     (row 0 / col 0 = empty prefix)
+    for i in 1..m:
+        for j in 1..n:
+            if text1[i - 1] == text2[j - 1]:
+                dp[i][j] = dp[i - 1][j - 1] + 1          (diagonal)
+            else:
+                dp[i][j] = max(dp[i - 1][j], dp[i][j - 1])   (up, left)
+    return dp[m][n]
+
+solution:
+  code: |
+    class Solution:
+        def longestCommonSubsequence(self, text1: str, text2: str) -> int:
+            m, n = len(text1), len(text2)
+            # dp[i][j] = LCS length of text1[:i] and text2[:j]; row 0 / column 0 = empty prefix
+            dp = [[0] * (n + 1) for _ in range(m + 1)]
+            for i in range(1, m + 1):
+                for j in range(1, n + 1):
+                    if text1[i - 1] == text2[j - 1]:
+                        dp[i][j] = dp[i - 1][j - 1] + 1  # both last characters end the LCS
+                    else:
+                        dp[i][j] = max(dp[i - 1][j], dp[i][j - 1])  # drop one last character
+            return dp[m][n]
+  explanation: |
+    **The 5-step DP recipe:**
+
+    1. **Define dp in words.** `dp[i][j]` = length of the longest common subsequence of the
+       first `i` characters of `text1` and the first `j` characters of `text2`.
+    2. **Recurrence from the last choice.** Look at the last characters, `text1[i - 1]` and
+       `text2[j - 1]`.
+       - **Equal:** match them. Any common subsequence of the shorter prefixes can be extended
+         by this shared character, and an optimal LCS never loses by using it (if it matched
+         that character somewhere earlier, swap that match for this one). So
+         `dp[i][j] = dp[i - 1][j - 1] + 1`, the diagonal.
+       - **Different:** they can't both be the last matched pair, so at least one of them is
+         unused. Try both: drop text1's last character (`dp[i - 1][j]`, the cell above) or
+         text2's (`dp[i][j - 1]`, the cell to the left), and keep the max.
+    3. **Base cases.** Row 0 and column 0 are 0: an empty prefix shares nothing with anything.
+       This padding is why the string indices are `i - 1` and `j - 1`.
+    4. **Fill order.** Top to bottom, left to right. Every cell reads up, left and up-left, which
+       are all filled earlier in this order.
+    5. **Answer location.** `dp[m][n]`, the bottom-right cell: both full strings.
+
+    In the visualizer, the rows are labelled with `text1`'s characters and the columns with
+    `text2`'s: a green cell that reads its blue diagonal neighbour is a match; one that reads
+    the cells above and to the left is a skip.
+
+    **Stepping stone.** The memoised version is `lcs(i, j)` on suffixes with the same three
+    branches and a cache: m · n states, O(1) work each. The table is that recursion turned
+    inside out. **Space optimisation:** each row only reads the row above, so two rows of
+    length n + 1 are enough, making it O(min(m, n)) space if you put the shorter string on the
+    columns.
+  time: O(m · n) — one O(1) cell per pair of prefixes, at most 10⁶
+  space: O(m · n) for the table; O(min(m, n)) with two rolling rows
+  brute_force_code: |
+    class Solution:
+        def longestCommonSubsequence(self, text1: str, text2: str) -> int:
+            def lcs(i, j):
+                if i == len(text1) or j == len(text2):
+                    return 0
+                if text1[i] == text2[j]:
+                    return 1 + lcs(i + 1, j + 1)
+                return max(lcs(i + 1, j), lcs(i, j + 1))
+
+            return lcs(0, 0)
+
+pitch_script: |
+  **(Clarify)** "So a subsequence keeps relative order but doesn't have to be contiguous, and I
+  return just the length, not the string itself? Both strings are lowercase, up to 1000
+  characters?"
+
+  **(Brute force)** "Recursively, if the first characters match I take them; otherwise I try
+  skipping one from either string and take the max. That's exponential, because the same pair
+  of positions is reached through many different skip sequences."
+
+  **(Trigger)** "Two strings and 'longest common subsequence' tells me two-string DP. The
+  recursion only ever depends on a pair of positions, so there are just m times n distinct
+  subproblems, and I can fill them in a table."
+
+  **(Optimal)** "dp of i, j is the LCS of the first i characters of text1 and the first j of
+  text2, with a zero row and column for empty prefixes. If the last characters match, it's the
+  diagonal plus one. If not, one of them is useless at the end, so I take the max of the cell
+  above and the cell to the left. I fill row by row, left to right, and the answer is the
+  bottom-right cell."
+
+  **(Complexity)** "O(m times n) time, about a million cells at most. Space is O(m times n) for
+  the table, but each row only reads the previous one, so I can keep two rows and get
+  O(min of m and n) space."
+
+twist:
+  lc: 516
+  title: Longest Palindromic Subsequence
+  why: >-
+    Now there's only one string, and you want its longest subsequence that reads the same both
+    ways. A palindrome inside s is exactly a subsequence that s shares with reversed(s), so the
+    answer is LCS(s, s[::-1]) with the same table and the same recurrence. The more direct
+    version is an interval DP, dp[i][j] over the substring s[i..j] (match the two ends → inner
+    + 2, else max of dropping either end), filled by increasing length.
+
+viz:
+  table: dp
+  row_labels: text1
+  col_labels: text2
+  label_offset: 1
+  watch: [i, j]

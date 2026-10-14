@@ -1,0 +1,320 @@
+slug: jump-game-ii
+lc: 45
+
+concept:
+  problem_it_solves: >-
+    "What's the fewest hops to get from the start to the end, when each position lets me
+    move up to some distance?" That's a shortest path, which normally means BFS with a
+    queue. But the positions reachable in k hops always form one contiguous block, so BFS
+    collapses into a single left-to-right scan with two boundaries and a counter.
+  brute_force: >-
+    DP: dp[j] = fewest jumps to reach j, and every index i relaxes all of i+1 .. i+nums[i].
+    It wastes work because it keeps relaxing indices that already have their final answer.
+    Once you know the block of indices reachable in k jumps, everything in that block is done.
+  brute_force_complexity: >-
+    O(N · K) time where K is the largest jump (O(N²) in general), O(N) space — with
+    N = 10⁴ and K = 1000 that's ~10⁷ relaxations and an extra array, versus one O(N) pass
+    with O(1) space.
+  key_insight: >-
+    Think of it as BFS where level k is the block of indices whose fewest-jumps answer is k.
+    Level 0 is just index 0. While you scan level k, track the farthest index any of its
+    members can reach; that farthest index is where level k + 1 ends. So keep current_end
+    (end of the level you're scanning), farthest (end of the next level) and jumps. Each time
+    i reaches current_end, the level is finished: jumps += 1 and current_end = farthest.
+  real_world: >-
+    Network routing computes minimum hop counts with BFS, and when ranges are contiguous
+    (relay towers along a highway, CDN edge nodes along a route) it collapses into this scan.
+    Video streaming players choose the fewest chunk downloads to cover a seek range the same
+    way, and logistics planners count the minimum refuelling or handover points on a route.
+
+statement:
+  clean: |
+    You are given a 0-indexed array of integers `nums` of length `n`. You are initially
+    positioned at index `0`. Each element `nums[i]` represents the
+    **maximum length of a forward jump** from index `i`: from `i` you can jump to any index
+    `i + j` where `0 <= j <= nums[i]` and `i + j < n`.
+
+    Return the **minimum number of jumps** to reach index `n - 1`. The test cases are
+    generated such that you **can reach** index `n - 1`.
+  oa_story: |
+    **MeetMandap — OA Round 2**
+
+    MeetMandap books wedding and event venues across Bengaluru and runs a courier relay to
+    move decor kits from its Yeshwanthpur warehouse to venues out on the Mysore Road
+    corridor. Hubs sit in a fixed line along the road. From the dispatch sheet, each hub's
+    van can carry a kit to any hub up to some number of hubs further down the line, and
+    every handover between vans costs the team a signature, a delay and a chance of damage.
+
+    Given the list of how far each hub's van can carry a kit, starting at the first hub,
+    return the smallest number of van trips needed to get a kit to the last hub. Ops
+    guarantees the last hub is always reachable. A corridor can have 10,000 hubs, and the
+    planner recomputes this for every booking, so it must be a single pass.
+  trigger_keywords: ["minimum number of jumps", "maximum length of a forward jump"]
+  examples:
+    - input: "nums = [2,3,1,1,4]"
+      output: "2"
+      explanation: "Jump 1 step from index 0 to 1, then 3 steps to the last index. Jumping the full 2 steps first would need 3 jumps."
+    - input: "nums = [2,3,0,1,4]"
+      output: "2"
+  constraints:
+    - "1 <= nums.length <= 10^4"
+    - "0 <= nums[i] <= 1000"
+    - "It's guaranteed that you can reach nums[n - 1]."
+
+constraint_quiz:
+  prompt: >-
+    N ≤ 10⁴ and every jump is at most 1000. The DP that relaxes every jump is O(N · 1000).
+    What's the best complexity you should aim for in the interview?
+  options: ["O(N · 1000)", "O(N log N)", "O(N)", "O(log N)"]
+  answer: 2
+  explanation: >-
+    O(N · 1000) is ~10⁷ steps and would probably pass here, but it depends on the jump bound;
+    if jumps went up to 10⁵ it becomes O(N²), and interviewers expect you to see past it.
+    A heap or segment tree over dp values gives O(N log N), which is unnecessary. The BFS
+    levels are contiguous, so one scan with two boundaries is O(N). O(log N) can't work
+    because you must read every jump length.
+
+pattern_quiz:
+  prompt: >-
+    Fewest jumps from index 0 to the end, where each index can jump any distance up to
+    nums[i]. Which pattern fits?
+  options:
+    - "DFS trying the longest jump first"
+    - "Always jump as far as possible from where you stand"
+    - "BFS levels as contiguous ranges, scanned greedily with current_end and farthest"
+    - "Kadane-style extend or restart"
+  answer: 2
+  explanation: >-
+    "Minimum number of" steps in an unweighted graph is BFS. Here every BFS level is a
+    contiguous block, so you don't need a queue: scanning the block and taking its farthest
+    reach gives the next block. "Always jump as far as possible" is the tempting wrong
+    greedy: on [2,3,1,1,4] it jumps to index 2 and needs 3 jumps instead of 2. DFS has no
+    guarantee of finding the minimum quickly, and Kadane solves a different problem.
+
+function:
+  name: jump
+  params: [{name: nums}]
+
+starter_code: |
+  class Solution:
+      def jump(self, nums: List[int]) -> int:
+          pass
+
+tests:
+  - {args: [[2, 3, 1, 1, 4]], expected: 2, note: "jumping the full 2 first is a trap: it costs 3 jumps"}
+  - {args: [[2, 3, 0, 1, 4]], expected: 2}
+  - {args: [[0]], expected: 0, note: already at the last index}
+  - {args: [[1, 2]], expected: 1}
+  - {args: [[1, 1, 1, 1]], expected: 3, note: "every level has one index; don't count a jump from the last index"}
+  - {args: [[5, 1, 1, 1, 1, 1]], expected: 1, note: first jump covers everything}
+  - {args: [[1, 2, 1, 1, 1]], expected: 3}
+  - {args: [[7, 0, 9, 6, 9, 6, 1, 7, 9, 0, 1, 2, 9, 0, 3]], expected: 2}
+visualize_test: 0
+
+drills:
+  - title: Where does the next level end?
+    skill: setup
+    goal: Compute the farthest index reachable from any index in a block, which is the boundary of the next BFS level.
+    instructions: |
+      Return the farthest index reachable with one jump from **any** index in the block
+      `lo..hi` (inclusive), i.e. the maximum of `i + nums[i]` over that block.
+
+      In the full solution the block is "every index reachable in exactly k jumps", and
+      this maximum is where the block for k + 1 jumps ends.
+    function:
+      name: farthestFrom
+      params: [{name: nums}, {name: lo}, {name: hi}]
+    starter_code: |
+      class Solution:
+          def farthestFrom(self, nums: List[int], lo: int, hi: int) -> int:
+              pass
+    tests:
+      - {args: [[2, 3, 1, 1, 4], 0, 0], expected: 2}
+      - {args: [[2, 3, 1, 1, 4], 1, 2], expected: 4}
+      - {args: [[2, 3, 0, 1, 4], 1, 2], expected: 4}
+      - {args: [[1, 1, 1, 1], 2, 2], expected: 3}
+    solution: |
+      class Solution:
+          def farthestFrom(self, nums: List[int], lo: int, hi: int) -> int:
+              farthest = lo
+              for i in range(lo, hi + 1):
+                  farthest = max(farthest, i + nums[i])
+              return farthest
+    hint: "Loop `i` from `lo` to `hi` inclusive and keep the max of `i + nums[i]`."
+
+  - title: List the BFS levels explicitly
+    skill: core
+    goal: See that the BFS levels are contiguous ranges, each starting right after the previous one ends.
+    instructions: |
+      Return the BFS levels as `[lo, hi]` index ranges: level 0 is `[0, 0]`, and each next
+      level is `[previous hi + 1, farthest reach of the previous level]`, with `hi` capped
+      at `n - 1`. Stop after the level that contains the last index. The last index is
+      always reachable in the tests.
+
+      The number of levels minus one is the answer to Jump Game II. The O(1)-space solution
+      just walks these same ranges without storing them.
+    function:
+      name: bfsLevels
+      params: [{name: nums}]
+    starter_code: |
+      class Solution:
+          def bfsLevels(self, nums: List[int]) -> List[List[int]]:
+              pass
+    tests:
+      - {args: [[2, 3, 1, 1, 4]], expected: [[0, 0], [1, 2], [3, 4]]}
+      - {args: [[0]], expected: [[0, 0]]}
+      - {args: [[1, 1, 1, 1]], expected: [[0, 0], [1, 1], [2, 2], [3, 3]]}
+      - {args: [[5, 1, 1, 1, 1, 1]], expected: [[0, 0], [1, 5]]}
+    solution: |
+      class Solution:
+          def bfsLevels(self, nums: List[int]) -> List[List[int]]:
+              n = len(nums)
+              lo = hi = 0
+              levels = [[0, 0]]
+              while hi < n - 1:
+                  far = max(i + nums[i] for i in range(lo, hi + 1))
+                  lo, hi = hi + 1, min(far, n - 1)
+                  levels.append([lo, hi])
+              return levels
+    hint: "The next level starts at `hi + 1` and ends at the max of `i + nums[i]` over the current level."
+
+  - title: Count jumps, and detect a dead end
+    skill: edge
+    goal: Get the loop bound and the level-closing step right, and notice when a level fails to grow.
+    instructions: |
+      Return the minimum number of jumps to reach the last index, or `-1` if it's
+      unreachable (unlike the real problem, there's no guarantee here).
+
+      Two edges. Loop only to `n - 2`: you never jump *from* the last index, and including
+      it adds a phantom jump on inputs like `[1, 1, 1, 1]` (and `[0]` must return 0). And
+      when you close a level (`i == current_end`) but `farthest` hasn't moved past `i`, the
+      next level is empty, so the end can't be reached.
+    function:
+      name: minJumpsOrMinusOne
+      params: [{name: nums}]
+    starter_code: |
+      class Solution:
+          def minJumpsOrMinusOne(self, nums: List[int]) -> int:
+              pass
+    tests:
+      - {args: [[2, 3, 1, 1, 4]], expected: 2}
+      - {args: [[3, 2, 1, 0, 4]], expected: -1}
+      - {args: [[0]], expected: 0}
+      - {args: [[1, 0, 1]], expected: -1}
+      - {args: [[1, 1, 1, 1]], expected: 3}
+    solution: |
+      class Solution:
+          def minJumpsOrMinusOne(self, nums: List[int]) -> int:
+              jumps = end = far = 0
+              for i in range(len(nums) - 1):
+                  far = max(far, i + nums[i])
+                  if i == end:
+                      if far <= i:
+                          return -1  # the next level would be empty
+                      jumps, end = jumps + 1, far
+              return jumps
+    hint: "Iterate `range(len(nums) - 1)`; at `i == end`, check `far <= i` before taking the jump."
+
+hints:
+  - >-
+    Group the indices by "fewest jumps needed to reach me". Which indices need 0 jumps? Which
+    need exactly 1? Do those groups have any shape you can exploit?
+  - >-
+    Each group is a contiguous block, and the next block ends at the farthest reach from the
+    current block. Scan left to right with current_end (where the current block ends) and
+    farthest (best reach seen so far). When i hits current_end, you must jump: count it and
+    move current_end to farthest.
+  - |
+    jumps = 0, current_end = 0, farthest = 0
+    for i from 0 to n - 2:            # never jump from the last index
+        farthest = max(farthest, i + nums[i])
+        if i == current_end:          # finished scanning this BFS level
+            jumps = jumps + 1
+            current_end = farthest
+    return jumps
+
+solution:
+  code: |
+    class Solution:
+        def jump(self, nums: List[int]) -> int:
+            jumps = 0
+            current_end = 0  # last index reachable with `jumps` jumps (end of this BFS level)
+            farthest = 0  # farthest index reachable with jumps + 1
+            for i in range(len(nums) - 1):  # we never jump from the last index
+                farthest = max(farthest, i + nums[i])
+                if i == current_end:  # level finished: one more jump is required
+                    jumps += 1
+                    current_end = farthest
+            return jumps
+  explanation: |
+    **Why it's BFS.** Treat each index as a node with edges to `i+1 .. i+nums[i]`. BFS from
+    index 0 visits nodes in order of fewest jumps, and level k is the set of indices whose
+    answer is exactly k. By the same argument as Jump Game, everything reachable in at most
+    k jumps is a prefix, so level k is a contiguous block, and level k + 1 is the block from
+    just after level k up to the farthest reach of any index in level k.
+
+    The scan walks those blocks without a queue. `current_end` is the right edge of the
+    level being scanned, and `farthest` collects the best reach of that level's members.
+    When `i == current_end`, every member of the level has been examined, so the next level
+    is fixed: count a jump and move `current_end` to `farthest`. Each index is examined
+    once.
+
+    **Why the greedy is safe.** Inside a level we don't commit to a particular index to jump
+    from; we take the max reach over all of them, so no option is thrown away. That's
+    different from "always jump as far as you can from where you stand", which is wrong
+    on `[2, 3, 1, 1, 4]`: jumping to index 2 gives reach 3, while the shorter hop to index 1
+    gives reach 4.
+
+    The loop stops at `n - 2` because reaching the last index needs no further jump. If it
+    ran to `n - 1`, then on `[1, 1, 1, 1]` (where `i == current_end` at every index) it would
+    count a fourth, phantom jump, and `[0]` would return 1 instead of 0.
+  time: O(N) — each index is examined once
+  space: O(1) — three integers
+  brute_force_code: |
+    class Solution:
+        def jump(self, nums: List[int]) -> int:
+            n = len(nums)
+            dp = [float("inf")] * n  # dp[j]: fewest jumps to reach j
+            dp[0] = 0
+            for i in range(n):
+                for j in range(i + 1, min(n, i + nums[i] + 1)):
+                    dp[j] = min(dp[j], dp[i] + 1)
+            return dp[n - 1]
+
+pitch_script: |
+  **(Clarify)** "Each value is the maximum forward jump, I return the minimum number of jumps
+  to the last index, and it's guaranteed reachable, so I don't need a -1 case? For a single
+  element the answer is 0?"
+
+  **(Brute force)** "A DP where each index relaxes every index it can jump to works. It's
+  O(N times the max jump), which is O(N²) in general, plus O(N) space."
+
+  **(Trigger)** "Minimum number of steps in an unweighted graph means BFS. And here the BFS
+  levels are contiguous: the indices reachable in k jumps form a block, and the next block
+  ends at the farthest reach from this one. So I can do BFS with two boundaries instead of a
+  queue."
+
+  **(Optimal)** "I keep current_end, the end of the level I'm scanning, farthest, the best
+  reach so far, and a jump count. For each index up to n minus 2, I update farthest. When I
+  hit current_end, the level is done, so I count a jump and set current_end to farthest. It's
+  safe because I take the best reach over the whole level rather than committing early, so
+  it's exactly BFS. Jumping as far as possible from where I stand would fail on 2, 3, 1, 1,
+  4. I stop before the last index so I don't count a jump from it."
+
+  **(Complexity)** "Each index is looked at once, so O(N) time and O(1) space."
+
+twist:
+  lc: 1024
+  title: Video Stitching
+  why: >-
+    Now the "jumps" are video clips [start, end] and you want the fewest clips covering
+    [0, time]. Convert the clips into a reach array, reach[s] = the latest end of any clip
+    starting at s, and you have Jump Game II: scan with current_end and farthest, counting a
+    clip each time you pass current_end. Unlike #45, coverage isn't guaranteed, so when a
+    level closes without farthest moving forward you return -1.
+
+viz:
+  arrays: [nums]
+  pointers: [i, current_end, farthest]
+  window: [i, current_end]
+  watch: [jumps, current_end, farthest]

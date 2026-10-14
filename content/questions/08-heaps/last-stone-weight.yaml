@@ -1,0 +1,318 @@
+slug: last-stone-weight
+lc: 1046
+
+concept:
+  problem_it_solves: >-
+    "Repeatedly take the biggest items, combine them, and put the result back." The collection
+    changes after every step, so whatever order you computed before is out of date the moment
+    the leftover goes back in. A max-heap keeps "the biggest right now" one O(log N) operation
+    away, no matter how the collection changes.
+  brute_force: >-
+    Each turn, sort the stones, take the last two, and append the difference if it isn't zero.
+    Sorting orders every stone each turn, even though only two stones left and at most one came
+    back, so almost all of that ordering work is repeated from the previous turn.
+  brute_force_complexity: >-
+    O(N² log N) time (up to N − 1 turns, each with an O(N log N) sort), O(1) extra space — fine
+    for N = 30, but 10⁵ stones would mean ~1.7 × 10¹¹ steps.
+  key_insight: >-
+    The only questions you ask each turn are "what are the two heaviest stones?" and "put this
+    new stone back". That is exactly what a max-heap is for: pop twice, push at most once, each
+    O(log N). Python's heapq only gives a min-heap, so store every weight negated: the most
+    negative number (the heaviest stone) then sits at the root. Negate on the way in, negate on
+    the way out. Every turn destroys at least one stone, so there are at most N − 1 turns.
+  real_world: >-
+    Huffman coding (inside gzip, PNG and JPEG) runs the same loop on a min-heap: pop the two
+    lightest nodes, merge them, push the merged node back, until one tree remains. Job schedulers
+    and load balancers keep "the most loaded worker" at the top of a heap so they can drain or
+    rebalance it, and order-matching engines repeatedly pair the best bid with the best ask.
+
+statement:
+  clean: |
+    You are given an array of integers `stones` where `stones[i]` is the weight of the `i`th
+    stone.
+
+    We are playing a game with the stones. On each turn, we choose the **heaviest two stones**
+    and **smash them together**. Suppose the heaviest two stones have weights `x` and `y` with
+    `x <= y`. The result of this smash is:
+
+    - If `x == y`, both stones are destroyed, and
+    - If `x != y`, the stone of weight `x` is destroyed, and the stone of weight `y` has new
+      weight `y - x`.
+
+    At the end of the game, there is at most one stone left.
+
+    Return the weight of the **last remaining stone**. If there are no stones left, return `0`.
+  oa_story: |
+    **KabadiKart Recycling — OA Round 1**
+
+    KabadiKart collects scrap metal from apartments across Bengaluru and processes it at a yard
+    in Peenya. The yard's press works on two bundles at a time and the operator always feeds it
+    the two heaviest bundles currently on the floor. The press recovers the lighter bundle's
+    weight from both: if the two bundles weigh the same, both are fully processed; otherwise the
+    lighter one is fully processed and the heavier one goes back on the floor, lighter by that
+    amount.
+
+    The yard keeps feeding the press until fewer than two bundles remain. Given the list of
+    bundle weights at the start of the shift, return the weight of the bundle left on the floor
+    at the end, or `0` if nothing is left. Shift managers run this for every truckload, so it
+    must be quick.
+  trigger_keywords: ["heaviest two stones", "smash them together", "last remaining stone"]
+  examples:
+    - input: "stones = [2,7,4,1,8,1]"
+      output: "1"
+      explanation: "Smash 8 and 7 → 1, stones [2,4,1,1,1]. Smash 4 and 2 → 2, stones [2,1,1,1]. Smash 2 and 1 → 1, stones [1,1,1]. Smash 1 and 1 → both destroyed, stones [1]. The last stone weighs 1."
+    - input: "stones = [1]"
+      output: "1"
+      explanation: "With one stone there is nothing to smash."
+  constraints:
+    - "1 <= stones.length <= 30"
+    - "1 <= stones[i] <= 1000"
+
+constraint_quiz:
+  prompt: >-
+    stones.length is at most 30. Which statement about the time complexity is accurate?
+  options:
+    - "Only an O(N log N) solution will pass"
+    - "Re-sorting every turn (O(N² log N)) passes easily; a heap matters because it scales to large N"
+    - "You need O(N) because every stone must be read once"
+    - "The answer can be computed in O(1) from the sum of the weights"
+  answer: 1
+  explanation: >-
+    With N = 30, even re-sorting every turn is about 30 × 30 × 5 ≈ 4,500 steps, so it passes.
+    Reading constraints honestly is part of the skill, but interviewers will ask "what if N is
+    10⁵?", and then the re-sort is ~10¹¹ steps while the heap's O(N log N) is a few million steps. O(N)
+    isn't achievable, since every turn needs the current two heaviest stones. The sum alone
+    doesn't determine the answer: [2,2] and [1,3] both sum to 4 but end at 0 and 2.
+
+pattern_quiz:
+  prompt: >-
+    Each turn you need the two largest values, and then a new value is put back into the
+    collection. Which approach fits?
+  options:
+    - "Sort once and walk two pointers from the end"
+    - "A max-heap (negated min-heap) simulation"
+    - "A monotonic decreasing stack"
+    - "Greedily pair stones after a single sort"
+  answer: 1
+  explanation: >-
+    "Repeatedly take the largest" plus "insert the result back" is the max-heap simulation
+    trigger. Sorting once breaks the moment y − x goes back in, because it has to land in the
+    right position and could be the next-heaviest stone or one of the lightest. A stack only
+    sees the most recent element, and fixed pairings after one sort ignore the leftovers. A heap
+    gives the current maximum after every insert, in O(log N).
+
+function:
+  name: lastStoneWeight
+  params: [{name: stones}]
+
+starter_code: |
+  class Solution:
+      def lastStoneWeight(self, stones: List[int]) -> int:
+          pass
+
+tests:
+  - {args: [[2, 7, 4, 1, 8, 1]], expected: 1}
+  - {args: [[1]], expected: 1, note: single stone}
+  - {args: [[2, 2]], expected: 0, note: equal stones destroy each other}
+  - {args: [[3, 7, 2]], expected: 2, note: "the leftover 4 becomes the new heaviest"}
+  - {args: [[10, 4, 4, 2, 2]], expected: 2}
+  - {args: [[1, 1, 1, 1]], expected: 0, note: all equal with an even count}
+  - {args: [[5, 5, 5]], expected: 5, note: all equal with an odd count}
+  - {args: [[1000, 1]], expected: 999, note: extreme weights}
+  - {args: [[9, 3, 2, 10]], expected: 0, note: "different weights can still cancel out completely"}
+visualize_test: 0
+
+drills:
+  - title: A max-heap from a min-heap
+    skill: setup
+    goal: Build a max-heap by negating values, then pop them out heaviest first, negating back.
+    instructions: |
+      Return the stones' weights from **heaviest to lightest** by building a heap of negated
+      weights with `heapq.heapify` and popping until it is empty.
+
+      `heapq` only knows how to keep the *smallest* value at the root. Storing `-w` instead of
+      `w` flips the order: the heaviest stone becomes the most negative number, so it's the
+      root. The two rules to remember are "negate on the way in" and "negate on the way out".
+    function:
+      name: heaviestFirst
+      params: [{name: stones}]
+    starter_code: |
+      class Solution:
+          def heaviestFirst(self, stones: List[int]) -> List[int]:
+              pass
+    tests:
+      - {args: [[2, 7, 4, 1, 8, 1]], expected: [8, 7, 4, 2, 1, 1]}
+      - {args: [[5]], expected: [5]}
+      - {args: [[3, 3, 1]], expected: [3, 3, 1]}
+      - {args: [[1, 1000, 500]], expected: [1000, 500, 1]}
+    solution: |
+      class Solution:
+          def heaviestFirst(self, stones: List[int]) -> List[int]:
+              heap = [-s for s in stones]
+              heapq.heapify(heap)
+              out = []
+              while heap:
+                  out.append(-heapq.heappop(heap))
+              return out
+    hint: "`heap = [-s for s in stones]`, heapify it, and remember the minus sign when popping."
+
+  - title: One smash
+    skill: core
+    goal: Pop the two heaviest stones, compare them, and push the difference back only if it is non-zero.
+    instructions: |
+      Perform **exactly one** turn of the game (there are always at least two stones) and
+      return the remaining stones sorted from heaviest to lightest.
+
+      This is the state transition of the whole problem. The first pop is the heaviest `y`, the
+      second is `x <= y`. If they're equal, push nothing; otherwise push `y - x` back as a
+      negated value so it competes again in the next turn, possibly as the new heaviest.
+    function:
+      name: smashOnce
+      params: [{name: stones}]
+    starter_code: |
+      class Solution:
+          def smashOnce(self, stones: List[int]) -> List[int]:
+              pass
+    tests:
+      - {args: [[2, 7, 4, 1, 8, 1]], expected: [4, 2, 1, 1, 1]}
+      - {args: [[2, 2]], expected: [], note: equal stones leave nothing behind}
+      - {args: [[3, 7, 2]], expected: [4, 2]}
+      - {args: [[10, 1, 1]], expected: [9, 1]}
+      - {args: [[6, 6, 1]], expected: [1]}
+    solution: |
+      class Solution:
+          def smashOnce(self, stones: List[int]) -> List[int]:
+              heap = [-s for s in stones]
+              heapq.heapify(heap)
+              y = -heapq.heappop(heap)
+              x = -heapq.heappop(heap)
+              if y != x:
+                  heapq.heappush(heap, -(y - x))
+              return sorted((-v for v in heap), reverse=True)
+    hint: "Push `-(y - x)`, not `y - x`: everything in the heap must stay negated."
+
+  - title: Stop at one stone, answer 0 at none
+    skill: edge
+    goal: Loop only while at least two stones remain, then extract the answer safely from a heap that may be empty.
+    instructions: |
+      Play the full game and return `[smashes, last]`: how many smashes happened, and the
+      weight of the last stone (`0` if none is left).
+
+      Two details break most first attempts. The loop must be `while len(heap) > 1`; `while
+      heap` tries to pop a second stone that doesn't exist when one is left. And when the game
+      ends the heap holds either one stone or none, so the answer is `-heap[0]` only if the heap
+      is non-empty.
+    function:
+      name: gameSummary
+      params: [{name: stones}]
+    starter_code: |
+      class Solution:
+          def gameSummary(self, stones: List[int]) -> List[int]:
+              pass
+    tests:
+      - {args: [[1]], expected: [0, 1], note: no smash at all}
+      - {args: [[2, 2]], expected: [1, 0]}
+      - {args: [[2, 7, 4, 1, 8, 1]], expected: [4, 1]}
+      - {args: [[1, 1, 1, 1]], expected: [2, 0]}
+      - {args: [[5, 5, 5]], expected: [1, 5]}
+    solution: |
+      class Solution:
+          def gameSummary(self, stones: List[int]) -> List[int]:
+              heap = [-s for s in stones]
+              heapq.heapify(heap)
+              smashes = 0
+              while len(heap) > 1:
+                  y, x = -heapq.heappop(heap), -heapq.heappop(heap)
+                  smashes += 1
+                  if y != x:
+                      heapq.heappush(heap, x - y)
+              return [smashes, -heap[0] if heap else 0]
+    hint: "`x - y` is already the negated form of `y - x`."
+
+hints:
+  - >-
+    Every turn asks for the two heaviest stones, and then a new stone may appear. Which data
+    structure gives you "the largest right now" cheaply even after you insert something new?
+  - >-
+    Use a max-heap by storing negated weights in heapq. While at least two stones remain, pop
+    the heaviest y and the next x; if they differ, push back y − x (negated). At the end the heap
+    has one stone or none.
+  - |
+    heap = negated stones; heapify(heap)
+    while size(heap) > 1:
+        y = -pop(heap); x = -pop(heap)
+        if y != x: push(heap, -(y - x))
+    return -heap root if heap not empty else 0
+
+solution:
+  code: |
+    class Solution:
+        def lastStoneWeight(self, stones: List[int]) -> int:
+            heap = [-s for s in stones]  # heapq is a min-heap: negate so the heaviest is the root
+            heapq.heapify(heap)
+            while len(heap) > 1:
+                y = -heapq.heappop(heap)  # heaviest
+                x = -heapq.heappop(heap)  # second heaviest, x <= y
+                if y != x:
+                    heapq.heappush(heap, -(y - x))  # the survivor competes again
+            return -heap[0] if heap else 0
+  explanation: |
+    The game is a simulation where the only thing you ever need is "the largest stone right
+    now", twice per turn, plus "insert this new stone". That's precisely the interface of a
+    max-heap: O(1) to see the top, O(log N) to pop it or push a new value.
+
+    Python's `heapq` is a min-heap, so we store `-weight`. The heaviest stone is then the most
+    negative value, which the heap keeps at `heap[0]`. Popping twice gives `y` then `x` with
+    `x <= y` automatically. If they're equal, both are gone; otherwise `y - x` goes back in
+    (negated), and the heap re-positions it, whether it is now the heaviest or the lightest.
+
+    Every turn removes at least one stone, so there are at most N − 1 turns. The loop condition
+    `len(heap) > 1` stops when fewer than two stones remain, and the final line handles both
+    endings: one stone left (return its weight) or none (return 0).
+  time: O(N log N) — heapify is O(N), then at most N − 1 turns of two pops and one push at O(log N) each
+  space: O(N) — the negated copy of the stones
+  brute_force_code: |
+    class Solution:
+        def lastStoneWeight(self, stones: List[int]) -> int:
+            stones = list(stones)
+            while len(stones) > 1:
+                stones.sort()  # re-sort every turn
+                y = stones.pop()
+                x = stones.pop()
+                if y != x:
+                    stones.append(y - x)
+            return stones[0] if stones else 0
+
+pitch_script: |
+  **(Clarify)** "So each turn I smash the two heaviest, equal stones both disappear, otherwise
+  the heavier one survives with the difference, and I return the last weight or 0. There's at
+  least one stone and the weights are positive, right?"
+
+  **(Brute force)** "The direct way is to sort every turn and take the last two. With N up to
+  30 that's actually fine, but it's O(N² log N), so if N were 10⁵ it would fall over. Most of
+  each sort is redoing work from the previous turn."
+
+  **(Trigger)** "What I really need every turn is 'the current maximum, twice' and then 'insert
+  a new value'. That's exactly a max-heap. Python's heapq is a min-heap, so I'll store negated
+  weights."
+
+  **(Optimal)** "I negate the stones and heapify. While there are at least two stones, I pop the
+  heaviest y and the next x. If they differ, I push y minus x back, negated. When the loop ends
+  there's one stone or none, so I return its weight or 0."
+
+  **(Complexity)** "Heapify is O(N). Each turn destroys at least one stone, so there are at most
+  N minus one turns, each with two pops and one push at O(log N). That's O(N log N) time and
+  O(N) space for the heap."
+
+twist:
+  lc: 2558
+  title: Take Gifts From the Richest Pile
+  why: >-
+    Same max-heap simulation via negation, but each step touches only the single largest pile:
+    pop it, push back floor(sqrt(pile)), and repeat for exactly k seconds instead of "until one
+    is left". The survivor rule changes from y − x to isqrt(x), and the answer becomes the sum of
+    what remains in the heap.
+
+viz:
+  heaps: [heap]
+  watch: [y, x]

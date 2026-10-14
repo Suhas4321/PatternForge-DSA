@@ -1,0 +1,332 @@
+slug: remove-nth-node-from-end-of-list
+lc: 19
+
+concept:
+  problem_it_solves: >-
+    "How do I find a position counted from the end when I can only walk forwards?" A singly
+    linked list has no length and no backward links, so "n from the end" seems to need the
+    length first. Two pointers kept a fixed distance apart carry that information for you:
+    when the front one reaches the end, the back one is exactly n nodes behind it.
+  brute_force: >-
+    Walk the whole list once to count its length L, then walk again L − n steps to reach the
+    node before the target and unlink it. It is linear, but it reads the list twice, and the
+    follow-up asks for a single pass. Copying all nodes into an array to index L − n gives one
+    pass but costs O(L) memory.
+  brute_force_complexity: >-
+    O(L) time in two passes (up to 2L steps), O(1) space — or one pass with O(L) extra space
+    for an array of nodes.
+  key_insight: >-
+    Move `fast` n nodes ahead first, then move `fast` and `slow` together. The gap between them
+    never changes, so when fast stands on the last node, slow is n nodes behind it: right before
+    the node to delete. Start both at a dummy node placed in front of the head. Then "the node
+    before the target" always exists, even when the target is the head itself (n = L), and
+    `slow.next = slow.next.next` works in every case.
+  real_world: >-
+    Keeping a reader a fixed distance behind a writer is the idea behind lag-based windows on
+    streams: `tail -n` on a pipe only ever holds the last n lines, Kafka consumer lag is the
+    gap between the latest offset and a consumer's offset, and replication followers trail a
+    leader's log. Dummy (sentinel) nodes are used throughout real linked-list code, such as the
+    Linux kernel's `list_head`, precisely so that inserting or removing at the front needs no
+    special case.
+
+statement:
+  clean: |
+    Given the `head` of a linked list, remove the **nth node from the end** of the list and
+    return its head.
+
+    **Follow up:** Could you do this in **one pass**?
+  oa_story: |
+    **ChaiChain — OA Round 1**
+
+    ChaiChain runs a chain of tea kiosks across Bengaluru tech parks, and every kiosk prints
+    order tokens onto a live chain: each token record holds the token number and a reference
+    to the token printed after it. Nobody stores how many tokens are on the chain. When a
+    customer at the Manyata Tech Park kiosk cancels, the cashier only knows "I'm the nth most
+    recent order", where n = 1 means the latest token.
+
+    Given the first token on the chain and `n`, remove that token from the chain and return the
+    first token of the updated chain (which may be a different token, or nothing at all, if the
+    oldest order or the only order was cancelled). The kiosk's printer stream can only be read
+    once, so the fix must be done in a single walk. A chain holds at most 30 tokens, and `n`
+    is always valid.
+  trigger_keywords: ["nth node from the end", "one pass"]
+  examples:
+    - input: "head = [1,2,3,4,5], n = 2"
+      output: "[1,2,3,5]"
+      explanation: "The 2nd node from the end is 4, so 3 now points straight to 5."
+    - input: "head = [1], n = 1"
+      output: "[]"
+      explanation: "Removing the only node leaves an empty list."
+    - input: "head = [1,2], n = 1"
+      output: "[1]"
+  constraints:
+    - "The number of nodes in the list is sz."
+    - "1 <= sz <= 30"
+    - "0 <= Node.val <= 100"
+    - "1 <= n <= sz"
+
+constraint_quiz:
+  prompt: >-
+    The list is tiny (at most 30 nodes), but the follow-up asks for one pass. What should you
+    aim for?
+  options:
+    - "O(L²) time — for each node, count how many nodes follow it"
+    - "O(L) time, two passes, O(1) space — count, then walk to L − n"
+    - "O(L) time, one pass, O(1) space — two pointers n apart"
+    - "O(n) time — walk only n nodes from the head"
+  answer: 2
+  explanation: >-
+    With 30 nodes every option is fast enough, so the follow-up is the real requirement.
+    Counting the suffix length for every node repeats work quadratically. Counting first and
+    then walking is linear and correct, but it is two passes. Walking only n nodes is
+    impossible: n says nothing about where the end is, so you must reach the end at least
+    once. Two pointers with a gap of n reach the end once and find the target in the same walk.
+
+pattern_quiz:
+  prompt: >-
+    You must delete the node n positions from the end of a singly linked list in one pass, and
+    the node to delete may be the head. Which pattern fits?
+  options:
+    - "Reverse the list, delete the nth node from the front, reverse back"
+    - "Fast and slow pointers where fast moves twice as fast"
+    - "Dummy head plus two pointers kept n nodes apart"
+    - "Hash map from index to node"
+  answer: 2
+  explanation: >-
+    "nth from end" is the fixed-gap trigger: the distance between the pointers, not their speed,
+    carries the information, so 2x-speed pointers (which find middles and cycles) don't apply.
+    "May delete the head" is the dummy-node trigger. Reversing twice works but costs three
+    passes, and an index map spends O(L) memory to imitate an array.
+
+function:
+  name: removeNthFromEnd
+  params: [{name: head, type: ListNode}, {name: n}]
+  returns: ListNode
+
+starter_code: |
+  class Solution:
+      def removeNthFromEnd(self, head: Optional[ListNode], n: int) -> Optional[ListNode]:
+          pass
+
+tests:
+  - {args: [[1, 2, 3, 4, 5], 2], expected: [1, 2, 3, 5]}
+  - {args: [[1], 1], expected: [], note: "removing the only node: return None"}
+  - {args: [[1, 2], 1], expected: [1], note: removing the tail}
+  - {args: [[1, 2], 2], expected: [2], note: "removing the head: n equals the length"}
+  - {args: [[1, 2, 3, 4, 5], 5], expected: [2, 3, 4, 5], note: removing the head of a longer list}
+  - {args: [[1, 2, 3, 4, 5], 1], expected: [1, 2, 3, 4], note: removing the tail of a longer list}
+  - {args: [[10, 20, 30, 40, 50, 60], 3], expected: [10, 20, 30, 50, 60]}
+  - {args: [[7, 7, 7], 2], expected: [7, 7], note: "duplicate values: remove by position, not value"}
+visualize_test: 0
+
+drills:
+  - title: Unlink a node with a dummy in front
+    skill: setup
+    goal: Put a dummy before the head, walk to the predecessor of a position, and unlink with `prev.next = prev.next.next`.
+    instructions: |
+      Remove the node at 0-based position `index` (counted from the **front**) and return the
+      new head. `index` is always valid.
+
+      In a singly linked list you delete a node from its **predecessor**, by making the
+      predecessor skip over it. The head has no predecessor, which is why a dummy node
+      (`dummy.next = head`) is useful: walking `index` steps from the dummy always lands on the
+      node just before the target, even when `index` is 0. Return `dummy.next`, because the
+      old head might be the one you removed.
+    function:
+      name: deleteAtIndex
+      params: [{name: head, type: ListNode}, {name: index}]
+      returns: ListNode
+    starter_code: |
+      class Solution:
+          def deleteAtIndex(self, head: Optional[ListNode], index: int) -> Optional[ListNode]:
+              pass
+    tests:
+      - {args: [[1, 2, 3, 4], 2], expected: [1, 2, 4]}
+      - {args: [[1, 2, 3, 4], 0], expected: [2, 3, 4], note: "removing the head: the predecessor is the dummy"}
+      - {args: [[1, 2, 3, 4], 3], expected: [1, 2, 3], note: removing the tail}
+      - {args: [[5], 0], expected: [], note: the only node}
+    solution: |
+      class Solution:
+          def deleteAtIndex(self, head: Optional[ListNode], index: int) -> Optional[ListNode]:
+              dummy = ListNode(0, head)
+              prev = dummy
+              for _ in range(index):
+                  prev = prev.next
+              prev.next = prev.next.next  # skip over the target
+              return dummy.next
+    hint: "Start `prev` at the dummy, so `index` steps put it just before the target."
+
+  - title: Keep a fixed gap
+    skill: core
+    goal: Advance fast k nodes, then move fast and slow together until fast falls off the end.
+    instructions: |
+      Return the k-th node from the end (`k = 1` is the last node), in one pass, so the
+      result is the list of the last `k` nodes. `1 <= k <= length`.
+
+      Move `fast` k nodes ahead of `slow`, then move both one node at a time. The gap stays k,
+      so when `fast` runs off the end onto `None`, `slow` is exactly k nodes from the end.
+      This is the heart of the full problem; the only change there is that you stop one node
+      earlier so you can unlink the target.
+    function:
+      name: lastK
+      params: [{name: head, type: ListNode}, {name: k}]
+      returns: ListNode
+    starter_code: |
+      class Solution:
+          def lastK(self, head: Optional[ListNode], k: int) -> Optional[ListNode]:
+              pass
+    tests:
+      - {args: [[1, 2, 3, 4, 5], 2], expected: [4, 5]}
+      - {args: [[1, 2, 3, 4, 5], 5], expected: [1, 2, 3, 4, 5], note: "k = length: slow never moves"}
+      - {args: [[1, 2, 3, 4, 5], 1], expected: [5], note: the last node}
+      - {args: [[9], 1], expected: [9]}
+      - {args: [[2, 4, 6, 8, 10, 12], 4], expected: [6, 8, 10, 12]}
+    solution: |
+      class Solution:
+          def lastK(self, head: Optional[ListNode], k: int) -> Optional[ListNode]:
+              slow = fast = head
+              for _ in range(k):
+                  fast = fast.next
+              while fast:
+                  slow = slow.next
+                  fast = fast.next
+              return slow
+    hint: "After the head start, loop `while fast:` and move both pointers by one."
+
+  - title: Stop on the node before the target
+    skill: edge
+    goal: Start both pointers at a dummy and loop `while fast.next` so slow stops on the predecessor, which is the dummy when the head is the target.
+    instructions: |
+      Return the **value** of the node just before the nth node from the end, or `-1` if the
+      nth node from the end is the head (it has no real predecessor). `1 <= n <= length`.
+
+      To delete a node you need its predecessor, so the gap loop has to stop one node earlier
+      than in `lastK`. Start `slow` and `fast` at a dummy in front of the head, give fast a
+      head start of n, then move both `while fast.next`. Slow now lands on the predecessor.
+      When `n` equals the length, slow never moves: the predecessor is the dummy itself,
+      which is exactly why the dummy exists. In the real problem you'd unlink there instead of
+      returning -1.
+    function:
+      name: predecessorValue
+      params: [{name: head, type: ListNode}, {name: n}]
+    starter_code: |
+      class Solution:
+          def predecessorValue(self, head: Optional[ListNode], n: int) -> int:
+              pass
+    tests:
+      - {args: [[1, 2, 3, 4, 5], 2], expected: 3}
+      - {args: [[1, 2, 3, 4, 5], 5], expected: -1, note: "the target is the head: slow stays on the dummy"}
+      - {args: [[1, 2], 1], expected: 1}
+      - {args: [[7], 1], expected: -1, note: single node}
+      - {args: [[4, 8, 15, 16], 3], expected: 4}
+    solution: |
+      class Solution:
+          def predecessorValue(self, head: Optional[ListNode], n: int) -> int:
+              dummy = ListNode(0, head)
+              slow = fast = dummy
+              for _ in range(n):
+                  fast = fast.next
+              while fast.next:
+                  slow, fast = slow.next, fast.next
+              return -1 if slow is dummy else slow.val
+    hint: "Compare `slow is dummy` at the end, not `slow.val`: the dummy's value is meaningless."
+
+hints:
+  - >-
+    If two people walk the list and one starts n nodes ahead of the other, where is the one
+    behind when the one in front reaches the last node?
+  - >-
+    To remove a node you need the node before it. Put a dummy in front of the head, start
+    both pointers there, move fast n steps, then move both until fast is on the last node.
+    What happens when the node to remove is the head?
+  - |
+    dummy = new node with next = head
+    slow = dummy, fast = dummy
+    repeat n times: fast = fast.next
+    while fast.next is not none:
+        slow = slow.next, fast = fast.next
+    slow.next = slow.next.next     (skip the target)
+    return dummy.next
+
+solution:
+  code: |
+    class Solution:
+        def removeNthFromEnd(self, head: Optional[ListNode], n: int) -> Optional[ListNode]:
+            dummy = ListNode(0, head)  # a predecessor for the head, so removing it isn't special
+            slow = fast = dummy
+            for _ in range(n):  # open a gap of n nodes
+                fast = fast.next
+            while fast.next:  # move together until fast is on the last node
+                slow = slow.next
+                fast = fast.next
+            slow.next = slow.next.next  # slow is just before the target: skip it
+            return dummy.next
+  explanation: |
+    Number the dummy as position 0 and the real nodes 1 to L. The node to remove is n from the
+    end, at position L − n + 1, so we want to stop on its predecessor at position L − n.
+
+    After the head start, fast is at position n and slow at 0. The `while fast.next` loop moves
+    both until fast is on the last node, position L. That's L − n steps, so slow ends at
+    position L − n: exactly the predecessor. The gap never changes, so this works without ever
+    knowing L.
+
+    The **dummy** handles the dangerous case. When n = L, the target is the head, which has no
+    predecessor among the real nodes. With the dummy, slow simply never moves, and
+    `dummy.next = head.next` removes the head. That's also why we return `dummy.next` and not
+    `head`: `head` may be the node we just removed. Removing the only node works the same way
+    and returns `None`.
+
+    The loop condition `while fast.next` (not `while fast`) is what makes slow stop **one node
+    before** the target instead of on it. Since `n <= L`, the head start never runs fast past
+    the last node, so `fast.next` is always safe to read.
+  time: O(L) — fast walks from the dummy to the last node once, a single pass
+  space: O(1) — one dummy node and two pointers
+  brute_force_code: |
+    class Solution:
+        def removeNthFromEnd(self, head: Optional[ListNode], n: int) -> Optional[ListNode]:
+            length = 0
+            cur = head
+            while cur:  # first pass: count
+                length += 1
+                cur = cur.next
+            dummy = ListNode(0, head)
+            prev = dummy
+            for _ in range(length - n):  # second pass: stop before the target
+                prev = prev.next
+            prev.next = prev.next.next
+            return dummy.next
+
+pitch_script: |
+  **(Clarify)** "n is always valid, between 1 and the length, and the list has at least one
+  node. If n equals the length I'm removing the head, and if the list has one node the answer
+  is empty. I return the new head."
+
+  **(Brute force)** "The simple approach is two passes: count the length L, then walk L minus n
+  steps to the node before the target and unlink it. That's O(L) time and O(1) space, but the
+  follow-up asks for one pass."
+
+  **(Trigger)** "'Nth from the end' in one pass suggests two pointers with a fixed gap. If fast
+  is n nodes ahead of slow, then when fast is at the end, slow is n from the end. And because
+  the head itself might be removed, I'll add a dummy node in front."
+
+  **(Optimal)** "I start slow and fast at the dummy and move fast n steps ahead. Then I move both
+  together while fast.next exists, so fast stops on the last node and slow stops on the node
+  just before the target. I set slow.next to slow.next.next and return dummy.next. When n equals
+  the length, slow never leaves the dummy, so removing the head needs no special case."
+
+  **(Complexity)** "Fast walks the list once, so it's O(L) time in a single pass, and O(1) extra
+  space for the dummy and two pointers."
+
+twist:
+  lc: 1721
+  title: Swapping Nodes in a Linked List
+  why: >-
+    Now you swap the values of the k-th node from the start and the k-th node from the end
+    instead of deleting one. Use the same gap trick: walk `fast` k − 1 steps from the head to
+    reach the k-th node from the front and save it as `first`. Then start `second` at the head
+    and move `fast` and `second` together until `fast` is on the last node; the gap of k − 1
+    puts `second` on the k-th node from the end. Swap the two values. No dummy is needed,
+    because nothing is unlinked and the head never changes.
+
+viz:
+  watch: [n]

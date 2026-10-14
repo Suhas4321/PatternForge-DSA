@@ -1,0 +1,345 @@
+slug: find-first-and-last-position-of-element-in-sorted-array
+lc: 34
+
+concept:
+  problem_it_solves: >-
+    "Where does the run of copies of this value start and end?" In a sorted array all copies
+    of a value sit next to each other, so the answer is two boundaries: the first index that
+    is >= target and the last index that is <= target. Each boundary is a point where a yes/no
+    question flips, and each can be found with its own binary search.
+  brute_force: >-
+    Scan left to right, recording the first and last index where nums[i] == target. A
+    "smarter" version binary searches for any copy and then walks outwards to both ends of
+    the run. That walk is the trap: on [8, 8, 8, …, 8] it visits every element, so it is
+    O(N) after all.
+  brute_force_complexity: O(N) time, O(1) space — 10⁵ elements means up to 10⁵ reads (and the find-then-expand version is no better on a long run of duplicates).
+  key_insight: >-
+    Don't search for target; search for its boundaries. first = lower_bound(target), the
+    first index with nums[i] >= target. For integers, the first index with nums[i] >= target
+    + 1 is one past the last copy, so last = lower_bound(target + 1) − 1. One template, called
+    twice, plus a single check: if first is past the end or nums[first] != target, target
+    isn't there.
+  real_world: >-
+    Every range query on a sorted index works this way: "all orders placed between 10:00 and
+    10:05" is a lower bound for the start key and an upper bound for the end key, which is
+    how B-tree range scans in PostgreSQL begin. C++'s std::equal_range returns exactly this
+    pair, and log tools count events at a timestamp in sorted log segments as
+    upper − lower.
+
+statement:
+  clean: |
+    Given an array of integers `nums` **sorted in non-decreasing order**, find the
+    **starting and ending position** of a given `target` value.
+
+    If `target` is not found in the array, return `[-1, -1]`.
+
+    You must write an algorithm with O(log n) runtime complexity.
+  oa_story: |
+    **TrekTales — OA Round 1**
+
+    TrekTales organises weekend treks from Bengaluru to Kudremukh, Kumara Parvatha and
+    Savandurga. All bookings for the season are kept in one list, ordered by trek date (stored
+    as a day number), so several bookings can share a date and they sit side by side. On the
+    morning of a trek, the trip leader's app must pull up exactly that day's batch of
+    trekkers.
+
+    Given the list of booking dates and a day number, return the positions (0-indexed) of the
+    first and the last booking for that day as `[first, last]`, or `[-1, -1]` if nobody booked
+    that day. A season can have 100,000 bookings, a popular long weekend can have thousands on
+    a single date, and the app's lookup must stay fast even then.
+  trigger_keywords: ["sorted in non-decreasing order", "starting and ending position", "O(log n) runtime complexity"]
+  examples:
+    - input: "nums = [5,7,7,8,8,10], target = 8"
+      output: "[3,4]"
+      explanation: "The 8s occupy indices 3 and 4."
+    - input: "nums = [5,7,7,8,8,10], target = 6"
+      output: "[-1,-1]"
+      explanation: "6 does not appear (it would sit at index 1, but nums[1] is 7)."
+    - input: "nums = [], target = 0"
+      output: "[-1,-1]"
+  constraints:
+    - "0 <= nums.length <= 10^5"
+    - "-10^9 <= nums[i] <= 10^9"
+    - "nums is a non-decreasing array."
+    - "-10^9 <= target <= 10^9"
+
+constraint_quiz:
+  prompt: >-
+    N can be 10⁵, values repeat, and O(log n) is required. Which complexity do you need, and
+    which tempting approach fails it?
+  options:
+    - "O(N): binary search for any copy, then expand left and right"
+    - "O(log N): two boundary binary searches"
+    - "O(log² N): binary search, then binary search again inside each half"
+    - "O(N log N): sort, then scan"
+  answer: 1
+  explanation: >-
+    Find-then-expand looks logarithmic, but the expansion is as long as the run of copies, so
+    an array of 10⁵ equal values makes it O(N). O(log² N) would come from nesting searches,
+    and nothing here needs nesting: each boundary is one independent search. O(N log N) sorts
+    an array that is already sorted. Two lower-bound searches cost about 2 × 17 probes for
+    10⁵ elements, whatever the duplicates.
+
+pattern_quiz:
+  prompt: >-
+    Sorted with duplicates; return the first and last index of target. Which pattern fits?
+  options:
+    - "Classic binary search, then walk outwards from the hit"
+    - "Two boundary searches: lower_bound(target) and lower_bound(target + 1) − 1"
+    - "Hash map from value to its list of indices"
+    - "Two pointers moving inward until both ends equal target"
+  answer: 1
+  explanation: >-
+    "Find first / last" in a sorted array is the boundary-search trigger: each end of the run
+    is the point where "nums[i] >= x" flips from false to true. Walking outward from a hit
+    and two inward pointers are O(N) on long runs, and the hash map costs O(N) time and space
+    to build for a single query. Two lower bounds give O(log N) with one reusable helper.
+
+function:
+  name: searchRange
+  params: [{name: nums}, {name: target}]
+
+starter_code: |
+  class Solution:
+      def searchRange(self, nums: List[int], target: int) -> List[int]:
+          pass
+
+tests:
+  - {args: [[5, 7, 7, 8, 8, 10], 8], expected: [3, 4]}
+  - {args: [[5, 7, 7, 8, 8, 10], 6], expected: [-1, -1], note: "absent, but lower bound lands on index 1 (a 7)"}
+  - {args: [[], 0], expected: [-1, -1], note: empty array}
+  - {args: [[1], 1], expected: [0, 0], note: single element (first == last)}
+  - {args: [[2, 2, 2, 2, 2], 2], expected: [0, 4], note: "all equal: find-then-expand would be O(N)"}
+  - {args: [[1, 2, 3, 3, 3, 4, 5], 3], expected: [2, 4], note: run in the middle}
+  - {args: [[1, 2, 3], 4], expected: [-1, -1], note: "larger than everything: first == len(nums), check before reading"}
+  - {args: [[1, 2, 2], 2], expected: [1, 2], note: run touches the right end}
+  - {args: [[-1000000000, 1000000000], 1000000000], expected: [1, 1], note: extreme values (target + 1 is fine in Python)}
+visualize_test: 0
+
+drills:
+  - title: Write the lower-bound helper
+    skill: setup
+    goal: Write lower_bound over [0, len(nums)] for an array with duplicates; it is the one helper you will call twice.
+    instructions: |
+      Return the **first index `i` with `nums[i] >= target`**, or `len(nums)` if there is
+      none. The array may contain duplicates and may be empty.
+
+      Write it exactly as the lower-bound template: `lo, hi = 0, len(nums)`, loop
+      `while lo < hi`, keep mid on a "yes" (`hi = mid`), skip it on a "no" (`lo = mid + 1`).
+      With duplicates, equality is a "yes", which is what pushes the search to the
+      **leftmost** copy instead of stopping at whichever copy mid happens to hit.
+    function:
+      name: lowerBound
+      params: [{name: nums}, {name: target}]
+    starter_code: |
+      class Solution:
+          def lowerBound(self, nums: List[int], target: int) -> int:
+              pass
+    tests:
+      - {args: [[5, 7, 7, 8, 8, 10], 8], expected: 3}
+      - {args: [[2, 2, 2], 2], expected: 0, note: leftmost of many copies}
+      - {args: [[5, 7, 7, 8, 8, 10], 6], expected: 1, note: absent value still gets a position}
+      - {args: [[1, 2, 3], 4], expected: 3}
+      - {args: [[], 1], expected: 0}
+    solution: |
+      class Solution:
+          def lowerBound(self, nums: List[int], target: int) -> int:
+              lo, hi = 0, len(nums)
+              while lo < hi:
+                  mid = lo + (hi - lo) // 2
+                  if nums[mid] < target:
+                      lo = mid + 1
+                  else:
+                      hi = mid  # nums[mid] >= target: could be the first one
+              return lo
+    hint: "`if nums[mid] < target: lo = mid + 1` else `hi = mid`; return `lo`."
+
+  - title: One past the last copy
+    skill: core
+    goal: Flip the condition to find the first index with nums[i] > target, which sits one past the last copy.
+    instructions: |
+      Return the **first index `i` with `nums[i] > target`** (strictly greater), or
+      `len(nums)` if there is none. This is the *upper bound*.
+
+      It is the same template with a single character changed: `<` becomes `<=`, so equal
+      values now count as "no" and the search moves past them. The last copy of target is at
+      `upperBound - 1`. For integers, `upperBound(target)` equals `lowerBound(target + 1)`,
+      which is why the main solution can reuse one helper.
+    function:
+      name: upperBound
+      params: [{name: nums}, {name: target}]
+    starter_code: |
+      class Solution:
+          def upperBound(self, nums: List[int], target: int) -> int:
+              pass
+    tests:
+      - {args: [[5, 7, 7, 8, 8, 10], 8], expected: 5}
+      - {args: [[2, 2, 2], 2], expected: 3, note: every element is equal}
+      - {args: [[1, 3], 0], expected: 0}
+      - {args: [[5, 7, 7, 8, 8, 10], 6], expected: 1, note: "absent: upper bound == lower bound"}
+    solution: |
+      class Solution:
+          def upperBound(self, nums: List[int], target: int) -> int:
+              lo, hi = 0, len(nums)
+              while lo < hi:
+                  mid = lo + (hi - lo) // 2
+                  if nums[mid] <= target:
+                      lo = mid + 1  # equal values are skipped too
+                  else:
+                      hi = mid
+              return lo
+    hint: "Copy the lower bound and change `nums[mid] < target` to `nums[mid] <= target`."
+
+  - title: A position is not a proof
+    skill: edge
+    goal: Verify the lower-bound index before trusting it, guarding the out-of-range case first.
+    instructions: |
+      Return the index of the **first occurrence** of `target`, or `-1` if it is absent.
+
+      Lower bound always returns *a position*, even for values that aren't there: for
+      `[5,7,7,8,8,10]` and `6` it returns 1, which holds a 7. So check
+      `nums[lo] == target` before answering, and check `lo < len(nums)` **first**, because
+      when target is larger than everything `lo == len(nums)` and `nums[lo]` would crash.
+    function:
+      name: firstOccurrence
+      params: [{name: nums}, {name: target}]
+    starter_code: |
+      class Solution:
+          def firstOccurrence(self, nums: List[int], target: int) -> int:
+              pass
+    tests:
+      - {args: [[5, 7, 7, 8, 8, 10], 8], expected: 3}
+      - {args: [[5, 7, 7, 8, 8, 10], 6], expected: -1, note: lands on a 7}
+      - {args: [[1, 2, 3], 4], expected: -1, note: "lo == len(nums): guard before indexing"}
+      - {args: [[], 0], expected: -1}
+      - {args: [[3, 3], 3], expected: 0}
+    solution: |
+      class Solution:
+          def firstOccurrence(self, nums: List[int], target: int) -> int:
+              lo, hi = 0, len(nums)
+              while lo < hi:
+                  mid = lo + (hi - lo) // 2
+                  if nums[mid] < target:
+                      lo = mid + 1
+                  else:
+                      hi = mid
+              if lo < len(nums) and nums[lo] == target:
+                  return lo
+              return -1
+    hint: "After the loop: `if lo < len(nums) and nums[lo] == target`; the order of the two checks matters."
+
+hints:
+  - >-
+    Suppose you found some index holding target. Why is walking left and right from it not
+    good enough? What would you rather search for directly: a copy of target, or the edges of
+    the run?
+  - >-
+    The first copy is the first index with nums[i] >= target (a lower bound). Where does the
+    first index with nums[i] >= target + 1 land, relative to the last copy? Write the lower
+    bound once and call it twice; then decide how to detect that target is absent.
+  - |
+    lower_bound(t):                 # first index with nums[i] >= t, or len(nums)
+        lo = 0, hi = len(nums)
+        while lo < hi:
+            mid = lo + (hi - lo) // 2
+            if nums[mid] < t: lo = mid + 1
+            else:             hi = mid
+        return lo
+
+    first = lower_bound(target)
+    if first == len(nums) or nums[first] != target: return [-1, -1]
+    return [first, lower_bound(target + 1) - 1]
+
+solution:
+  code: |
+    class Solution:
+        def searchRange(self, nums: List[int], target: int) -> List[int]:
+            def lower_bound(t: int) -> int:
+                # first index with nums[i] >= t; invariant: the answer is in [lo, hi]
+                lo, hi = 0, len(nums)
+                while lo < hi:
+                    mid = lo + (hi - lo) // 2
+                    if nums[mid] < t:
+                        lo = mid + 1
+                    else:
+                        hi = mid
+                return lo
+
+            first = lower_bound(target)
+            if first == len(nums) or nums[first] != target:
+                return [-1, -1]  # target is absent
+            last = lower_bound(target + 1) - 1  # one before the first value bigger than target
+            return [first, last]
+  explanation: |
+    In a sorted array the copies of `target` form one contiguous run, so the answer is the
+    run's two edges, and each edge is a point where a yes/no question flips:
+
+    - **first**: the first index with `nums[i] >= target`, i.e. `lower_bound(target)`.
+    - **last**: one before the first index with `nums[i] > target`. For integers, `> target`
+      is the same as `>= target + 1`, so that's `lower_bound(target + 1) - 1`.
+
+    `lower_bound` is the template from Search Insert Position, with the invariant *the answer
+    is always inside `[lo, hi]`*. Equality goes to the `hi = mid` side, which is what drives
+    it to the **leftmost** copy rather than whichever copy mid lands on first.
+
+    Lower bound always returns a position, even for a missing value, so the absence check
+    matters: `first` can be `len(nums)` (target larger than everything) or point at a bigger
+    value (`[5,7,7,8,8,10]` with 6 gives index 1, a 7). Check `first == len(nums)` **before**
+    reading `nums[first]`, or the second case crashes. Once `first` is confirmed, `last` can't
+    be smaller than it, so no second check is needed.
+
+    The `target + 1` trick needs integer values. In Java or C++ it also overflows if target
+    is `INT_MAX` (not possible here, since values are at most 10⁹). The general alternative is
+    an upper-bound helper using `nums[mid] <= t`, which is the core drill.
+  time: O(log N) — two independent searches over [0, N], about 2 × 17 probes for 10⁵, regardless of duplicates
+  space: O(1) — a few integer indices
+  brute_force_code: |
+    class Solution:
+        def searchRange(self, nums: List[int], target: int) -> List[int]:
+            first = last = -1
+            for i, x in enumerate(nums):
+                if x == target:
+                    if first == -1:
+                        first = i
+                    last = i
+            return [first, last]
+
+pitch_script: |
+  **(Clarify)** "The array is sorted non-decreasing, so duplicates are allowed. I return the
+  first and last index of target, or minus one, minus one if it's missing, and the array can
+  be empty. O(log n) is required."
+
+  **(Brute force)** "A linear scan recording the first and last match is O(N). A common
+  shortcut is to binary search for any copy and expand outwards, but with a long run of
+  duplicates the expansion is O(N) too, so it doesn't meet the requirement."
+
+  **(Trigger)** "'Find first and last' in a sorted array means I should search for
+  boundaries, not for the value. The first copy is the first index where nums[i] is at least
+  target, which is a lower bound."
+
+  **(Optimal)** "I'll write one lower-bound helper over the range zero to len(nums), with
+  the invariant that the answer stays inside lo to hi; on a value smaller than t I move lo
+  past mid, otherwise hi becomes mid. First is lower bound of target. If first is past the
+  end, or nums[first] isn't target, I return minus one, minus one, checking the bound before
+  indexing. Otherwise last is lower bound of target plus one, minus one, since that's the
+  first index holding something bigger."
+
+  **(Complexity)** "Two binary searches, so O(log N) time even if every element is a
+  duplicate, and O(1) space."
+
+twist:
+  lc: 2089
+  title: Find Target Indices After Sorting Array
+  why: >-
+    The array arrives unsorted and you must return every index target would occupy after
+    sorting. Sort, then the answer is exactly the run between the two boundaries:
+    list(range(lower_bound(target), lower_bound(target + 1))), and an empty list when they
+    are equal. The boundaries are counts in disguise, so you can even skip sorting: count the
+    values below target (that's the start) and the copies of target (that's the length) in
+    one O(N) pass.
+
+viz:
+  arrays: [nums]
+  pointers: [lo, hi, mid]
+  window: [lo, hi]
+  watch: [t, first, last, target]

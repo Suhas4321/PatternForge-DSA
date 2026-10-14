@@ -1,0 +1,333 @@
+slug: longest-repeating-character-replacement
+lc: 424
+
+concept:
+  problem_it_solves: >-
+    "How long can a stretch be if I'm allowed to fix up to k cells in it?" For any window,
+    the cheapest way to make it one letter is to keep its most frequent letter and replace
+    everything else, so the window costs (length − maxFreq) replacements. The question
+    becomes: what is the longest contiguous window whose cost is at most k?
+  brute_force: >-
+    For every start i, extend j one step at a time with a 26-slot count, and after each step
+    check whether (j − i + 1) − max(count) <= k. Every start rebuilds the counts from nothing,
+    re-counting letters that the previous start had already counted.
+  brute_force_complexity: >-
+    O(N² · 26) time (O(N²) if you track the max incrementally), O(26) space — 10⁵ letters
+    means ~5 × 10⁹ window checks.
+  key_insight: >-
+    A window is valid while (r − l + 1) − maxFreq <= k: the non-majority letters are the ones
+    you'd replace. Since you only care about the *longest* valid window, the window never has
+    to shrink: when it becomes invalid, slide it (move l by one) instead. And maxFreq never
+    has to go down, because a window longer than your best can only exist if some letter
+    reaches a count higher than any maxFreq you've already seen. A stale, too-high maxFreq
+    just makes the window slide at its current size; it can never record a length that no
+    valid window achieved.
+  real_world: >-
+    Error-tolerant matching in genomics and log analytics ("longest run of the same reading
+    allowing k glitches") uses this window. Data-quality jobs in pipelines (Airflow, dbt)
+    look for the longest stretch of a sensor or metric that is uniform up to k outliers, and
+    networking stacks size bursts with the same "length minus majority" budget.
+
+statement:
+  clean: |
+    You are given a string `s` and an integer `k`. You can choose any character of the
+    string and change it to any other uppercase English character. You can perform this
+    operation **at most k times**.
+
+    Return the length of the **longest substring containing the same letter** you can get
+    after performing the above operations.
+  oa_story: |
+    **RailRaja Mobility — OA Round 2**
+
+    RailRaja helps Indian Railways plan special rakes for festival rush on the
+    Bengaluru–Mysuru line. A rake is described as a string of uppercase letters, one letter
+    per coach in order from the engine, where each letter is the coach's class (S for
+    sleeper, B for third AC, and so on).
+
+    A large tour group wants one unbroken block of adjacent coaches that are all the same
+    class. The yard can re-fit at most `k` coaches to a different class before departure.
+    Given the rake string and `k`, return the number of coaches in the largest such block
+    the yard can produce. Rakes in the planning tool are simulated with up to 100,000 coaches,
+    and the answer is needed for every candidate rake in a single nightly batch.
+  trigger_keywords: ["at most k times", "longest substring containing the same letter"]
+  examples:
+    - input: "s = \"ABAB\", k = 2"
+      output: "4"
+      explanation: "Replace the two 'A's with two 'B's or vice versa."
+    - input: "s = \"AABABBA\", k = 1"
+      output: "4"
+      explanation: "Replace the one 'A' in the middle with 'B' and form \"AABBBBA\". The substring \"BBBB\" has the longest repeating letters, which is 4."
+  constraints:
+    - "1 <= s.length <= 10^5"
+    - "s consists of only uppercase English letters."
+    - "0 <= k <= s.length"
+
+constraint_quiz:
+  prompt: With s up to 10⁵ characters, what time complexity should you aim for?
+  options: ["O(N² · 26)", "O(N²)", "O(N log N)", "O(N)"]
+  answer: 3
+  explanation: >-
+    O(N² · 26) is ~10¹¹ and O(N²) is ~5 × 10⁹, both far too slow. O(N log N) would pass
+    (binary search on the answer length with a fixed window check), but it is more code and
+    slower than needed. A single sliding window is O(N) (or O(26 · N) if you recompute the
+    max over 26 counts each step), and both pass easily.
+
+pattern_quiz:
+  prompt: >-
+    Find the longest contiguous stretch that can be made all one letter with at most k
+    changes. Which pattern fits?
+  options:
+    - "Greedy: always replace the k least frequent letters in the whole string"
+    - "Variable sliding window with letter counts, valid while length − maxFreq <= k"
+    - "Prefix sums + hash map"
+    - "Dynamic programming over (index, replacements left)"
+  answer: 1
+  explanation: >-
+    "Longest substring" plus "at most k" is the variable-window trigger you used for Max
+    Consecutive Ones III. The only new part is what "bad" means: in a window, every letter
+    that isn't the majority letter is a replacement, so the cost is length − maxFreq. Global
+    greedy ignores contiguity, prefix sums suit "sum equals k", and the DP is O(N · k).
+
+function:
+  name: characterReplacement
+  params: [{name: s}, {name: k}]
+
+starter_code: |
+  class Solution:
+      def characterReplacement(self, s: str, k: int) -> int:
+          pass
+
+tests:
+  - {args: ["ABAB", 2], expected: 4}
+  - {args: ["AABABBA", 1], expected: 4}
+  - {args: ["A", 0], expected: 1, note: single character}
+  - {args: ["AABBBCC", 0], expected: 3, note: "k = 0: just the longest run"}
+  - {args: ["ABC", 3], expected: 3, note: "k larger than needed: capped by the string length"}
+  - {args: ["ABCDE", 1], expected: 2, note: all distinct}
+  - {args: ["BAAAB", 2], expected: 5, note: replacements at both ends}
+  - {args: ["AAABBCCCCAA", 2], expected: 6, note: "majority switches from A to C: \"CCCCAA\" replaces the two A's"}
+  - {args: ["ABBBCCCCD", 1], expected: 5}
+visualize_test: 1
+
+drills:
+  - title: Count and track the majority as you grow
+    skill: setup
+    goal: Expand the window with a count map and a running maxFreq, and compute the replacement cost.
+    instructions: |
+      Grow the window `s[0..r]` one letter at a time (never shrink it). Return a list where
+      position `r` holds the number of replacements needed to make `s[0..r]` all one letter,
+      which is `(r + 1) - maxFreq`.
+
+      This is the cost formula the whole problem rests on: keep the most frequent letter,
+      replace the rest. Notice you can maintain `maxFreq` in O(1) per step, because only the
+      letter that just entered changed its count.
+    function:
+      name: prefixCosts
+      params: [{name: s}]
+    starter_code: |
+      class Solution:
+          def prefixCosts(self, s: str) -> List[int]:
+              pass
+    tests:
+      - {args: ["AABAB"], expected: [0, 0, 1, 1, 2]}
+      - {args: ["ABC"], expected: [0, 1, 2]}
+      - {args: ["BBBB"], expected: [0, 0, 0, 0]}
+      - {args: ["ABBA"], expected: [0, 1, 1, 2]}
+    solution: |
+      class Solution:
+          def prefixCosts(self, s: str) -> List[int]:
+              count = {}
+              max_freq = 0
+              out = []
+              for r, c in enumerate(s):
+                  count[c] = count.get(c, 0) + 1
+                  max_freq = max(max_freq, count[c])
+                  out.append(r + 1 - max_freq)
+              return out
+    hint: "Only `count[c]` changed, so `max_freq = max(max_freq, count[c])` is enough."
+
+  - title: Slide when the cost exceeds k
+    skill: core
+    goal: Shrink from the left when (r − l + 1) − maxFreq > k, and watch the window length never drop.
+    instructions: |
+      Run the full window: add `s[r]`, update `maxFreq`, and while the window costs more than
+      `k` replacements, remove `s[l]` and move `l` right. **Do not** lower `maxFreq` when you
+      remove letters. Return the window length `r - l + 1` after each step.
+
+      Look at the output: it never decreases. The window either grows by one or slides at the
+      same size, because once it is too expensive, removing one letter from the left brings
+      the cost back to exactly `k`. That is why the while loop runs at most once per step.
+    function:
+      name: windowLengths
+      params: [{name: s}, {name: k}]
+    starter_code: |
+      class Solution:
+          def windowLengths(self, s: str, k: int) -> List[int]:
+              pass
+    tests:
+      - {args: ["AABABBA", 1], expected: [1, 2, 3, 4, 4, 4, 4]}
+      - {args: ["ABCD", 0], expected: [1, 1, 1, 1]}
+      - {args: ["AAAB", 0], expected: [1, 2, 3, 3]}
+      - {args: ["BAAAB", 1], expected: [1, 2, 3, 4, 4]}
+    solution: |
+      class Solution:
+          def windowLengths(self, s: str, k: int) -> List[int]:
+              count = {}
+              max_freq = l = 0
+              lengths = []
+              for r, c in enumerate(s):
+                  count[c] = count.get(c, 0) + 1
+                  max_freq = max(max_freq, count[c])
+                  while (r - l + 1) - max_freq > k:
+                      count[s[l]] -= 1
+                      l += 1
+                  lengths.append(r - l + 1)
+              return lengths
+    hint: "The condition is cost > k, where cost = `(r - l + 1) - max_freq`."
+
+  - title: The window never shrinks, so its final size is the answer
+    skill: edge
+    goal: Extract the answer without a best variable, by trusting that the window size only grows.
+    instructions: |
+      Return the answer to the full problem, but **without** a `best` variable: when the loop
+      finishes, return `len(s) - l`, the size of the final window.
+
+      This only works because of the stale-`maxFreq` argument: the window size never goes
+      down, and it grows only when a real window of that size is valid. If you "fixed"
+      `maxFreq` by recomputing it after removals, the window could shrink and this extraction
+      would break. Edge cases to check: `k = 0`, and `k` at least the string length.
+    function:
+      name: finalWindowSize
+      params: [{name: s}, {name: k}]
+    starter_code: |
+      class Solution:
+          def finalWindowSize(self, s: str, k: int) -> int:
+              pass
+    tests:
+      - {args: ["AABABBA", 1], expected: 4}
+      - {args: ["ABAB", 2], expected: 4}
+      - {args: ["AABBBCC", 0], expected: 3, note: the window slid past the best run but kept its size}
+      - {args: ["ABC", 5], expected: 3, note: k larger than the string}
+      - {args: ["A", 0], expected: 1}
+    solution: |
+      class Solution:
+          def finalWindowSize(self, s: str, k: int) -> int:
+              count = {}
+              max_freq = l = 0
+              for r, c in enumerate(s):
+                  count[c] = count.get(c, 0) + 1
+                  max_freq = max(max_freq, count[c])
+                  if (r - l + 1) - max_freq > k:  # slide: one in, one out
+                      count[s[l]] -= 1
+                      l += 1
+              return len(s) - l
+    hint: "When the window is too expensive, move l by exactly one; the size stays the same."
+
+hints:
+  - >-
+    Forget the whole string and look at one window. If you're allowed to change letters
+    inside it, which letter should you keep, and how many changes does the window cost?
+  - >-
+    Keep counts for the window and the largest count seen (maxFreq). After adding s[r], the
+    window is too expensive when (r − l + 1) − maxFreq > k; then drop s[l] and move l. Ask
+    yourself: do you ever need maxFreq to go down, given you only want a longer window than
+    you already have?
+  - |
+    count = empty map, maxFreq = 0, l = 0, best = 0
+    for r from 0 to len(s) - 1:
+        count[s[r]] += 1
+        maxFreq = max(maxFreq, count[s[r]])
+        while (r - l + 1) - maxFreq > k:
+            count[s[l]] -= 1
+            l = l + 1
+        best = max(best, r - l + 1)
+    return best
+
+solution:
+  code: |
+    class Solution:
+        def characterReplacement(self, s: str, k: int) -> int:
+            count = {}    # letter -> occurrences inside s[l..r]
+            max_freq = 0  # highest count any letter has reached; never decreased
+            best = 0
+            l = 0
+            for r, c in enumerate(s):
+                count[c] = count.get(c, 0) + 1
+                max_freq = max(max_freq, count[c])
+                # letters other than the majority must be replaced; more than k is too many
+                while (r - l + 1) - max_freq > k:
+                    count[s[l]] -= 1
+                    l += 1
+                best = max(best, r - l + 1)
+            return best
+  explanation: |
+    In any window, the best plan is to keep its most common letter and replace the rest, so
+    a window `s[l..r]` is achievable exactly when `(r - l + 1) - maxFreq <= k`. That turns
+    the problem into "longest window with at most k bad cells", the same shape as Max
+    Consecutive Ones III, where the bad cells are "not the majority letter".
+
+    The subtle part is that `max_freq` is never lowered when letters leave on the left, so it
+    can be higher than the window's true maximum. That is safe. A new best of length `L + 1`
+    needs a window where some letter appears at least `L + 1 - k` times, which is more than
+    any `max_freq` we've had so far. Until a letter actually beats the old `max_freq`, the
+    window can't grow; it just slides (one letter in, one out), and `best` is unchanged. When
+    the window does grow, it's because `count[c]` just set a new record, and that count is
+    real. So every length recorded in `best` belongs to a genuinely valid window.
+
+    A side effect: the window is too expensive by at most one letter at a time, so the
+    `while` runs at most once per step. Recomputing `max(count.values())` instead is also
+    correct, at O(26) per step.
+  time: O(N) — each letter enters and leaves the window at most once; O(1) per update
+  space: O(1) — at most 26 keys in the count map
+  brute_force_code: |
+    class Solution:
+        def characterReplacement(self, s: str, k: int) -> int:
+            best = 0
+            for i in range(len(s)):
+                count = {}
+                top = 0
+                for j in range(i, len(s)):
+                    count[s[j]] = count.get(s[j], 0) + 1
+                    top = max(top, count[s[j]])
+                    if (j - i + 1) - top <= k:
+                        best = max(best, j - i + 1)
+            return best
+
+pitch_script: |
+  **(Clarify)** "So I can change at most k characters to any uppercase letter, and I want
+  the longest contiguous block that ends up all one letter. k can be zero, and it can be as
+  big as the string, in which case the answer is just the length?"
+
+  **(Brute force)** "The direct way checks every substring: for each start, extend the end
+  with a count and test whether length minus the most frequent count is at most k. That's
+  O(N²), around 5 × 10⁹ steps for 10⁵ letters."
+
+  **(Trigger)** "'Longest substring' with 'at most k' changes is a variable sliding window.
+  The key reframe is that a window's cost is its length minus the count of its majority
+  letter, since those are the cells I'd replace."
+
+  **(Optimal)** "I move r forward, update counts and the max frequency, and while length
+  minus max frequency exceeds k, I drop the left character and move l. Then I record r
+  minus l plus one. I never decrease the max frequency: to beat my current best, some
+  letter has to exceed that frequency anyway, so a stale value only makes the window slide
+  instead of shrink. It never gives a wrong length."
+
+  **(Complexity)** "Each character enters and leaves once, so it's O(N) time, and O(1)
+  space because there are only 26 letters. If the interviewer is uneasy about the stale max,
+  recomputing it from the 26 counts each step is O(26 · N), which is still linear."
+
+twist:
+  lc: 2024
+  title: Maximize the Confusion of an Exam
+  why: >-
+    The alphabet shrinks to 'T' and 'F', and you can flip at most k answers to get the
+    longest run of identical answers. The same "length − maxFreq <= k" window works
+    unchanged with two counts, or you can run the at-most-k-bad window twice, once treating
+    'F' as bad and once treating 'T' as bad. Seeing why both are the same is the point.
+
+viz:
+  arrays: [s]
+  pointers: [l, r]
+  window: [l, r]
+  maps: [count]
+  watch: [c, max_freq, best, k]

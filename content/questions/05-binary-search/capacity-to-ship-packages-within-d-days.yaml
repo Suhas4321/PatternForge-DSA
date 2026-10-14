@@ -1,0 +1,362 @@
+slug: capacity-to-ship-packages-within-d-days
+lc: 1011
+
+concept:
+  problem_it_solves: >-
+    "What is the smallest capacity that still finishes the job in time?" It's the same
+    question as Koko Eating Bananas wearing a different costume: the candidate capacities are
+    ordered, and "can we ship everything within D days at capacity c?" flips from no to yes
+    exactly once as c grows. So you binary search the capacity, and each guess is checked by
+    simulating the loading greedily.
+  brute_force: >-
+    Try capacities max(weights), max(weights) + 1, ... and simulate the days for each one,
+    returning the first that fits. Each simulation is O(N), but the range can be millions of
+    capacities wide, and after learning that capacity 40 fails, re-checking 30 to 39 is wasted
+    work: they must fail too.
+  brute_force_complexity: >-
+    O(N · S) time, O(1) space, where S = sum(weights) — 5 × 10⁴ packages of up to 500 means
+    S up to 2.5 × 10⁷ and ~10¹² steps.
+  key_insight: >-
+    Map it onto the Koko template. Answer space: the ship must carry the heaviest package, so
+    lo = max(weights); with capacity sum(weights) everything goes on day one, so hi =
+    sum(weights). Predicate: days_needed(c) <= days, where days_needed loads packages in order
+    and starts a new day only when the next package doesn't fit. A bigger ship never needs more
+    days, so the predicate is monotonic (F ... F T ... T) and you search for the first True.
+    Greedy loading is optimal for a fixed capacity: putting a package on today's ship when it
+    fits can never make later days worse.
+  real_world: >-
+    Batch sizing in data pipelines: "what's the smallest per-batch size limit (MB per Kafka
+    producer batch, rows per Spark micro-batch, items per SQS message) that drains today's
+    queue within N runs?" Logistics planners at Delhivery or Shiprocket ask the same question
+    about truck capacity for an ordered manifest, and cloud cost tools search for the smallest
+    instance size that finishes a sequential job in a time budget.
+
+statement:
+  clean: |
+    A conveyor belt has packages that must be shipped from one port to another within `days`
+    days.
+
+    The `i`th package on the conveyor belt has a weight of `weights[i]`. Each day, we load the
+    ship with packages on the conveyor belt (**in the order given by weights**). We may not
+    load more weight than the maximum weight capacity of the ship.
+
+    Return the **least weight capacity** of the ship that will result in all the packages on
+    the conveyor belt being **shipped within days** days.
+  oa_story: |
+    **FleetFalcon Logistics — OA Round 2**
+
+    FleetFalcon runs a daily truck from its Peenya warehouse to a partner hub in Hosur.
+    Parcels arrive on a sorting line in a fixed order, and because of the barcode scanners
+    downstream, they must be loaded in exactly that order: a parcel can't be held back while a
+    later one jumps ahead. Each day the truck takes the next parcels off the line until the
+    next one would push it over its load limit, then leaves.
+
+    A client needs the whole consignment delivered within `days` days. FleetFalcon is leasing
+    a truck for this contract and rent grows with the load limit, so they want the smallest
+    integer load limit (in kg) that clears the line in time. Given the parcel weights in line
+    order and `days`, return that limit. A consignment can have 5 × 10⁴ parcels of up to
+    500 kg each.
+  trigger_keywords: ["in the order given", "least weight capacity", "shipped within days"]
+  examples:
+    - input: "weights = [1,2,3,4,5,6,7,8,9,10], days = 5"
+      output: "15"
+      explanation: "Capacity 15 ships [1,2,3,4,5], [6,7], [8], [9], [10]. Capacity 14 would need 6 days. The order can't be changed."
+    - input: "weights = [3,2,2,4,1,4], days = 3"
+      output: "6"
+      explanation: "Capacity 6 ships [3,2], [2,4], [1,4]."
+    - input: "weights = [1,2,3,1,1], days = 4"
+      output: "3"
+      explanation: "Capacity 3 ships [1,2], [3], [1,1]: 3 days, which is within 4."
+  constraints:
+    - "1 <= days <= weights.length <= 5 * 10^4"
+    - "1 <= weights[i] <= 500"
+
+constraint_quiz:
+  prompt: >-
+    There are up to 5 × 10⁴ packages of weight up to 500, so the total weight S is at most
+    2.5 × 10⁷. Simulating one capacity is O(N). What should you aim for?
+  options:
+    - "O(N · S) — try every capacity from max to sum"
+    - "O(N · log S) — binary search the capacity"
+    - "O(N log N) — sort the packages"
+    - "O(2^N) — try every way to cut the belt into days"
+  answer: 1
+  explanation: >-
+    Trying every capacity is up to 2.5 × 10⁷ simulations of 5 × 10⁴ packages: ~10¹². Sorting
+    is not allowed, because packages must ship in their given order, and it wouldn't find the
+    capacity anyway. Trying every way to cut the belt is exponential. Binary searching the
+    capacity needs about log₂(2.5 × 10⁷) ≈ 25 simulations, around 1.25 × 10⁶ steps.
+
+pattern_quiz:
+  prompt: >-
+    You need the smallest capacity such that an in-order greedy load finishes within a number
+    of days, and a bigger capacity never needs more days. Which pattern fits?
+  options:
+    - "Sliding window of packages per day"
+    - "Dynamic programming over (package, day)"
+    - "Binary search on the answer with a greedy feasibility check"
+    - "Sort the weights and use two pointers"
+  answer: 2
+  explanation: >-
+    "Least capacity such that it's shipped within D days" is the same trigger as Koko's
+    "minimum speed within h hours": a monotonic yes/no question over an ordered answer space.
+    DP over (package, day) would work but costs O(N² · D). A sliding window can't decide how
+    many packages a day should take without knowing the capacity, and sorting breaks the
+    required order.
+
+function:
+  name: shipWithinDays
+  params: [{name: weights}, {name: days}]
+
+starter_code: |
+  class Solution:
+      def shipWithinDays(self, weights: List[int], days: int) -> int:
+          pass
+
+tests:
+  - {args: [[1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 5], expected: 15}
+  - {args: [[3, 2, 2, 4, 1, 4], 3], expected: 6}
+  - {args: [[1, 2, 3, 1, 1], 4], expected: 3, note: using fewer days than allowed is fine}
+  - {args: [[10], 1], expected: 10, note: single package}
+  - {args: [[5, 5, 5, 5], 4], expected: 5, note: "days == n: the answer is max(weights)"}
+  - {args: [[5, 5, 5, 5], 1], expected: 20, note: "one day: the answer is sum(weights)"}
+  - {args: [[10, 50, 10], 2], expected: 60, note: "order matters: the 50 can't share with both 10s"}
+  - {args: [[7, 2, 5, 10, 8], 2], expected: 18}
+visualize_test: 1
+
+drills:
+  - title: Bound the answer space
+    skill: setup
+    goal: Compute the search range [max(weights), sum(weights)] in one pass and know why each end is correct.
+    instructions: |
+      Return `[lo, hi]`, the smallest and largest capacities worth trying, computing both in a
+      single loop over `weights`.
+
+      `lo = max(weights)`: any smaller ship can never carry the heaviest package, no matter
+      how many days you have. `hi = sum(weights)`: a ship that big takes everything on day
+      one, so it's always feasible. This is the Koko step "speed lies in [1, max(piles)]",
+      re-derived for a new problem. Getting the bounds right is what guarantees the answer is
+      inside the window before the search starts.
+    function:
+      name: capacityBounds
+      params: [{name: weights}]
+    starter_code: |
+      class Solution:
+          def capacityBounds(self, weights: List[int]) -> List[int]:
+              pass
+    tests:
+      - {args: [[1, 2, 3, 4, 5, 6, 7, 8, 9, 10]], expected: [10, 55]}
+      - {args: [[3, 2, 2, 4, 1, 4]], expected: [4, 16]}
+      - {args: [[7]], expected: [7, 7], note: "lo == hi: nothing to search"}
+      - {args: [[1, 1, 1]], expected: [1, 3]}
+    solution: |
+      class Solution:
+          def capacityBounds(self, weights: List[int]) -> List[int]:
+              lo, hi = 0, 0
+              for w in weights:
+                  lo = max(lo, w)
+                  hi += w
+              return [lo, hi]
+    hint: "Track a running maximum and a running total in the same loop."
+
+  - title: Count days greedily
+    skill: core
+    goal: Simulate in-order loading for a fixed capacity, starting a new day only when the next package doesn't fit.
+    instructions: |
+      Return how many days it takes to ship all packages, in order, with a ship of capacity
+      `cap` (you may assume `cap >= max(weights)`).
+
+      Start with `used = 1` day and `load = 0`. For each package, if `load + w > cap` it
+      doesn't fit: start a new day (`used += 1`, `load = 0`). Then put it on. Use `>`, not
+      `>=`: a package that fills the ship exactly still goes today. This greedy is optimal
+      because loading a package as early as possible never makes later days harder. It's
+      the feasibility check, the counterpart of Koko's hours-at-speed-k.
+    function:
+      name: daysNeeded
+      params: [{name: weights}, {name: cap}]
+    starter_code: |
+      class Solution:
+          def daysNeeded(self, weights: List[int], cap: int) -> int:
+              pass
+    tests:
+      - {args: [[1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 15], expected: 5}
+      - {args: [[3, 2, 2, 4, 1, 4], 6], expected: 3}
+      - {args: [[3, 2, 2, 4, 1, 4], 5], expected: 4}
+      - {args: [[5, 5, 5], 5], expected: 3, note: each package fills the ship exactly}
+      - {args: [[1, 2, 3], 100], expected: 1}
+    solution: |
+      class Solution:
+          def daysNeeded(self, weights: List[int], cap: int) -> int:
+              used, load = 1, 0
+              for w in weights:
+                  if load + w > cap:  # doesn't fit: this package starts a new day
+                      used += 1
+                      load = 0
+                  load += w
+              return used
+    hint: "Decide whether to start a new day *before* adding the package to the load."
+
+  - title: Why the search can't start at 1
+    skill: edge
+    goal: Make the feasibility check reject capacities below the heaviest package, which the plain greedy silently accepts.
+    instructions: |
+      Return `True` if all packages can be shipped in order within `days` days using capacity
+      `cap`, else `False`. `cap` can be anything, including less than the heaviest package.
+
+      The trap: the plain day-counting greedy never checks that a package fits on an empty
+      ship. With `weights = [1, 2, 10]` and `cap = 5`, it loads 1 + 2, then puts the 10 on a
+      "new day" and reports 2 days, so a 5 kg ship "carries" a 10 kg parcel. If you start
+      the binary search at `lo = 1` (copying Koko's bound), this bug returns impossible
+      answers. Either guard the check, as here, or start the search at `max(weights)`.
+    function:
+      name: canShip
+      params: [{name: weights}, {name: days}, {name: cap}]
+    starter_code: |
+      class Solution:
+          def canShip(self, weights: List[int], days: int, cap: int) -> bool:
+              pass
+    tests:
+      - {args: [[1, 2, 10], 3, 5], expected: false, note: "the plain greedy wrongly says 2 days"}
+      - {args: [[1, 2, 10], 3, 10], expected: true}
+      - {args: [[3, 2, 2, 4, 1, 4], 3, 6], expected: true}
+      - {args: [[3, 2, 2, 4, 1, 4], 3, 5], expected: false, note: needs 4 days}
+      - {args: [[5, 5], 2, 5], expected: true, note: exactly full each day}
+    solution: |
+      class Solution:
+          def canShip(self, weights: List[int], days: int, cap: int) -> bool:
+              if max(weights) > cap:  # some package can never fit
+                  return False
+              used, load = 1, 0
+              for w in weights:
+                  if load + w > cap:
+                      used, load = used + 1, 0
+                  load += w
+              return used <= days
+    hint: "Before simulating, ask whether the heaviest package fits on an empty ship."
+
+hints:
+  - >-
+    If someone gives you a capacity, can you check in one pass whether it ships everything
+    within the deadline? If capacity c works, does c + 1 also work? Which earlier problem had
+    exactly this shape?
+  - >-
+    The answer lies in [max(weights), sum(weights)]. feasible(c) loads packages in order and
+    counts a new day whenever the next one doesn't fit, then checks days_needed <= days. Binary
+    search that range for the first feasible capacity, exactly like Koko's speed.
+  - |
+    days_needed(cap):
+        used = 1, load = 0
+        for each w in weights:
+            if load + w > cap: used += 1, load = 0
+            load += w
+        return used
+    lo = max(weights), hi = sum(weights)
+    while lo < hi:
+        mid = middle of lo and hi
+        if days_needed(mid) <= days:  hi = mid
+        else:                         lo = mid + 1
+    return lo
+
+solution:
+  code: |
+    class Solution:
+        def shipWithinDays(self, weights: List[int], days: int) -> int:
+            def days_needed(cap):
+                used, load = 1, 0
+                for w in weights:
+                    if load + w > cap:  # doesn't fit today: it starts a new day
+                        used += 1
+                        load = 0
+                    load += w
+                return used
+
+            # must carry the heaviest package; capacity sum(weights) ships it all in one day
+            lo, hi = max(weights), sum(weights)
+            while lo < hi:  # first capacity with days_needed(capacity) <= days
+                mid = (lo + hi) // 2
+                if days_needed(mid) <= days:
+                    hi = mid  # mid works: the answer is mid or smaller
+                else:
+                    lo = mid + 1  # mid is too small, and so is everything below it
+            return lo
+  explanation: |
+    Put it side by side with Koko Eating Bananas and only two lines change:
+
+    | | Koko | Ship packages |
+    |---|---|---|
+    | Answer | speed `k` | capacity `cap` |
+    | Range | `[1, max(piles)]` | `[max(weights), sum(weights)]` |
+    | Check | `sum(ceil(p / k)) <= h` | `days_needed(cap) <= days` |
+    | Search | first True | first True |
+
+    **Bounds.** The lower bound is `max(weights)`, not 1, because a ship lighter than the
+    heaviest package can never carry it. That's also what keeps the greedy honest: it never
+    checks whether a single package fits on an empty ship, so with `lo = 1` it would report
+    bogus small capacities. The upper bound `sum(weights)` ships everything in one day, so the
+    window always contains a feasible answer.
+
+    **Check.** For a fixed capacity, loading each package onto today's ship whenever it fits
+    is optimal: delaying a package can only push more weight onto later days. Use
+    `load + w > cap` (strictly greater) so a package that exactly fills the ship still goes
+    today.
+
+    **Monotonic.** A bigger ship never needs more days, so `days_needed(c) <= days` is
+    F ... F T ... T over capacities, and the `lo < hi` / `hi = mid` loop lands on the first T.
+    Using fewer days than allowed is fine (`[1,2,3,1,1]` with 4 days needs only 3 at
+    capacity 3), which is why the check is `<=` and not `==`.
+  time: O(N log S) — about log₂(sum − max) ≤ 25 iterations, each an O(N) greedy pass
+  space: O(1) — a few counters
+  brute_force_code: |
+    class Solution:
+        def shipWithinDays(self, weights: List[int], days: int) -> int:
+            for cap in range(max(weights), sum(weights) + 1):
+                used, load = 1, 0
+                for w in weights:
+                    if load + w > cap:
+                        used, load = used + 1, 0
+                    load += w
+                if used <= days:
+                    return cap
+            return sum(weights)
+
+pitch_script: |
+  **(Clarify)** "Packages must go in the given order, I can't split a package, and each day the
+  ship takes the next packages up to its capacity. I return the smallest integer capacity that
+  finishes within the given number of days. Finishing early is fine, right?"
+
+  **(Brute force)** "I could try every capacity from the heaviest package up to the total
+  weight and simulate each one. A simulation is O(N), but the range can be 2.5 × 10⁷ wide,
+  so that's around 10¹² operations."
+
+  **(Trigger)** "'Least capacity such that it ships within D days' is a minimum-feasible-value
+  question, and a bigger ship never needs more days. So feasibility is monotonic in the
+  capacity, and I can binary search on the answer, exactly the way Koko searches for the
+  slowest speed."
+
+  **(Optimal)** "The range is max(weights) to sum(weights): below the max some package never
+  fits, and at the sum it all goes in one day. For a candidate capacity I count days greedily,
+  starting a new day only when the next package doesn't fit, and greedy is optimal because
+  loading earlier never hurts later days. If the count is within the limit, I set hi = mid;
+  otherwise lo = mid + 1. lo ends on the smallest feasible capacity."
+
+  **(Complexity)** "About log of the total weight, roughly 25 iterations, each an O(N) pass,
+  so O(N log S) time and O(1) space."
+
+twist:
+  lc: 1552
+  title: Magnetic Force Between Two Balls
+  why: >-
+    This is LeetCode's version of Aggressive Cows, a favourite in Indian interviews. You place
+    m balls in baskets to maximise the minimum distance between any two, so the goal flips to
+    "maximum minimum". Sort the positions first; feasible(d) greedily drops a ball in the first
+    basket at least d past the previous one and checks that m balls fit. Now feasible is
+    T ... T F ... F (bigger gaps get harder), so you search for the last True: on success
+    lo = mid, on failure hi = mid - 1, and mid must round up, (lo + hi + 1) // 2, or the loop
+    never ends when hi = lo + 1.
+
+viz:
+  arrays: [weights]
+  # lo and hi are capacities, not indices into weights: point the window at names that don't
+  # exist so the visualizer doesn't draw a misleading [lo..hi] box over the weights array.
+  window: null  # lo/hi are answer values, not indices: no range box
+  watch: [lo, hi, mid, cap, used, load, days]

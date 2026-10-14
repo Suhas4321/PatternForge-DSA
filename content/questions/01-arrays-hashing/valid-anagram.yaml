@@ -1,0 +1,300 @@
+slug: valid-anagram
+lc: 242
+
+concept:
+  problem_it_solves: >-
+    "Do these two collections contain exactly the same items, the same number of times,
+    ignoring order?" Order is noise here. What actually defines the answer is how many times
+    each character appears, and a frequency map captures exactly that and nothing else.
+  brute_force: >-
+    For every character of s, scan t for an unused matching character and cross it off. Each
+    search re-reads t from the start even though you already walked past those characters,
+    so the work repeats for every single character of s.
+  brute_force_complexity: O(N²) time, O(N) space — 5 × 10⁴ characters means ~2.5 × 10⁹ scans in the worst case.
+  key_insight: >-
+    Two strings are anagrams exactly when their character counts are equal. So stop matching
+    characters to characters: count s once (+1 per char), then walk t and spend those counts
+    (−1 per char). If t ever needs a character whose count is already 0, it has one too many.
+    With equal lengths, never going below zero means everything balances out to exactly zero.
+  real_world: >-
+    Frequency maps are how search engines like Elasticsearch store term frequencies for
+    scoring, and how fraud and abuse teams compare "bag of events" fingerprints regardless of
+    order. Inventory reconciliation (does the dispatched crate match the order's item counts?)
+    is the same count-up, count-down check.
+
+statement:
+  clean: |
+    Given two strings `s` and `t`, return `true` if `t` is an **anagram** of `s`, and `false`
+    otherwise.
+
+    An anagram is a word formed by rearranging the letters of another word, **using all the
+    original letters exactly once**. Both strings consist of **lowercase English letters**.
+  oa_story: |
+    **PadhaiPal Learning — OA Round 1**
+
+    PadhaiPal's Bengaluru product team is shipping a vocabulary game for school students.
+    Each round the app deals a row of letter tiles, `s`, and the student types a word, `t`.
+    The word only scores if the student laid down **every tile on the table**, each tile
+    exactly once, in whatever order they like.
+
+    Tiles show lowercase English letters, and a row can be long during the bonus round.
+    Write the scoring check: return `true` if the typed word uses up the dealt tiles exactly,
+    and `false` if a tile is left over or the word needs a tile that wasn't dealt.
+  trigger_keywords: ["anagram", "rearranging the letters", "exactly once"]
+  examples:
+    - input: "s = \"anagram\", t = \"nagaram\""
+      output: "true"
+      explanation: "Both contain a×3, n×1, g×1, r×1, m×1."
+    - input: "s = \"rat\", t = \"car\""
+      output: "false"
+      explanation: "t has a 'c' that s doesn't, and s has a 't' that t doesn't."
+  constraints:
+    - "1 <= s.length, t.length <= 5 * 10^4"
+    - "s and t consist of lowercase English letters."
+
+constraint_quiz:
+  prompt: >-
+    Each string can be 5 × 10⁴ characters long. What time complexity should you aim for?
+  options: ["O(N²)", "O(N log N)", "O(N)", "O(log N)"]
+  answer: 2
+  explanation: >-
+    O(N²) is ~2.5 × 10⁹ operations, far too slow. Sorting both strings and comparing is
+    O(N log N) and does pass, but it does more work than needed: you don't care about order,
+    only counts. Counting is a single O(N) pass over each string. O(log N) is impossible
+    because every character has to be read at least once.
+
+pattern_quiz:
+  prompt: You must check that two strings use the same letters the same number of times. Which pattern fits?
+  options:
+    - "Hash set of characters in s"
+    - "Frequency count of characters (count up, count down)"
+    - "Two pointers from both ends"
+    - "Sliding window"
+  answer: 1
+  explanation: >-
+    "Rearranging", "all the letters", "exactly once" all point at multiplicity, which is a
+    frequency-count trigger. A set loses multiplicity: "aacc" and "ccac" have the same set
+    {a, c} but aren't anagrams. Two pointers compares positions (palindromes), and a sliding
+    window is for anagrams of a *substring* (that's the twist, #438).
+
+function:
+  name: isAnagram
+  params: [{name: s}, {name: t}]
+
+starter_code: |
+  class Solution:
+      def isAnagram(self, s: str, t: str) -> bool:
+          pass
+
+tests:
+  - {args: ["anagram", "nagaram"], expected: true}
+  - {args: ["rat", "car"], expected: false}
+  - {args: ["a", "ab"], expected: false, note: "length mismatch: t has a spare letter"}
+  - {args: ["a", "a"], expected: true, note: single character}
+  - {args: ["aacc", "ccac"], expected: false, note: "same letters and length, different counts"}
+  - {args: ["ab", "ba"], expected: true}
+  - {args: ["aab", "abb"], expected: false, note: "a set check would wrongly say true"}
+  - {args: ["listen", "silent"], expected: true}
+visualize_test: 7
+
+drills:
+  - title: Count every character
+    skill: setup
+    goal: Build a character → count dictionary in one loop over a string.
+    instructions: |
+      Return the character counts of `s` as a list of `[char, count]` pairs, in the order
+      each character **first appears**.
+
+      This is the "count up" half of the anagram check. Python dicts keep insertion order,
+      so building the dict in one loop and reading `.items()` gives you exactly this order.
+    function:
+      name: charCounts
+      params: [{name: s}]
+    starter_code: |
+      class Solution:
+          def charCounts(self, s: str) -> List[List]:
+              pass
+    tests:
+      - {args: ["banana"], expected: [["b", 1], ["a", 3], ["n", 2]]}
+      - {args: ["z"], expected: [["z", 1]]}
+      - {args: ["abab"], expected: [["a", 2], ["b", 2]]}
+      - {args: [""], expected: []}
+    solution: |
+      class Solution:
+          def charCounts(self, s: str) -> List[List]:
+              count = {}
+              for ch in s:
+                  count[ch] = count.get(ch, 0) + 1
+              return [[ch, c] for ch, c in count.items()]
+    hint: "`count.get(ch, 0) + 1` handles the first time you meet a character."
+
+  - title: Spend the counts
+    skill: core
+    goal: Decrement a count for each character you use and fail the moment a count would go negative.
+    instructions: |
+      Return `true` if `word` can be spelled using the letters in `tiles`, each tile used at
+      most once (leftover tiles are fine), otherwise `false`.
+
+      This is the "count down" half of the anagram check: count the supply, then walk the
+      demand and spend one unit per character. If the count is already 0 when you need it,
+      the demand has one more copy than the supply, so stop right there.
+    function:
+      name: canSpell
+      params: [{name: word}, {name: tiles}]
+    starter_code: |
+      class Solution:
+          def canSpell(self, word: str, tiles: str) -> bool:
+              pass
+    tests:
+      - {args: ["aab", "baa"], expected: true}
+      - {args: ["aa", "ab"], expected: false}
+      - {args: ["cat", "tacos"], expected: true}
+      - {args: ["", "xyz"], expected: true}
+      - {args: ["zz", "z"], expected: false}
+    solution: |
+      class Solution:
+          def canSpell(self, word: str, tiles: str) -> bool:
+              count = Counter(tiles)
+              for ch in word:
+                  if count[ch] == 0:
+                      return False
+                  count[ch] -= 1
+              return True
+    hint: "Check `count[ch] == 0` *before* subtracting, so a missing letter is caught immediately."
+
+  - title: Why the length check finishes the job
+    skill: edge
+    goal: Use the length-mismatch exit so that "never went negative" proves every count is zero.
+    instructions: |
+      Diagnose a pair of strings. Return `"length"` if their lengths differ, `"count"` if the
+      lengths match but some character's count doesn't, and `"anagram"` if `t` is an anagram
+      of `s`.
+
+      "Spend the counts" alone allows leftovers: `t = "ab"` fits inside `s = "abc"`. Checking
+      lengths first closes that gap. If both strings have the same total and `t` never
+      overdraws a count, nothing can be left over, so you never need a final "are all counts
+      zero?" pass.
+    function:
+      name: anagramVerdict
+      params: [{name: s}, {name: t}]
+    starter_code: |
+      class Solution:
+          def anagramVerdict(self, s: str, t: str) -> str:
+              pass
+    tests:
+      - {args: ["abc", "ab"], expected: "length"}
+      - {args: ["aacc", "ccac"], expected: "count"}
+      - {args: ["ab", "ba"], expected: "anagram"}
+      - {args: ["a", "b"], expected: "count"}
+      - {args: ["", ""], expected: "anagram"}
+    solution: |
+      class Solution:
+          def anagramVerdict(self, s: str, t: str) -> str:
+              if len(s) != len(t):
+                  return "length"
+              count = Counter(s)
+              for ch in t:
+                  if count[ch] == 0:
+                      return "count"
+                  count[ch] -= 1
+              return "anagram"
+    hint: "Do the cheap O(1) length comparison before you build any counts."
+
+hints:
+  - >-
+    The order of letters doesn't matter at all. If you threw the letters of each string into
+    two bags, what would you need to compare about the bags?
+  - >-
+    Count each character of s up by one. Then walk t and count each character down by one.
+    When does t prove it isn't an anagram mid-walk, and what quick check before counting
+    guarantees that "never went below zero" means "everything is exactly zero"?
+  - |
+    if lengths differ: return false
+    count = empty map
+    for each ch in s: count[ch] += 1
+    for each ch in t:
+        if count[ch] is 0: return false
+        count[ch] -= 1
+    return true
+
+solution:
+  code: |
+    class Solution:
+        def isAnagram(self, s: str, t: str) -> bool:
+            if len(s) != len(t):
+                return False  # a spare letter on either side can never balance out
+            count = {}  # char -> how many more of it s has than t (so far)
+            for i, ch in enumerate(s):
+                count[ch] = count.get(ch, 0) + 1
+            for j, ch in enumerate(t):
+                if count.get(ch, 0) == 0:
+                    return False  # t needs one more ch than s has
+                count[ch] -= 1
+            return True
+  explanation: |
+    Anagrams are defined by character counts, not positions. Count every character of `s` up,
+    then walk `t` and spend those counts. The moment `t` asks for a character whose count is
+    already 0 (or that `s` never had), `t` has an extra copy, so the answer is `false`.
+
+    The length check up front is the subtle part. Without it, `s = "abc"`, `t = "ab"` would
+    pass the spending loop with a `'c'` left over. With equal lengths, `t` spends exactly
+    `len(s)` units, and since no count ever went negative, every count must end at exactly
+    0. That's why no final "all zeros?" scan is needed.
+
+    **Unicode follow-up:** interviewers often ask "what if the strings contain Unicode
+    characters?" A 26-slot array indexed by `ord(ch) - ord('a')` breaks, but this dict (or a
+    `Counter`) works unchanged because it keys on any character. Mention that visually
+    identical strings can differ in code points (é as one character vs e + a combining
+    accent), so real systems normalise first, e.g. with `unicodedata.normalize("NFC", s)`.
+  time: O(N) — one pass over each string, O(1) average per dict operation
+  space: O(1) — at most 26 keys for lowercase English letters (O(K) for an alphabet of size K)
+  brute_force_code: |
+    class Solution:
+        def isAnagram(self, s: str, t: str) -> bool:
+            if len(s) != len(t):
+                return False
+            remaining = list(t)
+            for ch in s:
+                for k in range(len(remaining)):
+                    if remaining[k] == ch:
+                        remaining.pop(k)  # cross off one matching letter
+                        break
+                else:
+                    return False
+            return True
+
+pitch_script: |
+  **(Clarify)** "Just to confirm: an anagram must use every letter exactly once, so lengths
+  have to match, and the strings are only lowercase English letters? Is it case-sensitive,
+  and could there be Unicode later?"
+
+  **(Brute force)** "The naive way is to take each character of s and search t for an
+  unused match, crossing it off. That's O(N²) in the worst case. Sorting both strings and
+  comparing is better, O(N log N), but sorting does work I don't need, because order is
+  exactly what anagrams ignore."
+
+  **(Trigger)** "What defines an anagram is how many times each character appears. So this
+  is a frequency-count problem: if the counts match, the strings are anagrams."
+
+  **(Optimal)** "First, if the lengths differ, I return false. Then I count each character of
+  s in a map, walk t and decrement. If t ever needs a character whose count is already zero,
+  I return false. Because the lengths are equal and nothing went negative, every count must
+  be zero at the end, so I can return true without a final check."
+
+  **(Complexity)** "That's O(N) time. Space is O(1), at most 26 entries for lowercase
+  letters. For Unicode I'd keep the same hash-map approach, since it keys on any character,
+  and I'd normalise the strings first so combined and decomposed accents compare equal."
+
+twist:
+  lc: 383
+  title: Ransom Note
+  why: >-
+    Now the counts only need to cover, not match: every letter of ransomNote must be available in
+    magazine, but magazine may have extras. Same 26-slot counter, but you decrement for the note
+    and fail the moment a count goes negative, and the length check changes from == to <=.
+
+viz:
+  arrays: [s, t]
+  pointers: [i, "j:t"]
+  maps: [count]
+  watch: [ch]

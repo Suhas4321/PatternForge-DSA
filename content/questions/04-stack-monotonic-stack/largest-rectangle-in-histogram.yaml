@@ -1,0 +1,337 @@
+slug: largest-rectangle-in-histogram
+lc: 84
+
+concept:
+  problem_it_solves: >-
+    "For each bar, how far can it stretch left and right before something shorter blocks it?"
+    The best rectangle always uses the full height of its shortest bar, so the problem becomes
+    finding, for every bar, its previous smaller and next smaller neighbours. A monotonic
+    increasing stack finds both boundaries for every bar in a single pass.
+  brute_force: >-
+    For every bar i, treat heights[i] as the rectangle's height and expand outwards: walk left
+    while bars are at least as tall, walk right while bars are at least as tall, and take
+    heights[i] × width. On a flat or nearly flat histogram every bar walks across almost the
+    whole array, re-reading the same bars N times.
+  brute_force_complexity: >-
+    O(N²) time, O(1) extra space — 10⁵ bars of equal height means about 10¹⁰ steps.
+  key_insight: >-
+    Any rectangle's height is limited by its shortest bar, so the best rectangle is "some bar
+    at full height, stretched until a strictly shorter bar on each side". Those blockers are
+    the previous smaller and next smaller elements. Keep a stack of indices with increasing
+    heights. When bar i is shorter than (or equal to) the top, the top can't stretch any
+    further right: i is its right blocker. And the index just beneath it on the stack is its
+    left blocker, because everything between them was taller and already popped. So the
+    popped bar's rectangle spans from (new top + 1) to (i − 1), and you compute it at the
+    moment of popping. Each index is pushed and popped once: O(N).
+  real_world: >-
+    The same "largest area under a skyline" scan finds the biggest free rectangle when
+    packing ads or widgets into a layout grid, and the largest empty region in a bitmap for
+    image processing. Capacity planners use it on time series too: the largest block of
+    hours × guaranteed load you can sell from a server fleet's capacity graph is exactly
+    this histogram problem.
+
+statement:
+  clean: |
+    Given an array of integers `heights` representing the **histogram's bar height** where
+    the **width of each bar is 1**, return the area of the **largest rectangle in the
+    histogram**.
+  oa_story: |
+    **BijliBills — Online Assessment, SDE-1 (Platform)**
+
+    BijliBills sells rooftop-solar battery plans to apartment complexes in Whitefield and
+    Sarjapur. For a complex, the analytics service has the guaranteed spare power for each
+    hour of a day as a list of non-negative integers (in kW), one value per hour, in order.
+    The sales team wants to offer a single "flat block" contract: a continuous run of hours
+    during which the complex is promised one constant power level, and that level can never
+    exceed the spare power of any hour in the run.
+
+    The value of a contract is power level × number of hours. Write a function that returns
+    the largest value any flat block contract can have. The analytics team will run it over
+    histories with up to 100,000 hourly readings, so a slow solution will time out.
+  trigger_keywords: ["histogram's bar height", "width of each bar is 1", "largest rectangle"]
+  examples:
+    - input: "heights = [2,1,5,6,2,3]"
+      output: "10"
+      explanation: >-
+        The bars of height 5 and 6 form a rectangle of height 5 and width 2, area 10. Nothing
+        bigger fits: the height-2 rectangle across bars 2..5 has area 8.
+    - input: "heights = [2,4]"
+      output: "4"
+      explanation: "Either the single bar of height 4, or height 2 across both bars: both give 4."
+  constraints:
+    - "1 <= heights.length <= 10^5"
+    - "0 <= heights[i] <= 10^4"
+
+constraint_quiz:
+  prompt: With up to 10⁵ bars, what time complexity should you aim for in an interview?
+  options: ["O(N²)", "O(N log N)", "O(N)", "O(N · max height)"]
+  answer: 2
+  explanation: >-
+    Expanding from every bar is O(N²), up to 10¹⁰ steps on a flat histogram, so it times
+    out. O(N log N) divide-and-conquer (split at the minimum bar, with a range-minimum
+    structure) would pass, but it's harder to write and not what interviewers expect. O(N)
+    is achievable with a monotonic stack because each index is pushed and popped once.
+    O(N · max height), trying every height level, is up to 10⁹ steps and depends on the
+    values instead of the number of bars.
+
+pattern_quiz:
+  prompt: >-
+    The answer for each bar depends on the nearest strictly shorter bar on its left and on
+    its right. Which pattern fits?
+  options:
+    - "Two pointers moving inwards from both ends, like Container With Most Water"
+    - "Monotonic increasing stack of indices (previous / next smaller)"
+    - "Sliding window with a running minimum"
+    - "Prefix sums of heights"
+  answer: 1
+  explanation: >-
+    "Nearest smaller on each side" is exactly what a monotonic increasing stack answers: when
+    a shorter bar pops a taller one, the shorter bar is the popped bar's next smaller, and
+    the bar beneath it is its previous smaller. Two pointers work for Container With Most
+    Water because only the two end lines matter there; here every bar in between limits the
+    height. A sliding window has no rule for when to shrink, and prefix sums measure total
+    area, not the rectangle bounded by the shortest bar.
+
+function:
+  name: largestRectangleArea
+  params: [{name: heights}]
+
+starter_code: |
+  class Solution:
+      def largestRectangleArea(self, heights: List[int]) -> int:
+          pass
+
+tests:
+  - {args: [[2, 1, 5, 6, 2, 3]], expected: 10}
+  - {args: [[2, 4]], expected: 4}
+  - {args: [[1]], expected: 1, note: single bar}
+  - {args: [[5, 5, 5, 5]], expected: 20, note: "equal heights: the whole histogram is one rectangle"}
+  - {args: [[1, 2, 3, 4, 5]], expected: 9, note: "strictly increasing: nothing pops until the end, so leftovers must be flushed"}
+  - {args: [[5, 4, 3, 2, 1]], expected: 9, note: "strictly decreasing: every bar pops the one before it"}
+  - {args: [[2, 1, 2]], expected: 3, note: "the shortest bar wins by spanning the whole width"}
+  - {args: [[6, 2, 5, 4, 5, 1, 6]], expected: 12, note: "height 4 across the three middle bars"}
+  - {args: [[4, 2, 0, 3, 2, 5]], expected: 6, note: "a zero-height bar splits the histogram"}
+visualize_test: 0
+
+drills:
+  - title: Find each bar's left blocker
+    skill: setup
+    goal: Build a monotonic increasing stack of indices and read each bar's previous strictly smaller bar from it.
+    instructions: |
+      For every bar `i`, return the index of the nearest bar to its **left** that is
+      **strictly shorter**, or `-1` if there is none.
+
+      Walk left to right with a stack of indices. Before reading the answer for bar `i`, pop
+      every index whose height is **greater than or equal to** `heights[i]`: those bars can
+      never block anything to the right of `i`, because `i` is at least as short and closer.
+      Whatever is left on top is the left blocker. Then push `i`.
+
+      This is the same stack the full solution uses. The left edge of each rectangle is
+      "one past the left blocker", and this drill is exactly how you find it.
+    function:
+      name: previousSmaller
+      params: [{name: heights}]
+    starter_code: |
+      class Solution:
+          def previousSmaller(self, heights: List[int]) -> List[int]:
+              pass
+    tests:
+      - {args: [[2, 1, 5, 6, 2, 3]], expected: [-1, -1, 1, 2, 1, 4]}
+      - {args: [[1, 2, 3, 4, 5]], expected: [-1, 0, 1, 2, 3]}
+      - {args: [[5, 5, 5, 5]], expected: [-1, -1, -1, -1], note: "equal isn't shorter: pop it"}
+      - {args: [[4, 2, 0, 3, 2, 5]], expected: [-1, -1, -1, 2, 2, 4]}
+    solution: |
+      class Solution:
+          def previousSmaller(self, heights: List[int]) -> List[int]:
+              result = []
+              stack = []
+              for i, h in enumerate(heights):
+                  while stack and heights[stack[-1]] >= h:
+                      stack.pop()
+                  result.append(stack[-1] if stack else -1)
+                  stack.append(i)
+              return result
+    hint: "Pop while `heights[stack[-1]] >= h`; then the top (or `-1` if empty) is the answer for `i`."
+
+  - title: The area of a popped bar
+    skill: core
+    goal: When bar i pops the top of the stack, compute the popped bar's rectangle from the two boundaries the stack gives you.
+    instructions: |
+      You're given `heights`, the current `stack` of indices (heights increasing from bottom
+      to top), and the index `i` of a bar that is about to pop the top. Pop the top and return
+      the area of the largest rectangle that uses the **popped bar's full height**.
+
+      The right boundary is `i - 1` (bar `i` is shorter, so it blocks). The left boundary is
+      one past the **new** top of the stack, because everything between them was taller and
+      was popped earlier. If the stack is now empty, nothing on the left is shorter, so the
+      rectangle starts at index 0. That gives `width = i - stack[-1] - 1`, or `i` when empty.
+    function:
+      name: poppedArea
+      params: [{name: heights}, {name: stack}, {name: i}]
+    starter_code: |
+      class Solution:
+          def poppedArea(self, heights: List[int], stack: List[int], i: int) -> int:
+              pass
+    tests:
+      - {args: [[2, 1, 5, 6, 2, 3], [1, 2, 3], 4], expected: 6, note: "pop the 6: width 1"}
+      - {args: [[2, 1, 5, 6, 2, 3], [1, 2], 4], expected: 10, note: "pop the 5: it also covers the 6"}
+      - {args: [[2, 1, 5, 6, 2, 3], [1], 6], expected: 6, note: "empty stack after the pop: spans from index 0"}
+      - {args: [[2, 4], [0, 1], 2], expected: 4}
+      - {args: [[5, 4, 3, 2, 1], [3], 4], expected: 8}
+    solution: |
+      class Solution:
+          def poppedArea(self, heights: List[int], stack: List[int], i: int) -> int:
+              top = stack.pop()
+              width = i - stack[-1] - 1 if stack else i
+              return heights[top] * width
+    hint: "Pop first, then look at the new top: `width = i - stack[-1] - 1`, or `i` if the stack is empty."
+
+  - title: Flush the bars that never got popped
+    skill: edge
+    goal: Handle the indices left on the stack after the scan, whose rectangles stretch all the way to the right end.
+    instructions: |
+      After the main loop, some indices are still on the stack: bars that **never met a
+      shorter bar on their right**. Given `heights` and that leftover `stack`, return the
+      largest area among them.
+
+      Each leftover bar's right boundary is the last index, `n - 1`, so pop them one by one
+      and use `n` where the main loop used `i`. Forgetting this step is the classic bug: on a
+      strictly increasing histogram like `[1, 2, 3, 4, 5]`, nothing is ever popped during the
+      scan, and the whole answer lives in the leftovers. (Appending a sentinel bar of height
+      0 at the end does this flush automatically, which is what the full solution does.)
+    function:
+      name: flushLeftovers
+      params: [{name: heights}, {name: stack}]
+    starter_code: |
+      class Solution:
+          def flushLeftovers(self, heights: List[int], stack: List[int]) -> int:
+              pass
+    tests:
+      - {args: [[1, 2, 3, 4, 5], [0, 1, 2, 3, 4]], expected: 9, note: the entire answer is in the leftovers}
+      - {args: [[2, 1, 5, 6, 2, 3], [1, 4, 5]], expected: 8}
+      - {args: [[5, 5, 5, 5], [3]], expected: 20, note: "one survivor of an equal run spans everything"}
+      - {args: [[2, 4], [0, 1]], expected: 4}
+      - {args: [[6, 2, 5, 4, 5, 1, 6], [5, 6]], expected: 7, note: "the leftovers alone aren't the full answer (12 came earlier)"}
+    solution: |
+      class Solution:
+          def flushLeftovers(self, heights: List[int], stack: List[int]) -> int:
+              n, best = len(heights), 0
+              while stack:
+                  top = stack.pop()
+                  left = stack[-1] + 1 if stack else 0
+                  best = max(best, heights[top] * (n - left))
+              return best
+    hint: "Same width rule as a normal pop, with `n` standing in for the blocker on the right."
+
+hints:
+  - >-
+    The best rectangle has some shortest bar, and uses that bar's full height. For a given
+    bar, what stops its rectangle from growing wider, on the left and on the right?
+  - >-
+    Keep a stack of indices with increasing heights. When the current bar is shorter than or
+    equal to the top, pop the top: the current bar is its right blocker and the new top is its
+    left blocker, so its width is i − newTop − 1 (or i if the stack is empty). Add a bar of
+    height 0 at the end so every bar gets popped.
+  - |
+    heights = heights + [0]          # sentinel flushes the stack at the end
+    stack = empty  (indices, heights increasing upward)
+    best = 0
+    for i, h in heights:
+        while stack not empty and heights[top] >= h:
+            t = pop
+            left = (new top + 1) if stack not empty else 0
+            best = max(best, heights[t] * (i - left))
+        push i
+    return best
+
+solution:
+  code: |
+    class Solution:
+        def largestRectangleArea(self, heights: List[int]) -> int:
+            heights = heights + [0]  # sentinel: a final 0 pops every bar still waiting
+            stack = []  # indices whose heights increase from bottom to top
+            best = 0
+            for i, h in enumerate(heights):
+                # bar i is the first bar to the right that is not taller: the top can't extend past it
+                while stack and heights[stack[-1]] >= h:
+                    top = stack.pop()
+                    left = stack[-1] + 1 if stack else 0  # one past the previous smaller bar
+                    best = max(best, heights[top] * (i - left))  # spans left .. i - 1
+                stack.append(i)
+            return best
+  explanation: |
+    Think about the boundaries first. For bar `t` at full height, the rectangle extends left
+    until the **previous smaller** bar and right until the **next smaller** bar, so its width is
+    `next_smaller - previous_smaller - 1`. The best rectangle is the best of these over all bars.
+
+    The increasing stack hands you both boundaries at the moment a bar is popped. Bar `i` pops
+    `t` because `heights[i] <= heights[t]`, so `i` is where `t` stops on the right. The index
+    now on top of the stack is shorter than `t` (the stack is increasing) and everything that
+    used to sit between them was taller than `t` and got popped earlier, so `t` extends left
+    all the way to `stack[-1] + 1`, or to index 0 if the stack is empty. That's the area
+    `heights[t] * (i - left)`.
+
+    Popping on `>=` (not just `>`) is safe with equal heights. The earlier bar of an equal run
+    gets an undersized width when it's popped by its twin, but the last bar of the run is only
+    blocked on the left by something strictly shorter, so it computes the full width. One
+    correct computation per run is all we need for the maximum.
+
+    Bars still on the stack at the end never met a shorter bar, so their rectangles reach the
+    right edge. Appending a sentinel `0` forces all of them to be popped with `i = n`, which
+    gives exactly that width. `heights + [0]` builds a new list, so the caller's input isn't
+    modified. Each index is pushed once and popped once, so the nested loop is O(N) in total.
+  time: O(N) — each index is pushed once and popped once
+  space: O(N) — the stack (and the copy with the sentinel) can hold every index
+  brute_force_code: |
+    class Solution:
+        def largestRectangleArea(self, heights: List[int]) -> int:
+            n = len(heights)
+            best = 0
+            for i in range(n):
+                l = i
+                while l > 0 and heights[l - 1] >= heights[i]:
+                    l -= 1
+                r = i
+                while r < n - 1 and heights[r + 1] >= heights[i]:
+                    r += 1
+                best = max(best, heights[i] * (r - l + 1))
+            return best
+
+pitch_script: |
+  **(Clarify)** "Every bar has width 1, heights can be zero, and I return just the maximum
+  area. The rectangle has to be contiguous, and its height is limited by the shortest bar it
+  covers, right?"
+
+  **(Brute force)** "The best rectangle uses some bar at its full height. So for each bar, I
+  could expand left and right while the neighbours are at least as tall and take height times
+  width. That's O(N²); a flat histogram of 10⁵ bars makes every expansion walk the whole
+  array."
+
+  **(Trigger)** "What stops each bar's expansion is the nearest strictly shorter bar on each
+  side. 'Previous smaller and next smaller' is a monotonic stack, and here I can get both
+  boundaries from the same stack."
+
+  **(Optimal)** "I keep a stack of indices with increasing heights. When the current bar is
+  shorter or equal to the top, I pop the top. The current index is its right boundary, and
+  the new top of the stack is its left boundary, because everything between them was taller.
+  So its area is its height times i minus the new top minus 1, or times i if the stack is
+  empty. I append a zero-height bar at the end so every bar gets popped and measured."
+
+  **(Complexity)** "Every index is pushed once and popped once, so it's O(N) time, and O(N)
+  space for the stack."
+
+twist:
+  lc: 85
+  title: Maximal Rectangle
+  why: >-
+    Now the input is a binary matrix and you want the largest rectangle of 1s. Turn each row
+    into a histogram: heights[j] is the number of consecutive 1s ending at this row in column
+    j (reset to 0 on a 0). Then run this exact stack algorithm on every row's histogram and
+    keep the maximum, for O(rows × cols) overall.
+
+viz:
+  arrays: [heights]
+  pointers: [i]
+  stacks: [stack]
+  stack_values: {stack: heights}
+  watch: [best, h, top, left]

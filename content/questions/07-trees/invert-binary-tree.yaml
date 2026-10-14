@@ -1,0 +1,306 @@
+slug: invert-binary-tree
+lc: 226
+
+concept:
+  problem_it_solves: >-
+    "Build the mirror image of this tree." Mirroring looks like a global operation (the leftmost
+    leaf must end up rightmost), but it decomposes into one tiny local job: at every node, swap
+    the two children. Asking "what does each call hand back to its parent?" turns it into a
+    three-line transform DFS.
+  brute_force: >-
+    Think in levels: write the tree into a padded array, one slot per possible position
+    (slot i has children 2i+1 and 2i+2, empty positions included), reverse each level's slice,
+    and rebuild the tree from the array. Reversing values without the empty slots would put
+    nodes under the wrong parents, so the padding is required, and padding is where it
+    explodes: a level at depth d has 2^d slots whether or not any nodes live there.
+  brute_force_complexity: >-
+    O(2^H) time and space, where H is the height — a skewed tree of 100 nodes needs 2¹⁰⁰ slots,
+    even though only 100 of them hold a node.
+  key_insight: >-
+    Give each call a contract: "invertTree(node) mirrors the subtree rooted at node and returns
+    its root." The mirror of an empty tree is empty. For a real node, trust the two recursive
+    calls to mirror the left and right subtrees, then attach them on the opposite sides. The
+    node stays the root of its own subtree, so you return the same node. Write the swap as one
+    tuple assignment: assigning root.left first and then reading root.left again would read the
+    value you just overwrote.
+  real_world: >-
+    Right-to-left UI support (Android's layoutDirection, Flutter's Directionality, CSS logical
+    properties) mirrors a layout tree so Arabic and Urdu screens read correctly. Compilers and
+    tools like Babel, ESLint autofixers and Python's ast.NodeTransformer use the same "visit a
+    node, transform it, return the new subtree to the parent" DFS to rewrite syntax trees.
+
+statement:
+  clean: |
+    Given the `root` of a binary tree, **invert the tree**, and return its root.
+
+    Inverting a tree produces its **mirror image**: every node's left and right children are
+    swapped, at every level of the tree.
+  oa_story: |
+    **MenuMitra — OA Round 1**
+
+    MenuMitra powers the in-app menus for thousands of restaurants on food-delivery apps
+    across Bengaluru. Every menu is a hierarchy of categories: "Mains" splits into at most two
+    sub-sections ("Veg" shown first, "Non-Veg" shown second), each of those can split again,
+    and so on. The app stores the menu starting from its top-level category, and each category
+    links to its first and second sub-sections, if present.
+
+    MenuMitra is launching an Urdu interface, which reads right to left. The design team
+    wants every menu flipped so it reads correctly: at every category, the sub-section shown
+    second must now be shown first and vice versa, all the way down. Write a function that
+    flips a menu in place and returns its top-level category. A menu can have up to 100
+    categories, and an empty menu stays empty.
+  trigger_keywords: ["invert the tree", "mirror image"]
+  examples:
+    - input: "root = [4,2,7,1,3,6,9]"
+      output: "[4,7,2,9,6,3,1]"
+      explanation: "7 moves to the left of 4 and 2 to the right, and inside each, the children swap as well."
+    - input: "root = [2,1,3]"
+      output: "[2,3,1]"
+    - input: "root = []"
+      output: "[]"
+  constraints:
+    - "The number of nodes in the tree is in the range [0, 100]."
+    - "-100 <= Node.val <= 100"
+
+constraint_quiz:
+  prompt: >-
+    The tree has at most 100 nodes, which sounds tiny. What complexity should you still aim for,
+    and why?
+  options:
+    - "O(N) — each node needs exactly one swap"
+    - "O(N log N) — sort each level"
+    - "O(N²) — fine, N is only 100"
+    - "O(2^H) — fine, the tree is small"
+  answer: 0
+  explanation: >-
+    Every node must have its children swapped, so O(N) is both necessary and enough. O(N log N)
+    and O(N²) would pass at N = 100 but do work no step of the problem needs, and nothing here
+    benefits from sorting. O(2^H) is the trap of the padded level-array approach: 100 nodes can
+    form a chain of height 100, and 2¹⁰⁰ slots will never finish. Small N doesn't make an
+    exponential approach safe when the exponent is the height.
+
+pattern_quiz:
+  prompt: >-
+    You must change the shape of the tree, and the change at each node is the same small local
+    edit. Which approach fits?
+  options:
+    - "Transform DFS: invert both subtrees, attach them swapped, return the node"
+    - "Reverse the in-order traversal array and rebuild the tree from it"
+    - "Sort the values on each level in descending order"
+    - "Two pointers moving inward over the level-order array"
+  answer: 0
+  explanation: >-
+    "Mirror / invert / flip" is the transform-DFS trigger: each call fixes its own subtree and
+    returns the root to its parent. A reversed in-order list doesn't determine a unique tree,
+    so you can't rebuild from it. Sorting levels changes which values sit where (a mirror keeps
+    each node's value). The level-order array has null gaps that two pointers would put under
+    the wrong parents. (A BFS queue that swaps each popped node's children also works; it's the
+    iterative alternative.)
+
+function:
+  name: invertTree
+  params: [{name: root, type: TreeNode}]
+  returns: TreeNode
+
+starter_code: |
+  class Solution:
+      def invertTree(self, root: Optional[TreeNode]) -> Optional[TreeNode]:
+          pass
+
+tests:
+  - {args: [[4, 2, 7, 1, 3, 6, 9]], expected: [4, 7, 2, 9, 6, 3, 1]}
+  - {args: [[2, 1, 3]], expected: [2, 3, 1]}
+  - {args: [[]], expected: [], note: "empty tree: return None"}
+  - {args: [[1]], expected: [1], note: single node is its own mirror}
+  - {args: [[1, 2]], expected: [1, null, 2], note: "a lone left child becomes a lone right child"}
+  - {args: [[1, 2, null, 3, null, 4]], expected: [1, null, 2, null, 3, null, 4], note: "left-skewed becomes right-skewed"}
+  - {args: [[1, 2, 3, 4, null, null, 5, 6]], expected: [1, 3, 2, 5, null, null, 4, null, null, null, 6], note: "lopsided tree: the null gaps move too"}
+  - {args: [[5, 3, 8, 1, 4, 7, 9, 0, 2]], expected: [5, 8, 3, 9, 7, 4, 1, null, null, null, null, null, null, 2, 0], note: "swaps happen at every level, not just the top"}
+visualize_test: 0
+
+drills:
+  - title: Swap one node's children
+    skill: setup
+    goal: Swap a node's two child pointers in one step, handling the empty tree.
+    instructions: |
+      Swap the left and right children of the **root only** (don't go deeper) and return the
+      root. An empty tree stays empty.
+
+      This is the local edit every call of the full solution performs. In Python, write it as
+      one tuple assignment, `root.left, root.right = root.right, root.left`: both right-hand
+      values are read before either pointer changes. Two separate assignments would lose one
+      child, the classic invert bug.
+    function:
+      name: swapChildren
+      params: [{name: root, type: TreeNode}]
+      returns: TreeNode
+    starter_code: |
+      class Solution:
+          def swapChildren(self, root: Optional[TreeNode]) -> Optional[TreeNode]:
+              pass
+    tests:
+      - {args: [[1, 2, 3]], expected: [1, 3, 2]}
+      - {args: [[1, 2, 3, 4, 5]], expected: [1, 3, 2, null, null, 4, 5], note: "2's own children (4, 5) are not swapped"}
+      - {args: [[1, null, 9]], expected: [1, 9], note: "swapping with None works too"}
+      - {args: [[]], expected: [], note: empty tree}
+    solution: |
+      class Solution:
+          def swapChildren(self, root: Optional[TreeNode]) -> Optional[TreeNode]:
+              if root is None:
+                  return None
+              root.left, root.right = root.right, root.left
+              return root
+    hint: "Guard `root is None` first: an empty tree has no children to swap."
+
+  - title: Return the mirrored subtree — build a mirror copy
+    skill: core
+    goal: Treat each call as "give me a subtree, I return the root of its mirror" and wire the returned roots crosswise.
+    instructions: |
+      Return a **new** tree that is the mirror image of the input, built from fresh
+      `TreeNode`s (leave the input untouched).
+
+      This isolates the contract of the full solution: a call returns the root of the mirrored
+      subtree, and the parent plugs the mirror of its *right* subtree in as its *left* child
+      and vice versa. Building a copy makes the return value impossible to ignore: if you
+      don't use what the recursive calls return, your new tree has no children.
+    function:
+      name: mirrorCopy
+      params: [{name: root, type: TreeNode}]
+      returns: TreeNode
+    starter_code: |
+      class Solution:
+          def mirrorCopy(self, root: Optional[TreeNode]) -> Optional[TreeNode]:
+              pass
+    tests:
+      - {args: [[4, 2, 7, 1, 3, 6, 9]], expected: [4, 7, 2, 9, 6, 3, 1]}
+      - {args: [[1, 2]], expected: [1, null, 2]}
+      - {args: [[]], expected: []}
+      - {args: [[3, null, 5, 4]], expected: [3, 5, null, null, 4]}
+    solution: |
+      class Solution:
+          def mirrorCopy(self, root: Optional[TreeNode]) -> Optional[TreeNode]:
+              if root is None:
+                  return None
+              return TreeNode(root.val, self.mirrorCopy(root.right), self.mirrorCopy(root.left))
+    hint: "`TreeNode(val, left, right)`: which recursive call's result belongs in the left slot?"
+
+  - title: Invert without recursion
+    skill: edge
+    goal: Invert iteratively with a queue, skipping None children and handling the empty tree.
+    instructions: |
+      Invert the tree **without recursion**: use a queue (BFS), swap the children of every
+      node you pop, and push its non-empty children. Return the root.
+
+      Interviewers often follow up with "what if the tree is 10⁵ levels deep?", where the
+      recursive version overflows the call stack. The edge cases are the ones people get
+      wrong in the iterative version: an empty tree must not put `None` in the queue, and
+      `None` children must not be pushed either. The order you visit nodes in doesn't matter,
+      since every node gets swapped exactly once.
+    function:
+      name: invertIterative
+      params: [{name: root, type: TreeNode}]
+      returns: TreeNode
+    starter_code: |
+      class Solution:
+          def invertIterative(self, root: Optional[TreeNode]) -> Optional[TreeNode]:
+              pass
+    tests:
+      - {args: [[4, 2, 7, 1, 3, 6, 9]], expected: [4, 7, 2, 9, 6, 3, 1]}
+      - {args: [[]], expected: [], note: "empty tree: don't enqueue None"}
+      - {args: [[1, 2, null, 3]], expected: [1, null, 2, null, 3]}
+      - {args: [[1]], expected: [1]}
+    solution: |
+      class Solution:
+          def invertIterative(self, root: Optional[TreeNode]) -> Optional[TreeNode]:
+              queue = deque([root] if root else [])
+              while queue:
+                  node = queue.popleft()
+                  node.left, node.right = node.right, node.left
+                  queue.extend(child for child in (node.left, node.right) if child)
+              return root
+    hint: "Start the queue empty when `root` is None, and only push children that exist."
+
+hints:
+  - >-
+    Look at the root of the mirrored tree: which original subtree ends up as its left child?
+    And what must have happened *inside* that subtree before it got there?
+  - >-
+    Make invertTree(node) mean "mirror this subtree and return its root". None mirrors to None.
+    For a real node: mirror both children (trust the calls), attach them on swapped sides, and
+    return the node itself.
+  - |
+    invertTree(node):
+        if node is empty: return empty
+        left  = invertTree(node.left)
+        right = invertTree(node.right)
+        node.left, node.right = right, left
+        return node
+
+solution:
+  code: |
+    class Solution:
+        def invertTree(self, root: Optional[TreeNode]) -> Optional[TreeNode]:
+            if root is None:  # the mirror of an empty tree is empty
+                return None
+            left = self.invertTree(root.left)  # trust it: the left subtree, mirrored
+            right = self.invertTree(root.right)  # trust it: the right subtree, mirrored
+            root.left, root.right = right, left  # attach them on the opposite sides
+            return root  # same root, so the parent can plug it back in
+  explanation: |
+    **What does each call return to its parent?** The root of its subtree after mirroring.
+    That's the same node it was given (mirroring never changes which node is on top), but
+    returning it lets the parent wire the result straight into its own child pointer, and it
+    makes `return None` for the empty tree fall out naturally.
+
+    **Why it's correct.** The mirror of a tree with root `r`, left subtree `L` and right
+    subtree `R` is `r` with mirror(`R`) on the left and mirror(`L`) on the right. The two
+    recursive calls produce mirror(`L`) and mirror(`R`) (trust them; they're smaller trees),
+    and the tuple assignment attaches them crosswise.
+
+    **The overwrite trap.** A common bug is
+    `root.left = self.invertTree(root.right)` followed by
+    `root.right = self.invertTree(root.left)`: by the second line `root.left` already points
+    at the inverted right subtree, so the original left subtree is lost. Saving both results
+    first (or one tuple assignment) avoids it.
+
+    **Order doesn't matter here.** Swapping first and then recursing (pre-order) works just as
+    well as recursing first (post-order), because each node is swapped exactly once either
+    way. In the visualizer, notice the edges cross after each swap: the node itself never
+    moves, only its child pointers change. The iterative alternative is a BFS (or a stack)
+    that swaps the children of each node it pops, as in the edge drill.
+  time: O(N) — every node is visited once and swapped once
+  space: O(H) — the recursion stack; O(log N) for a balanced tree, O(N) for a skewed one
+
+pitch_script: |
+  **(Clarify)** "So I mirror the tree, every node's left and right children swapped at every
+  level, and return the root. Is modifying the tree in place fine, or do you want a copy? And
+  an empty tree should just return null?"
+
+  **(Brute force)** "One idea is to go level by level and reverse each level. But reversing
+  values doesn't move the gaps, so I'd need every slot including empty ones, and for a skewed
+  tree that's two to the power of the height. That doesn't scale."
+
+  **(Trigger)** "Mirroring decomposes: the mirror of a tree is its root with the mirrored right
+  subtree on the left and the mirrored left subtree on the right. So it's a recursive
+  transform where each call returns the root of its mirrored subtree."
+
+  **(Optimal)** "If the node is null I return null. Otherwise I recursively invert the left
+  and right children, then attach them swapped in one assignment, so I don't overwrite one
+  pointer before using it, and return the node. If the tree could be very deep, I'd do the
+  same swap inside a BFS loop instead."
+
+  **(Complexity)** "Each node is visited and swapped once, so O(N) time, and O(H) space for
+  the call stack: log N when balanced, N in the worst case."
+
+twist:
+  lc: 101
+  title: Symmetric Tree
+  why: >-
+    Instead of building the mirror, you check whether a tree already equals its own mirror,
+    without modifying it. The swap becomes a crossed comparison: a helper isMirror(a, b) walks
+    two subtrees at once and returns True only if a.val == b.val, isMirror(a.left, b.right) and
+    isMirror(a.right, b.left). The call now returns a bool instead of a node, but it's still
+    "what does this call report to its parent?", and you start it with isMirror(root.left,
+    root.right).
+
+viz: {}  # the tree is drawn automatically; left/right label the returned subtrees

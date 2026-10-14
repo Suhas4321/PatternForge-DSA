@@ -1,0 +1,348 @@
+slug: longest-increasing-subsequence
+lc: 300
+
+concept:
+  problem_it_solves: >-
+    "What is the longest chain I can pick, in order, where every pick beats the previous one?"
+    The picks don't have to be next to each other, so there are 2ᴺ possible subsequences. But
+    the best chain that ends at a given element only depends on the best chains ending at the
+    smaller elements before it, so you can compute one number per position and reuse it.
+  brute_force: >-
+    Try every subsequence: for each element, either take it (if it's bigger than the last
+    taken) or skip it, and keep the longest valid chain. The recursion re-solves "best chain
+    from position i onward, given the last taken value" again and again, once for every way of
+    reaching i with that value.
+  brute_force_complexity: O(2ᴺ) time, O(N) recursion depth — 2500 elements means 2²⁵⁰⁰ subsets.
+  key_insight: >-
+    Anchor the subproblem at its END: dp[i] = length of the longest increasing subsequence
+    that ends exactly at index i. Whatever that chain is, the element before nums[i] is some
+    nums[j] with j < i and nums[j] < nums[i], and the chain up to it is the best one ending at
+    j. So dp[i] = 1 + max(dp[j]) over those j, or 1 if there is none. "Ends at i" is the key
+    word: "best in the first i elements" doesn't tell you the last value, so you couldn't
+    check whether nums[i] may extend it. The answer is max(dp), because the LIS can end
+    anywhere.
+  real_world: >-
+    Patience diff (git diff --patience) aligns two files by matching lines that appear once in
+    each and keeping the longest increasing subsequence of their positions. Merge tools, DNA
+    sequence aligners and
+    recommendation pipelines that look for the longest "upgrade path" in a user's purchase
+    history all use LIS or its close cousin, longest common subsequence.
+
+statement:
+  clean: |
+    Given an integer array `nums`, return the **length of the longest** **strictly increasing
+    subsequence**.
+
+    A **subsequence** is an array that can be derived from another array by deleting some or
+    no elements without changing the order of the remaining elements. For example, `[3,6,2,7]`
+    is a subsequence of the array `[0,3,1,6,2,2,7]`.
+
+    **Follow up:** Can you come up with an algorithm that runs in `O(n log(n))` time
+    complexity?
+  oa_story: |
+    **StreakStudio Fitness — OA Round 1**
+
+    StreakStudio is a Bengaluru fitness app whose users log one workout score per session.
+    The growth team in HSR Layout wants a "progress badge": the longest list of sessions,
+    kept in their original order, where each chosen session's score is strictly higher than
+    the previous chosen one. Sessions in between can be ignored (a bad day after a late-night
+    deploy shouldn't break the badge), but the chosen ones must stay in date order.
+
+    Write a function that takes a user's session scores in order and returns the size of the
+    biggest such badge. Users have at most 2,500 sessions and scores range from −10,000 to
+    10,000. A tie with an earlier chosen score does not count as progress.
+  trigger_keywords: ["length of the longest", "strictly increasing", "subsequence"]
+  examples:
+    - input: "nums = [10,9,2,5,3,7,101,18]"
+      output: "4"
+      explanation: "One longest increasing subsequence is [2,3,7,101], so the length is 4."
+    - input: "nums = [0,1,0,3,2,3]"
+      output: "4"
+      explanation: "[0,1,2,3]."
+    - input: "nums = [7,7,7,7,7,7,7]"
+      output: "1"
+      explanation: "Equal values are not strictly increasing."
+  constraints:
+    - "1 <= nums.length <= 2500"
+    - "-10^4 <= nums[i] <= 10^4"
+
+constraint_quiz:
+  prompt: >-
+    N is at most 2500. What is the slowest time complexity that still comfortably passes, and
+    what does the follow-up ask for?
+  options:
+    - "O(2ᴺ) passes; the follow-up wants O(N²)"
+    - "O(N³) passes; the follow-up wants O(N²)"
+    - "O(N²) passes; the follow-up wants O(N log N)"
+    - "Only O(N) passes"
+  answer: 2
+  explanation: >-
+    2ᴺ subsets is hopeless even for N = 50. O(N³) is about 1.6 × 10¹⁰ steps, far too slow.
+    O(N²) is 2500² ≈ 6.25 × 10⁶ simple comparisons, which passes easily, and is the DP to
+    write first. The follow-up asks for O(N log N), done with a sorted "tails" list and binary
+    search. O(N) is out: comparison-based LIS has a proven Ω(N log N) lower bound.
+
+pattern_quiz:
+  prompt: >-
+    You need the longest subsequence (not necessarily contiguous) whose values strictly
+    increase. Which pattern fits?
+  options:
+    - "Sliding window over the longest increasing run"
+    - "dp[i] = longest increasing subsequence ending at i, looking back over every j < i"
+    - "Sort the array and count distinct values"
+    - "Two pointers from both ends"
+  answer: 1
+  explanation: >-
+    "Longest subsequence" is a DP trigger: the elements can be far apart, so there is no
+    window to slide (a window only finds contiguous runs, which gives 3 instead of 4 on
+    [10,9,2,5,3,7,101,18]). Sorting destroys the order the subsequence must respect, and
+    counting distinct values ignores it. dp over "ends at i" captures both the order and the
+    last value, which is what you need to know to extend a chain.
+
+function:
+  name: lengthOfLIS
+  params: [{name: nums}]
+
+starter_code: |
+  class Solution:
+      def lengthOfLIS(self, nums: List[int]) -> int:
+          pass
+
+tests:
+  - {args: [[10, 9, 2, 5, 3, 7, 101, 18]], expected: 4}
+  - {args: [[0, 1, 0, 3, 2, 3]], expected: 4}
+  - {args: [[7, 7, 7, 7, 7, 7, 7]], expected: 1, note: "equal values are not strictly increasing"}
+  - {args: [[5]], expected: 1, note: single element}
+  - {args: [[5, 4, 3, 2, 1]], expected: 1, note: "strictly decreasing: every dp[i] stays 1"}
+  - {args: [[1, 2, 3, 4, 5]], expected: 5, note: the whole array}
+  - {args: [[4, 10, 4, 3, 8, 9]], expected: 3, note: "the early 10 is a trap; 4, 8, 9 wins"}
+  - {args: [[-2, -1, 0, -5, 1, -3]], expected: 4, note: "negatives; the LIS doesn't end at the last element, so return max(dp)"}
+  - {args: [[3, 5, 6, 2, 5, 4, 19, 5, 6, 7, 12]], expected: 6, note: "3, 4, 5, 6, 7, 12 skips the big 19"}
+visualize_test: 0
+
+drills:
+  - title: Longest increasing run ending here
+    skill: setup
+    goal: Set up dp = [1] * n with the "ends at index i" definition, using a one-step look-back.
+    instructions: |
+      Return a list `run` where `run[i]` is the length of the longest **contiguous** strictly
+      increasing run that **ends at index `i`**.
+
+      This is the warm-up for LIS. It uses the same definition, "the best thing that ends
+      exactly here", and the same start, `[1] * n`, because every element alone is a run of 1.
+      The only difference: a contiguous run can only extend the element right before it, so
+      you look back one step (`run[i - 1]`). In LIS the previous element can be any earlier
+      `j`, so you'll look back over all of them.
+    function:
+      name: increasingRuns
+      params: [{name: nums}]
+    starter_code: |
+      class Solution:
+          def increasingRuns(self, nums: List[int]) -> List[int]:
+              pass
+    tests:
+      - {args: [[1, 3, 5, 4, 7]], expected: [1, 2, 3, 1, 2]}
+      - {args: [[10, 9, 2, 5, 3, 7, 101, 18]], expected: [1, 1, 1, 2, 1, 2, 3, 1]}
+      - {args: [[2, 2, 2]], expected: [1, 1, 1], note: equal breaks the run}
+      - {args: [[5]], expected: [1]}
+    solution: |
+      class Solution:
+          def increasingRuns(self, nums: List[int]) -> List[int]:
+              run = [1] * len(nums)
+              for i in range(1, len(nums)):
+                  if nums[i - 1] < nums[i]:
+                      run[i] = run[i - 1] + 1
+              return run
+    hint: "Start with `[1] * n`; if `nums[i - 1] < nums[i]`, then `run[i] = run[i - 1] + 1`."
+
+  - title: Fill the ends-at-i table
+    skill: core
+    goal: Write the O(N²) transition dp[i] = max(dp[i], dp[j] + 1) over every earlier, smaller nums[j].
+    instructions: |
+      Return the full list `dp` where `dp[i]` is the length of the longest strictly
+      increasing subsequence that **ends at index `i`**.
+
+      For each `i`, every earlier `j` with `nums[j] < nums[i]` is a possible previous element:
+      you can hang `nums[i]` on the end of the best chain ending at `j`, which gives
+      `dp[j] + 1`. Take the best of those. Looking at the whole table also shows you why the
+      final answer is `max(dp)` and not `dp[-1]`.
+    function:
+      name: lisEndingAt
+      params: [{name: nums}]
+    starter_code: |
+      class Solution:
+          def lisEndingAt(self, nums: List[int]) -> List[int]:
+              pass
+    tests:
+      - {args: [[10, 9, 2, 5, 3, 7, 101, 18]], expected: [1, 1, 1, 2, 2, 3, 4, 4]}
+      - {args: [[0, 1, 0, 3, 2, 3]], expected: [1, 2, 1, 3, 3, 4]}
+      - {args: [[7, 7, 7]], expected: [1, 1, 1], note: "strict: equal values don't extend"}
+      - {args: [[1, 2, 3, 0]], expected: [1, 2, 3, 1], note: "the last cell is not the answer"}
+    solution: |
+      class Solution:
+          def lisEndingAt(self, nums: List[int]) -> List[int]:
+              dp = [1] * len(nums)
+              for i in range(len(nums)):
+                  for j in range(i):
+                      if nums[j] < nums[i]:
+                          dp[i] = max(dp[i], dp[j] + 1)
+              return dp
+    hint: "Two loops: `for i`, then `for j in range(i)`; only `nums[j] < nums[i]` may extend."
+
+  - title: The O(N log N) tails list
+    skill: edge
+    goal: Maintain tails[k] = smallest tail of any increasing subsequence of length k + 1 with bisect_left, getting strictness right.
+    instructions: |
+      Return the LIS length in O(N log N) using a list `tails`, where `tails[k]` is the
+      smallest value that can end an increasing subsequence of length `k + 1`. `tails` is
+      always sorted.
+
+      For each `x`, find `k = bisect.bisect_left(tails, x)`, the first tail that is `>= x`.
+      If `k == len(tails)`, `x` is bigger than every tail and extends the longest chain:
+      append it. Otherwise replace `tails[k] = x`: a chain of length `k + 1` can now end in
+      something smaller, which is never worse. The answer is `len(tails)`.
+
+      The edge: use `bisect_left`, not `bisect_right`. On `[7, 7, 7]`, `bisect_right` puts
+      every 7 after the previous one and wrongly reports 3; `bisect_left` replaces the 7 with
+      itself, because equal is not strictly increasing. Note that `tails` is not itself an
+      LIS, only its length is meaningful.
+    function:
+      name: lisFast
+      params: [{name: nums}]
+    starter_code: |
+      class Solution:
+          def lisFast(self, nums: List[int]) -> int:
+              pass
+    tests:
+      - {args: [[10, 9, 2, 5, 3, 7, 101, 18]], expected: 4}
+      - {args: [[7, 7, 7, 7]], expected: 1, note: "bisect_right would give 4"}
+      - {args: [[0, 1, 0, 3, 2, 3]], expected: 4}
+      - {args: [[1, 3, 6, 7, 9, 4, 10, 5, 6]], expected: 6}
+      - {args: [[2, 2, 3, 3, 4]], expected: 3, note: duplicates between increases}
+    solution: |
+      class Solution:
+          def lisFast(self, nums: List[int]) -> int:
+              tails = []
+              for x in nums:
+                  k = bisect.bisect_left(tails, x)
+                  if k == len(tails):
+                      tails.append(x)
+                  else:
+                      tails[k] = x
+              return len(tails)
+    hint: "`bisect.bisect_left(tails, x)` is where `x` goes; appending only when that's the end."
+
+hints:
+  - >-
+    "The longest increasing subsequence in the first i elements" isn't enough to decide
+    whether nums[i] can extend it, because you don't know what it ends with. What if the
+    subproblem were pinned to a specific last element?
+  - >-
+    Let dp[i] be the length of the longest strictly increasing subsequence ending exactly at
+    index i. Its previous element is some j < i with nums[j] < nums[i], so dp[i] = 1 + max of
+    those dp[j] (or 1 if there are none). The LIS can end anywhere, so return max(dp).
+  - |
+    dp = [1] * n                      (every element alone is a chain of 1)
+    for i from 0 to n - 1:
+        for j from 0 to i - 1:
+            if nums[j] < nums[i]:
+                dp[i] = max(dp[i], dp[j] + 1)
+    return max(dp)
+
+solution:
+  code: |
+    class Solution:
+        def lengthOfLIS(self, nums: List[int]) -> int:
+            n = len(nums)
+            dp = [1] * n  # dp[i] = longest strictly increasing subsequence ENDING at i
+            for i in range(1, n):
+                for j in range(i):  # every earlier element could be the one before nums[i]
+                    if nums[j] < nums[i]:
+                        dp[i] = max(dp[i], dp[j] + 1)
+            return max(dp)  # the LIS can end at any index
+  explanation: |
+    **The 5-step DP recipe**
+
+    1. **Define dp[i] in words.** `dp[i]` = the length of the longest strictly increasing
+       subsequence that **ends at index i** (uses `nums[i]` as its last element). Pinning the
+       end is the whole trick: it tells you the last value, which is what decides whether a
+       later element may extend the chain.
+    2. **Recurrence from the last choice.** The last choice is "which element comes right
+       before `nums[i]`?". It's some `j < i` with `nums[j] < nums[i]`, and the chain up to it
+       should be the best one ending at `j`. So `dp[i] = 1 + max(dp[j])` over valid `j`.
+    3. **Base case.** Every `dp[i]` starts at 1: `nums[i]` alone is an increasing chain. That
+       also covers elements with no smaller element before them.
+    4. **Fill order.** `dp[i]` reads only `dp[j]` with `j < i`, so fill left to right.
+    5. **Answer location.** `max(dp)`, not `dp[n - 1]`: the best chain may end anywhere. On
+       `[-2, -1, 0, -5, 1, -3]`, `dp = [1, 2, 3, 1, 4, 2]` and the answer 4 ends at the 1.
+
+    Trace for `[10, 9, 2, 5, 3, 7, 101, 18]`: `dp = [1, 1, 1, 2, 2, 3, 4, 4]`. For 7, the
+    candidates are 2 (dp 1), 5 (dp 2) and 3 (dp 2), so `dp = 3`. Strictness lives in the `<`:
+    with `<=`, `[7, 7, 7]` would wrongly give 3.
+
+    **Stepping stone.** The memoised recursion is `best(i) = 1 + max(best(j) for j < i if
+    nums[j] < nums[i])`, then `max(best(i) for all i)`. The table above is that function
+    filled in index order.
+
+    **The O(N log N) follow-up (patience sorting).** Keep `tails`, where `tails[k]` is the
+    smallest possible last value of an increasing subsequence of length `k + 1`. `tails` is
+    strictly increasing: drop the last element of the best length-(k + 2) chain and you get a
+    length-(k + 1) chain with a smaller tail. For
+    each `x`, `bisect_left(tails, x)` finds the first tail `>= x`: replace it with `x` (a
+    chain of that length can now end lower, which only helps), or append if `x` beats every
+    tail. `len(tails)` is the answer. `bisect_left` is what keeps it strict. Each element
+    costs one O(log N) binary search, so N log N in total. It's faster but the table can't be
+    "read" the way dp can, so write the O(N²) version first and offer this as the
+    optimisation.
+  time: O(N²) — for each i, a scan over every j < i (the tails version is O(N log N))
+  space: O(N) — one dp value per index
+  brute_force_code: |
+    class Solution:
+        def lengthOfLIS(self, nums: List[int]) -> int:
+            def best(i, prev):
+                if i == len(nums):
+                    return 0
+                skip = best(i + 1, prev)
+                take = 1 + best(i + 1, nums[i]) if nums[i] > prev else 0
+                return max(skip, take)
+
+            return best(0, float('-inf'))
+
+pitch_script: |
+  **(Clarify)** "Subsequence means I can skip elements but keep the order, and strictly
+  increasing means equal values don't count. I return just the length. The array has at
+  least one element, so the answer is at least 1."
+
+  **(Brute force)** "The brute force tries every subsequence by taking or skipping each
+  element, and keeps the longest increasing one. That's 2 to the N, which is impossible for
+  N of 2500."
+
+  **(Trigger)** "'Longest subsequence' with an ordering condition is a classic DP. The useful
+  subproblem is the best chain that ends at a particular index, because then I know its
+  last value and can tell whether a later number can extend it."
+
+  **(Optimal)** "dp of i is the LIS ending at i, starting at 1 for every index. For each i I
+  look back at every j before it; if nums of j is smaller, I can extend that chain, so dp of
+  i is the max of dp of j plus one. The answer is the max over the whole table, since the
+  best chain can end anywhere. If you'd like it faster, I can keep a sorted list of the
+  smallest tail for each length and binary search into it with bisect_left, which gives
+  N log N."
+
+  **(Complexity)** "The DP is O(N²) time, about six million comparisons here, and O(N)
+  space. The tails version is O(N log N) time and O(N) space."
+
+twist:
+  lc: 673
+  title: Number of Longest Increasing Subsequence
+  why: >-
+    Now you must count HOW MANY increasing subsequences have the maximum length. Keep the
+    same dp[i] (LIS length ending at i) plus a second array count[i] (how many chains of that
+    length end at i). When nums[j] < nums[i] and dp[j] + 1 beats dp[i], take over count[j];
+    when it ties dp[i], add count[j]. The answer sums count[i] over every i whose dp[i] equals
+    the overall max. The bisect trick doesn't carry over easily, so the O(N²) table is the
+    natural solution.
+
+viz:
+  table: dp
+  col_labels: nums
+  watch: [i, j]

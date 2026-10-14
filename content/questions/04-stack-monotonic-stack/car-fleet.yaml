@@ -1,0 +1,348 @@
+slug: car-fleet
+lc: 853
+
+concept:
+  problem_it_solves: >-
+    "Which items get held up by a slower item in front of them?" On a single lane nobody can
+    overtake, so a car's real arrival time is decided by the slowest car anywhere ahead of
+    it. Once the cars are ordered by position, a stack of fleet arrival times answers that
+    question in one pass: each car either joins the fleet ahead or starts a new one.
+  brute_force: >-
+    For every car, look at every car ahead of it and check whether any of them would arrive
+    no earlier than it would on its own; if one does, this car gets stuck behind it and isn't
+    the leader of a new fleet. Counting the cars that nobody blocks gives the answer, but
+    each car re-examines the same cars ahead over and over.
+  brute_force_complexity: >-
+    O(N²) time, O(1) extra space — 10⁵ cars means about 10¹⁰ pair checks. (A step-by-step
+    time simulation is even worse: its cost depends on the distance, not just N.)
+  key_insight: >-
+    Stop thinking about speeds and positions mid-journey; think about **arrival time if
+    unblocked**, (target − position) / speed. Process cars from the one closest to the target
+    backwards. The fleet directly ahead arrives at some time T. A car behind with time ≤ T
+    would reach the target no later than that fleet, but it can't pass, so it catches up and
+    arrives at exactly T: it joins. Only a car with time strictly greater than T is too slow
+    to catch up and starts a new fleet, which now caps everyone behind it. So the stack only
+    ever grows with strictly increasing times, and its size is the answer.
+  real_world: >-
+    Traffic and logistics platforms (Google Maps, Uber, Delhivery route planning) model
+    single-lane road segments and conveyor belts this way: the slowest unit ahead sets the
+    pace for the platoon behind it. The same "a slow upstream stage caps everything after it"
+    reasoning shows up when analysing pipeline stages in stream processors like Kafka
+    consumers, where throughput is bounded by the slowest stage ahead.
+
+statement:
+  clean: |
+    There are `n` cars at given miles away from the starting mile 0, traveling to reach the
+    mile `target`.
+
+    You are given two integer arrays `position` and `speed`, both of length `n`, where
+    `position[i]` is the starting mile of the `i`th car and `speed[i]` is the speed of the
+    `i`th car in miles per hour.
+
+    A car **cannot pass another car**, but it can catch up and then travel next to it at the
+    speed of the slower car.
+
+    A **car fleet** is a car or cars driving next to each other. The speed of the car fleet is
+    the minimum speed of any car in the fleet.
+
+    If a car catches up to a car fleet **at the mile target**, it will still be considered as
+    part of the car fleet.
+
+    Return the number of car fleets that will arrive at the destination.
+  oa_story: |
+    **TollTrack — Hiring Challenge, Backend SDE-1**
+
+    TollTrack runs FASTag analytics for the toll plaza at the end of a single-lane stretch of
+    the NICE Road service lane. Every morning at 8 AM a snapshot records each vehicle's
+    distance from the start of the stretch and its cruising speed. The lane is too narrow for
+    overtaking: a faster vehicle that reaches a slower one simply slows down and follows it
+    bumper to bumper, and from then on they move together as one convoy at the slower speed.
+
+    The plaza is at kilometre `target`. A vehicle that reaches a convoy exactly at the plaza
+    is counted as part of that convoy. Given `target`, the list of starting kilometres
+    (`position`, all different, in no particular order) and the list of speeds (`speed`),
+    return how many separate convoys will reach the plaza, so the plaza can decide how many
+    booths to open. A snapshot can contain up to 100,000 vehicles.
+  trigger_keywords: ["cannot pass another car", "car fleet", "speed of the slower car"]
+  examples:
+    - input: "target = 12, position = [10,8,0,5,3], speed = [2,4,1,1,3]"
+      output: "3"
+      explanation: >-
+        The cars at 10 and 8 meet at mile 12 and form one fleet. The car at 0 never catches
+        anyone and is its own fleet. The cars at 5 and 3 meet at mile 6 and arrive together.
+    - input: "target = 10, position = [3], speed = [3]"
+      output: "1"
+      explanation: "There is only one car, hence there is only one fleet."
+    - input: "target = 100, position = [0,2,4], speed = [4,2,1]"
+      output: "1"
+      explanation: >-
+        The cars at 0 and 2 meet at mile 4 and move at speed 2, then catch the car at 4 at
+        mile 6. All three arrive together at speed 1.
+  constraints:
+    - "n == position.length == speed.length"
+    - "1 <= n <= 10^5"
+    - "0 < target <= 10^6"
+    - "0 <= position[i] < target"
+    - "All the values of position are unique."
+    - "0 < speed[i] <= 10^6"
+
+constraint_quiz:
+  prompt: With up to 10⁵ cars, what time complexity should you aim for?
+  options: ["O(N²)", "O(N log N)", "O(N)", "O(target)"]
+  answer: 1
+  explanation: >-
+    O(N²) pair checks is 10¹⁰ steps, far too slow. O(N log N) is the target: the input
+    positions arrive in no particular order, and you need them sorted so that "the car
+    ahead" is meaningful; after sorting, the stack pass is O(N). Plain O(N) would need the
+    cars already in road order, and a car's fleet depends on every car ahead of it. O(target)
+    (bucketing or simulating mile by mile) ties the cost to the road length, up to 10⁶, rather
+    than to the cars, and a simulation still has to handle cars meeting at fractional miles.
+
+pattern_quiz:
+  prompt: >-
+    Cars can't overtake, a faster car behind gets capped by a slower car ahead, and positions
+    are unsorted. Which pattern fits?
+  options:
+    - "Sort by speed, then count distinct speeds"
+    - "Sort by position (closest to target first), then a stack of fleet arrival times"
+    - "Hash map from arrival time to count of cars"
+    - "Binary search on the number of fleets"
+  answer: 1
+  explanation: >-
+    "Cannot pass" means order along the road is everything, so sort by position first. Then
+    each car only needs to compare against the fleet directly ahead of it, the most recent
+    unresolved thing, which is a stack. Sorting by speed ignores who is in front of whom;
+    grouping equal arrival times misses cars that are faster but get capped (their own times
+    differ from the fleet's); and the answer isn't monotone in anything you could binary
+    search on.
+
+function:
+  name: carFleet
+  params: [{name: target}, {name: position}, {name: speed}]
+
+starter_code: |
+  class Solution:
+      def carFleet(self, target: int, position: List[int], speed: List[int]) -> int:
+          pass
+
+tests:
+  - {args: [12, [10, 8, 0, 5, 3], [2, 4, 1, 1, 3]], expected: 3}
+  - {args: [10, [3], [3]], expected: 1}
+  - {args: [100, [0, 2, 4], [4, 2, 1]], expected: 1}
+  - {args: [10, [0, 5], [2, 1]], expected: 1, note: "both arrive at time 5: catching up exactly at the target still counts"}
+  - {args: [10, [6, 8], [3, 2]], expected: 2, note: "unsorted input; the faster car behind falls just short (4/3 vs 1)"}
+  - {args: [10, [7, 6, 4], [1, 4, 3]], expected: 1, note: "compare with the fleet ahead (time 3), not the car directly ahead (time 1)"}
+  - {args: [10, [0, 1, 2, 3, 4], [1, 1, 1, 1, 1]], expected: 5, note: "same speed: nobody ever catches anyone"}
+  - {args: [10, [0, 2, 4, 6, 8], [5, 4, 3, 2, 1]], expected: 1, note: "every car would arrive at time 2: one fleet"}
+visualize_test: 0
+
+drills:
+  - title: Line the cars up from the front
+    skill: setup
+    goal: Sort the cars by position, closest to the target first, and turn each one into its unblocked arrival time.
+    instructions: |
+      Return the list of arrival times `(target - position) / speed`, ordered from the car
+      **closest to the target** to the car furthest back.
+
+      This is the setup for the whole problem. Sorting puts "the car ahead of me" right
+      before me in the list, and converting to time removes speed and distance from the
+      picture: from here on, a car only cares whether its time beats the fleet in front.
+      Zipping `position` with `speed` before sorting keeps each car's speed attached to it.
+    function:
+      name: arrivalTimesFromFront
+      params: [{name: target}, {name: position}, {name: speed}]
+      compare: float
+    starter_code: |
+      class Solution:
+          def arrivalTimesFromFront(self, target: int, position: List[int], speed: List[int]) -> List[float]:
+              pass
+    tests:
+      - {args: [12, [10, 8, 0, 5, 3], [2, 4, 1, 1, 3]], expected: [1.0, 1.0, 7.0, 3.0, 12.0]}
+      - {args: [10, [6, 8], [3, 2]], expected: [1.0, 1.3333333333333333], note: input is not sorted}
+      - {args: [10, [3], [3]], expected: [2.3333333333333335]}
+      - {args: [100, [0, 2, 4], [4, 2, 1]], expected: [96.0, 49.0, 25.0]}
+    solution: |
+      class Solution:
+          def arrivalTimesFromFront(self, target: int, position: List[int], speed: List[int]) -> List[float]:
+              cars = sorted(zip(position, speed), reverse=True)
+              return [(target - p) / s for p, s in cars]
+    hint: "`sorted(zip(position, speed), reverse=True)` sorts by position, largest first."
+
+  - title: Push only the cars that can't catch up
+    skill: core
+    goal: Count fleets with a stack that grows only when a car is strictly slower to arrive than the fleet ahead.
+    instructions: |
+      You're given `times`: unblocked arrival times, already ordered from the car closest to
+      the target backwards. Return the number of fleets.
+
+      Keep a stack of fleet arrival times. If the stack is empty, or the current time is
+      **strictly greater** than the top, this car can never catch the fleet ahead: push its
+      time, it leads a new fleet. Otherwise it catches up and is absorbed, so do nothing.
+
+      The trap: compare against the **fleet** on top of the stack, not the previous car. A
+      fast car that joined a slow fleet arrives at the fleet's time, not its own.
+    function:
+      name: countFleets
+      params: [{name: times}]
+    starter_code: |
+      class Solution:
+          def countFleets(self, times: List[float]) -> int:
+              pass
+    tests:
+      - {args: [[1.0, 1.0, 7.0, 3.0, 12.0]], expected: 3}
+      - {args: [[3.0, 1.0, 2.0]], expected: 1, note: "2.0 is slower than the car ahead but still catches the fleet at 3.0"}
+      - {args: [[1.0, 2.0, 3.0]], expected: 3}
+      - {args: [[5.0]], expected: 1}
+      - {args: [[4.0, 4.0, 4.0]], expected: 1, note: equal times arrive together}
+    solution: |
+      class Solution:
+          def countFleets(self, times: List[float]) -> int:
+              stack = []
+              for t in times:
+                  if not stack or t > stack[-1]:
+                      stack.append(t)
+              return len(stack)
+    hint: "Push only when `not stack or t > stack[-1]`; the answer is `len(stack)`."
+
+  - title: Catching up at the target, without floats
+    skill: edge
+    goal: Decide with integer arithmetic whether the car behind reaches the car ahead by the target, counting an exact tie as caught.
+    instructions: |
+      Car A is ahead at `posA` with speed `speedA`; car B is behind at `posB` (so
+      `posB < posA`) with speed `speedB`. Return `True` if B catches A at or before
+      `target` (so they form one fleet) and `False` otherwise.
+
+      B catches A exactly when B's arrival time is **less than or equal to** A's:
+      `(target - posB) / speedB <= (target - posA) / speedA`. Two things go wrong here.
+      Using `<` drops the tie, but "catches up at the target" still counts. And float
+      division can misjudge a near-tie with large values. Multiply both sides by
+      `speedA * speedB` (both positive, so the direction of `<=` is safe) to compare exact
+      integers instead.
+    function:
+      name: catchesUp
+      params: [{name: target}, {name: posA}, {name: speedA}, {name: posB}, {name: speedB}]
+    starter_code: |
+      class Solution:
+          def catchesUp(self, target: int, posA: int, speedA: int, posB: int, speedB: int) -> bool:
+              pass
+    tests:
+      - {args: [10, 5, 1, 0, 2], expected: true, note: "both arrive at time 5: a tie at the target counts"}
+      - {args: [10, 8, 2, 6, 3], expected: false, note: "4/3 > 1: falls just short"}
+      - {args: [12, 10, 2, 8, 4], expected: true}
+      - {args: [10, 5, 2, 0, 1], expected: false, note: the car behind is slower}
+      - {args: [1000000, 999999, 1, 0, 1000000], expected: true, note: "another exact tie, with big numbers"}
+    solution: |
+      class Solution:
+          def catchesUp(self, target: int, posA: int, speedA: int, posB: int, speedB: int) -> bool:
+              # timeB <= timeA, cross-multiplied so no division happens
+              return (target - posB) * speedA <= (target - posA) * speedB
+    hint: "Compare `(target - posB) * speedA` with `(target - posA) * speedB`; equality means caught."
+
+hints:
+  - >-
+    If a slow car is somewhere ahead of you on a road with no overtaking, does your own speed
+    matter for when you arrive? Which car decides when a whole group reaches the target?
+  - >-
+    Sort cars by position, closest to the target first, and compute each car's unblocked
+    arrival time. Keep a stack of fleet arrival times: a car whose time is greater than the
+    top starts a new fleet (push); a car whose time is ≤ the top catches up and joins it.
+  - |
+    cars = pairs (position, speed) sorted by position, largest first
+    stack = empty  (arrival time of each fleet)
+    for (p, s) in cars:
+        time = (target - p) / s
+        if stack empty or time > top:
+            push time        # can't catch the fleet ahead: new fleet
+        # else: it catches up and arrives with that fleet
+    return size of stack
+
+solution:
+  code: |
+    class Solution:
+        def carFleet(self, target: int, position: List[int], speed: List[int]) -> int:
+            cars = sorted(zip(position, speed), reverse=True)  # closest to the target first
+            stack = []  # arrival time of each fleet; strictly increasing from bottom to top
+            for p, s in cars:
+                time = (target - p) / s  # arrival time if nobody were in the way
+                if not stack or time > stack[-1]:
+                    stack.append(time)  # too slow to catch the fleet ahead: a new fleet
+                # otherwise it catches up and arrives at stack[-1] with that fleet
+            return len(stack)
+  explanation: |
+    Sorting by position from the target backwards means that when we look at a car, every car
+    ahead of it has already been grouped into fleets, and the only one that matters is the
+    fleet **directly** ahead: the top of the stack.
+
+    Why does the fleet ahead cap this car? Its arrival time `T` on the stack is set by its
+    slowest member. If this car's unblocked time is `≤ T`, it would reach the target no later
+    than the fleet, but it can't pass, so it must catch up at or before the target and then
+    arrive exactly at `T` with them (a tie at the target counts too, so `≤`, not `<`). It
+    joins, and the stack doesn't change. If its time is strictly greater than `T`, it never
+    catches up; it becomes a new fleet, and its time is pushed because it now caps every car
+    behind it. That's why we compare with `stack[-1]` and never with the previous car's own
+    time: a fast car that got absorbed arrives at the fleet's time, not its own.
+
+    Times are floats, but the answer is the integer `len(stack)`. Because Python's division is
+    correctly rounded, two equal fractions always produce the same float, so exact ties work.
+    If you're worried about near-ties in another language, compare
+    `(target - p1) * s2` with `(target - p2) * s1` using integers instead.
+
+    Since times on the stack only ever increase, you could replace the stack with a single
+    variable holding the top; the stack makes the "fleet ahead" idea visible, and it's what
+    the interviewer usually expects to hear.
+  time: O(N log N) — sorting dominates; the stack pass is O(N)
+  space: O(N) — the sorted list of cars, plus up to N fleet times on the stack
+  brute_force_code: |
+    class Solution:
+        def carFleet(self, target: int, position: List[int], speed: List[int]) -> int:
+            n = len(position)
+            fleets = 0
+            for i in range(n):
+                mine = (target - position[i]) / speed[i]
+                blocked = False
+                for j in range(n):
+                    # a car ahead that arrives no earlier will hold car i up
+                    if position[j] > position[i] and (target - position[j]) / speed[j] >= mine:
+                        blocked = True
+                        break
+                if not blocked:
+                    fleets += 1  # nobody ahead caps car i: it leads its own fleet
+            return fleets
+
+pitch_script: |
+  **(Clarify)** "So nobody can overtake, a car that catches up just moves with the slower one,
+  and catching up exactly at the target still counts as one fleet. Positions are all distinct
+  but not sorted, right?"
+
+  **(Brute force)** "A car leads its own fleet only if no car ahead of it would arrive at the
+  same time or later. Checking that for every car against every car ahead is O(N²), which is
+  10¹⁰ for 10⁵ cars."
+
+  **(Trigger)** "'Can't pass' means order on the road is what matters, so I'll sort by position.
+  Then each car only interacts with the group directly in front of it, the most recent fleet,
+  which is a stack."
+
+  **(Optimal)** "I sort cars by position, closest to the target first, and compute each car's
+  arrival time if the road were empty. I keep a stack of fleet arrival times. If a car's time
+  is strictly greater than the top, it can never catch that fleet, so it starts a new one and I
+  push its time. If it's less than or equal, it catches up and arrives with that fleet, so I
+  skip it. The answer is the stack size."
+
+  **(Complexity)** "Sorting is O(N log N) and the pass is O(N), so O(N log N) overall, with
+  O(N) space for the sorted cars and the stack."
+
+twist:
+  lc: 1776
+  title: Car Fleet II
+  why: >-
+    Now you must return the exact time each car collides with the car ahead, and a car ahead
+    can itself merge into something slower and disappear before you reach it. Scan from the
+    front again, but keep a monotonic stack of candidate cars ahead: pop a car if it is at
+    least as fast as you (you'll never catch it) or if it merges into a slower car before you
+    would reach it. The first car left on top is the one you actually hit, and the collision
+    time comes from relative speed and gap.
+
+viz:
+  arrays: [position, speed]
+  stacks: [stack]
+  watch: [p, s, time]

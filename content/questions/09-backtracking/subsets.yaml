@@ -1,0 +1,356 @@
+slug: subsets
+lc: 78
+
+concept:
+  problem_it_solves: >-
+    "List every way of picking some of these items." Each item faces the same yes/no question
+    on its own: is it in, or is it out? N independent yes/no questions give 2^N combinations of
+    answers, and backtracking walks all of them with a single shared list: add an item on the
+    way down, take it back out on the way up.
+  brute_force: >-
+    Count from 0 to 2^N − 1 and read each number's bits as include/exclude flags (bit b set
+    means nums[b] is in). That is not slower: the output itself has 2^N subsets, so every
+    correct approach is exponential. What it wastes is reusability. Each subset is rebuilt from
+    scratch, nothing can be pruned early, and the trick falls apart the moment the problem says
+    "skip duplicates", "order matters" or "stop when the sum gets too big". Backtracking handles
+    all of those with one or two changed lines.
+  brute_force_complexity: >-
+    O(N · 2^N) time, O(N) extra space besides the output — the same as backtracking, because
+    2^N subsets with up to N elements each is the size of the answer itself. N = 10 means
+    1,024 subsets.
+  key_insight: >-
+    Draw the decisions as a tree. Level i of the tree decides about nums[i]: the left edge
+    puts it in, the right edge leaves it out. After N levels every element has been decided,
+    so each of the 2^N leaves *is* one subset. Code that tree as dfs(i): "choose" (append
+    nums[i] to path), "explore" (dfs(i + 1)), "un-choose" (pop it), then explore the other
+    branch (dfs(i + 1) again without it). The pop is what lets one list serve every branch.
+  real_world: >-
+    SQL's GROUP BY CUBE(a, b, c) computes an aggregate for every subset of the grouping
+    columns, which is literally the power set (2³ = 8 grouping sets). Market-basket analysis
+    (the Apriori algorithm behind "frequently bought together" on BigBasket or Amazon)
+    enumerates item subsets and prunes the ones that can't be frequent, and CI systems such as
+    GitHub Actions build matrices of feature-flag combinations to test.
+
+statement:
+  clean: |
+    Given an integer array `nums` of **unique** elements, return **all possible subsets**
+    (the power set).
+
+    The solution set **must not** contain duplicate subsets. Return the solution in
+    **any order**.
+  oa_story: |
+    **ThaliThink — OA Round 1**
+
+    ThaliThink is a cloud kitchen in Indiranagar that lets customers build their own thali:
+    plain rice and roti come by default, and the customer adds any selection from today's
+    side dishes. Each side dish has a small integer dish code, and no two dishes share a code.
+    Before lunch service the pricing engine wants to pre-compute the calorie count and price
+    of every thali a customer could possibly order, including the one with no sides at all.
+
+    Write a function that takes the list of dish codes and returns every possible thali as a
+    list of dish codes. Two thalis with the same dishes are the same thali, so none may appear
+    twice, and the order of the thalis (and of dishes inside a thali) doesn't matter. The menu
+    never has more than 10 side dishes.
+  trigger_keywords: ["all possible subsets", "power set"]
+  examples:
+    - input: "nums = [1,2,3]"
+      output: "[[],[1],[2],[1,2],[3],[1,3],[2,3],[1,2,3]]"
+      explanation: "3 elements, each in or out: 2 × 2 × 2 = 8 subsets, including the empty one."
+    - input: "nums = [0]"
+      output: "[[],[0]]"
+      explanation: "One element gives two subsets: without it and with it."
+  constraints:
+    - "1 <= nums.length <= 10"
+    - "-10 <= nums[i] <= 10"
+    - "All the numbers of nums are unique."
+
+constraint_quiz:
+  prompt: >-
+    nums.length is at most 10 and you must return every subset. What time complexity should
+    you expect?
+  options: ["O(N log N)", "O(N²)", "O(N · 2^N)", "O(N · N!)"]
+  answer: 2
+  explanation: >-
+    The answer itself has 2^N subsets, and writing them out takes O(N) per subset, so nothing
+    can beat O(N · 2^N); O(N log N) and O(N²) can't even print the output. O(N · N!) is the
+    cost of generating permutations, where order matters: for N = 10 that's 3.6 × 10⁷
+    results instead of 1,024. A tiny N like 10 is the signal that exponential is expected.
+
+pattern_quiz:
+  prompt: >-
+    You must return every possible selection of elements from a small array. Which pattern
+    fits?
+  options:
+    - "Sliding window over nums"
+    - "Backtracking: for each element, branch on include / exclude"
+    - "Sort, then two pointers from both ends"
+    - "Dynamic programming over prefix sums"
+  answer: 1
+  explanation: >-
+    "All possible subsets / combinations" plus N ≤ 10 is the backtracking trigger: you are
+    asked to *generate* every candidate, not to optimise one number. A sliding window only
+    sees contiguous runs, so it would miss [1, 3]. Two pointers and DP answer questions about
+    one best value or a count; they don't produce the list of subsets.
+
+function:
+  name: subsets
+  params: [{name: nums}]
+  compare: unordered_nested
+
+starter_code: |
+  class Solution:
+      def subsets(self, nums: List[int]) -> List[List[int]]:
+          pass
+
+tests:
+  - {args: [[1, 2, 3]], expected: [[], [1], [2], [1, 2], [3], [1, 3], [2, 3], [1, 2, 3]]}
+  - {args: [[0]], expected: [[], [0]], note: "single element: don't forget the empty subset"}
+  - {args: [[1, 2]], expected: [[], [1], [2], [1, 2]], note: small tree for the visualizer}
+  - {args: [[-1, 5]], expected: [[], [-1], [5], [-1, 5]], note: negatives}
+  - {args: [[4, 1, 0, 3]], expected: [[], [4], [1], [0], [3], [4, 1], [4, 0], [4, 3], [1, 0], [1, 3], [0, 3], [4, 1, 0], [4, 1, 3], [4, 0, 3], [1, 0, 3], [4, 1, 0, 3]], note: "unsorted input: 2^4 = 16 subsets"}
+  - {args: [[-10, 10, 0]], expected: [[], [-10], [10], [0], [-10, 10], [-10, 0], [10, 0], [-10, 10, 0]], note: extreme values}
+visualize_test: 2
+
+drills:
+  - title: Two branches per level
+    skill: setup
+    goal: Write a recursive function with a base case at i == n and two recursive calls per level.
+    instructions: |
+      Return every string of length `n` made of `'1'` and `'0'`, in any order. Read `'1'` as
+      "include this element" and `'0'` as "exclude it": each string is one root-to-leaf path
+      of the Subsets decision tree.
+
+      Write it as a recursive helper `go(i, s)` that has decided `i` characters so far. When
+      `i == n` the string is complete: record it. Otherwise branch twice: `go(i + 1, s + '1')`
+      and `go(i + 1, s + '0')`. Strings are immutable, so there is nothing to undo yet; that
+      comes in the next drill. Note that `n = 0` still has one answer, the empty string, just
+      as the empty array still has one subset.
+    function:
+      name: decisionStrings
+      params: [{name: n}]
+      compare: unordered
+    starter_code: |
+      class Solution:
+          def decisionStrings(self, n: int) -> List[str]:
+              pass
+    tests:
+      - {args: [2], expected: ["11", "10", "01", "00"]}
+      - {args: [1], expected: ["1", "0"]}
+      - {args: [0], expected: [""], note: "zero decisions still make one (empty) path"}
+      - {args: [3], expected: ["111", "110", "101", "100", "011", "010", "001", "000"]}
+    solution: |
+      class Solution:
+          def decisionStrings(self, n: int) -> List[str]:
+              out = []
+
+              def go(i, s):
+                  if i == n:
+                      out.append(s)
+                      return
+                  go(i + 1, s + "1")
+                  go(i + 1, s + "0")
+
+              go(0, "")
+              return out
+    hint: "The base case is `i == n`, not `i == n - 1`: you record after the last decision is made."
+
+  - title: Choose, explore, un-choose in a loop
+    skill: core
+    goal: Use the loop form of backtracking, where every call records path and the loop picks the next element from start onward.
+    instructions: |
+      Return all subsets of `nums` in exactly this order: for `[1, 2, 3]` that is
+      `[[], [1], [1, 2], [1, 2, 3], [1, 3], [2], [2, 3], [3]]`.
+
+      That order comes from the **loop form** of the template, which you will reuse in
+      Subsets II, Permutations and Combination Sum:
+
+      - `dfs(start)` first records a copy of `path`: in this tree **every node** is a subset,
+        not just the leaves.
+      - Then `for i in range(start, len(nums))`: **choose** `nums[i]` (append), **explore**
+        `dfs(i + 1)`, **un-choose** (pop).
+
+      Passing `i + 1` means "only elements after the one I just picked", which is why `[2, 1]`
+      is never built as a second copy of `[1, 2]`.
+    function:
+      name: subsetsInOrder
+      params: [{name: nums}]
+    starter_code: |
+      class Solution:
+          def subsetsInOrder(self, nums: List[int]) -> List[List[int]]:
+              pass
+    tests:
+      - {args: [[1, 2, 3]], expected: [[], [1], [1, 2], [1, 2, 3], [1, 3], [2], [2, 3], [3]]}
+      - {args: [[5]], expected: [[], [5]]}
+      - {args: [[3, 1]], expected: [[], [3], [3, 1], [1]], note: "input order is kept, nothing is sorted"}
+      - {args: [[1, 2]], expected: [[], [1], [1, 2], [2]]}
+    solution: |
+      class Solution:
+          def subsetsInOrder(self, nums: List[int]) -> List[List[int]]:
+              res, path = [], []
+
+              def dfs(start):
+                  res.append(path[:])
+                  for i in range(start, len(nums)):
+                      path.append(nums[i])
+                      dfs(i + 1)
+                      path.pop()
+
+              dfs(0)
+              return res
+    hint: "Record first, then loop. The recursive call takes `i + 1`, not `start + 1`."
+
+  - title: Record a copy, not the list
+    skill: edge
+    goal: Snapshot a mutable path with path[:] when recording it, because the same list keeps changing afterwards.
+    instructions: |
+      Build every prefix of `nums` by appending to one list `path`, and return all of them,
+      starting with the empty prefix: `[1, 2, 3]` gives `[[], [1], [1, 2], [1, 2, 3]]`.
+
+      The trap: `res.append(path)` stores a *reference* to the same list object every time, so
+      the result ends up as four copies of whatever `path` looks like at the end,
+      `[[1, 2, 3], [1, 2, 3], [1, 2, 3], [1, 2, 3]]`. In Subsets it's worse: by the time the
+      recursion finishes, every pop has run, `path` is empty, and you return `[[], [], [], …]`.
+      Always record `path[:]` (or `list(path)`).
+    function:
+      name: allPrefixes
+      params: [{name: nums}]
+    starter_code: |
+      class Solution:
+          def allPrefixes(self, nums: List[int]) -> List[List[int]]:
+              pass
+    tests:
+      - {args: [[1, 2, 3]], expected: [[], [1], [1, 2], [1, 2, 3]]}
+      - {args: [[]], expected: [[]], note: "empty input still has the empty prefix"}
+      - {args: [[7]], expected: [[], [7]]}
+      - {args: [[2, 2]], expected: [[], [2], [2, 2]]}
+    solution: |
+      class Solution:
+          def allPrefixes(self, nums: List[int]) -> List[List[int]]:
+              path = []
+              res = [path[:]]
+              for x in nums:
+                  path.append(x)
+                  res.append(path[:])
+              return res
+    hint: "`path[:]` makes a new list with the same elements at this moment."
+
+hints:
+  - >-
+    Pick any one element. Every subset either contains it or doesn't. If you make that
+    in-or-out decision for each element in turn, how many different sequences of decisions are
+    there, and what do you have once the last decision is made?
+  - >-
+    Let dfs(i) decide about nums[i], with path holding the elements chosen so far. Include
+    branch: append nums[i], recurse on i + 1, pop it. Exclude branch: recurse on i + 1 without
+    it. When i reaches len(nums) all decisions are made: record a copy of path.
+  - |
+    res = [], path = []
+    dfs(i):
+        if i == len(nums):
+            record a copy of path; return
+        append nums[i] to path      (choose)
+        dfs(i + 1)                  (explore: subsets WITH nums[i])
+        pop from path               (un-choose)
+        dfs(i + 1)                  (explore: subsets WITHOUT nums[i])
+    dfs(0); return res
+
+solution:
+  code: |
+    class Solution:
+        def subsets(self, nums: List[int]) -> List[List[int]]:
+            res = []
+            path = []  # the subset being built on the current branch of the tree
+
+            def dfs(i):
+                # decide about nums[i]; path holds the decisions made for nums[0..i-1]
+                if i == len(nums):  # all decisions made: this leaf is one subset
+                    res.append(path[:])  # copy, because path keeps changing
+                    return
+                path.append(nums[i])  # choose: include nums[i]
+                dfs(i + 1)  # explore every subset that contains nums[i]
+                path.pop()  # un-choose: undo it before the other branch
+                dfs(i + 1)  # explore every subset without nums[i]
+
+            dfs(0)
+            return res
+  explanation: |
+    **The tree.** For `nums = [1, 2]` the decisions form this tree. Each level decides one
+    element, the left edge includes it, the right edge skips it:
+
+    ```
+                       dfs(0)  path=[]
+                 +1 /                 \ skip 1
+           dfs(1) [1]                  dfs(1) []
+         +2 /      \ skip 2          +2 /      \ skip 2
+    dfs(2) [1,2]   dfs(2) [1]    dfs(2) [2]    dfs(2) []
+    ```
+
+    **The code is the tree.** Every box above is one call of `dfs`. `i` is the level (which
+    element is being decided). `path.append(nums[i])` followed by `dfs(i + 1)` walks down the
+    left edge. `path.pop()` walks back up that edge, so `path` is exactly what it was when this
+    call started. The second `dfs(i + 1)` walks down the right edge. `i == len(nums)` means you
+    are on a leaf, and each leaf is one subset, so there are exactly 2^N of them.
+
+    **Choose → explore → un-choose.** That three-step rhythm is the whole backtracking
+    template. Only one `path` list exists, and every branch borrows it. The pop is what makes
+    borrowing safe: whatever a call adds, it removes before it returns. Forget the pop and the
+    exclude branch still sees `nums[i]` in `path`. Forget the copy (`path[:]`) and every
+    recorded subset is the same list object, which is empty by the time you return.
+
+    **How to trust the recursion.** Don't trace every call in your head. Read `dfs(i)` as a
+    promise: "given whatever is in `path`, add to `res` every subset you can finish using
+    `nums[i:]`". The include branch keeps that promise with `nums[i]` in `path`, the exclude
+    branch keeps it without, and together they cover everything. The base case keeps the
+    promise trivially: nothing left to decide, so record `path`.
+
+    **The same answer in loop form.** You can also make every *node* a subset:
+    `dfs(start)` records `path`, then loops `for i in range(start, n)`: append `nums[i]`,
+    `dfs(i + 1)`, pop. The loop asks "which element comes next?" instead of "is this one in?".
+    It builds the same 2^N subsets, and it's the shape the next lessons modify one line at a
+    time: Subsets II adds a duplicate-skip, Permutations swaps the start index for a `used`
+    array, Combination Sum recurses on `i` instead of `i + 1`.
+  time: O(N · 2^N) — the tree has 2^(N+1) − 1 calls, and each of the 2^N leaves copies a path of up to N elements
+  space: O(N) — recursion depth N plus a path of at most N elements (the output itself is O(N · 2^N))
+  brute_force_code: |
+    class Solution:
+        def subsets(self, nums: List[int]) -> List[List[int]]:
+            n = len(nums)
+            res = []
+            for mask in range(1 << n):  # bit b of mask says whether nums[b] is in
+                res.append([nums[b] for b in range(n) if mask >> b & 1])
+            return res
+
+pitch_script: |
+  **(Clarify)** "The elements are unique, I return every subset including the empty one, and
+  any order is fine, both for the list and inside each subset. N is at most 10."
+
+  **(Brute force)** "Since there are 2^N subsets, any solution is exponential; the output alone
+  is that big. One way is to count from 0 to 2^N minus 1 and treat the bits as in-or-out flags.
+  That works, but it doesn't extend if the problem adds duplicates or a sum constraint, so I'll
+  use backtracking, which does."
+
+  **(Trigger)** "'Return all possible subsets' with N up to 10 tells me to generate every
+  candidate. Each element is an independent include-or-exclude decision, so the subsets are the
+  leaves of a binary decision tree."
+
+  **(Optimal)** "I'll write a helper dfs(i) that decides about nums[i], with a shared path list.
+  First I include it: append, recurse on i plus 1, then pop to undo. Then I exclude it: recurse
+  on i plus 1 without it. When i equals the length, every element has been decided, so I append
+  a copy of path to the result. The copy matters because path keeps changing."
+
+  **(Complexity)** "There are 2^N leaves and copying each subset costs up to N, so O(N · 2^N)
+  time. Extra space is O(N) for the recursion stack and the path, not counting the output."
+
+twist:
+  lc: 784
+  title: Letter Case Permutation
+  why: >-
+    The input is now a string, and the binary decision is per *letter*: lowercase or
+    uppercase, instead of include or exclude. Digits have only one option, so the tree has a
+    single branch at those levels. It's the same dfs(i) with a base case at i == len(s): flip
+    the character at i, recurse, flip it back. You get 2^L results, where L is the number of
+    letters.
+
+viz:
+  arrays: [nums, path]
+  pointers: [i]

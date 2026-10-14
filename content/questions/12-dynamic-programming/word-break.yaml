@@ -1,0 +1,355 @@
+slug: word-break
+lc: 139
+
+concept:
+  problem_it_solves: >-
+    "Can this whole string be cut into pieces that are all valid words?" Every cut you make
+    leaves a shorter suffix with the same question, and different cut sequences keep landing
+    on the same positions. So the only thing worth remembering is, for every position i,
+    "can the first i characters be split cleanly?", and each position is answered once from
+    the positions before it.
+  brute_force: >-
+    Recursion: try every dictionary word that matches at the start, and recurse on the rest
+    of the string. On inputs like "aaaa…ab" with words a, aa, aaa, every split of the a's
+    is tried, each fails only at the final b, and the same suffix is re-checked once for each
+    of the exponentially many ways of reaching it.
+  brute_force_complexity: >-
+    O(2ᴺ) time in the worst case, O(N) recursion depth — a 300-character string can have
+    about 2²⁹⁹ ways to cut it.
+  key_insight: >-
+    Look at the LAST word of a valid split of s[:i]. It is some s[j:i] that is in the
+    dictionary, and everything before it, s[:j], must itself be splittable. So dp[i] is True
+    exactly when some j < i has dp[j] True and s[j:i] in the word set. The empty prefix is
+    trivially splittable (dp[0] = True), which is what lets the first word stand on its own.
+    Greedy longest-match doesn't work: in "cars" with [car, ca, rs], grabbing "car" strands
+    the "s", but "ca" + "rs" works.
+  real_world: >-
+    Search engines and app stores segment run-together queries and hashtags
+    ("bengaluruweather") into words before looking them up. Input methods for languages
+    written without spaces (Chinese, Japanese, Thai) and URL/domain-name analysers solve the
+    same prefix-DP problem, usually scoring each split with word frequencies instead of a
+    plain yes/no.
+
+statement:
+  clean: |
+    Given a string `s` and a dictionary of strings `wordDict`, return `true` if `s` can be
+    **segmented into a space-separated sequence** of one or more **dictionary words**.
+
+    **Note** that the same word in the dictionary may be **reused multiple times** in the
+    segmentation.
+  oa_story: |
+    **HashtagHaat Social Commerce — OA Round 1**
+
+    HashtagHaat lets small Bengaluru sellers tag their reels with run-together hashtags like
+    `bengalurufoodfest` or `thindibeedi`. Before a tag can be indexed for search, the
+    discovery team in Koramangala needs to know whether the whole tag can be read as a
+    sequence of words from their vocabulary, with every character belonging to exactly one
+    word and no letters left over. The same vocabulary word may appear in a tag any number of
+    times.
+
+    Write a function that takes the tag text and the vocabulary list and returns `true` if
+    the tag can be fully broken into vocabulary words, `false` otherwise. Tags are at most 300
+    lowercase letters, the vocabulary has at most 1,000 distinct entries, and each entry is at
+    most 20 letters long. Be careful: reading off the longest matching word first can paint
+    you into a corner.
+  trigger_keywords: ["segmented into a space-separated sequence", "dictionary words", "reused multiple times"]
+  examples:
+    - input: "s = \"leetcode\", wordDict = [\"leet\",\"code\"]"
+      output: "true"
+      explanation: "\"leetcode\" can be segmented as \"leet code\"."
+    - input: "s = \"applepenapple\", wordDict = [\"apple\",\"pen\"]"
+      output: "true"
+      explanation: "\"apple pen apple\": \"apple\" is reused."
+    - input: "s = \"catsandog\", wordDict = [\"cats\",\"dog\",\"sand\",\"and\",\"cat\"]"
+      output: "false"
+      explanation: "Every split leaves \"og\" or a fragment that isn't a word."
+  constraints:
+    - "1 <= s.length <= 300"
+    - "1 <= wordDict.length <= 1000"
+    - "1 <= wordDict[i].length <= 20"
+    - "s and wordDict[i] consist of only lowercase English letters."
+    - "All the strings of wordDict are unique."
+
+constraint_quiz:
+  prompt: >-
+    s has at most 300 characters and dictionary words are at most 20 long. What complexity
+    should you aim for?
+  options:
+    - "O(2ᴺ) — try every way to cut the string"
+    - "O(N²) (j, i) pairs, each a substring set lookup — roughly O(N³) character work"
+    - "O(N log N) — sort the dictionary and binary search prefixes"
+    - "O(N) — one greedy left-to-right pass"
+  answer: 1
+  explanation: >-
+    Trying every cut is exponential: there are 2^(N−1) ways to cut a string of length N.
+    A greedy single pass is fast but wrong, as "cars" with [car, ca, rs] shows. Sorting the
+    dictionary doesn't remove the need to decide where words end. The prefix DP checks every
+    (j, i) pair once, about 4.5 × 10⁴ pairs, and each slice costs up to N characters: about
+    N³/6 ≈ 4.5 × 10⁶ character operations, and only 300 × 20 pairs if you cap word length at
+    20.
+
+pattern_quiz:
+  prompt: >-
+    You must decide whether a string can be cut into pieces that all come from a word list,
+    with words reusable. Which pattern fits?
+  options:
+    - "Greedy: at each position take the longest dictionary word that matches"
+    - "Prefix DP: dp[i] = can s[:i] be segmented; dp[i] = any(dp[j] and s[j:i] in words)"
+    - "Sliding window that grows until the window is a word"
+    - "Two pointers from both ends of the string"
+  answer: 1
+  explanation: >-
+    "Can you form" the whole string from reusable pieces is a DP trigger, and the natural
+    state is a prefix length. Greedy longest-match fails on "goalspecial" with [go, goal,
+    goals, special] ("goals" leaves "pecial"), and a sliding window has the same problem: it
+    commits to one cut and never revisits it. The DP keeps every reachable cut position, so it
+    never gets trapped.
+
+function:
+  name: wordBreak
+  params: [{name: s}, {name: wordDict}]
+
+starter_code: |
+  class Solution:
+      def wordBreak(self, s: str, wordDict: List[str]) -> bool:
+          pass
+
+tests:
+  - {args: ["leetcode", ["leet", "code"]], expected: true}
+  - {args: ["applepenapple", ["apple", "pen"]], expected: true, note: "words can be reused"}
+  - {args: ["catsandog", ["cats", "dog", "sand", "and", "cat"]], expected: false}
+  - {args: ["a", ["a"]], expected: true, note: single character}
+  - {args: ["a", ["b"]], expected: false}
+  - {args: ["aaaaaaa", ["aaaa", "aaa"]], expected: true, note: "3 + 4: neither word alone divides 7"}
+  - {args: ["cars", ["car", "ca", "rs"]], expected: true, note: "greedy 'car' strands the s; 'ca' + 'rs' works"}
+  - {args: ["goalspecial", ["go", "goal", "goals", "special"]], expected: true, note: "longest match 'goals' leaves 'pecial'"}
+  - {args: ["aaaaaaaaaaaaaaab", ["a", "aa", "aaa"]], expected: false, note: "the final b makes every one of the many splits fail"}
+visualize_test: 0
+
+drills:
+  - title: Which prefixes are words?
+    skill: setup
+    goal: Turn the dictionary into a set and test prefixes s[:i] with correct half-open slice bounds.
+    instructions: |
+      Return, in increasing order, every length `i` (from 1 to `len(s)`) such that the prefix
+      `s[:i]` is itself a dictionary word.
+
+      This is the first row of reasoning in Word Break: which cut positions can the very
+      first word reach? Two habits to build here. Convert `wordDict` to a `set` so each lookup
+      is O(length of the word) instead of a scan over 1,000 words. And remember that slices
+      are half-open: `s[j:i]` is characters `j` to `i - 1`, so the prefix of length `i` is
+      `s[0:i]`, and `i` must go up to `len(s)` inclusive.
+    function:
+      name: wordPrefixEnds
+      params: [{name: s}, {name: wordDict}]
+    starter_code: |
+      class Solution:
+          def wordPrefixEnds(self, s: str, wordDict: List[str]) -> List[int]:
+              pass
+    tests:
+      - {args: ["leetcode", ["leet", "code"]], expected: [4]}
+      - {args: ["catsanddog", ["cat", "cats", "and", "sand", "dog"]], expected: [3, 4]}
+      - {args: ["aaa", ["a", "aa", "aaa"]], expected: [1, 2, 3], note: "the whole string counts: i goes up to len(s)"}
+      - {args: ["abc", ["x"]], expected: []}
+    solution: |
+      class Solution:
+          def wordPrefixEnds(self, s: str, wordDict: List[str]) -> List[int]:
+              words = set(wordDict)
+              ends = []
+              for i in range(1, len(s) + 1):
+                  if s[:i] in words:
+                      ends.append(i)
+              return ends
+    hint: "`for i in range(1, len(s) + 1)`, and check `s[:i] in words`."
+
+  - title: Fill the prefix table
+    skill: core
+    goal: Write the transition dp[i] = True if some j < i has dp[j] and s[j:i] in the word set.
+    instructions: |
+      Return the whole table `dp` of length `len(s) + 1`, where `dp[i]` is `True` if the
+      prefix `s[:i]` can be segmented into dictionary words.
+
+      `dp[0]` is `True` (the empty prefix needs no words). For each `i`, try every split
+      point `j < i`: if the part before it is splittable (`dp[j]`) and the part after it is a
+      word (`s[j:i]`), then `s[:i]` is splittable. Note that a word appearing in `s` is not
+      enough by itself: it only counts if a valid split reaches its start.
+    function:
+      name: wordBreakTable
+      params: [{name: s}, {name: wordDict}]
+    starter_code: |
+      class Solution:
+          def wordBreakTable(self, s: str, wordDict: List[str]) -> List[bool]:
+              pass
+    tests:
+      - {args: ["leetcode", ["leet", "code"]], expected: [true, false, false, false, true, false, false, false, true]}
+      - {args: ["catsandog", ["cats", "dog", "sand", "and", "cat"]], expected: [true, false, false, true, true, false, false, true, false, false]}
+      - {args: ["a", ["a"]], expected: [true, true]}
+      - {args: ["ab", ["b"]], expected: [true, false, false], note: "'b' is a word, but no split reaches index 1"}
+    solution: |
+      class Solution:
+          def wordBreakTable(self, s: str, wordDict: List[str]) -> List[bool]:
+              words = set(wordDict)
+              dp = [False] * (len(s) + 1)
+              dp[0] = True
+              for i in range(1, len(s) + 1):
+                  dp[i] = any(dp[j] and s[j:i] in words for j in range(i))
+              return dp
+    hint: "`dp[i] = any(dp[j] and s[j:i] in words for j in range(i))`."
+
+  - title: Count the segmentations
+    skill: edge
+    goal: Switch the table from booleans to counts and see why the empty-prefix base case must be 1.
+    instructions: |
+      Return the **number of different ways** to segment `s` into dictionary words (words
+      may be reused).
+
+      Same split structure as Word Break, but now `dp[i] += dp[j]` for every `j` where
+      `s[j:i]` is a word. The base case is the part people get wrong: `dp[0]` must be `1`,
+      the one way to split the empty prefix. With `dp[0] = 0` every count stays 0. The same
+      "empty prefix = one way" base case shows up in Coin Change II and in Word Break II,
+      where you list the sentences instead of counting them.
+    function:
+      name: countSegmentations
+      params: [{name: s}, {name: wordDict}]
+    starter_code: |
+      class Solution:
+          def countSegmentations(self, s: str, wordDict: List[str]) -> int:
+              pass
+    tests:
+      - {args: ["catsanddog", ["cat", "cats", "and", "sand", "dog"]], expected: 2, note: "cats and dog / cat sand dog"}
+      - {args: ["pineapplepenapple", ["apple", "pen", "applepen", "pine", "pineapple"]], expected: 3}
+      - {args: ["aaa", ["a", "aa"]], expected: 3, note: "a a a / a aa / aa a"}
+      - {args: ["catsandog", ["cats", "dog", "sand", "and", "cat"]], expected: 0}
+      - {args: ["a", ["b"]], expected: 0}
+    solution: |
+      class Solution:
+          def countSegmentations(self, s: str, wordDict: List[str]) -> int:
+              words = set(wordDict)
+              dp = [1] + [0] * len(s)
+              for i in range(1, len(s) + 1):
+                  for j in range(i):
+                      if s[j:i] in words:
+                          dp[i] += dp[j]
+              return dp[len(s)]
+    hint: "Start with `dp = [1] + [0] * len(s)`: one way to split nothing."
+
+hints:
+  - >-
+    Imagine a valid split of the first i characters. Its last word ends at i and starts at
+    some j. What must be true about the first j characters, and have you already answered
+    that question for a smaller prefix?
+  - >-
+    Let dp[i] mean "s[:i] can be split into words". dp[0] = True for the empty prefix. Then
+    dp[i] is True if some j < i has dp[j] True and s[j:i] in the word set. Fill i from 1 to N
+    and return dp[N].
+  - |
+    words = set(wordDict)
+    dp = [False] * (N + 1)
+    dp[0] = True                      (the empty prefix)
+    for i from 1 to N:
+        for j from 0 to i - 1:
+            if dp[j] and s[j:i] is in words:
+                dp[i] = True; stop trying j
+    return dp[N]
+
+solution:
+  code: |
+    class Solution:
+        def wordBreak(self, s: str, wordDict: List[str]) -> bool:
+            words = set(wordDict)  # O(1) average membership instead of scanning a list
+            n = len(s)
+            dp = [False] * (n + 1)  # dp[i] = can the prefix s[:i] be split into words?
+            dp[0] = True  # the empty prefix needs no words
+            for i in range(1, n + 1):
+                for j in range(i):  # s[j:i] would be the LAST word of the split
+                    if dp[j] and s[j:i] in words:
+                        dp[i] = True
+                        break  # one valid split is enough
+            return dp[n]
+  explanation: |
+    **The 5-step DP recipe**
+
+    1. **Define dp[i] in words.** `dp[i]` = "the first `i` characters, `s[:i]`, can be split
+       into dictionary words". Indexing by prefix length (not by character) gives a clean
+       slot for the empty prefix at `i = 0`.
+    2. **Recurrence from the last choice.** The last choice is "where does the last word
+       start?". If it starts at `j`, the last word is `s[j:i]` and the rest `s[:j]` must be
+       splittable: `dp[i] = any(dp[j] and s[j:i] in words for j < i)`.
+    3. **Base case.** `dp[0] = True`. Without it, no first word could ever be accepted,
+       because every split has to start from position 0.
+    4. **Fill order.** `dp[i]` reads only `dp[j]` with `j < i`, so fill `i` from 1 to `n`.
+       Words can be reused for free: nothing marks a word as used.
+    5. **Answer location.** `dp[n]`: the whole string.
+
+    Trace for `"leetcode"`: `dp[4]` is True because `dp[0]` and `"leet"` is a word, and
+    `dp[8]` is True because `dp[4]` and `"code"` is a word. Every other cell stays False. In
+    `"catsandog"`, the cells for "cat", "cats" and "catsand" become True, but no word ends at
+    9 that starts from one of them, so the answer is False.
+
+    **Why not greedy?** Taking the longest (or shortest) matching word at each step commits
+    to one cut. `"cars"` with `[car, ca, rs]` fails greedily after "car", but "ca" + "rs"
+    works. The DP keeps every reachable cut position at once.
+
+    **Stepping stone.** The memoised recursion is `can(start) = any(s[start:end] in words
+    and can(end))` with `can(n) = True`. That's the same table read from the right; the
+    bottom-up version above avoids recursion entirely.
+
+    **Optimisation worth mentioning.** A word is at most `L = 20` characters, so only
+    `j >= i - L` can work: loop `j` from `max(0, i - L)` to `i - 1`. That turns the N² pairs
+    into N · L.
+  time: O(N³) worst case — N² (j, i) pairs, and slicing and hashing s[j:i] costs up to O(N); with the max-word-length cap it's O(N · L²)
+  space: O(N + D) — the dp table plus the word set, where D is the total length of the dictionary
+  brute_force_code: |
+    class Solution:
+        def wordBreak(self, s: str, wordDict: List[str]) -> bool:
+            words = set(wordDict)
+
+            def can(start):
+                if start == len(s):
+                    return True
+                for end in range(start + 1, len(s) + 1):
+                    if s[start:end] in words and can(end):
+                        return True
+                return False
+
+            return can(0)
+
+pitch_script: |
+  **(Clarify)** "So I return true if the whole string can be cut into dictionary words with
+  nothing left over, words can be reused, and the string isn't empty. Everything is
+  lowercase. OK."
+
+  **(Brute force)** "Recursively, I try every dictionary word that matches the start and
+  recurse on the remainder. That's exponential on inputs like a long run of a's followed by
+  a b, because the same suffix gets re-checked through many different split paths. Greedy
+  longest-match is fast but wrong: 'cars' with car, ca and rs."
+
+  **(Trigger)** "'Can you form' the whole string from reusable pieces, plus overlapping
+  suffixes, says DP. The state is just a prefix length: can the first i characters be
+  split?"
+
+  **(Optimal)** "dp of i is true if s up to i can be segmented. dp of 0 is true for the
+  empty prefix. For each i, I try every split point j before it: if dp of j is true and s
+  from j to i is in the word set, dp of i is true and I can stop. The answer is dp of n. I'd
+  also cap j at i minus the longest word length, since longer pieces can't be words."
+
+  **(Complexity)** "There are N² split pairs and each substring check costs up to N, so
+  O(N³) worst case, a few million character operations for N = 300. With the length cap it's O(N times L
+  squared). Space is O(N) for the table plus the set."
+
+twist:
+  lc: 140
+  title: Word Break II
+  why: >-
+    Now you must return every valid sentence, not just whether one exists. The same prefix
+    structure applies, but each state stores (or recursively builds) the list of sentences
+    for that suffix, so it becomes memoised backtracking: sentences(start) = for every word
+    s[start:end], prepend it to each sentence of sentences(end). The output itself can be
+    exponential, so the useful pruning is the boolean dp from this problem: skip any end
+    position whose suffix can't be split at all.
+
+viz:
+  table: dp
+  col_labels: s
+  label_offset: 1
+  watch: [i, j]

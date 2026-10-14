@@ -1,0 +1,394 @@
+slug: find-median-from-data-stream
+lc: 295
+
+concept:
+  problem_it_solves: >-
+    "What is the middle value of everything I've seen so far?", asked again after every new
+    number. The median only depends on the two values that sit at the boundary between the
+    lower half and the upper half, so you never need the whole stream in sorted order. Two
+    heaps keep exactly that boundary visible: the largest of the lower half and the smallest
+    of the upper half.
+  brute_force: >-
+    Append every number to a list and sort it on every findMedian (or keep it sorted with
+    bisect.insort). Sorting re-orders the whole stream each time even though only one number
+    arrived since the last query, and insort still shifts up to N elements to make room.
+  brute_force_complexity: >-
+    O(N log N) per findMedian (sort each time) or O(N) per addNum (sorted insert), O(N)
+    space — 5 × 10⁴ calls can mean 2.5 × 10⁴ sorts of 2.5 × 10⁴ numbers (~10¹⁰ comparisons),
+    or ~1.25 × 10⁹ element shifts for sorted inserts.
+  key_insight: >-
+    Split the numbers into a lower half and an upper half. You only ever need the **maximum**
+    of the lower half and the **minimum** of the upper half, which is exactly what a max-heap
+    and a min-heap give in O(1). Keep two invariants: every value in `small` ≤ every value in
+    `large`, and `small` has the same size as `large` or one more. Then the median is
+    `small`'s top (odd count) or the average of both tops (even count), and each insert costs
+    a few O(log N) heap operations.
+  real_world: >-
+    Latency dashboards show p50 (the median) of request times, and ride-hailing and food apps
+    track running medians of delivery or wait times to set ETAs. At very large scale, systems
+    like Prometheus histograms, Datadog's DDSketch and t-digest approximate quantiles to save
+    memory, but exact running medians over a bounded stream are the two-heap design.
+
+statement:
+  clean: |
+    The **median** is the middle value in an ordered integer list. If the size of the list is
+    even, there is no single middle value, so the median is the **mean of the two middle values**.
+
+    - For `arr = [2,3,4]`, the median is `3`.
+    - For `arr = [2,3]`, the median is `(2 + 3) / 2 = 2.5`.
+
+    Implement the `MedianFinder` class:
+
+    - `MedianFinder()` initializes the `MedianFinder` object.
+    - `void addNum(int num)` adds the integer `num` from the **data stream** to the data structure.
+    - `double findMedian()` returns the median of all elements so far. Answers within `10^-5` of
+      the actual answer are accepted.
+  oa_story: |
+    **LatencyLens — OA Round 2**
+
+    LatencyLens sells an APM agent to UPI payment apps in Bengaluru. The agent sits next to a
+    payment gateway and receives the response time of every request, in milliseconds, one at
+    a time as requests complete. The on-call dashboard has a "typical latency" tile that can
+    be refreshed at any moment, and it must show the value that half of the requests so far
+    were at or below: the middle reading, or the average of the two middle readings when the
+    number of readings is even.
+
+    Implement a `MedianFinder` class with `addNum(num)` (a new reading arrives) and
+    `findMedian()` (the tile refreshes), returning a float. The tile is only refreshed after
+    at least one reading has arrived. During a festive-sale spike the agent handles tens of
+    thousands of readings and refreshes per minute, so neither operation may slow down as the
+    history grows.
+  trigger_keywords: ["median", "data stream", "mean of the two middle values"]
+  examples:
+    - input: |
+        ["MedianFinder","addNum","addNum","findMedian","addNum","findMedian"]
+        [[],[1],[2],[],[3],[]]
+      output: "[null,null,null,1.5,null,2.0]"
+      explanation: "After 1 and 2 the median is (1 + 2) / 2 = 1.5. After adding 3 the list is [1,2,3], median 2."
+    - input: |
+        ["MedianFinder","addNum","findMedian","addNum","findMedian"]
+        [[],[-1],[],[-2],[]]
+      output: "[null,null,-1.0,null,-1.5]"
+      explanation: "Negative numbers: (-1 + -2) / 2 = -1.5, which integer division would wrongly round to -2."
+  constraints:
+    - "-10^5 <= num <= 10^5"
+    - "There will be at least one element in the data structure before calling findMedian."
+    - "At most 5 * 10^4 calls will be made to addNum and findMedian."
+
+constraint_quiz:
+  prompt: >-
+    Up to 5 × 10⁴ calls, mixed freely between addNum and findMedian. What cost per operation
+    should you aim for?
+  options:
+    - "findMedian O(N log N): sort on every query"
+    - "addNum O(N), findMedian O(1): keep a sorted list with insort"
+    - "addNum O(log N), findMedian O(1): two heaps"
+    - "O(1) for both"
+  answer: 2
+  explanation: >-
+    Sorting on every query is O(N log N) per call: 2.5 × 10⁴ adds followed by 2.5 × 10⁴
+    queries is ~10¹⁰ comparisons. A sorted
+    list makes findMedian O(1), but each insort shifts up to N elements, ~1.25 × 10⁹ moves in
+    the worst case; Python's fast memmove often survives this on LeetCode, but it is O(N²)
+    overall and interviewers expect better. Two heaps give O(log N) inserts and O(1) queries.
+    O(1) for both isn't available for arbitrary integers: placing a new value relative to the
+    middle needs comparisons. Only the follow-up with values in [0, 100] allows a counting
+    array that is effectively O(1).
+
+pattern_quiz:
+  prompt: >-
+    Numbers arrive one at a time and you must report the median at any moment. Which pattern
+    fits?
+  options:
+    - "A single min-heap holding every number"
+    - "Two heaps: a max-heap for the lower half and a min-heap for the upper half"
+    - "Quickselect on every findMedian"
+    - "Sliding window with two pointers"
+  answer: 1
+  explanation: >-
+    "Median" plus "data stream" is the two-heaps trigger. The median depends only on the
+    largest value of the lower half and the smallest value of the upper half, and those are
+    the tops of a max-heap and a min-heap. One min-heap only exposes the overall minimum.
+    Quickselect is O(N) per query, too slow when queries are frequent. There is no window: the
+    median covers every number seen so far.
+
+function:
+  kind: design
+  name: MedianFinder
+  compare: float
+
+starter_code: |
+  class MedianFinder:
+
+      def __init__(self):
+          pass
+
+      def addNum(self, num: int) -> None:
+          pass
+
+      def findMedian(self) -> float:
+          pass
+
+tests:
+  - args:
+      ops: [MedianFinder, addNum, addNum, findMedian, addNum, findMedian]
+      args: [[], [1], [2], [], [3], []]
+    expected: [null, null, null, 1.5, null, 2.0]
+  - args:
+      ops: [MedianFinder, addNum, findMedian]
+      args: [[], [5], []]
+    expected: [null, null, 5.0]
+    note: single number is its own median
+  - args:
+      ops: [MedianFinder, addNum, findMedian, addNum, findMedian, addNum, findMedian, addNum, findMedian]
+      args: [[], [-1], [], [-2], [], [-3], [], [-4], []]
+    expected: [null, null, -1.0, null, -1.5, null, -2.0, null, -2.5]
+    note: "negatives: true division, -1.5 not -2"
+  - args:
+      ops: [MedianFinder, addNum, addNum, addNum, findMedian, addNum, findMedian]
+      args: [[], [2], [2], [2], [], [2], []]
+    expected: [null, null, null, null, 2.0, null, 2.0]
+    note: all equal values
+  - args:
+      ops: [MedianFinder, addNum, findMedian, addNum, findMedian, addNum, findMedian, addNum, findMedian, addNum, findMedian]
+      args: [[], [5], [], [4], [], [3], [], [2], [], [1], []]
+    expected: [null, null, 5.0, null, 4.5, null, 4.0, null, 3.5, null, 3.0]
+    note: "strictly decreasing: every new number belongs to the lower half"
+  - args:
+      ops: [MedianFinder, addNum, findMedian, addNum, findMedian, addNum, findMedian, addNum, findMedian, addNum, findMedian]
+      args: [[], [1], [], [10], [], [2], [], [9], [], [3], []]
+    expected: [null, null, 1.0, null, 5.5, null, 2.0, null, 5.5, null, 3.0]
+    note: "alternating low and high: numbers keep crossing between the halves"
+  - args:
+      ops: [MedianFinder, addNum, findMedian, addNum, findMedian, addNum, findMedian, addNum, findMedian, addNum, findMedian, addNum, findMedian]
+      args: [[], [6], [], [10], [], [2], [], [6], [], [5], [], [0], []]
+    expected: [null, null, 6.0, null, 8.0, null, 6.0, null, 6.0, null, 6.0, null, 5.5]
+    note: duplicates of the median and a new minimum
+  - args:
+      ops: [MedianFinder, addNum, addNum, findMedian, addNum, findMedian]
+      args: [[], [-100000], [100000], [], [0], []]
+    expected: [null, null, null, 0.0, null, 0.0]
+    note: extremes cancel out
+visualize_test: 6
+
+drills:
+  - title: A max-heap by negation
+    skill: setup
+    goal: Push into heapq with negated values so heap[0] is the maximum, and read it back with a second negation.
+    instructions: |
+      Push the numbers one by one into a heap that behaves like a **max-heap**, and after
+      every push record the current maximum. Return the recorded list.
+
+      `heapq` is a min-heap only. Storing `-x` turns the largest number into the smallest
+      stored value, so `-heap[0]` is the maximum. The lower half `small` in Median Finder is
+      exactly this kind of heap, and forgetting one of the two negations is the classic bug.
+    function:
+      name: runningMax
+      params: [{name: nums}]
+    starter_code: |
+      class Solution:
+          def runningMax(self, nums: List[int]) -> List[int]:
+              pass
+    tests:
+      - {args: [[3, 1, 4, 1, 5]], expected: [3, 3, 4, 4, 5]}
+      - {args: [[-5, -2, -9]], expected: [-5, -2, -2], note: "negatives: -2 is the max"}
+      - {args: [[7]], expected: [7]}
+      - {args: [[0, 0]], expected: [0, 0]}
+    solution: |
+      class Solution:
+          def runningMax(self, nums: List[int]) -> List[int]:
+              heap = []
+              out = []
+              for x in nums:
+                  heapq.heappush(heap, -x)
+                  out.append(-heap[0])
+              return out
+    hint: "Negate on the way in, negate again when you read `heap[0]`."
+
+  - title: Route through small, then rebalance
+    skill: core
+    goal: Insert each number so that small ≤ large holds and len(small) − len(large) stays 0 or 1.
+    instructions: |
+      Feed `nums` into two heaps the way `addNum` does: push into the max-heap `small`
+      (negated), move `small`'s largest value into the min-heap `large`, and if `large` is now
+      bigger than `small`, move `large`'s smallest value back. Return
+      `[sorted values of small, sorted values of large]` at the end.
+
+      Routing every number through `small` first guarantees the **ordering invariant**: the
+      biggest of the lower half is what moves up, so nothing in `small` is ever larger than
+      anything in `large`. The rebalance step keeps the **size invariant**. Because both
+      invariants hold, the halves are fully determined: `small` holds the lower ⌈N/2⌉ values.
+    function:
+      name: splitHalves
+      params: [{name: nums}]
+    starter_code: |
+      class Solution:
+          def splitHalves(self, nums: List[int]) -> List[List[int]]:
+              pass
+    tests:
+      - {args: [[1, 2, 3]], expected: [[1, 2], [3]]}
+      - {args: [[5, 4, 3, 2, 1]], expected: [[1, 2, 3], [4, 5]]}
+      - {args: [[1, 10, 2, 9]], expected: [[1, 2], [9, 10]]}
+      - {args: [[7]], expected: [[7], []], note: "odd count: small holds the extra one"}
+      - {args: [[4, 4]], expected: [[4], [4]]}
+    solution: |
+      class Solution:
+          def splitHalves(self, nums: List[int]) -> List[List[int]]:
+              small, large = [], []  # small: max-heap via negation, large: min-heap
+              for x in nums:
+                  heapq.heappush(small, -x)
+                  heapq.heappush(large, -heapq.heappop(small))
+                  if len(large) > len(small):
+                      heapq.heappush(small, -heapq.heappop(large))
+              return [sorted(-v for v in small), sorted(large)]
+    hint: "Two moves always, a third only when `len(large) > len(small)`."
+
+  - title: Read the median off the two tops
+    skill: edge
+    goal: Return small's top for an odd count and the true-division average of both tops for an even count.
+    instructions: |
+      You are given the two heaps exactly as Median Finder stores them: `small` holds the
+      **negated** lower half in heap order, `large` the upper half in heap order, and
+      `len(small)` is `len(large)` or one more. Return the median as a float.
+
+      Three edges hide in two lines: the odd case comes from `small` (it holds the extra
+      element, so `large` may even be empty), `small`'s top must be negated back, and the even
+      case needs true division, because `(-1 + -2) // 2` is `-2`, not `-1.5`.
+    function:
+      name: medianFromHeaps
+      params: [{name: small}, {name: large}]
+      compare: float
+    starter_code: |
+      class Solution:
+          def medianFromHeaps(self, small: List[int], large: List[int]) -> float:
+              pass
+    tests:
+      - {args: [[-2, -1], [3]], expected: 2.0, note: "values 1, 2 | 3: odd, answer is small's top"}
+      - {args: [[-1], [2]], expected: 1.5}
+      - {args: [[-5], []], expected: 5.0, note: "a single number: large is empty"}
+      - {args: [[2], [-1]], expected: -1.5, note: "values -2 | -1: floor division would give -2"}
+      - {args: [[3, 4], [-2]], expected: -3.0, note: "values -4, -3 | -2"}
+    solution: |
+      class Solution:
+          def medianFromHeaps(self, small: List[int], large: List[int]) -> float:
+              if len(small) > len(large):
+                  return float(-small[0])  # odd count: the extra element is small's top
+              return (-small[0] + large[0]) / 2  # even count: true division
+    hint: "Compare the sizes first; never touch `large[0]` when the count is odd."
+
+hints:
+  - >-
+    The median only depends on the values right at the middle. If you kept the lower half and
+    the upper half separately, which single value of each half would you need to look at?
+  - >-
+    Keep a max-heap `small` (lower half, negated) and a min-heap `large` (upper half). On
+    every add, push into small, move small's top to large, and if large got bigger than
+    small, move large's top back. Then small has the same size as large or one more.
+  - |
+    init: small = empty max-heap, large = empty min-heap
+    addNum(num):
+        push num into small
+        move the top of small into large      (keeps every small <= every large)
+        if size(large) > size(small):
+            move the top of large into small  (keeps sizes equal or small + 1)
+    findMedian():
+        if size(small) > size(large): return top of small
+        return (top of small + top of large) / 2
+
+solution:
+  code: |
+    class MedianFinder:
+
+        def __init__(self):
+            self.small = []  # lower half as a max-heap (values negated)
+            self.large = []  # upper half as a min-heap
+
+        def addNum(self, num: int) -> None:
+            # Route through small, so the largest of the lower half is what moves up:
+            # every value in small stays <= every value in large.
+            heapq.heappush(self.small, -num)
+            heapq.heappush(self.large, -heapq.heappop(self.small))
+            # Sizes: small may hold at most one extra element, never fewer than large.
+            if len(self.large) > len(self.small):
+                heapq.heappush(self.small, -heapq.heappop(self.large))
+
+        def findMedian(self) -> float:
+            if len(self.small) > len(self.large):
+                return float(-self.small[0])
+            return (-self.small[0] + self.large[0]) / 2
+  explanation: |
+    **The invariant.** Two facts are true after every `addNum`:
+
+    1. **Order:** every value in `small` ≤ every value in `large`.
+    2. **Size:** `len(small) - len(large)` is 0 or 1.
+
+    Together they mean `small` is exactly the lower ⌈N/2⌉ numbers and `large` the upper
+    ⌊N/2⌋. So for an odd count the median is the largest value in `small` (`-small[0]`), and
+    for an even count it is the average of `small`'s largest and `large`'s smallest.
+
+    **Why push into small and then move its top.** Pushing `num` into `small` and moving
+    `small`'s maximum into `large` means whatever crosses over is the biggest value of the
+    lower half, so it can't break the order invariant, no matter where `num` belongs. This
+    avoids the "compare num with small's top, but what if small is empty?" branching. After
+    that step `large` has gained one element, so if it is now bigger than `small`, its minimum
+    moves back, and both invariants hold again.
+
+    **Edge details.** `small` stores negated values, so read it as `-small[0]`. The odd case
+    comes from `small`, which is why `large` can be empty after the first number without any
+    special case. Use `/ 2`, never `// 2`: with negatives, floor division rounds `-1.5` down
+    to `-2`. An equally valid convention lets `large` hold the extra element; what matters is
+    picking one and making `findMedian` agree with it.
+  time: O(log N) per addNum — at most three heap pushes/pops; O(1) per findMedian — just the two tops
+  space: O(N) — every number is stored in exactly one of the two heaps
+  brute_force_code: |
+    class MedianFinder:
+
+        def __init__(self):
+            self.nums = []
+
+        def addNum(self, num: int) -> None:
+            self.nums.append(num)
+
+        def findMedian(self) -> float:
+            s = sorted(self.nums)  # re-sorts the whole stream on every query
+            mid = len(s) // 2
+            if len(s) % 2:
+                return float(s[mid])
+            return (s[mid - 1] + s[mid]) / 2
+
+pitch_script: |
+  **(Clarify)** "So numbers arrive one at a time, findMedian can be called any time after at
+  least one number, and for an even count I return the average of the two middle values as a
+  float. Calls can be interleaved in any order, up to 5 × 10⁴ in total?"
+
+  **(Brute force)** "The simplest version stores everything and sorts on every findMedian:
+  O(N log N) per query. Keeping a sorted list with binary insertion makes the query O(1), but
+  each insert still shifts up to N elements, so it's O(N) per add and O(N²) overall."
+
+  **(Trigger)** "Median of a stream is the two-heaps pattern. The median only depends on the
+  largest value of the lower half and the smallest value of the upper half, so I keep the
+  lower half in a max-heap and the upper half in a min-heap."
+
+  **(Optimal)** "I'll keep two invariants: everything in the lower heap is at most everything
+  in the upper heap, and the lower heap has the same size or one more. To add, I push into
+  the lower heap, which in Python is a min-heap of negated values, move its top to the upper
+  heap, and if the upper heap became bigger I move its top back. Then the median is the lower
+  heap's top for an odd count, or the average of both tops for an even count."
+
+  **(Complexity)** "addNum is a constant number of heap operations, so O(log N), findMedian is
+  O(1), and space is O(N). If all numbers were in 0 to 100, I'd drop the heaps and use a
+  101-slot count array instead."
+
+twist:
+  lc: 480
+  title: Sliding Window Median
+  why: >-
+    Now the median is over the last k numbers only, so numbers must also **leave**. Heaps
+    can't delete from the middle, so you keep the same two heaps plus a "to delete" counter
+    (lazy deletion): mark the outgoing number, adjust a balance count for whichever half it
+    belonged to, and only pop it for real when it surfaces at a heap's top. The invariants are
+    the same; you just measure sizes by valid elements instead of len().
+
+viz:
+  heaps: [self.small, self.large]
+  watch: [num]

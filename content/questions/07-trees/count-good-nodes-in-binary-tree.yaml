@@ -1,0 +1,352 @@
+slug: count-good-nodes-in-binary-tree
+lc: 1448
+
+concept:
+  problem_it_solves: >-
+    "Does this node beat everything above it?" A child can't look up at its ancestors; a
+    TreeNode only points down. So whatever a node needs to know about the path above it has to
+    be handed to it by its parent. This problem is the cleanest example of passing state DOWN
+    the recursion (the largest value seen on the path so far) while still returning an answer
+    UP (how many good nodes are in this subtree).
+  brute_force: >-
+    For every node, rebuild its root-to-node path and check whether any value on it is larger.
+    The natural way is a DFS that carries the whole path as a list and calls max(path) at each
+    node. Every node re-scans all of its ancestors, even though its parent already knew the
+    maximum of that exact path minus one element.
+  brute_force_complexity: >-
+    O(N · H) time, O(H) space for the path — on a 10⁵-node chain that's about 5 × 10⁹
+    comparisons.
+  key_insight: >-
+    The only fact a node needs about its ancestors is one number: the maximum value on the path
+    from the root to its parent. So pass that number down as an argument. The node is good if
+    node.val >= max_so_far, and its children receive max(max_so_far, node.val). Each call then
+    returns its own count (1 or 0) plus the counts returned by its two children, so the answer
+    flows back up to the root. Two directions in one recursion: context goes down, results come
+    up.
+  real_world: >-
+    Hierarchical permissions inherit context downward. Opening /a/b/c on Linux needs execute
+    permission on every directory above it, so the kernel carries "still allowed?" down the
+    path instead of re-checking ancestors for each file, and Google Drive applies a folder's
+    sharing to everything beneath it. CSS is the same shape: inherited styles flow from parent
+    to child as the browser walks the DOM tree.
+
+statement:
+  clean: |
+    Given the `root` of a binary tree, a node `X` in the tree is named **good** if in the
+    **path from root** to `X` there are **no nodes with a value greater than** `X`.
+
+    Return the number of good nodes in the binary tree. The root is always good, and a node
+    whose value equals the largest value above it is still good.
+  oa_story: |
+    **GullyGrid Mobility — OA Round 1**
+
+    GullyGrid plans cycle-delivery routes through the hilly lanes of Bengaluru's older
+    neighbourhoods. Every route network starts at a dark store and branches out: from each
+    junction a rider can take at most two onward lanes, and lanes never reconnect, so there is
+    exactly one way to reach any junction from the store. Every junction is tagged with its
+    elevation in metres.
+
+    A junction is a "clear-sky" junction if, on the ride from the store to it, no junction
+    passed earlier was higher than it, so the rider has an unblocked view back to the store.
+    The store itself always counts, and a junction exactly as high as the highest one before
+    it still counts. The ops team wants the number of clear-sky junctions in a network.
+    Networks can have up to 100,000 junctions, and elevations are given relative to a
+    reference point, so they can be negative.
+  trigger_keywords: ["good", "path from root", "no nodes with a value greater than"]
+  examples:
+    - input: "root = [3,1,4,3,null,1,5]"
+      output: "4"
+      explanation: "Good nodes: root 3, 4 (path 3→4), 5 (path 3→4→5) and the lower 3 (path 3→1→3: equal to the max, still good)."
+    - input: "root = [3,3,null,4,2]"
+      output: "3"
+      explanation: "2 is not good because the 3s above it are greater. The other three nodes are good."
+    - input: "root = [1]"
+      output: "1"
+      explanation: "The root is always good."
+  constraints:
+    - "The number of nodes in the binary tree is in the range [1, 10^5]"
+    - "Each node's value is between [-10^4, 10^4]"
+
+constraint_quiz:
+  prompt: >-
+    The tree has up to 10⁵ nodes and may be a single long chain. What time complexity should
+    you aim for?
+  options:
+    - "O(N · H) — check each node's full path"
+    - "O(N log N) — sort the values first"
+    - "O(N) — visit each node once, carrying one number"
+    - "O(H) — walk the longest path only"
+  answer: 2
+  explanation: >-
+    Re-scanning each node's path is O(N · H), which is about N²/2 ≈ 5 × 10⁹ steps on a chain. Sorting
+    destroys the root-to-node structure that defines "good". Looking at one path is not enough,
+    because every node has to be classified. Carrying the running maximum down means each node
+    does O(1) work: O(N) total.
+
+pattern_quiz:
+  prompt: >-
+    Whether a node counts depends on the values of all its ancestors, and nodes only have
+    pointers to their children. Which pattern fits?
+  options:
+    - "Level-order BFS comparing each node with the previous level's maximum"
+    - "DFS that passes the maximum on the path so far down as an argument"
+    - "Post-order DFS that returns each subtree's maximum to the parent"
+    - "In-order traversal with a running maximum"
+  answer: 1
+  explanation: >-
+    "Path from root to X" means the information lives above the node, so it has to be passed
+    down. A level's maximum mixes in values from other branches that aren't on X's path.
+    Returning subtree maxima goes the wrong direction: they describe what is below, not above.
+    In-order visits left-subtree nodes before their ancestors, so its running maximum includes
+    non-ancestors.
+
+function:
+  name: goodNodes
+  params: [{name: root, type: TreeNode}]
+
+starter_code: |
+  # Definition for a binary tree node.
+  # class TreeNode:
+  #     def __init__(self, val=0, left=None, right=None):
+  #         self.val = val
+  #         self.left = left
+  #         self.right = right
+  class Solution:
+      def goodNodes(self, root: TreeNode) -> int:
+          pass
+
+tests:
+  - {args: [[3, 1, 4, 3, null, 1, 5]], expected: 4}
+  - {args: [[3, 3, null, 4, 2]], expected: 3}
+  - {args: [[1]], expected: 1, note: "single node: the root is always good"}
+  - {args: [[2, null, 4, 10, 8, null, null, 4]], expected: 4, note: "10 is a sibling of 8, not an ancestor: 8 is still good"}
+  - {args: [[5, 5, 5, 5]], expected: 4, note: "all equal: equal to the max counts as good"}
+  - {args: [[5, 4, null, 3]], expected: 1, note: "strictly decreasing chain: only the root"}
+  - {args: [[-1, -2, -3, -1, -4]], expected: 2, note: "negatives: a max that starts at 0 would count nothing"}
+  - {args: [[1, null, 2, null, 3, null, 4]], expected: 4, note: "strictly increasing chain: every node is good"}
+visualize_test: 0
+
+drills:
+  - title: Pass a number down
+    skill: setup
+    goal: Give the DFS helper an extra parameter that the parent computes for each child.
+    instructions: |
+      Return the **depth** of every node in pre-order (node, then left subtree, then right
+      subtree). The root has depth 0.
+
+      A node can't compute its own depth by looking up, since it has no parent pointer. Its
+      parent has to hand it over: `dfs(child, depth + 1)`. That's the "pass state down" shape
+      in its simplest form. In Good Nodes the extra parameter is the path maximum instead of
+      the depth.
+    function:
+      name: depthList
+      params: [{name: root, type: TreeNode}]
+    starter_code: |
+      class Solution:
+          def depthList(self, root: Optional[TreeNode]) -> List[int]:
+              pass
+    tests:
+      - {args: [[3, 1, 4, 3, null, 1, 5]], expected: [0, 1, 2, 1, 2, 2]}
+      - {args: [[1, null, 2, null, 3]], expected: [0, 1, 2]}
+      - {args: [[7]], expected: [0]}
+      - {args: [[]], expected: []}
+    solution: |
+      class Solution:
+          def depthList(self, root: Optional[TreeNode]) -> List[int]:
+              out = []
+
+              def dfs(node, depth):
+                  if not node:
+                      return
+                  out.append(depth)
+                  dfs(node.left, depth + 1)
+                  dfs(node.right, depth + 1)
+
+              dfs(root, 0)
+              return out
+    hint: "The child's value is computed from the parent's: `depth + 1` in each recursive call."
+
+  - title: Carry the path maximum
+    skill: core
+    goal: Update the running maximum with the current node before passing it to the children.
+    instructions: |
+      Return, in pre-order, the **largest value on the path from the root to each node**
+      (the node itself included).
+
+      This is the state transition of Good Nodes. Each child gets
+      `max(max_so_far, node.val)`, the maximum of its parent's path plus the parent itself.
+      Siblings get the same value and never see each other's numbers, because each call has
+      its own copy of the argument. That is why a big value in one branch can't spoil a
+      different branch.
+    function:
+      name: pathMaxes
+      params: [{name: root, type: TreeNode}]
+    starter_code: |
+      class Solution:
+          def pathMaxes(self, root: Optional[TreeNode]) -> List[int]:
+              pass
+    tests:
+      - {args: [[3, 1, 4, 3, null, 1, 5]], expected: [3, 3, 3, 4, 4, 5]}
+      - {args: [[2, null, 4, 10, 8, null, null, 4]], expected: [2, 4, 10, 8, 8], note: "8's path is 2→4→8; the 10 is in another branch"}
+      - {args: [[-3, -5, -1]], expected: [-3, -3, -1], note: negatives}
+      - {args: [[]], expected: []}
+    solution: |
+      class Solution:
+          def pathMaxes(self, root: Optional[TreeNode]) -> List[int]:
+              out = []
+
+              def dfs(node, max_so_far):
+                  if not node:
+                      return
+                  max_so_far = max(max_so_far, node.val)
+                  out.append(max_so_far)
+                  dfs(node.left, max_so_far)
+                  dfs(node.right, max_so_far)
+
+              dfs(root, float('-inf'))
+              return out
+    hint: "Start the maximum at `float('-inf')`, so the root's own value always wins."
+
+  - title: Ties count, and negatives need a real starting value
+    skill: edge
+    goal: Choose the comparison (>=) and the initial maximum so ties and all-negative trees are counted correctly.
+    instructions: |
+      Return the **values of the good nodes** in pre-order.
+
+      Two decisions make or break the full solution. The comparison is `node.val >= max_so_far`,
+      because "no node with a value **greater** than X" lets an equal value pass. And the
+      starting maximum must not be `0`: in a tree like `[-1, -2, -3, -1, -4]` every value is
+      negative and a start of 0 marks nothing as good. Start with `root.val` or `float('-inf')`.
+    function:
+      name: goodValues
+      params: [{name: root, type: TreeNode}]
+    starter_code: |
+      class Solution:
+          def goodValues(self, root: TreeNode) -> List[int]:
+              pass
+    tests:
+      - {args: [[-1, -2, -3, -1, -4]], expected: [-1, -1], note: all negative}
+      - {args: [[5, 5, 5, 5]], expected: [5, 5, 5, 5], note: ties are good}
+      - {args: [[3, 1, 4, 3, null, 1, 5]], expected: [3, 3, 4, 5]}
+      - {args: [[0, -1]], expected: [0]}
+    solution: |
+      class Solution:
+          def goodValues(self, root: TreeNode) -> List[int]:
+              good = []
+
+              def dfs(node, max_so_far):
+                  if not node:
+                      return
+                  if node.val >= max_so_far:
+                      good.append(node.val)
+                  dfs(node.left, max(max_so_far, node.val))
+                  dfs(node.right, max(max_so_far, node.val))
+
+              dfs(root, root.val)
+              return good
+    hint: "Starting with `root.val` makes the root good automatically (it equals itself)."
+
+hints:
+  - >-
+    A node only knows its children. To decide whether it is good it needs to know something
+    about the nodes above it. What is the smallest piece of information about the path above
+    that settles the question?
+  - >-
+    Pass max_so_far, the largest value on the path to the parent, down as an argument. The
+    node is good if node.val >= max_so_far. Give both children max(max_so_far, node.val), and
+    return this node's 0 or 1 plus whatever the two children return.
+  - |
+    dfs(node, max_so_far):
+        if node is empty: return 0
+        good = 1 when node.val >= max_so_far, otherwise 0
+        new_max = larger of max_so_far and node.val
+        return good + dfs(node.left, new_max) + dfs(node.right, new_max)
+    answer = dfs(root, root.val)
+
+solution:
+  code: |
+    class Solution:
+        def goodNodes(self, root: TreeNode) -> int:
+            def dfs(node, max_so_far):
+                if not node:
+                    return 0
+                good = 1 if node.val >= max_so_far else 0  # nothing above is greater
+                new_max = max(max_so_far, node.val)  # what the children will see above them
+                return good + dfs(node.left, new_max) + dfs(node.right, new_max)
+
+            return dfs(root, root.val)
+  explanation: |
+    Answer the world's question, "what does each call return to its parent?", and then add a
+    second one: **"what does each call need from its parent?"**
+
+    - **Down:** `max_so_far` is the largest value on the path from the root to this node's
+      parent. The parent computes it and passes it as an argument, because the child has no
+      way to look up.
+    - **Up:** each call returns the number of good nodes in its subtree, which is its own 0 or
+      1 plus the two counts its children return.
+
+    Why one number is enough: "no ancestor is greater than X" is the same as "the maximum of
+    the ancestors is not greater than X". And because the maximum is an argument, each branch
+    has its own copy. In `[2,null,4,10,8,null,null,4]` the 10 never reaches node 8, since 10 is
+    a sibling, not an ancestor.
+
+    Edge cases: use `>=`, since equal values are good. Start with `root.val` (or `-inf`), never
+    `0`, because values can be negative. With up to 10⁵ nodes a chain-shaped tree recurses 10⁵
+    deep; in an interview mention that an explicit stack of `(node, max_so_far)` pairs avoids
+    Python's recursion limit with the same logic.
+  time: O(N) — each node is visited once and does O(1) work
+  space: O(H) — the recursion stack, O(log N) for a balanced tree and O(N) for a chain
+  brute_force_code: |
+    class Solution:
+        def goodNodes(self, root: TreeNode) -> int:
+            count = 0
+
+            def dfs(node, path):  # carries the whole path and re-scans it at every node
+                nonlocal count
+                if not node:
+                    return
+                if not path or node.val >= max(path):
+                    count += 1
+                path.append(node.val)
+                dfs(node.left, path)
+                dfs(node.right, path)
+                path.pop()
+
+            dfs(root, [])
+            return count
+
+pitch_script: |
+  **(Clarify)** "A node is good if nothing on the path from the root down to it is strictly
+  greater, so ties are fine and the root always counts. Values can be negative, and the tree
+  can have up to 10⁵ nodes."
+
+  **(Brute force)** "I could carry the full path in a list and, at each node, take the max of
+  that list. That's correct, but each node rescans its ancestors, so it's O(N times H), which
+  is O(N²) on a skewed tree."
+
+  **(Trigger)** "The condition is about the path from the root, which is information above the
+  node. Nodes only point down, so the parent has to pass that information down. And I don't
+  need the whole path, only its maximum."
+
+  **(Optimal)** "I write dfs(node, max_so_far). If node.val is at least max_so_far, it's good
+  and counts as 1. Then I call both children with max of max_so_far and node.val, and return
+  my count plus theirs. I start with the root's own value, which also handles all-negative
+  trees, where starting at zero would be wrong."
+
+  **(Complexity)** "Every node is visited once with constant work, so O(N) time, and O(H) for
+  the recursion stack. If the tree could be very deep I'd switch to an explicit stack of node
+  and max pairs to avoid the recursion limit."
+
+twist:
+  lc: 1026
+  title: Maximum Difference Between Node and Ancestor
+  why: >-
+    Now you need the largest |ancestor − descendant| over the whole tree. The biggest
+    difference for any node comes from the largest or the smallest value above it, so pass two
+    numbers down instead of one: the path's minimum and maximum, each updated with node.val.
+    When you fall off the tree (node is None), the path is complete and max − min is that
+    path's best difference: return it, and let each call return the larger of its two
+    children's answers. Same "state goes down" template, one more piece of state.
+
+viz:
+  watch: [max_so_far, good, new_max]

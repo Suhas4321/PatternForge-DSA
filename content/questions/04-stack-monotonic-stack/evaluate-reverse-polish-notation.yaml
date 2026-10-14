@@ -1,0 +1,346 @@
+slug: evaluate-reverse-polish-notation
+lc: 150
+
+concept:
+  problem_it_solves: >-
+    "Which operands does this operator apply to?" In postfix notation the answer is always
+    "the two most recent values that haven't been used yet", and those values may themselves
+    be results of earlier operators. A stack holds exactly those pending values, newest on
+    top, so every operator is O(1).
+  brute_force: >-
+    Find the first operator in the list, combine the two numbers right before it, splice the
+    result back into the list, and repeat until one number is left. Every round rescans the
+    list from the start and shifts the tail to close the gap, so the same tokens are read
+    and moved over and over.
+  brute_force_complexity: O(N²) time, O(N) space — 10⁴ tokens means up to ~5 × 10⁷ token reads and shifts.
+  key_insight: >-
+    Postfix order means an operator always comes *after* both of its operands are fully
+    computed. So you never need to look ahead or backtrack: push every number, and when an
+    operator arrives, pop the two newest values, combine them, and push the result back as a
+    single new operand. The first pop is the *right* operand, which matters for - and /.
+  real_world: >-
+    The Java Virtual Machine, Python's bytecode interpreter and WebAssembly are all stack
+    machines: compiled code is essentially postfix, and `BINARY_ADD` pops two values and
+    pushes one. Spreadsheet engines and rule engines convert formulas to postfix once, then
+    evaluate them with a stack every time a cell or input changes.
+
+statement:
+  clean: |
+    You are given an array of strings `tokens` that represents an arithmetic expression in
+    **Reverse Polish Notation**.
+
+    Evaluate the expression. Return an integer that represents the value of the expression.
+
+    Note that:
+
+    - The valid operators are `'+'`, `'-'`, `'*'`, and `'/'`.
+    - Each operand may be an integer or another expression.
+    - The division between two integers always **truncates toward zero**.
+    - There will not be any division by zero.
+    - The input represents a valid arithmetic expression in a reverse polish notation.
+    - The answer and all the intermediate calculations can be represented in a **32-bit
+      integer**.
+  oa_story: |
+    **SafarStay Hotels — OA Round 1**
+
+    SafarStay's revenue team in Bellandur writes nightly pricing rules in a drag-and-drop
+    rules builder ("base rate, add weekend surcharge, multiply by nights, subtract coupon…").
+    To keep the booking service fast, the builder compiles every rule into a flat list of
+    tokens in which each operator is written *after* the two values it combines. For example
+    `["2", "1", "+", "3", "*"]` means (2 + 1) × 3.
+
+    Given one compiled rule as a list of string tokens (integers, or one of `+`, `-`, `*`,
+    `/`), return the integer price it evaluates to. Division keeps only the integer part, so
+    -7 / 2 is -3, not -4. Rules are always well-formed, never divide by zero, and every
+    intermediate value fits in a 32-bit integer. A compiled rule can be up to 10,000 tokens
+    long.
+  trigger_keywords: ["Reverse Polish Notation", "truncates toward zero"]
+  examples:
+    - input: "tokens = [\"2\",\"1\",\"+\",\"3\",\"*\"]"
+      output: "9"
+      explanation: "((2 + 1) * 3) = 9"
+    - input: "tokens = [\"4\",\"13\",\"5\",\"/\",\"+\"]"
+      output: "6"
+      explanation: "(4 + (13 / 5)) = 4 + 2 = 6"
+    - input: "tokens = [\"10\",\"6\",\"9\",\"3\",\"+\",\"-11\",\"*\",\"/\",\"*\",\"17\",\"+\",\"5\",\"+\"]"
+      output: "22"
+      explanation: "9 + 3 = 12; 12 * -11 = -132; 6 / -132 truncates to 0; 10 * 0 = 0; 0 + 17 + 5 = 22."
+  constraints:
+    - "1 <= tokens.length <= 10^4"
+    - "tokens[i] is either an operator: '+', '-', '*', or '/', or an integer in the range [-200, 200]"
+
+constraint_quiz:
+  prompt: With up to 10⁴ tokens, what time complexity should you aim for?
+  options: ["O(N²)", "O(N log N)", "O(N)", "O(log N)"]
+  answer: 2
+  explanation: >-
+    O(N²) (repeatedly finding an operator and splicing the list) is ~5 × 10⁷ operations: slow
+    and clumsy, and not what an interviewer wants. O(N log N) would need sorting, but the
+    token order *is* the expression, so sorting makes no sense. O(log N) can't even read
+    every token. One pass with a stack does O(1) work per token: O(N).
+
+pattern_quiz:
+  prompt: >-
+    Each operator applies to the two most recent values that haven't been consumed yet,
+    and its result becomes a new value. Which pattern fits?
+  options:
+    - "Queue of operands (first in, first out)"
+    - "Operand stack: push numbers; on an operator pop two, push the result"
+    - "Two pointers from both ends of the token list"
+    - "Recursion that splits the list at the middle operator"
+  answer: 1
+  explanation: >-
+    "Evaluate expression" in postfix form is the operand-stack trigger: the most recent
+    values are consumed first (LIFO), and results are pushed back as new operands. A queue
+    would grab the *oldest* values, which is wrong for "3 4 5 * -". Two pointers have no
+    meaning here, and there is no "middle operator" to split on in postfix; the last token
+    is the root, and finding its operands' boundaries is exactly what the stack does for you.
+
+function:
+  name: evalRPN
+  params: [{name: tokens}]
+
+starter_code: |
+  class Solution:
+      def evalRPN(self, tokens: List[str]) -> int:
+          pass
+
+tests:
+  - {args: [["2", "1", "+", "3", "*"]], expected: 9}
+  - {args: [["4", "13", "5", "/", "+"]], expected: 6}
+  - {args: [["10", "6", "9", "3", "+", "-11", "*", "/", "*", "17", "+", "5", "+"]], expected: 22}
+  - {args: [["42"]], expected: 42, note: "a single number: no operators at all"}
+  - {args: [["3", "5", "-"]], expected: -2, note: "operand order: 3 - 5, not 5 - 3"}
+  - {args: [["7", "-3", "/"]], expected: -2, note: "truncate toward zero: floor division would give -3"}
+  - {args: [["-7", "2", "/"]], expected: -3, note: "negative token and truncation: floor would give -4"}
+  - {args: [["2", "3", "4", "*", "-"]], expected: -10, note: "operands pile up: 2 - (3 * 4)"}
+  - {args: [["-1", "-1", "-"]], expected: 0, note: "'-1' is a number, '-' is an operator"}
+visualize_test: 1
+
+drills:
+  - title: Push numbers, fold on operators
+    skill: setup
+    goal: Write the operand-stack loop that parses number tokens and combines the top two on an operator.
+    instructions: |
+      Evaluate a postfix expression that only uses `"+"` and `"*"`. Number tokens can be
+      negative, like `"-4"`.
+
+      Because + and * don't care about operand order, you can focus purely on the loop
+      shape: a number token becomes `int(token)` and gets pushed; an operator pops two values
+      and pushes one result. Check for the operator tokens first and treat everything else
+      as a number: `token.isdigit()` is `False` for `"-4"`, so it's the wrong test.
+    function:
+      name: evalAddMul
+      params: [{name: tokens}]
+    starter_code: |
+      class Solution:
+          def evalAddMul(self, tokens: List[str]) -> int:
+              pass
+    tests:
+      - {args: [["2", "1", "+", "3", "*"]], expected: 9}
+      - {args: [["5"]], expected: 5}
+      - {args: [["-4", "3", "*"]], expected: -12, note: negative number token}
+      - {args: [["1", "2", "3", "4", "+", "+", "+"]], expected: 10, note: four operands wait on the stack}
+      - {args: [["2", "3", "*", "4", "5", "*", "+"]], expected: 26}
+    solution: |
+      class Solution:
+          def evalAddMul(self, tokens: List[str]) -> int:
+              stack = []
+              for token in tokens:
+                  if token == "+":
+                      stack.append(stack.pop() + stack.pop())
+                  elif token == "*":
+                      stack.append(stack.pop() * stack.pop())
+                  else:
+                      stack.append(int(token))
+              return stack[-1]
+    hint: "Compare against the operator strings first; anything else goes through `int(token)`."
+
+  - title: The first pop is the right operand
+    skill: core
+    goal: Pop b before a, so a - b and a / b use the operands in the order they were written.
+    instructions: |
+      Evaluate a postfix expression with `"+"`, `"-"` and `"*"`, and return a list of
+      strings describing each operation in the order it happens, formatted
+      `"{a}{op}{b}={result}"` (for example `"3-5=-2"`).
+
+      This forces the ordering decision that breaks most first attempts. The stack gives you
+      the **newest** value first, and the newest value is the **right** operand: in
+      `["3", "5", "-"]`, the first pop is 5. Write `b = pop()` then `a = pop()` and compute
+      `a - b`.
+    function:
+      name: traceSteps
+      params: [{name: tokens}]
+    starter_code: |
+      class Solution:
+          def traceSteps(self, tokens: List[str]) -> List[str]:
+              pass
+    tests:
+      - {args: [["3", "5", "-"]], expected: ["3-5=-2"], note: not 5-3}
+      - {args: [["2", "1", "+", "3", "*"]], expected: ["2+1=3", "3*3=9"]}
+      - {args: [["2", "3", "4", "*", "-"]], expected: ["3*4=12", "2-12=-10"]}
+      - {args: [["-2", "3", "-"]], expected: ["-2-3=-5"]}
+      - {args: [["7"]], expected: [], note: no operators means no steps}
+    solution: |
+      class Solution:
+          def traceSteps(self, tokens: List[str]) -> List[str]:
+              stack, steps = [], []
+              for token in tokens:
+                  if token in ("+", "-", "*"):
+                      b = stack.pop()  # newest value = right operand
+                      a = stack.pop()
+                      result = a + b if token == "+" else a - b if token == "-" else a * b
+                      steps.append(f"{a}{token}{b}={result}")
+                      stack.append(result)
+                  else:
+                      stack.append(int(token))
+              return steps
+    hint: "`b = stack.pop()` comes first, then `a = stack.pop()`."
+
+  - title: Truncate toward zero, not down
+    skill: edge
+    goal: Implement integer division that truncates toward zero, which Python's // does not do for negatives.
+    instructions: |
+      Return `a / b` truncated toward zero. `b` is never 0.
+
+      Python's `//` **floors**: `-7 // 2` is `-4`, but the problem wants `-3`. The two agree
+      only when the signs match. Divide the absolute values (where floor and truncation are
+      the same), then put the sign back if exactly one of `a` and `b` is negative. In the
+      full solution, `int(a / b)` does the same job: with 32-bit values the float quotient is
+      precise enough that truncating it gives the exact answer.
+    function:
+      name: truncDiv
+      params: [{name: a}, {name: b}]
+    starter_code: |
+      class Solution:
+          def truncDiv(self, a: int, b: int) -> int:
+              pass
+    tests:
+      - {args: [7, -3], expected: -2}
+      - {args: [-7, 2], expected: -3, note: "-7 // 2 would give -4"}
+      - {args: [13, 5], expected: 2}
+      - {args: [-8, -3], expected: 2, note: same signs give a positive result}
+      - {args: [0, 5], expected: 0}
+      - {args: [6, -3], expected: -2, note: exact division}
+    solution: |
+      class Solution:
+          def truncDiv(self, a: int, b: int) -> int:
+              q = abs(a) // abs(b)
+              return -q if (a < 0) != (b < 0) else q
+    hint: "Work with `abs(a) // abs(b)`, then decide the sign separately."
+
+hints:
+  - >-
+    When you reach an operator, which two values does it combine? Are they always the most
+    recent values that haven't been used yet, even if they were results of earlier
+    operators?
+  - >-
+    Push every number. On an operator, pop the right operand first, then the left, compute
+    left op right (truncating division toward zero), and push the result. At the end exactly
+    one value remains: that's the answer.
+  - |
+    stack = empty
+    for each token:
+        if token is an operator:
+            b = pop   (right operand)
+            a = pop   (left operand)
+            push  a op b   (for '/': truncate toward zero)
+        else:
+            push integer(token)
+    return the only value on the stack
+
+solution:
+  code: |
+    class Solution:
+        def evalRPN(self, tokens: List[str]) -> int:
+            stack = []  # operands waiting for an operator; newest on top
+            for i, token in enumerate(tokens):
+                if token in ("+", "-", "*", "/"):
+                    b = stack.pop()  # the newest value is the RIGHT operand
+                    a = stack.pop()
+                    if token == "+":
+                        stack.append(a + b)
+                    elif token == "-":
+                        stack.append(a - b)
+                    elif token == "*":
+                        stack.append(a * b)
+                    else:
+                        stack.append(int(a / b))  # truncate toward zero, unlike //
+                else:
+                    stack.append(int(token))  # handles negatives like "-11"
+            return stack[0]
+  explanation: |
+    In postfix, an operator comes after both of its operands are completely evaluated, so at
+    that moment they are exactly the two newest values on the stack. Pop them, combine, and
+    push the result: to everything that follows, a finished sub-expression looks just like a
+    plain number.
+
+    Three details decide correctness. **Operand order:** the first pop is the right operand,
+    so `["3", "5", "-"]` is `3 - 5 = -2`. **Division:** Python's `//` floors (`-7 // 2 == -4`),
+    but the problem truncates toward zero, so use `int(a / b)` (`-3`); with every value inside
+    32 bits the float quotient is accurate enough for this to be exact. **Parsing:** check
+    for the four operator strings and treat everything else as a number, because `"-11"`
+    starts with `-` but is an operand, and `str.isdigit()` rejects it.
+
+    The input is guaranteed valid, so the stack never underflows and exactly one value is
+    left at the end.
+  time: O(N) — each token is pushed at most once and popped at most once, with O(1) work per token
+  space: O(N) — the stack holds up to about N/2 operands (e.g. all numbers first, then all operators)
+  brute_force_code: |
+    class Solution:
+        def evalRPN(self, tokens: List[str]) -> int:
+            tokens = list(tokens)
+            while len(tokens) > 1:
+                for i, t in enumerate(tokens):
+                    if t in ("+", "-", "*", "/"):
+                        a, b = int(tokens[i - 2]), int(tokens[i - 1])
+                        if t == "+":
+                            r = a + b
+                        elif t == "-":
+                            r = a - b
+                        elif t == "*":
+                            r = a * b
+                        else:
+                            r = int(a / b)
+                        tokens[i - 2:i + 1] = [str(r)]  # splice: shifts the whole tail
+                        break
+            return int(tokens[0])
+
+pitch_script: |
+  **(Clarify)** "So the tokens are strings, either an integer, possibly negative, or one of the
+  four operators. The expression is always valid, there's no division by zero, and division
+  truncates toward zero. So minus seven over two is minus three, right?"
+
+  **(Brute force)** "One naive way is to find the first operator, combine the two numbers
+  right before it, splice the result back into the list, and repeat. Each round rescans and
+  shifts the list, so that's O(N²)."
+
+  **(Trigger)** "Postfix evaluation is the classic stack signal: an operator always applies to
+  the two most recent unused values, which is last-in first-out, and its result becomes a
+  new value for later operators."
+
+  **(Optimal)** "I scan once. Numbers get converted with int and pushed. For an operator I pop
+  the right operand first, then the left, compute left op right, and push the result. The
+  two traps are operand order for minus and divide, and using int of a over b instead of
+  floor division, so negatives truncate toward zero. At the end the single value on the
+  stack is the answer."
+
+  **(Complexity)** "Each token is pushed and popped at most once, so O(N) time, and O(N) space
+  for the stack in the worst case."
+
+twist:
+  lc: 227
+  title: Basic Calculator II
+  why: >-
+    Now the expression is written normally (infix, like "3+2*2"), so operator precedence
+    matters and the operator arrives *before* its right operand. The stack still holds
+    pending values: when you finish reading a number, look at the operator before it.
+    Push it for +, push its negative for -, and for * or / pop the top, combine it with the
+    number right away, and push the result. Summing the stack at the end applies the
+    low-precedence + and - last.
+
+viz:
+  arrays: [tokens]
+  pointers: [i]
+  stacks: [stack]
+  watch: [token, a, b]

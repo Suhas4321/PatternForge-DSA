@@ -1,0 +1,345 @@
+slug: partition-equal-subset-sum
+lc: 416
+
+concept:
+  problem_it_solves: >-
+    "Can I pick some of these items, each at most once, so they add up to exactly T?" Two
+    equal halves means each half is total / 2, so the partition question is really a subset
+    sum question. There are 2ᴺ subsets, but only total / 2 + 1 sums that matter, so you track
+    which sums are reachable instead of which subsets produce them.
+  brute_force: >-
+    For each number, decide "put it in the first half" or "leave it for the second", and check
+    whether some choice sequence makes the first half exactly total / 2. Many different
+    subsets of the early numbers reach the same partial sum, and the recursion explores what
+    the remaining numbers can do from that sum all over again for each of them.
+  brute_force_complexity: >-
+    O(2ᴺ) time, O(N) recursion depth — 200 numbers means 2²⁰⁰ subsets.
+  key_insight: >-
+    Odd total → impossible immediately. Otherwise target = total / 2, and the state is just
+    "which sums 0..target can be built from the items seen so far?". Each new item x is a
+    take-or-skip choice: sum s is reachable if it already was (skip x) or s − x was (take x).
+    That's 0/1 knapsack. In a single 1D boolean array, loop s BACKWARDS from target down to x,
+    so dp[s − x] still means "reachable WITHOUT x" when you read it. Going forwards lets x be
+    used twice: with nums [1, 3], a forward sweep marks 1 then 2 = 1 + 1 and wrongly says
+    True.
+  real_world: >-
+    Load balancers and batch schedulers split jobs across two machines so both finish at
+    the same time, which is exactly a balanced partition. The same reachable-sums table
+    powers budget allocation tools ("which line items can exactly use up this grant?"),
+    settlement matching in payments (which invoices add up to this transfer), and the
+    pseudo-polynomial knapsack solvers inside cargo and container loading software.
+
+statement:
+  clean: |
+    Given an integer array `nums`, return `true` if you can
+    **partition the array into two subsets** such that the
+    **sum of the elements in both subsets is equal**, or `false` otherwise.
+  oa_story: |
+    **SplitKaro Expenses — OA Round 1**
+
+    SplitKaro is an expense-sharing app popular with flatmates in Bellandur and Marathahalli.
+    After a big monthly grocery run, two flatmates want to split the bill so that each pays
+    exactly the same amount. The catch: every item on the bill must be paid entirely by one
+    of them. Nobody wants to split a ₹47 packet of masala in half, and no item can be left
+    off the bill.
+
+    Write a function that takes the list of item prices (whole rupees) and returns `true` if
+    the items can be divided between the two flatmates so their totals match exactly, and
+    `false` otherwise. A bill has at most 200 items and every item costs between ₹1 and ₹100.
+  trigger_keywords: ["partition the array into two subsets", "sum of the elements in both subsets is equal"]
+  examples:
+    - input: "nums = [1,5,11,5]"
+      output: "true"
+      explanation: "The array can be partitioned as [1, 5, 5] and [11]."
+    - input: "nums = [1,2,3,5]"
+      output: "false"
+      explanation: "The total is 11, which is odd, so equal halves are impossible."
+  constraints:
+    - "1 <= nums.length <= 200"
+    - "1 <= nums[i] <= 100"
+
+constraint_quiz:
+  prompt: >-
+    There are at most 200 numbers, each at most 100. What complexity should you aim for?
+  options:
+    - "O(2ᴺ) — try every subset"
+    - "O(N · S) with S = total / 2 ≤ 10⁴ — a table of reachable sums"
+    - "O(N log N) — sort and greedily fill the lighter half"
+    - "O(N²) — try every pair of split points"
+  answer: 1
+  explanation: >-
+    2²⁰⁰ subsets is hopeless. Sorting plus "put each number on the lighter side" is fast but
+    wrong: [3, 3, 2, 2, 2] ends 7 vs 5, even though 3 + 3 = 2 + 2 + 2. Split points only
+    make sense for contiguous pieces, but subsets can mix any elements. The small values are
+    the hint: the total is at most 200 × 100 = 20,000, so target ≤ 10,000 and the table costs
+    200 × 10⁴ = 2 × 10⁶ steps. (This is "pseudo-polynomial": fast because the numbers are
+    small, not because N is.)
+
+pattern_quiz:
+  prompt: >-
+    You must choose a subset of the numbers, each used at most once, that sums to exactly half
+    the total. Which pattern fits?
+  options:
+    - "Unbounded knapsack: sweep sums upward so items can be reused"
+    - "0/1 knapsack: boolean dp over sums 0..total/2, sweeping sums downward for each item"
+    - "Greedy: sort descending and add each number to the lighter half"
+    - "Sliding window looking for a contiguous block that sums to total/2"
+  answer: 1
+  explanation: >-
+    "Partition into two subsets with equal sum" is subset sum to total / 2, and "each element
+    used once" makes it 0/1 knapsack. The upward sweep is the unbounded version (Coin Change)
+    and would reuse an element: [1, 3] would wrongly reach 2 as 1 + 1. Greedy fails on
+    [3, 3, 2, 2, 2], and a sliding window only sees contiguous blocks, but subsets don't have
+    to be contiguous.
+
+function:
+  name: canPartition
+  params: [{name: nums}]
+
+starter_code: |
+  class Solution:
+      def canPartition(self, nums: List[int]) -> bool:
+          pass
+
+tests:
+  - {args: [[1, 5, 11, 5]], expected: true}
+  - {args: [[1, 2, 3, 5]], expected: false, note: "odd total: rejected before any dp"}
+  - {args: [[1, 1]], expected: true}
+  - {args: [[2]], expected: false, note: "even total, but one item can't be split in two"}
+  - {args: [[1, 3]], expected: false, note: "target 2: a forward sweep would use the 1 twice"}
+  - {args: [[1, 2, 5]], expected: false, note: "even total 8, but no subset makes 4"}
+  - {args: [[3, 3, 3, 4, 5]], expected: true, note: "9 = 4 + 5 = 3 + 3 + 3"}
+  - {args: [[3, 3, 2, 2, 2]], expected: true, note: "greedy 'add to the lighter side' ends 7 vs 5"}
+  - {args: [[100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 100, 99, 97]], expected: false, note: "target 698 is even but unreachable"}
+visualize_test: 0
+
+drills:
+  - title: Every reachable subset sum
+    skill: setup
+    goal: Grow the set of reachable sums item by item, starting from {0}, with each item taken at most once.
+    instructions: |
+      Return the sorted list of every sum that some subset of `nums` adds up to (the empty
+      subset gives 0).
+
+      Start with `sums = {0}`. For each `x`, every sum you could make before can now also be
+      made with `x` added: the new set is `sums ∪ {s + x for s in sums}`. Build the new sums
+      from a snapshot of the OLD set, so `x` is used at most once. This is exactly what the
+      boolean dp array stores: `dp[s]` is `True` when `s` is in this set. The array version
+      only keeps sums up to the target, which is why it's bounded by `N · target`.
+    function:
+      name: subsetSums
+      params: [{name: nums}]
+    starter_code: |
+      class Solution:
+          def subsetSums(self, nums: List[int]) -> List[int]:
+              pass
+    tests:
+      - {args: [[1, 2, 5]], expected: [0, 1, 2, 3, 5, 6, 7, 8], note: "4 is missing: that's why [1, 2, 5] can't be split"}
+      - {args: [[3, 3]], expected: [0, 3, 6], note: duplicate items}
+      - {args: [[4]], expected: [0, 4]}
+      - {args: [[]], expected: [0], note: "just the empty subset"}
+    solution: |
+      class Solution:
+          def subsetSums(self, nums: List[int]) -> List[int]:
+              sums = {0}
+              for x in nums:
+                  sums = sums | {s + x for s in sums}
+              return sorted(sums)
+    hint: "`sums | {s + x for s in sums}` builds the new sums from the old set only."
+
+  - title: Add one item, sweeping backwards
+    skill: core
+    goal: Apply the 0/1 transition dp[s] = dp[s] or dp[s − x] in place, iterating s from high to low.
+    instructions: |
+      `dp[s]` says whether sum `s` is reachable with the items seen so far. Fold in one new
+      item `x` (usable at most once), in place, and return `dp`.
+
+      Loop `s` from `len(dp) - 1` **down** to `x`. Going down means that when you read
+      `dp[s - x]`, it hasn't been updated for `x` yet, so it still means "reachable without
+      x". Going up, you might read a cell you just set using `x` and use `x` a second time:
+      with `dp = [T, F, F, F]` and `x = 1`, an upward sweep sets `dp[1]`, then `dp[2]` from
+      `dp[1]`, then `dp[3]`, claiming 1 + 1 + 1.
+    function:
+      name: addItemOnce
+      params: [{name: dp}, {name: x}]
+    starter_code: |
+      class Solution:
+          def addItemOnce(self, dp: List[bool], x: int) -> List[bool]:
+              pass
+    tests:
+      - {args: [[true, false, false, false], 1], expected: [true, true, false, false], note: "upward would give all True"}
+      - {args: [[true, true, false, false, false, false], 2], expected: [true, true, true, true, false, false]}
+      - {args: [[true, false, false, false, false, false, false], 3], expected: [true, false, false, true, false, false, false], note: "6 = 3 + 3 must stay False"}
+      - {args: [[true, true, false], 5], expected: [true, true, false], note: "item bigger than every sum: no change"}
+    solution: |
+      class Solution:
+          def addItemOnce(self, dp: List[bool], x: int) -> List[bool]:
+              for s in range(len(dp) - 1, x - 1, -1):
+                  dp[s] = dp[s] or dp[s - x]
+              return dp
+    hint: "`range(len(dp) - 1, x - 1, -1)` walks from the top sum down to `x`."
+
+  - title: Closest split when equal is impossible
+    skill: edge
+    goal: Extract an answer from the reachable-sums table that isn't just the last cell.
+    instructions: |
+      Return the smallest possible difference between the sums of the two subsets when every
+      number goes to exactly one of them.
+
+      Fill the same backwards boolean table, but over sums `0..total // 2` and without the
+      odd-total early exit. Then read the answer out: the best split puts the largest
+      reachable sum `best <= total // 2` on one side, so the other side is `total - best` and
+      the difference is `total - 2 * best`. The table holds far more information than
+      `dp[target]`, and many follow-ups (including Last Stone Weight II) only ask you to read
+      it differently.
+    function:
+      name: minPartitionDiff
+      params: [{name: nums}]
+    starter_code: |
+      class Solution:
+          def minPartitionDiff(self, nums: List[int]) -> int:
+              pass
+    tests:
+      - {args: [[1, 6, 11, 5]], expected: 1, note: "12 vs 11"}
+      - {args: [[1, 5, 11, 5]], expected: 0, note: a perfect split exists}
+      - {args: [[2, 7, 4, 1, 8, 1]], expected: 1}
+      - {args: [[3]], expected: 3, note: "one item: the other side is empty"}
+      - {args: [[1, 2]], expected: 1}
+    solution: |
+      class Solution:
+          def minPartitionDiff(self, nums: List[int]) -> int:
+              total = sum(nums)
+              half = total // 2
+              dp = [True] + [False] * half
+              for x in nums:
+                  for s in range(half, x - 1, -1):
+                      dp[s] = dp[s] or dp[s - x]
+              best = max(s for s in range(half + 1) if dp[s])
+              return total - 2 * best
+    hint: "After filling, scan for the largest `s <= total // 2` with `dp[s]` True."
+
+hints:
+  - >-
+    If the two halves are equal, what must each half add up to? Once you know that number,
+    is this still a "partition" problem, or is it "pick a subset with an exact sum"? And
+    what does an odd total tell you?
+  - >-
+    Let dp[s] mean "some subset of the items seen so far sums to exactly s", for s from 0 to
+    target = total / 2. dp[0] = True. For each item x, dp[s] becomes dp[s] or dp[s − x]: skip
+    x, or take it. Each item may be used once, so think about which direction to sweep s.
+  - |
+    total = sum(nums)
+    if total is odd: return False
+    target = total / 2
+    dp = [False] * (target + 1); dp[0] = True
+    for each x in nums:
+        for s from target DOWN to x:      (down: each item used at most once)
+            dp[s] = dp[s] or dp[s - x]
+    return dp[target]
+
+solution:
+  code: |
+    class Solution:
+        def canPartition(self, nums: List[int]) -> bool:
+            total = sum(nums)
+            if total % 2 == 1:  # two equal integer halves need an even total
+                return False
+            target = total // 2
+            dp = [False] * (target + 1)  # dp[s] = some subset of items so far sums to s
+            dp[0] = True  # the empty subset
+            for x in nums:
+                for s in range(target, x - 1, -1):  # BACKWARDS: dp[s - x] is still "without x"
+                    dp[s] = dp[s] or dp[s - x]  # skip x, or take x
+            return dp[target]
+  explanation: |
+    **Reduce first.** Equal halves of a total means each half is `total / 2`. If the total is
+    odd, return False straight away. Otherwise the question is "does some subset sum to
+    `target = total / 2`?": if one side reaches it, the leftover items automatically make
+    the other half.
+
+    **The 5-step DP recipe**
+
+    1. **Define dp in words.** After processing some items, `dp[s]` = "some subset of those
+       items sums to exactly `s`". (Really `dp[i][s]` over the first `i` items, kept as one
+       row that we overwrite item by item.)
+    2. **Recurrence from the last choice.** For item `x`, the last choice is take or skip:
+       `dp[i][s] = dp[i-1][s] or dp[i-1][s - x]`. Each item is a single object, so it's
+       **0/1 knapsack**, not unbounded.
+    3. **Base case.** `dp[0] = True`: the empty subset sums to 0. Every other sum starts False.
+    4. **Fill order.** Items outer. Sums inner and **backwards**, from `target` down to `x`.
+       This is the subtle part. In the 1D row, `dp[s - x]` must still hold the value from
+       BEFORE this item (the `dp[i-1]` row). Since `s - x < s`, sweeping downward reaches
+       `s` before `s - x` gets overwritten. Sweep upward and `dp[s - x]` may already include
+       `x`, so `x` gets used twice.
+    5. **Answer location.** `dp[target]`.
+
+    **The backwards rule on a tiny example: nums = [1, 3], target 2.** Start `dp = [T, F, F]`.
+    Item 1, sweeping **down**: `s = 2` reads `dp[1]` (still False), `s = 1` reads `dp[0]`
+    (True), giving `[T, T, F]`. Item 3 is bigger than the target and does nothing. Answer
+    False, which is correct. Sweeping **up** with item 1 instead: `s = 1` sets `dp[1]`, then
+    `s = 2` reads that brand-new `dp[1]` and sets `dp[2]`, which means 1 + 1, reusing the
+    single 1. That upward sweep is exactly the Coin Change loop, where reuse is allowed.
+
+    **Stepping stone.** The memoised recursion is `can(i, rem) = can(i + 1, rem - nums[i]) or
+    can(i + 1, rem)` with `can(_, 0) = True`. Its two arguments are the 2D table; the
+    backwards 1D row is the space optimisation.
+
+    **Why not greedy?** Sorting and adding each number to the lighter half fails on
+    `[3, 3, 2, 2, 2]`: it ends 7 vs 5, but `3 + 3 = 2 + 2 + 2`.
+  time: O(N · S) — N items, each sweeping at most S = total / 2 ≤ 10⁴ sums
+  space: O(S) — one boolean per sum from 0 to total / 2
+  brute_force_code: |
+    class Solution:
+        def canPartition(self, nums: List[int]) -> bool:
+            total = sum(nums)
+            if total % 2 == 1:
+                return False
+
+            def can(i, rem):
+                if rem == 0:
+                    return True
+                if i == len(nums) or rem < 0:
+                    return False
+                # take nums[i] into the first half, or leave it for the second
+                return can(i + 1, rem - nums[i]) or can(i + 1, rem)
+
+            return can(0, total // 2)
+
+pitch_script: |
+  **(Clarify)** "Every element goes into exactly one of the two subsets, and I need the two
+  sums to be equal. All values are positive, up to 100, and there are at most 200 of them."
+
+  **(Brute force)** "First, if the total is odd, it's impossible. Otherwise each half must be
+  total over two, so I just need a subset with that sum. Brute force tries take or skip for
+  every element, which is 2 to the N. Greedy, like adding to the lighter half, fails on 3, 3,
+  2, 2, 2."
+
+  **(Trigger)** "Subset with an exact sum where each element is used once is 0/1 knapsack.
+  The values are small, so the total is at most 20,000, and I can track which sums are
+  reachable instead of which subsets I've tried."
+
+  **(Optimal)** "dp of s is true if some subset of the items so far sums to s. dp of 0 is
+  true. For each number x, I go through s from the target down to x, and set dp of s to dp of
+  s or dp of s minus x. Going backwards matters: it guarantees dp of s minus x still reflects
+  the items before x, so x can't be counted twice. For example with 1 and 3, a forward sweep
+  would claim 2 as 1 plus 1. I return dp of target."
+
+  **(Complexity)** "O(N times target) time, about 2 million steps at most, and O(target)
+  space for the single boolean row. It's pseudo-polynomial: it's fast because the values are
+  small."
+
+twist:
+  lc: 1049
+  title: Last Stone Weight II
+  why: >-
+    Smashing stones until at most one remains looks like a simulation, but every final weight
+    is some sum with a + or − sign on each stone, i.e. |sum of group A − sum of group B| for a
+    split into two groups. So it's this same problem with a different read-out: fill the same
+    backwards boolean table over sums 0..total // 2 (no odd-total early exit), find the largest
+    reachable sum best, and return total − 2 · best. I picked this over Target Sum (#494)
+    because Target Sum has its own lesson later in this world, where the same table counts
+    ways instead of storing booleans.
+
+viz:
+  table: dp
+  watch: [x, s, target]

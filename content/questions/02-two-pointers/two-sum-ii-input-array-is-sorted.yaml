@@ -1,0 +1,336 @@
+slug: two-sum-ii-input-array-is-sorted
+lc: 167
+
+concept:
+  problem_it_solves: >-
+    "Which two numbers add up to the target?", but now the numbers are sorted. Sorted order means
+    every sum you compute also tells you which direction to go: too small means you need a bigger
+    number, too big means you need a smaller one. Two pointers at the ends use that signal to
+    throw away one candidate per comparison, with no extra memory.
+  brute_force: >-
+    Check every pair (i, j) with two nested loops. It ignores the sorting completely: after
+    learning that numbers[0] + numbers[n−1] is too small, it still goes on to test numbers[0]
+    against every other (even smaller) partner. Binary-searching each complement is better but
+    still only uses the order half-way.
+  brute_force_complexity: >-
+    O(N²) time, O(1) space — 3 × 10⁴ elements means ~4.5 × 10⁸ pair checks (binary search per
+    element is O(N log N)).
+  key_insight: >-
+    Look at the smallest and largest remaining values. If their sum is too small, the smallest
+    value is useless: even paired with the largest number available it falls short, so every
+    other pairing with it is smaller still. Discard it (l += 1). If the sum is too big, the
+    largest value is useless by the mirror argument (r -= 1). Each comparison eliminates a whole
+    row or column of pairs, so N − 1 steps at most cover all N²/2 pairs.
+  real_world: >-
+    This is how a sort-merge join works in Postgres and Spark: when both inputs are already
+    sorted, two cursors walk them in step instead of building a hash table, which is exactly
+    the memory-for-order trade versus Two Sum's hash map. Order-matching engines and price
+    comparison services use the same "too low, move up; too high, move down" walk over sorted
+    price lists.
+
+statement:
+  clean: |
+    Given a **1-indexed** array of integers `numbers` that is already
+    **sorted in non-decreasing order**, find two numbers such that they **add up to** a specific
+    `target` number. Let these two numbers be `numbers[index1]` and `numbers[index2]` where
+    `1 <= index1 < index2 <= numbers.length`.
+
+    Return the indices of the two numbers, `index1` and `index2`, **added by one** as an integer
+    array `[index1, index2]` of length 2.
+
+    The tests are generated such that there is **exactly one solution**. You may not use the
+    same element twice.
+
+    Your solution must use only **constant extra space**.
+  oa_story: |
+    **PaisaPath Payments — OA Round 2**
+
+    PaisaPath is a UPI wallet popular with students in Bengaluru's PG hostels. When a merchant
+    refund fails, support has to find the **two** cashback vouchers in the user's wallet whose
+    values add up exactly to the refund amount `target`, and merge them. The wallet stores voucher
+    values in ascending order of amount (ties allowed), and support agents number the rows
+    starting from 1, so the answer must be the two row numbers, smaller one first.
+
+    Product guarantees exactly one valid pair for every refund and a voucher can't be used twice.
+    The matching job runs inside the app on low-end Android phones, so it may only use a fixed
+    handful of variables no matter how many vouchers the user has (up to 30,000).
+  trigger_keywords: ["sorted in non-decreasing order", "add up to", "constant extra space", "1-indexed"]
+  examples:
+    - input: "numbers = [2,7,11,15], target = 9"
+      output: "[1,2]"
+      explanation: "2 + 7 = 9, so index1 = 1 and index2 = 2 (1-indexed)."
+    - input: "numbers = [2,3,4], target = 6"
+      output: "[1,3]"
+      explanation: "2 + 4 = 6. 3 + 3 would reuse the same element."
+    - input: "numbers = [-1,0], target = -1"
+      output: "[1,2]"
+  constraints:
+    - "2 <= numbers.length <= 3 * 10^4"
+    - "-1000 <= numbers[i] <= 1000"
+    - "numbers is sorted in non-decreasing order."
+    - "-1000 <= target <= 1000"
+    - "The tests are generated such that there is exactly one solution."
+
+constraint_quiz:
+  prompt: >-
+    N can be 3 × 10⁴ and you may only use constant extra space. What should you aim for?
+  options:
+    - "O(N²) time, O(1) space"
+    - "O(N) time, O(N) space"
+    - "O(N log N) time, O(1) space"
+    - "O(N) time, O(1) space"
+  answer: 3
+  explanation: >-
+    O(N²) is ~4.5 × 10⁸ pair checks, too slow. O(N) time with O(N) space is Two Sum's hash map,
+    which breaks the constant-space rule. Binary-searching the complement of each element is
+    O(N log N) with O(1) space; it passes, but it uses the sorting only within each search.
+    Two pointers from both ends use the order on every step: O(N) time, O(1) space.
+
+pattern_quiz:
+  prompt: >-
+    The array is sorted, you need a pair summing to target, and extra space must be O(1).
+    Which pattern fits?
+  options:
+    - "Hash map of value → index, as in Two Sum"
+    - "Two pointers from both ends, moving inward"
+    - "Sliding window"
+    - "Prefix sums"
+  answer: 1
+  explanation: >-
+    The hash map works on any order, but it costs O(N) space, which is forbidden here, and it
+    throws away the sorted order you were given for free. A sliding window needs a contiguous
+    range, but the two numbers can be far apart. Prefix sums answer range-sum questions, not pair
+    sums. "Sorted" plus "pair that adds up to" plus "constant space" is the opposite-ends trigger:
+    the sum's comparison with target tells you which end to discard.
+
+function:
+  name: twoSum
+  params: [{name: numbers}, {name: target}]
+
+starter_code: |
+  class Solution:
+      def twoSum(self, numbers: List[int], target: int) -> List[int]:
+          pass
+
+tests:
+  - {args: [[2, 7, 11, 15], 9], expected: [1, 2]}
+  - {args: [[2, 3, 4], 6], expected: [1, 3], note: "pair at the two ends; 3 + 3 would reuse an element"}
+  - {args: [[-1, 0], -1], expected: [1, 2], note: smallest input}
+  - {args: [[1, 2, 3, 4, 4, 9, 56, 90], 8], expected: [4, 5], note: "equal values 4 + 4 at adjacent indices"}
+  - {args: [[-5, -3, 0, 2, 8], 5], expected: [2, 5], note: negatives}
+  - {args: [[1, 3, 4, 5, 7, 11], 9], expected: [3, 4], note: "both pointers move several times before meeting in the middle"}
+  - {args: [[0, 0, 3, 4], 0], expected: [1, 2], note: zeros with right pointer walking all the way down}
+  - {args: [[-1000, -1, 0, 1000], 0], expected: [1, 4], note: extremes; found on the first check}
+  - {args: [[5, 25, 75], 100], expected: [2, 3]}
+visualize_test: 5
+
+drills:
+  - title: Squeeze in from both ends
+    skill: setup
+    goal: Initialise l and r at the two ends and loop until they meet, visiting each index once.
+    instructions: |
+      Return the elements of `nums` in "outside-in" order: first, last, second, second-to-last,
+      and so on. When the length is odd the middle element appears once, at the end.
+
+      This is the opposite-ends skeleton. Here the loop runs while `l <= r` so the middle element
+      is included. In Two Sum II you'll use `l < r` instead, because when the pointers meet there
+      is only one element left, and you may not use the same element twice.
+    function:
+      name: outsideIn
+      params: [{name: nums}]
+    starter_code: |
+      class Solution:
+          def outsideIn(self, nums: List[int]) -> List[int]:
+              pass
+    tests:
+      - {args: [[1, 2, 3, 4, 5]], expected: [1, 5, 2, 4, 3], note: odd length keeps the middle once}
+      - {args: [[1, 2, 3, 4]], expected: [1, 4, 2, 3]}
+      - {args: [[7]], expected: [7]}
+      - {args: [[]], expected: []}
+    solution: |
+      class Solution:
+          def outsideIn(self, nums: List[int]) -> List[int]:
+              out = []
+              l, r = 0, len(nums) - 1
+              while l <= r:
+                  out.append(nums[l])
+                  if l != r:
+                      out.append(nums[r])
+                  l += 1
+                  r -= 1
+              return out
+    hint: "Append `nums[l]`, then `nums[r]` only if `l != r`, then move both inward."
+
+  - title: Discard a whole row of pairs at once
+    skill: core
+    goal: Use the sum at the two ends to decide which pointer can safely move, and why that pointer is finished.
+    instructions: |
+      `numbers` is sorted. Return how many index pairs `i < j` have
+      `numbers[i] + numbers[j] < target`.
+
+      This drill forces the reasoning behind Two Sum II's pointer move. If
+      `numbers[l] + numbers[r] < target`, then `numbers[l]` paired with **every** index from
+      `l + 1` to `r` is also below target (those partners are no bigger than `numbers[r]`), so
+      you can count all `r - l` pairs at once and retire `l`. Otherwise `numbers[r]` is too big
+      for anything left, so retire `r`. One comparison settles a whole row of pairs.
+    function:
+      name: countPairsBelow
+      params: [{name: numbers}, {name: target}]
+    starter_code: |
+      class Solution:
+          def countPairsBelow(self, numbers: List[int], target: int) -> int:
+              pass
+    tests:
+      - {args: [[-1, 1, 1, 2, 3], 2], expected: 3}
+      - {args: [[1, 2, 3, 4], 6], expected: 4}
+      - {args: [[-3, -2, -1], 0], expected: 3, note: every pair counts}
+      - {args: [[2, 2, 2], 4], expected: 0, note: equal to target is not below it}
+      - {args: [[5], 10], expected: 0, note: one element makes no pair}
+    solution: |
+      class Solution:
+          def countPairsBelow(self, numbers: List[int], target: int) -> int:
+              count = 0
+              l, r = 0, len(numbers) - 1
+              while l < r:
+                  if numbers[l] + numbers[r] < target:
+                      count += r - l  # numbers[l] works with every index in (l, r]
+                      l += 1
+                  else:
+                      r -= 1
+              return count
+    hint: "When the end sum is below target, all `r - l` partners of `l` qualify; add them and move `l`."
+
+  - title: 1-indexed answers, and no element pairs with itself
+    skill: edge
+    goal: Stop at l < r so an element never pairs with itself, and convert the answer to 1-indexed positions.
+    instructions: |
+      `numbers` is sorted. Return the **1-indexed** positions `[index1, index2]` of two different
+      elements that add up to `target`, or `[-1, -1]` if no such pair exists.
+
+      Two classic slips cost people this problem: returning 0-indexed positions (the statement
+      says "added by one"), and looping while `l <= r`, which lets `[4]` with target `8` "find"
+      4 + 4 using the same element twice. Equal values at **different** indices, like `[4, 4]`,
+      are fine.
+    function:
+      name: findPairOneIndexed
+      params: [{name: numbers}, {name: target}]
+    starter_code: |
+      class Solution:
+          def findPairOneIndexed(self, numbers: List[int], target: int) -> List[int]:
+              pass
+    tests:
+      - {args: [[4], 8], expected: [-1, -1], note: "can't use the only element twice"}
+      - {args: [[1, 4, 9], 8], expected: [-1, -1], note: "4 + 4 would need the same element twice"}
+      - {args: [[4, 4], 8], expected: [1, 2], note: equal values at different indices are fine}
+      - {args: [[-3, 0, 3], 0], expected: [1, 3]}
+    solution: |
+      class Solution:
+          def findPairOneIndexed(self, numbers: List[int], target: int) -> List[int]:
+              l, r = 0, len(numbers) - 1
+              while l < r:  # l == r would be one element used twice
+                  total = numbers[l] + numbers[r]
+                  if total == target:
+                      return [l + 1, r + 1]
+                  if total < target:
+                      l += 1
+                  else:
+                      r -= 1
+              return [-1, -1]
+    hint: "Loop `while l < r`, and add 1 to both indices only at the moment you return them."
+
+hints:
+  - >-
+    Take the smallest and the largest number. If they add up to less than target, can the
+    smallest number be part of any answer? What if they add up to more than target?
+  - >-
+    Keep l at the left end and r at the right end. Compare numbers[l] + numbers[r] with target:
+    equal means done, too small means numbers[l] can never work so move l right, too big means
+    numbers[r] can never work so move r left. Why can't the pointers skip past the answer?
+  - |
+    l = 0, r = n - 1
+    while l < r:
+        total = numbers[l] + numbers[r]
+        if total == target: return [l + 1, r + 1]
+        if total < target: l = l + 1
+        else: r = r - 1
+
+solution:
+  code: |
+    class Solution:
+        def twoSum(self, numbers: List[int], target: int) -> List[int]:
+            l, r = 0, len(numbers) - 1
+            while l < r:
+                total = numbers[l] + numbers[r]
+                if total == target:
+                    return [l + 1, r + 1]  # the problem is 1-indexed
+                if total < target:
+                    l += 1  # numbers[l] falls short even with the biggest partner left
+                else:
+                    r -= 1  # numbers[r] overshoots even with the smallest partner left
+            return []
+  explanation: |
+    **Why discarding is safe.** All remaining candidates live in `numbers[l..r]`. If
+    `numbers[l] + numbers[r] < target`, then for every `j` in `(l, r]`,
+    `numbers[l] + numbers[j] <= numbers[l] + numbers[r] < target`, so `numbers[l]` is in no valid
+    pair and can be dropped. The mirror argument drops `numbers[r]` when the sum is too big. We
+    only ever discard elements that provably can't be in the answer, so the pointers can never
+    jump over it, and since a solution is guaranteed, we hit it before `l` meets `r`.
+
+    **Contrast with Two Sum (#1).** There the array was unsorted, so a sum told you nothing about
+    which way to go; the only way to avoid O(N²) was to *remember* every value in a hash map
+    (O(N) space). Here the order *is* the memory: the comparison with target tells you exactly
+    which end to throw away, so you need O(1) space. Same question, and the trigger word
+    "sorted" swaps the tool.
+
+    The loop is `while l < r` because `l == r` would mean using one element twice, and the
+    answer is converted to 1-indexed only at the moment of returning. Duplicates like `[4, 4]`
+    with target 8 work because the two 4s are at different indices.
+  time: O(N) — each step moves one pointer inward, so at most N − 1 steps
+  space: O(1) — two indices and a running sum
+  brute_force_code: |
+    class Solution:
+        def twoSum(self, numbers: List[int], target: int) -> List[int]:
+            n = len(numbers)
+            for i in range(n):
+                for j in range(i + 1, n):
+                    if numbers[i] + numbers[j] == target:
+                        return [i + 1, j + 1]
+            return []
+
+pitch_script: |
+  **(Clarify)** "So the array is sorted in non-decreasing order, there's exactly one answer, I
+  return 1-indexed positions with the smaller one first, and I can't use the same element twice.
+  And the constraint is constant extra space, right?"
+
+  **(Brute force)** "The naive approach checks every pair, which is O(N²), about 450 million
+  checks at 3 × 10⁴. In the original Two Sum I'd fix that with a hash map of value to index, but
+  that's O(N) space, which isn't allowed here, and it ignores the fact that the array is sorted."
+
+  **(Trigger)** "Sorted plus a pair sum plus constant space points to two pointers from both
+  ends. Because the array is sorted, comparing a sum with the target tells me which direction to
+  move, so I don't need to remember anything."
+
+  **(Optimal)** "I start l at the first index and r at the last. If the sum equals target I
+  return l plus one and r plus one. If the sum is too small, numbers[l] can't be in any pair,
+  because even with the largest remaining number it falls short, so I move l right. If it's too
+  big, numbers[r] can't be in any pair, so I move r left. I only ever discard elements that can't
+  be part of the answer, so I can't skip past it. I loop while l is less than r so I never use one
+  element twice."
+
+  **(Complexity)** "Each step moves one pointer, so it's O(N) time, and I only store two indices,
+  so O(1) space, compared with O(N) space for the hash map version."
+
+twist:
+  lc: 15
+  title: 3Sum
+  why: >-
+    Now you need all unique triplets summing to 0 in an unsorted array. Sort it first, then fix
+    each nums[i] and run exactly this two-pointer search on the part to its right with target
+    −nums[i]. Because the answer is all triplets, not one, you keep going after a match and skip
+    equal neighbours for i, l and r so duplicates aren't reported twice. O(N²) overall.
+
+viz:
+  arrays: [numbers]
+  pointers: [l, r]
+  window: [l, r]
+  watch: [total, target]

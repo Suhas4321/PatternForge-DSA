@@ -1,0 +1,380 @@
+slug: min-stack
+lc: 155
+
+concept:
+  problem_it_solves: >-
+    "What is the smallest thing in this collection right now?", asked after every push and
+    pop, in O(1). A single "current minimum" variable breaks the moment you pop the minimum,
+    because you no longer know what the minimum was before it. The fix is to remember the
+    minimum *as of every level* of the stack, so popping simply reveals the old answer.
+  brute_force: >-
+    Keep a plain list and make getMin scan the whole list with min(). Push, pop and top stay
+    O(1), but every getMin re-reads every element, even though almost nothing changed since
+    the last call.
+  brute_force_complexity: O(N) per getMin, O(1) for the rest — 1.5 × 10⁴ pushes followed by 1.5 × 10⁴ getMin calls means ~2 × 10⁸ comparisons.
+  key_insight: >-
+    A stack only ever changes at the top, so the minimum of everything at or below a given
+    entry never changes while that entry is on the stack. Store that minimum alongside each
+    entry: a second stack where min_stack[k] = min(stack[0..k]). Push computes
+    min(val, previous min) once; pop removes both tops, and the entry underneath already
+    holds the correct older minimum. Nothing ever needs recomputing.
+  real_world: >-
+    Undo stacks in editors and design tools keep a snapshot of derived state (like the
+    current selection bounds) with each action so undo restores it instantly. Trading
+    systems that support "cancel last order" keep the best price per level the same way, and
+    database transaction savepoints store state per level so a rollback is O(1).
+
+statement:
+  clean: |
+    Design a stack that supports push, pop, top, and
+    **retrieving the minimum element in constant time**.
+
+    Implement the `MinStack` class:
+
+    - `MinStack()` initializes the stack object.
+    - `void push(int val)` pushes the element `val` onto the stack.
+    - `void pop()` removes the element on the top of the stack.
+    - `int top()` gets the top element of the stack.
+    - `int getMin()` retrieves the minimum element in the stack.
+
+    You must implement a solution with **O(1) time complexity for each function**.
+  oa_story: |
+    **ChalChal Rides — OA Round 2**
+
+    In ChalChal's "name your fare" mode, a rider in Whitefield posts a trip and drivers send
+    fare quotes one after another. Each new quote is shown on top of the rider's quote card.
+    A driver can withdraw only the most recent quote (the app's "undo" button works on the
+    latest quote only), and the rider's screen must always show the latest quote and the
+    cheapest quote currently on the card.
+
+    Implement a `MinStack` class for the quote card with `push(val)` (a new quote arrives),
+    `pop()` (the latest quote is withdrawn), `top()` (the latest quote) and `getMin()` (the
+    cheapest active quote). Withdraw, latest and cheapest are only ever requested when at
+    least one quote is on the card. A busy surge evening sends tens of thousands of
+    operations per trip, and the screen refreshes on every one, so every operation must be
+    instant, no matter how many quotes are on the card.
+  trigger_keywords: ["retrieving the minimum element in constant time", "O(1) time complexity for each function"]
+  examples:
+    - input: |
+        ["MinStack","push","push","push","getMin","pop","top","getMin"]
+        [[],[-2],[0],[-3],[],[],[],[]]
+      output: "[null,null,null,null,-3,null,0,-2]"
+      explanation: "After pushing -2, 0, -3 the minimum is -3. Popping -3 leaves [-2, 0]: the top is 0 and the minimum is back to -2."
+    - input: |
+        ["MinStack","push","push","getMin","pop","getMin"]
+        [[],[1],[1],[],[],[]]
+      output: "[null,null,null,1,null,1]"
+      explanation: "Two copies of the minimum: popping one must not forget the other."
+  constraints:
+    - "-2^31 <= val <= 2^31 - 1"
+    - "Methods pop, top and getMin operations will always be called on non-empty stacks."
+    - "At most 3 * 10^4 calls will be made to push, pop, top, and getMin."
+
+constraint_quiz:
+  prompt: >-
+    Up to 3 × 10⁴ calls, and the statement demands O(1) for each function. What must getMin
+    cost?
+  options: ["O(N) — scan the list", "O(log N) — a heap next to the stack", "O(1) — read a stored value", "O(1) amortized — recompute the min only after a pop"]
+  answer: 2
+  explanation: >-
+    Scanning makes getMin O(N), which breaks the requirement and is ~2 × 10⁸ steps in the
+    worst case here. A heap makes push O(log N), and removing the stack's top (which can sit
+    anywhere in the heap) needs lazy deletion, so it is not O(1). "Recompute after a pop" is O(N) per pop in the worst case
+    (push 1, 2, 3 … then pop repeatedly), so it isn't amortized O(1) at all. Storing the
+    minimum per level makes every operation a true O(1) read or write.
+
+pattern_quiz:
+  prompt: >-
+    A stack must report its minimum in O(1), even after the minimum itself is popped. Which
+    pattern fits?
+  options:
+    - "One variable holding the current minimum"
+    - "A min-heap alongside the stack"
+    - "An auxiliary stack holding the running minimum at every level"
+    - "Keep the elements in a sorted list with binary-search insertion"
+  answer: 2
+  explanation: >-
+    The trigger is "minimum in constant time" plus "pop": you need the minimum to roll back
+    when the top is removed. A single variable can't roll back (after popping the minimum,
+    what was the old one?). A heap can't remove the stack's top in O(1). A sorted list costs
+    O(N) per insert. A parallel stack of running minimums rolls back for free, because pop
+    removes the newest minimum and exposes the previous one.
+
+function:
+  kind: design
+  name: MinStack
+
+starter_code: |
+  class MinStack:
+
+      def __init__(self):
+          pass
+
+      def push(self, val: int) -> None:
+          pass
+
+      def pop(self) -> None:
+          pass
+
+      def top(self) -> int:
+          pass
+
+      def getMin(self) -> int:
+          pass
+
+tests:
+  - args:
+      ops: [MinStack, push, push, push, getMin, pop, top, getMin]
+      args: [[], [-2], [0], [-3], [], [], [], []]
+    expected: [null, null, null, null, -3, null, 0, -2]
+  - args:
+      ops: [MinStack, push, push, getMin, pop, getMin]
+      args: [[], [1], [1], [], [], []]
+    expected: [null, null, null, 1, null, 1]
+    note: "duplicate minimum: popping one copy must not lose the other"
+  - args:
+      ops: [MinStack, push, push, push, getMin, pop, pop, getMin, top]
+      args: [[], [1], [2], [3], [], [], [], [], []]
+    expected: [null, null, null, null, 1, null, null, 1, 1]
+    note: "increasing pushes: the minimum stays at the bottom"
+  - args:
+      ops: [MinStack, push, push, push, getMin, pop, getMin, pop, getMin]
+      args: [[], [5], [4], [3], [], [], [], [], []]
+    expected: [null, null, null, null, 3, null, 4, null, 5]
+    note: "decreasing pushes: every pop restores an older minimum"
+  - args:
+      ops: [MinStack, push, top, getMin]
+      args: [[], [-5], [], []]
+    expected: [null, null, -5, -5]
+    note: single element is both top and minimum
+  - args:
+      ops: [MinStack, push, push, push, push, getMin, pop, getMin, pop, getMin, pop, getMin]
+      args: [[], [2], [0], [3], [0], [], [], [], [], [], [], []]
+    expected: [null, null, null, null, null, 0, null, 0, null, 0, null, 2]
+    note: the minimum appears twice with a larger value in between
+  - args:
+      ops: [MinStack, push, push, getMin, pop, getMin]
+      args: [[], [2147483647], [-2147483648], [], [], []]
+    expected: [null, null, null, -2147483648, null, 2147483647]
+    note: 32-bit extremes
+  - args:
+      ops: [MinStack, push, pop, push, getMin, top]
+      args: [[], [3], [], [7], [], []]
+    expected: [null, null, null, null, 7, 7]
+    note: emptied and reused, so the old minimum 3 must be gone
+visualize_test: 5
+
+drills:
+  - title: The running minimum of every prefix
+    skill: setup
+    goal: Build the list where entry k is the minimum of everything pushed up to k.
+    instructions: |
+      Given the values pushed onto a stack, in order (no pops), return a list where position
+      `k` holds the minimum of the first `k + 1` values.
+
+      This list *is* the auxiliary min stack. Each entry only needs the new value and the
+      entry just below it: `min(x, mins[-1])`. You never look further back, which is why push
+      stays O(1).
+    function:
+      name: runningMinimums
+      params: [{name: pushes}]
+    starter_code: |
+      class Solution:
+          def runningMinimums(self, pushes: List[int]) -> List[int]:
+              pass
+    tests:
+      - {args: [[3, 5, 2, 4, 1]], expected: [3, 3, 2, 2, 1]}
+      - {args: [[1, 2, 3]], expected: [1, 1, 1]}
+      - {args: [[-2, 0, -3]], expected: [-2, -2, -3]}
+      - {args: [[5]], expected: [5], note: the first push has nothing below it}
+      - {args: [[4, 4, 4]], expected: [4, 4, 4]}
+    solution: |
+      class Solution:
+          def runningMinimums(self, pushes: List[int]) -> List[int]:
+              mins = []
+              for x in pushes:
+                  mins.append(x if not mins else min(x, mins[-1]))
+              return mins
+    hint: "The first value has no previous minimum, so it is its own minimum."
+
+  - title: Popping rolls the minimum back
+    skill: core
+    goal: Pop the min stack together with the main stack so the previous minimum reappears.
+    instructions: |
+      `ops` is a list where an integer means "push this value" and the string `"pop"` means
+      "pop the top". After **every** operation, record the current minimum, or `null`
+      (`None`) if the stack is empty. Return the recorded list.
+
+      This is the move that makes Min Stack work: you never *compute* the old minimum after a
+      pop; you just remove the newest running-minimum entry, and the one underneath is
+      already the right answer.
+    function:
+      name: minAfterEachOp
+      params: [{name: ops}]
+    starter_code: |
+      class Solution:
+          def minAfterEachOp(self, ops: List) -> List:
+              pass
+    tests:
+      - {args: [[3, 5, "pop", 1, "pop", "pop"]], expected: [3, 3, 3, 1, 3, null]}
+      - {args: [[5, 4, 3, "pop", "pop"]], expected: [5, 4, 3, 4, 5]}
+      - {args: [[2, 2, "pop"]], expected: [2, 2, 2], note: duplicate minimum survives one pop}
+      - {args: [[1, "pop", 7]], expected: [1, null, 7], note: an empty stack has no minimum}
+    solution: |
+      class Solution:
+          def minAfterEachOp(self, ops: List) -> List:
+              mins = []
+              out = []
+              for op in ops:
+                  if op == "pop":
+                      mins.pop()
+                  else:
+                      mins.append(op if not mins else min(op, mins[-1]))
+                  out.append(mins[-1] if mins else None)
+              return out
+    hint: "On `\"pop\"` just `mins.pop()`; the new `mins[-1]` is already the answer."
+
+  - title: The space-saving version needs <=, not <
+    skill: edge
+    goal: Push onto the min stack only when the value is a new minimum or ties it, so duplicates survive pops.
+    instructions: |
+      A common optimisation keeps the min stack shorter: push `x` onto it **only if** it is
+      empty or `x <= min_stack[-1]`, and later pop it only when the popped value equals
+      `min_stack[-1]`. Given the pushed values (no pops), return the min stack after all
+      pushes.
+
+      The edge case people get wrong is ties. With `<` instead of `<=`, pushing 1, 1 stores
+      a single 1; popping one 1 then removes it, and `getMin` wrongly forgets the other 1
+      that is still on the stack. Ties must be stored too.
+    function:
+      name: compactMinStack
+      params: [{name: pushes}]
+    starter_code: |
+      class Solution:
+          def compactMinStack(self, pushes: List[int]) -> List[int]:
+              pass
+    tests:
+      - {args: [[2, 2, 1, 3]], expected: [2, 2, 1], note: the tie 2 is stored twice}
+      - {args: [[5, 4, 3]], expected: [5, 4, 3]}
+      - {args: [[1, 2, 3]], expected: [1], note: larger values never touch the min stack}
+      - {args: [[3, 1, 1]], expected: [3, 1, 1]}
+      - {args: [[0]], expected: [0]}
+    solution: |
+      class Solution:
+          def compactMinStack(self, pushes: List[int]) -> List[int]:
+              min_stack = []
+              for x in pushes:
+                  if not min_stack or x <= min_stack[-1]:
+                      min_stack.append(x)
+              return min_stack
+    hint: "Ask: if I pop this value later, will the minimum still be correct without it?"
+
+hints:
+  - >-
+    If you only store one "current minimum" and then pop that minimum, how would you know
+    the minimum of what's left? What if every level of the stack remembered the minimum
+    from that level down?
+  - >-
+    Keep two stacks of equal height. On push(val), append val to the main stack and
+    min(val, current min) to the min stack. On pop, pop both. top reads the main stack's top;
+    getMin reads the min stack's top.
+  - |
+    init: stack = empty, min_stack = empty
+    push(val):
+        stack.push(val)
+        min_stack.push(val if min_stack empty else min(val, min_stack.top))
+    pop():   stack.pop(); min_stack.pop()
+    top():   return stack.top
+    getMin(): return min_stack.top
+
+solution:
+  code: |
+    class MinStack:
+
+        def __init__(self):
+            self.stack = []
+            self.min_stack = []  # min_stack[k] = min(stack[0..k]); same height as stack
+
+        def push(self, val: int) -> None:
+            self.stack.append(val)
+            current_min = val if not self.min_stack else min(val, self.min_stack[-1])
+            self.min_stack.append(current_min)
+
+        def pop(self) -> None:
+            self.stack.pop()
+            self.min_stack.pop()  # the entry below already holds the older minimum
+
+        def top(self) -> int:
+            return self.stack[-1]
+
+        def getMin(self) -> int:
+            return self.min_stack[-1]
+  explanation: |
+    A stack only changes at the top, so "the minimum of everything at or below this entry"
+    is fixed for as long as that entry is on the stack. `min_stack` stores exactly that
+    number for every level, so `min_stack[-1]` is always the minimum of the whole stack.
+
+    Push needs only the new value and the previous minimum: `min(val, min_stack[-1])`. Pop
+    removes both tops, and the entry that becomes the new top was computed when the stack
+    looked exactly like it does now, so it is already correct. Duplicates are handled for
+    free because every push writes its own min entry, which is why `[1, 1]` → pop still
+    reports 1.
+
+    An equivalent version stores `(val, current_min)` pairs in one stack. A space-saving
+    version pushes onto `min_stack` only when `val <= min_stack[-1]` and pops it only when
+    the popped value equals its top; the `<=` matters, or duplicate minimums get lost.
+  time: O(1) — every method does a constant number of list appends, pops and reads
+  space: O(N) — two stacks of N entries each (O(N) extra for the min stack)
+  brute_force_code: |
+    class MinStack:
+
+        def __init__(self):
+            self.stack = []
+
+        def push(self, val: int) -> None:
+            self.stack.append(val)
+
+        def pop(self) -> None:
+            self.stack.pop()
+
+        def top(self) -> int:
+            return self.stack[-1]
+
+        def getMin(self) -> int:
+            return min(self.stack)  # O(N) scan on every call
+
+pitch_script: |
+  **(Clarify)** "So I need push, pop, top and getMin all in O(1), and I can assume pop, top and
+  getMin are only called on a non-empty stack. Values can repeat, including the minimum,
+  right?"
+
+  **(Brute force)** "The simple version is a normal list where getMin scans with min. That's
+  O(N) per getMin. Tracking one min variable makes getMin O(1), but it breaks when I pop the
+  minimum, because I've lost what the minimum was before it."
+
+  **(Trigger)** "The 'minimum in constant time' plus 'pop' combination tells me I need the
+  minimum to roll back on pop. A stack only changes at the top, so I can store the minimum
+  as of each level in an auxiliary stack."
+
+  **(Optimal)** "I keep two stacks of the same height. On push I append the value to the main
+  stack and the minimum of the value and the current min to the min stack. On pop I pop
+  both, and the min stack's new top is automatically the previous minimum. top reads the
+  main stack and getMin reads the min stack."
+
+  **(Complexity)** "Every operation is a constant number of appends or pops, so O(1) each, and
+  O(N) extra space for the min stack. If space matters I can push to the min stack only on
+  a new minimum or a tie, using less-than-or-equal so duplicates survive."
+
+twist:
+  lc: 1381
+  title: Design a Stack With Increment Operation
+  why: >-
+    Now there's a bulk operation, increment(k, val), which adds val to the bottom k
+    elements, and it must not cost O(k). Same idea of storing extra state per level: keep an
+    inc array parallel to the stack and add val only at index min(k, size) − 1. On pop,
+    return stack[top] + inc[top] and add inc[top] into inc[top − 1], so the pending
+    increment rolls down lazily exactly like the running minimum rolls back.
+
+viz:
+  stacks: [self.stack, self.min_stack]
+  watch: [val, current_min]

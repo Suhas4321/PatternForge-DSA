@@ -1,0 +1,348 @@
+slug: course-schedule-ii
+lc: 210
+
+concept:
+  problem_it_solves: >-
+    "In what order can I do these tasks so every dependency comes first?" That order is a
+    topological order of the dependency graph. Course Schedule only asked whether one exists; this
+    time you have to produce it, and report an empty list when a cycle makes it impossible.
+  brute_force: >-
+    Repeatedly scan all courses looking for one whose prerequisites are all taken, take it, and
+    start the scan again. Each scan re-checks every course and every prerequisite list, even though
+    taking one course only changes the status of the few courses it unlocks.
+  brute_force_complexity: >-
+    O(V · (V + E)) time, O(V + E) space — up to V full scans of V courses and E prerequisites;
+    with 2000 courses and a long chain that's millions of repeated checks.
+  key_insight: >-
+    Kahn's algorithm already visits courses in a valid order: a course is popped from the queue
+    only after every prerequisite has been popped (that's what indegree 0 means). So the order of
+    pops is the answer; just record it. If a cycle exists, its courses never reach indegree 0 and
+    the recorded order is shorter than numCourses; a partial order is not a schedule, so return [].
+    When several courses are ready at once, any of them can go next, which is why many valid
+    answers can exist.
+  real_world: >-
+    Deployment orchestrators (Kubernetes operators, Helm dependency charts, docker compose
+    depends_on), build tools (Make, Bazel, webpack's module graph) and database migration runners
+    all emit a topological order of their dependency graph and abort with "cycle detected" when the
+    order comes out short. Spreadsheet engines like Excel recalculate cells in topological order of
+    their formula references.
+
+statement:
+  clean: |
+    There are a total of `numCourses` courses you have to take, labelled from `0` to
+    `numCourses - 1`. You are given an array `prerequisites` where
+    `prerequisites[i] = [ai, bi]` means you must take course `bi` first if you want to take
+    course `ai`.
+
+    For example, the pair `[0, 1]` means that to take course `0` you have to first take course `1`.
+
+    Return the **ordering of courses** you should take to finish all courses. If there are many
+    valid answers, return any of them. If it is impossible to finish all courses, return an
+    **empty array**.
+
+    *(In this app's tests, every case has exactly one valid ordering, so any correct algorithm
+    produces the expected output.)*
+  oa_story: |
+    **DeployDost — OA Round 1**
+
+    DeployDost runs release trains for fintech startups in HSR Layout. A release contains
+    `numCourses` microservices, numbered `0` to `numCourses - 1`. Teams register rules of the form
+    `[a, b]`: service `b` must already be live before service `a` can be rolled out, because `a`
+    calls `b`'s API on startup.
+
+    The release bot must print a rollout sequence that lists every service exactly once and never
+    deploys a service before the ones it depends on. Sometimes two teams register rules that
+    contradict each other, and then no safe sequence exists: in that case the bot must print an
+    empty sequence and page the on-call engineer instead of deploying half the release. A release
+    has up to 2000 services and the rules can be dense.
+  trigger_keywords: ["prerequisites", "ordering of courses", "empty array"]
+  examples:
+    - input: "numCourses = 2, prerequisites = [[1,0]]"
+      output: "[0,1]"
+      explanation: "Course 1 needs course 0, so 0 comes first."
+    - input: "numCourses = 4, prerequisites = [[1,0],[2,0],[3,1],[3,2]]"
+      output: "[0,2,1,3]"
+      explanation: >-
+        Course 3 needs 1 and 2, which both need 0. [0,1,2,3] is also correct: once 0 is done,
+        1 and 2 are both available. (This example has two answers, so it isn't one of the tests.)
+    - input: "numCourses = 1, prerequisites = []"
+      output: "[0]"
+  constraints:
+    - "1 <= numCourses <= 2000"
+    - "0 <= prerequisites.length <= numCourses * (numCourses - 1)"
+    - "prerequisites[i].length == 2"
+    - "0 <= ai, bi < numCourses"
+    - "ai != bi"
+    - "All the pairs [ai, bi] are distinct."
+
+constraint_quiz:
+  prompt: >-
+    numCourses can be 2000 and prerequisites can contain up to numCourses · (numCourses − 1),
+    about 4 × 10⁶ pairs. What complexity do you need?
+  options:
+    - "O(V · (V + E)) — rescan for a ready course after every pick"
+    - "O(V + E) — Kahn's algorithm, recording the pop order"
+    - "O(V²·E) — check every pair of courses against every rule"
+    - "O(V log V) — sort the courses by number of prerequisites"
+  answer: 1
+  explanation: >-
+    With E up to 4 × 10⁶, rescanning everything after each of 2000 picks is around 8 × 10⁹ steps.
+    Checking pairs against rules is even worse. Sorting by prerequisite count produces invalid
+    orders (a course with one prerequisite can still depend on a course with five). Kahn's
+    algorithm processes each course once and each rule once: O(V + E), the size of the input.
+
+pattern_quiz:
+  prompt: >-
+    Produce an order of all items such that every "b before a" rule holds, or report that none
+    exists. Which pattern fits?
+  options:
+    - "BFS from course 0, outputting courses level by level"
+    - "Topological sort: Kahn's algorithm, appending each course as it is popped"
+    - "Sort the pairs and output the second elements first"
+    - "Union-Find, then output each component"
+  answer: 1
+  explanation: >-
+    "Ordering" plus "prerequisites" is the topological-sort trigger. BFS from course 0 ignores
+    courses not reachable from 0 and can output a course before one of its other prerequisites.
+    Sorting pairs and Union-Find both throw away the direction of the dependency. Kahn's pop order
+    is a valid order by construction, and a short order reveals a cycle.
+
+function:
+  name: findOrder
+  params: [{name: numCourses}, {name: prerequisites}]
+
+starter_code: |
+  class Solution:
+      def findOrder(self, numCourses: int, prerequisites: List[List[int]]) -> List[int]:
+          pass
+
+tests:
+  - {args: [2, [[1, 0]]], expected: [0, 1]}
+  - {args: [1, []], expected: [0]}
+  - {args: [2, [[0, 1]]], expected: [1, 0], note: "[a, b] means b first: course 1 comes before 0"}
+  - {args: [4, [[1, 0], [2, 0], [3, 1], [3, 2], [2, 1]]], expected: [0, 1, 2, 3], note: "example 2 plus [2, 1], which makes the order unique"}
+  - {args: [5, [[1, 3], [4, 1], [0, 4], [2, 0], [2, 3]]], expected: [3, 1, 4, 0, 2], note: "a chain that isn't in label order, plus a shortcut rule"}
+  - {args: [3, [[0, 1], [1, 2], [2, 0]]], expected: [], note: "a 3-cycle: nothing can start"}
+  - {args: [3, [[1, 0], [2, 1], [1, 2]]], expected: [], note: "course 0 can be taken, but a partial order is not an answer"}
+  - {args: [6, [[1, 0], [2, 1], [3, 2], [4, 3], [5, 4], [5, 0], [3, 0]]], expected: [0, 1, 2, 3, 4, 5], note: "nodes with several prerequisites wait for the last one"}
+visualize_test: 3
+
+drills:
+  - title: Point edges from prerequisite to course
+    skill: setup
+    goal: Build the adjacency list so adj[pre] lists the courses that pre unlocks.
+    instructions: |
+      Return the adjacency list `adj` with `numCourses` entries, where `adj[b]` lists, in input
+      order, every course `a` with a rule `[a, b]`.
+
+      Kahn's algorithm walks edges forward from a finished course to the courses it unlocks, so
+      the edge must start at the prerequisite. If you build it the other way round, you get the
+      reverse of a topological order (or nonsense, once the queue is seeded from the wrong
+      indegrees).
+    function:
+      name: buildAdj
+      params: [{name: numCourses}, {name: prerequisites}]
+    starter_code: |
+      class Solution:
+          def buildAdj(self, numCourses: int, prerequisites: List[List[int]]) -> List[List[int]]:
+              pass
+    tests:
+      - {args: [2, [[1, 0]]], expected: [[1], []]}
+      - {args: [4, [[1, 0], [2, 0], [3, 1], [3, 2]]], expected: [[1, 2], [3], [3], []]}
+      - {args: [3, []], expected: [[], [], []], note: no rules still means one entry per course}
+      - {args: [3, [[0, 2], [1, 2], [0, 1]]], expected: [[], [0], [0, 1]]}
+    solution: |
+      class Solution:
+          def buildAdj(self, numCourses: int, prerequisites: List[List[int]]) -> List[List[int]]:
+              adj = [[] for _ in range(numCourses)]
+              for course, pre in prerequisites:
+                  adj[pre].append(course)
+              return adj
+    hint: "Use `[[] for _ in range(numCourses)]`, not `[[]] * numCourses`, which shares one list."
+
+  - title: The container decides which order you get
+    skill: core
+    goal: Record Kahn's pop order, using a min-heap so the result is the lexicographically smallest topological order.
+    instructions: |
+      Given a DAG as `adj` and its `indegree` array, return its **lexicographically smallest**
+      topological order: whenever several nodes are ready, take the smallest label first.
+
+      The only change from normal Kahn's is the container: a min-heap instead of a FIFO queue.
+      Append each node to `order` as you pop it; popping only happens at indegree 0, so the order
+      is valid by construction. This is the usual follow-up when an interviewer asks "your answer
+      differs from mine, which one is right?": both are, and the container picks among them. In
+      the last test a FIFO queue would return `[0, 2, 3, 1]`, also valid but not the smallest.
+    function:
+      name: smallestOrder
+      params: [{name: adj}, {name: indegree}]
+    starter_code: |
+      class Solution:
+          def smallestOrder(self, adj: List[List[int]], indegree: List[int]) -> List[int]:
+              pass
+    tests:
+      - {args: [[[1, 2], [3], [3], []], [0, 1, 1, 2]], expected: [0, 1, 2, 3]}
+      - {args: [[[], [0], [0]], [2, 0, 0]], expected: [1, 2, 0], note: "node 0 has to wait for 1 and 2"}
+      - {args: [[[], [], []], [0, 0, 0]], expected: [0, 1, 2], note: "no edges: all ready at once"}
+      - {args: [[[3], [], [1], []], [0, 1, 0, 1]], expected: [0, 2, 1, 3], note: "a FIFO queue would give [0, 2, 3, 1]"}
+    solution: |
+      class Solution:
+          def smallestOrder(self, adj: List[List[int]], indegree: List[int]) -> List[int]:
+              heap = [u for u in range(len(adj)) if indegree[u] == 0]
+              heapq.heapify(heap)
+              order = []
+              while heap:
+                  u = heapq.heappop(heap)
+                  order.append(u)
+                  for v in adj[u]:
+                      indegree[v] -= 1
+                      if indegree[v] == 0:
+                          heapq.heappush(heap, v)
+              return order
+    hint: "`heapq.heapify` the ready list once, then `heappop` / `heappush` where Kahn's uses popleft / append."
+
+  - title: Is this a real schedule?
+    skill: edge
+    goal: Check an order the way the problem defines it, so a partial order from a cycle is rejected.
+    instructions: |
+      Return `True` if `order` is a valid answer: it contains **every** course exactly once, and
+      for every rule `[a, b]`, course `b` appears before course `a`.
+
+      The common Course Schedule II bug is returning Kahn's partial order when there's a cycle:
+      it satisfies every rule among the courses it contains, but it doesn't contain all of them,
+      so it isn't a schedule and the answer must be `[]`. A position map turns each rule check
+      into O(1).
+    function:
+      name: isValidOrder
+      params: [{name: numCourses}, {name: prerequisites}, {name: order}]
+    starter_code: |
+      class Solution:
+          def isValidOrder(self, numCourses: int, prerequisites: List[List[int]], order: List[int]) -> bool:
+              pass
+    tests:
+      - {args: [2, [[1, 0]], [0, 1]], expected: true}
+      - {args: [2, [[1, 0]], [1, 0]], expected: false, note: prerequisite placed after the course}
+      - {args: [4, [[1, 0], [2, 0], [3, 1], [3, 2]], [0, 2, 1, 3]], expected: true, note: "one of two valid orders"}
+      - {args: [3, [[1, 0], [2, 1], [1, 2]], [0]], expected: false, note: "Kahn's partial order on a cycle: not every course is present"}
+      - {args: [3, [], [0, 0, 1]], expected: false, note: a duplicate and a missing course}
+      - {args: [1, [], [0]], expected: true}
+    solution: |
+      class Solution:
+          def isValidOrder(self, numCourses: int, prerequisites: List[List[int]], order: List[int]) -> bool:
+              if sorted(order) != list(range(numCourses)):
+                  return False  # must be a permutation of all courses
+              pos = {course: i for i, course in enumerate(order)}
+              return all(pos[pre] < pos[course] for course, pre in prerequisites)
+    hint: "First check `sorted(order) == list(range(numCourses))`; then compare positions for each rule."
+
+hints:
+  - >-
+    In Course Schedule you counted how many courses Kahn's algorithm managed to take. In what order
+    did it take them, and could that order ever break a rule?
+  - >-
+    A course leaves the queue only once its indegree is 0, i.e. after all its prerequisites left
+    the queue. So append each popped course to `order`. What should you return if `order` ends up
+    shorter than numCourses?
+  - |
+    build adj[pre] -> courses, indegree[course] += 1 for each [course, pre]
+    queue = every course with indegree 0
+    order = []
+    while queue:
+        node = pop front; append node to order
+        for nxt in adj[node]:
+            indegree[nxt] -= 1
+            if indegree[nxt] == 0: push nxt
+    return order if its length is numCourses, else []
+
+solution:
+  code: |
+    class Solution:
+        def findOrder(self, numCourses: int, prerequisites: List[List[int]]) -> List[int]:
+            adj = [[] for _ in range(numCourses)]  # adj[pre] = courses that pre unlocks
+            indegree = [0] * numCourses
+            for course, pre in prerequisites:
+                adj[pre].append(course)
+                indegree[course] += 1
+
+            queue = deque(c for c in range(numCourses) if indegree[c] == 0)
+            order = []
+            while queue:
+                node = queue.popleft()
+                order.append(node)  # all of node's prerequisites are already in order
+                for nxt in adj[node]:
+                    indegree[nxt] -= 1
+                    if indegree[nxt] == 0:
+                        queue.append(nxt)
+            # a cycle leaves some courses unpopped: a partial order is not a valid schedule
+            return order if len(order) == numCourses else []
+  explanation: |
+    This is Course Schedule with one extra line. Kahn's algorithm pops a course only when its
+    indegree is 0, which means every one of its prerequisites was popped earlier. So the **pop
+    order is a topological order**, and we just record it.
+
+    When a cycle exists, the courses on it (and everything that depends on them) never reach
+    indegree 0. The loop ends with `order` shorter than `numCourses`. That partial list respects
+    every rule among the courses it contains, which is exactly why it's tempting to return it, but
+    the problem asks for an order of **all** courses, so the answer is `[]`.
+
+    Why many answers exist: whenever two courses are in the queue together, either could be taken
+    first. A FIFO queue gives one valid order, a stack (DFS-like) or a min-heap gives another, and
+    all are correct. The other classic method is DFS: append each course after all the courses it
+    unlocks are finished (post-order), then reverse the list; a three-colour visited array detects
+    cycles along the way.
+  time: O(V + E) — each course is enqueued and appended once, each rule decrements one indegree once
+  space: O(V + E) — the adjacency list holds E edges; indegree, queue and order hold V entries
+  brute_force_code: |
+    class Solution:
+        def findOrder(self, numCourses: int, prerequisites: List[List[int]]) -> List[int]:
+            need = [[] for _ in range(numCourses)]
+            for course, pre in prerequisites:
+                need[course].append(pre)
+            taken, order = set(), []
+            progress = True
+            while progress:  # rescan everything until no course can be added
+                progress = False
+                for c in range(numCourses):
+                    if c not in taken and all(p in taken for p in need[c]):
+                        taken.add(c)
+                        order.append(c)
+                        progress = True
+            return order if len(order) == numCourses else []
+
+pitch_script: |
+  **(Clarify)** "So I return any order of all the courses that respects the rules, where [a, b]
+  means b comes first, and an empty list if it's impossible. Multiple valid orders are fine,
+  right?"
+
+  **(Brute force)** "A simple approach keeps scanning the courses for one whose prerequisites are
+  all taken and adds it. That works but rescans everything after each pick, so it's O(V times
+  V plus E)."
+
+  **(Trigger)** "An ordering under prerequisite rules is a topological sort. Kahn's algorithm is
+  ideal because it naturally produces the order: a course is only taken once all its
+  prerequisites are done."
+
+  **(Optimal)** "I build edges from prerequisite to course and count indegrees, seed a queue with
+  the zero-indegree courses, and as I pop each one I append it to the result and decrement the
+  courses it unlocks, enqueueing any that reach zero. If the result has fewer than numCourses
+  entries there was a cycle, and I return an empty list instead of the partial order."
+
+  **(Complexity)** "Every course and every rule is processed once, so O(V + E) time and O(V + E)
+  space. If you wanted a specific order, like the lexicographically smallest, I'd swap the queue
+  for a min-heap at an extra log factor."
+
+twist:
+  lc: 1462
+  title: Course Schedule IV
+  why: >-
+    Now you answer queries "is course u a prerequisite of v, directly or indirectly?". An order is
+    not enough; you need reachability. Walk the courses in Kahn's order and give each course a set
+    of all its ancestors: when you pop `node`, add `node` and all of `node`'s ancestors into the set
+    of every course it unlocks. Because a course is popped only after all its prerequisites, its
+    ancestor set is complete by the time you read it, and each query becomes a set lookup.
+    O(V · (V + E)) to build, O(1) per query.
+
+viz:
+  graph: adj
+  node: node
+  dist: indegree
+  watch: [order, nxt]

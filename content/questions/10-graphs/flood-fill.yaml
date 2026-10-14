@@ -1,0 +1,372 @@
+slug: flood-fill
+lc: 733
+
+concept:
+  problem_it_solves: >-
+    "Starting from one cell, which cells can I reach by stepping only onto cells like it?" That is
+    a graph question in disguise: every cell is a node, and every pair of side-by-side cells is an
+    edge. Once you see the grid as a graph, "recolour the whole region" is just "visit every node
+    reachable from the start", which is exactly what depth-first search does.
+  brute_force: >-
+    Without a traversal you end up sweeping the whole image again and again: on each sweep, recolour
+    any original-colour pixel that touches an already-filled pixel, and stop when a sweep changes
+    nothing. A long snake-shaped region grows by only one pixel per sweep, so you re-read the entire
+    image once for every pixel in the region, even though each sweep learns almost nothing new.
+  brute_force_complexity: >-
+    O((M·N)²) time, O(M·N) space for the filled set — a 50 × 50 image is 2,500 pixels, so a
+    snake-shaped region costs up to ~6 × 10⁶ pixel reads, and the same idea on a 300 × 300 grid
+    is ~8 × 10⁹.
+  key_insight: >-
+    Treat the grid as a graph: node = (r, c), edges = the 4 neighbours (r+1, c), (r-1, c),
+    (r, c+1), (r, c-1). From the start pixel, a DFS steps to every neighbour that is (1) inside the
+    grid and (2) still the original colour, and it recolours a pixel the moment it arrives. The
+    recolouring doubles as the "visited" mark: a recoloured pixel no longer matches the original
+    colour, so the DFS never walks back onto it. That is the whole grid-DFS template: bounds check,
+    "is this a node I want?" check, mark, recurse into 4 neighbours. Each pixel is visited at most
+    once, so the work is proportional to the image size. The one trap: if the new colour equals
+    the original, recolouring marks nothing, the DFS bounces between two pixels forever, and you
+    must return early.
+  real_world: >-
+    This is literally the bucket tool in MS Paint, Photoshop and Figma, and the "magic wand"
+    selection in image editors. Game engines use the same region fill to compute territory in Go
+    or to reveal empty areas in Minesweeper, and GIS tools use it to find all map tiles connected
+    to a flooded area.
+
+statement:
+  clean: |
+    An image is given as an `m x n` grid of integers `image`, where `image[i][j]` is the colour of
+    one pixel. You are also given three integers `sr`, `sc` and `color`.
+
+    Perform a **flood fill** starting from the pixel `image[sr][sc]`:
+
+    - Change the starting pixel to `color`.
+    - Then repeat for every pixel that is **directly adjacent** (sharing a side: up, down, left or
+      right, never diagonal) to a pixel you just changed and has the
+      **same color as the starting pixel** had originally.
+    - Stop when no more adjacent pixels of the original colour are left.
+
+    Return the modified image.
+  oa_story: |
+    **PaintPixel Studio — OA Round 1**
+
+    PaintPixel is a Bengaluru design-tools startup whose browser editor is used by sticker artists
+    in Indiranagar cafes. Their most-used feature is the bucket tool: an artist taps one pixel of
+    the canvas and the editor repaints the whole patch of identically coloured pixels around it,
+    spreading only through pixels that touch side by side, not corner to corner.
+
+    The canvas is a grid of integer colour codes. Given the canvas, the row and column of the
+    tapped pixel, and the new colour code, return the canvas after the bucket tool has finished.
+    Pixels of the same colour that are cut off from the tapped patch must stay untouched, and
+    tapping with the colour the patch already has must not hang the editor.
+  trigger_keywords: ["flood fill", "directly adjacent", "same color as the starting pixel"]
+  examples:
+    - input: "image = [[1,1,1],[1,1,0],[1,0,1]], sr = 1, sc = 1, color = 2"
+      output: "[[2,2,2],[2,2,0],[2,0,1]]"
+      explanation: >-
+        Every 1 connected to the centre by side-sharing steps becomes 2. The bottom-right 1 only
+        touches the centre diagonally, so it is not filled.
+    - input: "image = [[0,0,0],[0,0,0]], sr = 0, sc = 0, color = 0"
+      output: "[[0,0,0],[0,0,0]]"
+      explanation: "The starting pixel already has the target colour, so nothing changes."
+  constraints:
+    - "m == image.length"
+    - "n == image[i].length"
+    - "1 <= m, n <= 50"
+    - "0 <= image[i][j], color < 2^16"
+    - "0 <= sr < m"
+    - "0 <= sc < n"
+
+constraint_quiz:
+  prompt: >-
+    The image is at most 50 × 50 = 2,500 pixels, and the same template will later run on grids of
+    10⁵ cells. What time complexity should a flood fill aim for?
+  options:
+    - "O((M·N)²) — sweep the image until nothing changes"
+    - "O(M·N · log(M·N)) — sort the pixels by colour first"
+    - "O(M·N) — visit each pixel at most once"
+    - "O(M + N) — walk the start row and column"
+  answer: 2
+  explanation: >-
+    Repeated sweeps re-read the whole image once per filled pixel: fine for 2,500 pixels, hopeless
+    at 10⁵ cells (10¹⁰ reads). Sorting by colour groups pixels of equal colour but says nothing
+    about which ones touch, so it doesn't even answer the question. Walking only the start row and
+    column misses regions that bend around corners. A DFS visits each pixel at most once and checks
+    4 neighbours per pixel, so it is O(M·N), and you can't beat that because the region itself can
+    be the whole image.
+
+pattern_quiz:
+  prompt: >-
+    You must change every cell reachable from one start cell through side-sharing steps onto cells
+    of the same value. Which pattern fits?
+  options:
+    - "Dynamic programming over rows, top-left to bottom-right"
+    - "DFS/BFS from the start cell, treating 4-neighbours as graph edges"
+    - "Sliding window over each row"
+    - "Sort the cells by value and binary search for the start"
+  answer: 1
+  explanation: >-
+    "Reachable from a start cell through adjacent cells with the same value" is the definition of a
+    connected component in the grid graph, and DFS or BFS is how you collect one. A top-left to
+    bottom-right DP fails as soon as the region turns upward or leftward, a row window can't follow
+    a region into other rows, and sorting destroys the adjacency information you need.
+
+function:
+  name: floodFill
+  params: [{name: image}, {name: sr}, {name: sc}, {name: color}]
+
+starter_code: |
+  class Solution:
+      def floodFill(self, image: List[List[int]], sr: int, sc: int, color: int) -> List[List[int]]:
+          pass
+
+tests:
+  - {args: [[[1, 1, 1], [1, 1, 0], [1, 0, 1]], 1, 1, 2], expected: [[2, 2, 2], [2, 2, 0], [2, 0, 1]]}
+  - {args: [[[0, 0, 0], [0, 0, 0]], 0, 0, 0], expected: [[0, 0, 0], [0, 0, 0]], note: "new colour == old colour: return early or recurse forever"}
+  - {args: [[[0]], 0, 0, 5], expected: [[5]], note: "1x1 image"}
+  - {args: [[[1, 0, 1], [0, 1, 0], [1, 0, 1]], 1, 1, 3], expected: [[1, 0, 1], [0, 3, 0], [1, 0, 1]], note: "diagonal pixels are not adjacent"}
+  - {args: [[[2, 2, 3, 2, 2]], 0, 4, 7], expected: [[2, 2, 3, 7, 7]], note: "single row: the 3 blocks the left run"}
+  - {args: [[[4], [4], [4]], 2, 0, 9], expected: [[9], [9], [9]], note: "single column, start at the bottom"}
+  - {args: [[[1, 1, 1, 1], [0, 0, 0, 1], [1, 1, 1, 1], [1, 0, 0, 0]], 3, 0, 5], expected: [[5, 5, 5, 5], [0, 0, 0, 5], [5, 5, 5, 5], [5, 0, 0, 0]], note: "snake region: must move up and left too"}
+  - {args: [[[1, 1, 0]], 0, 0, 3], expected: [[3, 3, 0]], note: "remember the original colour before overwriting the start"}
+visualize_test: 0
+
+drills:
+  - title: The four neighbours, bounds-checked
+    skill: setup
+    goal: Generate the in-bounds 4-neighbours of a cell, which are the edges of the grid graph.
+    instructions: |
+      Return the list of `[row, col]` neighbours of cell `(r, c)` that lie **inside** the grid,
+      in the order down, up, right, left: `(r+1, c)`, `(r-1, c)`, `(r, c+1)`, `(r, c-1)`.
+
+      This is the "grid is a graph" step made concrete: a cell's edges are exactly these four
+      moves, minus the ones that fall off the grid. Every grid DFS/BFS you write in this world
+      starts with this bounds check, `0 <= nr < rows and 0 <= nc < cols`. Forget it and Python's
+      negative indexing silently wraps `grid[-1]` to the last row instead of crashing.
+    function:
+      name: gridNeighbors
+      params: [{name: grid}, {name: r}, {name: c}]
+    starter_code: |
+      class Solution:
+          def gridNeighbors(self, grid: List[List[int]], r: int, c: int) -> List[List[int]]:
+              pass
+    tests:
+      - {args: [[[1, 1, 1], [1, 1, 1], [1, 1, 1]], 1, 1], expected: [[2, 1], [0, 1], [1, 2], [1, 0]], note: "centre has all four"}
+      - {args: [[[1, 1, 1], [1, 1, 1], [1, 1, 1]], 0, 0], expected: [[1, 0], [0, 1]], note: "corner has two"}
+      - {args: [[[1, 2, 3]], 0, 1], expected: [[0, 2], [0, 0]], note: "single row: no up or down"}
+      - {args: [[[7]], 0, 0], expected: [], note: "1x1 grid has no neighbours"}
+    solution: |
+      class Solution:
+          def gridNeighbors(self, grid: List[List[int]], r: int, c: int) -> List[List[int]]:
+              rows, cols = len(grid), len(grid[0])
+              out = []
+              for dr, dc in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                  nr, nc = r + dr, c + dc
+                  if 0 <= nr < rows and 0 <= nc < cols:
+                      out.append([nr, nc])
+              return out
+    hint: "Loop over the four `(dr, dc)` offsets and keep `(r + dr, c + dc)` only if both coordinates are in range."
+
+  - title: Collect one connected region with a visited set
+    skill: core
+    goal: Run a DFS from a start cell that only steps onto equal-valued cells and never revisits a cell.
+    instructions: |
+      Return every cell `[r, c]` reachable from `(sr, sc)` by side-sharing steps onto cells with
+      the **same value** as `grid[sr][sc]`. Return them **sorted**. Do not modify `grid`: use a
+      `visited` set of `(r, c)` tuples instead.
+
+      This is the flood fill without the paint. The DFS has three guards, in order: is the cell
+      inside the grid, is it the value we want, and have we been here already. Mark a cell visited
+      *before* recursing into its neighbours, otherwise two neighbours can keep sending you back
+      to each other.
+    function:
+      name: regionCells
+      params: [{name: grid}, {name: sr}, {name: sc}]
+    starter_code: |
+      class Solution:
+          def regionCells(self, grid: List[List[int]], sr: int, sc: int) -> List[List[int]]:
+              pass
+    tests:
+      - {args: [[[1, 1, 0], [0, 1, 0], [1, 0, 1]], 0, 0], expected: [[0, 0], [0, 1], [1, 1]]}
+      - {args: [[[5, 5], [5, 5]], 1, 1], expected: [[0, 0], [0, 1], [1, 0], [1, 1]], note: "whole grid is one region"}
+      - {args: [[[1, 0, 1]], 0, 0], expected: [[0, 0]], note: "a 0 separates the two 1s"}
+      - {args: [[[2, 3], [3, 3]], 0, 1], expected: [[0, 1], [1, 0], [1, 1]], note: "region of 3s, not the start row only"}
+    solution: |
+      class Solution:
+          def regionCells(self, grid: List[List[int]], sr: int, sc: int) -> List[List[int]]:
+              rows, cols, target = len(grid), len(grid[0]), grid[sr][sc]
+              visited = set()
+              def dfs(r, c):
+                  if r < 0 or r >= rows or c < 0 or c >= cols:
+                      return
+                  if grid[r][c] != target or (r, c) in visited:
+                      return
+                  visited.add((r, c))
+                  dfs(r + 1, c); dfs(r - 1, c); dfs(r, c + 1); dfs(r, c - 1)
+              dfs(sr, sc)
+              return sorted([r, c] for r, c in visited)
+    hint: "Check bounds first, then value and `visited`, then `visited.add((r, c))` before the four recursive calls."
+
+  - title: When painting is not marking
+    skill: edge
+    goal: Save the original value first and return early when the new colour equals it.
+    instructions: |
+      A one-dimensional flood fill. `row` is a list of colours. Recolour the contiguous run of
+      the start colour that contains index `start` to `color`, **using recursion that spreads to
+      `i - 1` and `i + 1`**, and return the row.
+
+      Two bugs live here, and both show up in the real problem. First, read `old = row[start]`
+      *before* you overwrite anything: comparing against `row[start]` later compares against the
+      new colour. Second, the recursion uses "still the old colour" as its only visited check.
+      If `color == old`, recolouring changes nothing, index 0 sends you to 1, 1 sends you back to
+      0, and the recursion never ends. Return the row unchanged in that case.
+    function:
+      name: paintRun
+      params: [{name: row}, {name: start}, {name: color}]
+    starter_code: |
+      class Solution:
+          def paintRun(self, row: List[int], start: int, color: int) -> List[int]:
+              pass
+    tests:
+      - {args: [[1, 1, 2, 1], 0, 5], expected: [5, 5, 2, 1]}
+      - {args: [[3, 3, 3], 1, 3], expected: [3, 3, 3], note: "same colour: must return early"}
+      - {args: [[4, 4, 4, 0], 2, 0], expected: [0, 0, 0, 0], note: "new colour matches a neighbouring run"}
+      - {args: [[9], 0, 1], expected: [1]}
+      - {args: [[2, 7, 7, 7, 2], 3, 2], expected: [2, 2, 2, 2, 2]}
+    solution: |
+      class Solution:
+          def paintRun(self, row: List[int], start: int, color: int) -> List[int]:
+              old = row[start]
+              if old == color:
+                  return row  # painting would mark nothing: recursion would bounce forever
+              def go(i):
+                  if i < 0 or i >= len(row) or row[i] != old:
+                      return
+                  row[i] = color
+                  go(i - 1); go(i + 1)
+              go(start)
+              return row
+    hint: "`old = row[start]` on the first line, then `if old == color: return row`."
+
+hints:
+  - >-
+    Picture each pixel as a node and draw a line to each of its up/down/left/right neighbours.
+    "Pixels connected to the start with the same colour" is now a familiar question about a graph:
+    which nodes can you reach from one node?
+  - >-
+    DFS from (sr, sc). At each cell: stop if it's outside the grid, stop if it isn't the original
+    colour, otherwise paint it and recurse into the 4 neighbours. Painting is your visited mark,
+    because a painted pixel no longer matches the original colour. When does that mark fail?
+  - |
+    old = image[sr][sc]
+    if old == color: return image          (painting would mark nothing)
+    fill(r, c):
+        if (r, c) is outside the grid: return
+        if image[r][c] != old: return
+        image[r][c] = color                 (paint = mark visited)
+        fill down, up, right, left
+    fill(sr, sc)
+    return image
+
+solution:
+  code: |
+    class Solution:
+        def floodFill(self, image: List[List[int]], sr: int, sc: int, color: int) -> List[List[int]]:
+            old = image[sr][sc]  # read before painting anything
+            if old == color:
+                return image  # painting would not mark cells as visited: we'd loop forever
+            rows, cols = len(image), len(image[0])
+
+            def fill(r, c):
+                if r < 0 or r >= rows or c < 0 or c >= cols:
+                    return  # off the grid: no such node
+                if image[r][c] != old:
+                    return  # a different colour, or already painted
+                image[r][c] = color  # paint, which also marks (r, c) as visited
+                fill(r + 1, c)
+                fill(r - 1, c)
+                fill(r, c + 1)
+                fill(r, c - 1)
+
+            fill(sr, sc)
+            return image
+  explanation: |
+    **The grid is a graph.** Each pixel `(r, c)` is a node, and its edges go to the four pixels
+    that share a side with it. The region to repaint is the connected component of the start pixel
+    among pixels of the original colour, and DFS visits exactly that component.
+
+    **The grid-DFS template** you will reuse for the rest of this world has four lines:
+
+    1. **Bounds check**: `r` and `c` must be inside the grid. Do this first, before indexing.
+       In Python, `image[-1]` doesn't crash, it silently reads the last row.
+    2. **"Do I want this node?"**: here, "is it still the original colour?".
+    3. **Mark it** so it is never processed again: here, painting it `color` is the mark.
+    4. **Recurse** into the four neighbours.
+
+    **The edge case.** Painting only works as a visited mark if it changes something. When
+    `color == old`, a painted pixel still equals `old`, so `fill(0, 0)` calls `fill(0, 1)`, which
+    calls `fill(0, 0)` again, forever (in Python, a `RecursionError`). Since filling with the same
+    colour changes nothing anyway, return the image immediately. Reading `old` *before* painting the
+    start pixel matters for the same reason: after the first paint, `image[sr][sc]` is the new
+    colour.
+
+    BFS with a queue works equally well. DFS recursion depth can reach M·N on a snake-shaped
+    region (2,500 here, fine); on much bigger grids, use an explicit stack or BFS.
+  time: O(M·N) — each pixel is painted at most once and checks 4 neighbours
+  space: O(M·N) — the recursion stack in the worst case (a region that covers the whole image)
+  brute_force_code: |
+    class Solution:
+        def floodFill(self, image: List[List[int]], sr: int, sc: int, color: int) -> List[List[int]]:
+            rows, cols, old = len(image), len(image[0]), image[sr][sc]
+            filled = {(sr, sc)}
+            changed = True
+            while changed:  # sweep the whole image until a sweep adds nothing
+                changed = False
+                for r in range(rows):
+                    for c in range(cols):
+                        if (r, c) in filled or image[r][c] != old:
+                            continue
+                        for dr, dc in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                            if (r + dr, c + dc) in filled:
+                                filled.add((r, c))
+                                changed = True
+                                break
+            for r, c in filled:
+                image[r][c] = color
+            return image
+
+pitch_script: |
+  **(Clarify)** "So I recolour every pixel connected to the start through up, down, left or right
+  moves, as long as it had the start pixel's original colour. Diagonals don't count, and I can
+  modify the image in place and return it, right?"
+
+  **(Brute force)** "A naive way is to sweep the whole image repeatedly, recolouring any
+  original-colour pixel that touches a filled one, until nothing changes. A snake-shaped region
+  grows one pixel per sweep, so that's O((M·N)²) in the worst case."
+
+  **(Trigger)** "'Connected through adjacent cells with the same value' tells me this is a graph
+  problem: each pixel is a node and its four neighbours are its edges. The region is just the
+  connected component of the start pixel, so DFS or BFS from the start will find it."
+
+  **(Optimal)** "I'll save the original colour first. If it already equals the new colour I return
+  right away, because otherwise painting doesn't act as a visited mark and the recursion would loop
+  forever. Then a DFS: if the cell is out of bounds or not the original colour, return; otherwise
+  paint it and recurse into the four neighbours. The paint itself marks the pixel as visited."
+
+  **(Complexity)** "Each pixel is painted at most once and looks at four neighbours, so it's
+  O(M·N) time. Space is O(M·N) for the recursion stack in the worst case; on a huge grid I'd switch
+  to an explicit stack or a BFS queue to avoid the recursion limit."
+
+twist:
+  lc: 1020
+  title: Number of Enclaves
+  why: >-
+    Now you count land cells that can never walk off the edge of the grid. Same DFS, but you start
+    it from many cells: flood-fill (sink) every land cell on the border, which removes exactly the
+    land that can escape, then count the 1s that remain. The template doesn't change; the trick is
+    choosing the start cells, which is the "flood from the boundary" idea that comes back in
+    Pacific Atlantic Water Flow.
+
+viz:
+  grid: image
+  cell: [r, c]
+  watch: [old, color]

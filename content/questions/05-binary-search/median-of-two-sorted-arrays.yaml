@@ -1,0 +1,377 @@
+slug: median-of-two-sorted-arrays
+lc: 4
+
+concept:
+  problem_it_solves: >-
+    "Where would the middle of the merged array be, without actually merging?" The median
+    splits all m + n values into a left half and a right half where everything on the left is
+    <= everything on the right. Both arrays are sorted, so such a split is just one cut in
+    each array, and once you choose the cut in the first array, the cut in the second is
+    forced. That leaves a single number to binary search.
+  brute_force: >-
+    Merge the two arrays with two pointers (or concatenate and sort), then read the middle
+    element(s). Merging touches every element, even though the median only depends on the
+    few values around the middle; the first half of the merge is spent producing an order
+    you then throw away.
+  brute_force_complexity: >-
+    O(m + n) time and space for the merge (O((m + n) log(m + n)) if you sort) — fast for 2000
+    elements, but the problem demands O(log(m + n)).
+  key_insight: >-
+    Cut nums1 after i elements and nums2 after j elements, with i + j = half = (m + n + 1) //
+    2, so the left side holds half the values (plus the extra one when the total is odd).
+    The cut is correct when maxLeft1 <=
+    minRight2 and maxLeft2 <= minRight1 (each array is already sorted internally, so only the
+    cross pairs need checking). If maxLeft1 > minRight2 you took too many from nums1, so move
+    i left; if maxLeft2 > minRight1 you took too few, so move i right. That is a binary search
+    on i over [0, m]. Search the shorter array so j = half − i always stays in range, and use
+    −∞ / +∞ for an empty side of a cut.
+  real_world: >-
+    Distributed percentile queries: monitoring systems (Prometheus, Datadog) and databases
+    compute the median or p50 latency across shards whose samples are already sorted, without
+    shipping and merging every sample. The same "find the k-th element across sorted runs by
+    partitioning" idea drives selection in merge-based query engines and in external sorting.
+
+statement:
+  clean: |
+    Given **two sorted arrays** `nums1` and `nums2` of size `m` and `n` respectively, return
+    the **median** of the two sorted arrays.
+
+    The overall run time complexity should be **O(log (m+n))**.
+
+    The median is the middle value of the combined sorted list. If the combined length is
+    even, it is the average of the two middle values.
+  oa_story: |
+    **BrewBengaluru Coffee — OA Round 2**
+
+    BrewBengaluru runs two flagship cafes, one in Indiranagar and one in Jayanagar. Each cafe's
+    POS exports the day's order wait times (in seconds) already sorted from fastest to
+    slowest. Some days a cafe is closed for maintenance and exports an empty list, but at
+    least one cafe is always open.
+
+    The operations head wants a single headline number for the evening report: the middle
+    wait time across both cafes combined, averaging the two middle values when the total
+    number of orders is even. The reporting service runs this for thousands of store pairs a
+    minute, so it must not walk through every order: the expected time is logarithmic in the
+    total number of orders. Return the combined middle value as a decimal number.
+  trigger_keywords: ["two sorted arrays", "median", "O(log (m+n))"]
+  examples:
+    - input: "nums1 = [1,3], nums2 = [2]"
+      output: "2.00000"
+      explanation: "Merged array = [1,2,3] and the median is 2."
+    - input: "nums1 = [1,2], nums2 = [3,4]"
+      output: "2.50000"
+      explanation: "Merged array = [1,2,3,4] and the median is (2 + 3) / 2 = 2.5."
+  constraints:
+    - "nums1.length == m"
+    - "nums2.length == n"
+    - "0 <= m <= 1000"
+    - "0 <= n <= 1000"
+    - "1 <= m + n <= 2000"
+    - "-10^6 <= nums1[i], nums2[i] <= 10^6"
+
+constraint_quiz:
+  prompt: >-
+    m + n is at most 2000, and the statement says the overall run time should be
+    O(log (m+n)). What should you aim for?
+  options:
+    - "O((m + n) log(m + n)) — concatenate and sort"
+    - "O(m + n) — two-pointer merge up to the middle"
+    - "O(log(min(m, n))) — binary search the cut in the shorter array"
+    - "O(1) — read the middle of each array"
+  answer: 2
+  explanation: >-
+    With 2000 elements every option runs instantly, so the size isn't the constraint; the
+    statement is. Sorting and merging are both linear or worse, and an interviewer will treat
+    them as the brute force. Reading the two middles alone doesn't work: the median of the
+    medians isn't the overall median. Binary searching the partition of the shorter array is
+    O(log(min(m, n))), which is within O(log(m + n)).
+
+pattern_quiz:
+  prompt: >-
+    Two sorted arrays, you need the combined middle element, and the time limit is
+    logarithmic. Which pattern fits?
+  options:
+    - "Two-pointer merge until the middle"
+    - "Min-heap of the heads of both arrays"
+    - "Binary search on the cut position in the shorter array"
+    - "Binary search on the answer value with a count check"
+  answer: 2
+  explanation: >-
+    "Two sorted arrays" plus "median" plus "O(log)" points to a partition binary search: the
+    median is defined by a left/right split, and choosing the cut in one array fixes the cut
+    in the other. A merge or a heap is O(m + n) or worse. Binary searching the value range
+    with a count also works, but it costs O(log(range) · log(m + n)), depends on the value
+    range, and needs extra care to produce the average for even lengths.
+
+function:
+  name: findMedianSortedArrays
+  params: [{name: nums1}, {name: nums2}]
+  compare: float
+
+starter_code: |
+  class Solution:
+      def findMedianSortedArrays(self, nums1: List[int], nums2: List[int]) -> float:
+          pass
+
+tests:
+  - {args: [[1, 3], [2]], expected: 2.0}
+  - {args: [[1, 2], [3, 4]], expected: 2.5}
+  - {args: [[1, 3, 8], [7, 9, 11, 15]], expected: 8.0, note: interleaved values}
+  - {args: [[], [1]], expected: 1.0, note: first array empty}
+  - {args: [[2], []], expected: 2.0, note: "longer array passed first: swap"}
+  - {args: [[1, 2, 3, 4, 5], [6, 7, 8, 9, 10]], expected: 5.5, note: "disjoint ranges: all of one array on the left"}
+  - {args: [[5, 6], [1, 2, 3, 4]], expected: 3.5, note: "all of nums1 on the right: i == 0 uses -inf"}
+  - {args: [[1, 1, 1], [1, 1, 1]], expected: 1.0, note: duplicates across both arrays}
+  - {args: [[-5, 3, 6, 12, 15], [-12, -10, -6, -3, 4, 10]], expected: 3.0, note: negatives and different lengths}
+visualize_test: 2
+
+drills:
+  - title: Search the shorter array
+    skill: setup
+    goal: Swap so the first array is the shorter one and compute the left-half size used by every cut.
+    instructions: |
+      Return `[m, n, half]` after making sure `nums1` is the shorter array (swap them if
+      not), where `m = len(nums1)`, `n = len(nums2)` and `half = (m + n + 1) // 2`.
+
+      `half` is how many values belong on the left of the median split; the `+ 1` gives the
+      left side the extra element when the total is odd, so the median is then simply the
+      largest value on the left. Searching the shorter array is not an optimisation detail:
+      the cut in the other array is `j = half - i`, and only when `m <= n` is `j` guaranteed
+      to stay inside `[0, n]` for every `i` in `[0, m]`.
+    function:
+      name: partitionSetup
+      params: [{name: nums1}, {name: nums2}]
+    starter_code: |
+      class Solution:
+          def partitionSetup(self, nums1: List[int], nums2: List[int]) -> List[int]:
+              pass
+    tests:
+      - {args: [[1, 3], [2]], expected: [1, 2, 2], note: swapped}
+      - {args: [[1, 2], [3, 4]], expected: [2, 2, 2]}
+      - {args: [[], [1]], expected: [0, 1, 1]}
+      - {args: [[1, 2, 3, 4, 5], [6]], expected: [1, 5, 3], note: "swapped; even total of 6, so half = 3"}
+      - {args: [[1, 2], [3, 4, 5]], expected: [2, 3, 3], note: "odd total of 5: the left half gets the extra value"}
+    solution: |
+      class Solution:
+          def partitionSetup(self, nums1: List[int], nums2: List[int]) -> List[int]:
+              if len(nums1) > len(nums2):
+                  nums1, nums2 = nums2, nums1
+              m, n = len(nums1), len(nums2)
+              half = (m + n + 1) // 2
+              return [m, n, half]
+    hint: "Swap first, then compute the lengths; `half` uses integer division with a + 1."
+
+  - title: Is this cut the median split?
+    skill: core
+    goal: Check the partition invariant with -inf/+inf sentinels and decide which way to move the cut.
+    instructions: |
+      `nums1` is the shorter array and `i` (0 to m) is how many of its elements go to the
+      left half; the other cut is `j = half - i` with `half = (m + n + 1) // 2`. Return
+      `"found"` if the cut is valid, `"left"` if `i` must decrease, or `"right"` if `i` must
+      increase.
+
+      Compute the four border values: `max_left1 = nums1[i - 1]`, `min_right1 = nums1[i]`,
+      `max_left2 = nums2[j - 1]`, `min_right2 = nums2[j]`. When a side is empty (`i == 0`,
+      `i == m`, `j == 0`, `j == n`) use `float('-inf')` for a missing left value and
+      `float('inf')` for a missing right value, so that comparison can never fail. The cut is
+      valid when `max_left1 <= min_right2` and `max_left2 <= min_right1`. If `max_left1 >
+      min_right2`, nums1 gave too many: go left. Otherwise nums1 gave too few: go right.
+    function:
+      name: checkCut
+      params: [{name: nums1}, {name: nums2}, {name: i}]
+    starter_code: |
+      class Solution:
+          def checkCut(self, nums1: List[int], nums2: List[int], i: int) -> str:
+              pass
+    tests:
+      - {args: [[1, 3, 8], [7, 9, 11, 15], 1], expected: right, note: "11 on the left is bigger than 3 on the right"}
+      - {args: [[1, 3, 8], [7, 9, 11, 15], 3], expected: found, note: "i == m: min_right1 is +inf"}
+      - {args: [[7, 9, 11], [1, 3, 8, 15], 2], expected: left, note: "9 on the left is bigger than 8 on the right"}
+      - {args: [[5, 6], [1, 2, 3, 4], 0], expected: found, note: "i == 0: max_left1 is -inf"}
+      - {args: [[5, 6], [1, 2, 3, 4], 2], expected: left}
+    solution: |
+      class Solution:
+          def checkCut(self, nums1: List[int], nums2: List[int], i: int) -> str:
+              m, n = len(nums1), len(nums2)
+              j = (m + n + 1) // 2 - i
+              max_left1 = nums1[i - 1] if i > 0 else float('-inf')
+              min_right1 = nums1[i] if i < m else float('inf')
+              max_left2 = nums2[j - 1] if j > 0 else float('-inf')
+              min_right2 = nums2[j] if j < n else float('inf')
+              if max_left1 <= min_right2 and max_left2 <= min_right1:
+                  return "found"
+              return "left" if max_left1 > min_right2 else "right"
+    hint: "Only the two cross comparisons matter: each array is already sorted on its own."
+
+  - title: Read the median off a valid cut
+    skill: edge
+    goal: Extract the median from a valid partition, handling odd and even totals and empty sides.
+    instructions: |
+      `nums1` is the shorter array and `i` is a **valid** cut (the invariant holds). Return
+      the median as a float.
+
+      Because the left half was sized `(m + n + 1) // 2`, an odd total puts the median on the
+      left: it is `max(max_left1, max_left2)`. An even total averages the largest left value
+      with the smallest right value: `(max(max_left1, max_left2) + min(min_right1,
+      min_right2)) / 2`. The sentinels matter here too: when one array is empty, one of the
+      `max`/`min` arguments is infinite, and `max`/`min` simply ignore it. Return a float even
+      for odd totals.
+    function:
+      name: medianAtCut
+      params: [{name: nums1}, {name: nums2}, {name: i}]
+      compare: float
+    starter_code: |
+      class Solution:
+          def medianAtCut(self, nums1: List[int], nums2: List[int], i: int) -> float:
+              pass
+    tests:
+      - {args: [[1, 3, 8], [7, 9, 11, 15], 3], expected: 8.0, note: odd total}
+      - {args: [[5, 6], [1, 2, 3, 4], 0], expected: 3.5, note: even total}
+      - {args: [[1, 2], [3, 4], 2], expected: 2.5, note: "j == 0: max_left2 is -inf"}
+      - {args: [[], [1], 0], expected: 1.0, note: empty nums1}
+    solution: |
+      class Solution:
+          def medianAtCut(self, nums1: List[int], nums2: List[int], i: int) -> float:
+              m, n = len(nums1), len(nums2)
+              j = (m + n + 1) // 2 - i
+              left1 = nums1[i - 1] if i > 0 else float('-inf')
+              left2 = nums2[j - 1] if j > 0 else float('-inf')
+              if (m + n) % 2 == 1:
+                  return float(max(left1, left2))  # odd: the median is the largest left value
+              right1 = nums1[i] if i < m else float('inf')
+              right2 = nums2[j] if j < n else float('inf')
+              return (max(left1, left2) + min(right1, right2)) / 2
+    hint: "With the left half one bigger on odd totals, the median is the largest value on the left."
+
+hints:
+  - >-
+    The median splits all values into a left half and a right half with everything on the left
+    <= everything on the right. If you decide how many elements of nums1 go left, how many of
+    nums2 must go left? What single number are you then searching for?
+  - >-
+    Let i be the cut in the shorter array and j = (m + n + 1) // 2 − i. Compare the cross
+    borders: if nums1[i − 1] > nums2[j], move i left; if nums2[j − 1] > nums1[i], move i right;
+    otherwise the cut is right. Use −∞ and +∞ when a cut sits at an array's end.
+  - |
+    make nums1 the shorter array; m, n = lengths
+    half = (m + n + 1) // 2
+    lo = 0, hi = m
+    while lo <= hi:
+        i = middle of lo and hi;  j = half - i
+        borders: maxLeft1, minRight1, maxLeft2, minRight2   (-inf / +inf when missing)
+        if maxLeft1 <= minRight2 and maxLeft2 <= minRight1:
+            odd total  -> max(maxLeft1, maxLeft2)
+            even total -> average of max(maxLeft1, maxLeft2) and min(minRight1, minRight2)
+        else if maxLeft1 > minRight2: hi = i - 1
+        else:                         lo = i + 1
+
+solution:
+  code: |
+    class Solution:
+        def findMedianSortedArrays(self, nums1: List[int], nums2: List[int]) -> float:
+            if len(nums1) > len(nums2):
+                nums1, nums2 = nums2, nums1  # binary search the shorter array
+            m, n = len(nums1), len(nums2)
+            half = (m + n + 1) // 2  # left half size; it gets the extra value when odd
+            lo, hi = 0, m  # i = how many values of nums1 go to the left half
+            while lo <= hi:
+                i = (lo + hi) // 2  # the "mid" of the cut range
+                j = half - i
+                max_left1 = nums1[i - 1] if i > 0 else float('-inf')
+                min_right1 = nums1[i] if i < m else float('inf')
+                max_left2 = nums2[j - 1] if j > 0 else float('-inf')
+                min_right2 = nums2[j] if j < n else float('inf')
+                if max_left1 <= min_right2 and max_left2 <= min_right1:  # valid split
+                    if (m + n) % 2 == 1:
+                        return float(max(max_left1, max_left2))
+                    return (max(max_left1, max_left2) + min(min_right1, min_right2)) / 2
+                if max_left1 > min_right2:
+                    hi = i - 1  # took too many from nums1
+                else:
+                    lo = i + 1  # took too few from nums1
+            return 0.0  # unreachable for valid sorted input
+  explanation: |
+    **The invariant.** Pick `i` values from `nums1` and `j = half - i` from `nums2` for the
+    left half. Within each array the left part is automatically <= its right part (sorted),
+    so the whole left half is <= the whole right half exactly when the two **cross**
+    conditions hold: `max_left1 <= min_right2` and `max_left2 <= min_right1`.
+
+    **Why it's a binary search.** As `i` grows, `max_left1` grows and `min_right2` shrinks
+    (because `j` falls). So "`max_left1 > min_right2`" is false for small `i` and true for
+    large `i`, and "`max_left2 > min_right1`" is the reverse. The valid cut sits between the
+    two failure zones: if the first condition fails, `i` is too big (`hi = i - 1`); if the
+    second fails, `i` is too small (`lo = i + 1`). The range is `[0, m]` inclusive, because
+    taking none or all of `nums1` are both legal cuts, so this is the `lo <= hi` exact-search
+    loop, and it always finds a valid cut.
+
+    **Sentinels.** At `i == 0` there is no left value in `nums1`, so `max_left1 = -inf` makes
+    its comparison always pass; likewise `+inf` for a missing right value. That handles empty
+    arrays and cuts at either end without special cases.
+
+    **Why the shorter array.** `j = half - i` must stay in `[0, n]`. With `m <= n`, `half - m
+    >= 0` and `half <= n`, so every `i` in `[0, m]` gives a legal `j`. It also makes the search
+    O(log(min(m, n))).
+
+    **Extracting the median.** `half = (m + n + 1) // 2` puts the extra element on the left
+    when the total is odd, so the median is `max(max_left1, max_left2)`. When even, average
+    that with `min(min_right1, min_right2)`.
+  time: O(log(min(m, n))) — binary search over the m + 1 possible cuts of the shorter array
+  space: O(1) — only indices and four border values
+  brute_force_code: |
+    class Solution:
+        def findMedianSortedArrays(self, nums1: List[int], nums2: List[int]) -> float:
+            merged = []
+            a = b = 0
+            while a < len(nums1) and b < len(nums2):
+                if nums1[a] <= nums2[b]:
+                    merged.append(nums1[a])
+                    a += 1
+                else:
+                    merged.append(nums2[b])
+                    b += 1
+            merged.extend(nums1[a:])
+            merged.extend(nums2[b:])
+            total = len(merged)
+            if total % 2 == 1:
+                return float(merged[total // 2])
+            return (merged[total // 2 - 1] + merged[total // 2]) / 2
+
+pitch_script: |
+  **(Clarify)** "Both arrays are sorted ascending, either one can be empty but not both, and
+  for an even total I average the two middle values and return a float. And the target is
+  logarithmic time, right?"
+
+  **(Brute force)** "The simple way is a two-pointer merge and then reading the middle. That's
+  O(m + n) time and space, or I could stop the merge at the middle for O(1) space, but it's
+  still linear, and the problem asks for O(log(m + n))."
+
+  **(Trigger)** "Sorted plus logarithmic means binary search, but on what? The median is a
+  split of all values into two equal halves with the left side less than or equal to the right
+  side. If I decide how many values nums1 contributes to the left, nums2's contribution is
+  forced, so I only need to binary search one cut position."
+
+  **(Optimal)** "I make nums1 the shorter array and binary search i from 0 to m, with j equal to
+  half minus i, where half is (m + n + 1) // 2. I look at the four border values, using minus
+  infinity and plus infinity when a cut is at an end. If maxLeft1 <= minRight2 and maxLeft2 <=
+  minRight1, the split is right: for an odd total the median is the larger left border, for an
+  even total it's the average of the larger left and the smaller right border. If maxLeft1 is
+  too big I move left, otherwise I move right."
+
+  **(Complexity)** "The search runs over the shorter array's m + 1 cut positions, so it's
+  O(log(min(m, n))) time and O(1) space. Searching the shorter array also guarantees j never
+  goes out of bounds."
+
+twist:
+  lc: 719
+  title: Find K-th Smallest Pair Distance
+  why: >-
+    Instead of partitioning two arrays, binary search on the answer value: for a candidate
+    distance d, count pairs with distance <= d using two pointers on the sorted array, and find
+    the smallest d whose count reaches k. It trains the other big binary-search idea (search the
+    value, count with a monotonic predicate) on a problem that looks nothing like a search.
+
+viz:
+  arrays: [nums1, nums2]
+  pointers: ["i:nums1", "j:nums2"]
+  window: [lo, hi]
+  watch: [half, max_left1, min_right1, max_left2, min_right2]

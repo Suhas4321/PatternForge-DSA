@@ -1,0 +1,249 @@
+@import 'tailwindcss';
+
+@theme {
+  --font-sans: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+  --font-plate: 'IBM Plex Sans Condensed', 'IBM Plex Sans', ui-sans-serif, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+
+  /* Obsidian surfaces */
+  --color-void: #06070b; /* page canvas */
+  --color-ink: #0a0c13; /* inset wells: inputs, code blocks, visualizer canvas */
+  --color-panel: #0c0e16; /* solid reading / coding surface */
+  --color-panel-2: #151826; /* raised controls on solid surfaces */
+  --color-line: rgb(255 255 255 / 0.07);
+  --color-line-strong: rgb(255 255 255 / 0.12);
+  --color-fog: #1e2230; /* locked */
+
+  /* Text */
+  --color-chalk: #e8eaf2;
+  --color-muted: #9aa1b8;
+  --color-faint: #5d6480;
+
+  /* Semantic: active quest */
+  --color-cyan: #00f0ff;
+  --color-indigo: #6366f1;
+  --color-forge: #00f0ff; /* accent used across the workspace (current step, focus) */
+
+  /* Semantic: mastery */
+  --color-emerald: #10b981;
+  --color-emerald-hi: #34d399;
+  --color-verdigris: #10b981;
+
+  /* Semantic: rust / decay */
+  --color-amber: #f59e0b;
+  --color-ochre: #f59e0b;
+  --color-rust: #f97316;
+  --color-crimson: #f43f5e;
+  --color-oxide: #f43f5e;
+
+  /* Pointer / secondary palette */
+  --color-sky: #818cf8;
+  --color-orchid: #c084fc;
+  --color-gold: #fbbf24;
+
+  --text-2xs: 0.6875rem;
+}
+
+@layer base {
+  html {
+    color-scheme: dark;
+  }
+  body {
+    @apply text-chalk font-sans antialiased;
+    background-color: var(--color-void);
+    background-image: radial-gradient(rgb(255 255 255 / 0.06) 1px, transparent 1px);
+    background-size: 24px 24px;
+    background-attachment: fixed;
+    font-size: 15px;
+    line-height: 1.55;
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-cyan);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+  ::selection {
+    background: rgb(99 102 241 / 0.4);
+  }
+}
+
+/* ---------------------------------------------------------------------------------------- */
+/* Liquid glass: only for floating navigation, journey nodes, stage capsules and primary     */
+/* actions. Reading and coding surfaces stay solid (see Panel).                              */
+/* ---------------------------------------------------------------------------------------- */
+
+@utility liquid-glass {
+  background: linear-gradient(135deg, rgb(255 255 255 / 0.065) 0%, rgb(255 255 255 / 0.02) 100%);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  border: 1px solid rgb(255 255 255 / 0.11);
+  box-shadow:
+    inset 0 1px 0 0 rgb(255 255 255 / 0.22),
+    0 12px 32px -8px rgb(0 0 0 / 0.6);
+}
+
+/* Specular top edge only, for small glass controls inside glass containers. */
+@utility glass-edge {
+  box-shadow: inset 0 1px 0 0 rgb(255 255 255 / 0.22);
+}
+
+/* Ambient light behind the glass: two fixed aurora orbs. */
+.aurora {
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+}
+.aurora::before,
+.aurora::after {
+  content: '';
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(140px);
+}
+.aurora::before {
+  width: 42rem;
+  height: 42rem;
+  top: -14rem;
+  left: -12rem;
+  background: rgb(79 70 229 / 0.08);
+}
+.aurora::after {
+  width: 40rem;
+  height: 40rem;
+  bottom: -16rem;
+  right: -12rem;
+  background: rgb(6 182 212 / 0.06);
+}
+
+/* Visualizer canvas: solid, with a very faint drafting grid for alignment */
+.drafting {
+  background-color: #0a0c13;
+  background-image:
+    linear-gradient(to right, rgb(129 140 248 / 0.045) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(129 140 248 / 0.045) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+/* Keyboard shortcut keycaps */
+kbd.keycap {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
+  min-width: 1.35rem;
+  padding: 0.05rem 0.35rem;
+  border-radius: 0.3rem;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  line-height: 1.1rem;
+  color: var(--color-muted);
+  background: linear-gradient(180deg, rgb(255 255 255 / 0.09), rgb(255 255 255 / 0.03));
+  border: 1px solid rgb(255 255 255 / 0.12);
+  box-shadow:
+    inset 0 1px 0 0 rgb(255 255 255 / 0.18),
+    0 1px 0 0 rgb(0 0 0 / 0.5);
+}
+
+/* Markdown body inside content panels */
+.prose-forge {
+  @apply text-chalk;
+  max-width: 72ch;
+}
+.prose-forge p {
+  margin: 0 0 0.75em;
+}
+.prose-forge p:last-child {
+  margin-bottom: 0;
+}
+.prose-forge strong {
+  @apply text-chalk font-semibold;
+}
+.prose-forge code {
+  @apply font-mono bg-panel-2 rounded px-1 py-px text-[0.88em];
+}
+.prose-forge pre {
+  @apply font-mono bg-ink border border-line rounded-md p-3 my-3 overflow-x-auto text-sm;
+}
+.prose-forge pre code {
+  @apply bg-transparent p-0;
+}
+.prose-forge ul {
+  @apply list-disc pl-5 my-2;
+}
+.prose-forge ol {
+  @apply list-decimal pl-5 my-2;
+}
+.prose-forge table {
+  @apply my-3 text-sm;
+}
+.prose-forge th,
+.prose-forge td {
+  @apply border border-line px-2 py-1 text-left;
+}
+.prose-forge mark {
+  @apply bg-cyan/15 text-cyan rounded px-0.5;
+}
+
+.trace-line-highlight {
+  background: rgb(0 240 255 / 0.1);
+  border-left: 2px solid var(--color-cyan);
+}
+.error-line-highlight {
+  background: rgb(244 63 94 / 0.16);
+}
+
+@keyframes quest-pulse {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 0 rgb(0 240 255 / 0.35),
+      inset 0 1px 0 0 rgb(255 255 255 / 0.22);
+  }
+  50% {
+    box-shadow:
+      0 0 0 6px rgb(0 240 255 / 0),
+      inset 0 1px 0 0 rgb(255 255 255 / 0.22);
+  }
+}
+.quest-pulse {
+  animation: quest-pulse 2.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Printable revision sheet (World cheat-sheet) */
+@media print {
+  body {
+    background: white !important;
+    color: black !important;
+  }
+  .aurora,
+  .no-print,
+  body.sheet-open #root {
+    display: none !important;
+  }
+  .print-sheet {
+    position: static !important;
+    inset: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+    background: white !important;
+    color: black !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+  .print-sheet * {
+    color: black !important;
+    background: transparent !important;
+    border-color: #ccc !important;
+  }
+}

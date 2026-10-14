@@ -1,0 +1,351 @@
+slug: reorder-list
+lc: 143
+
+concept:
+  problem_it_solves: >-
+    "How do I visit a singly linked list from both ends at once?" A singly linked list only
+    walks forward, so "take the last node, then the second-last, …" is exactly the direction
+    it can't go. The fix is to *make* the back half walk forward: split the list in the
+    middle, reverse the second half, and then both halves can be read front-to-front.
+  brute_force: >-
+    Repeatedly walk from the current node to the end of the list, unhook the tail, and splice
+    it in after the current node. Each splice re-walks almost the whole remaining list just
+    to find a tail you already passed on the previous walk. (Copying all nodes into an array
+    and using two indices fixes the time, but costs O(N) extra memory, which is exactly what
+    the interviewer will ask you to remove.)
+  brute_force_complexity: O(N²) time, O(1) space — 5 × 10⁴ nodes means ~6 × 10⁸ pointer hops just to find tails.
+  key_insight: >-
+    The order L0, Ln, L1, Ln-1, … is just two lists merged alternately: the first half
+    L0, L1, L2, … and the second half read backwards Ln, Ln-1, …. "Read backwards" on a
+    singly linked list means "reverse it". So the problem is three problems you already know,
+    in a row: find the middle with slow/fast pointers, reverse the second half in place,
+    and zip the two halves together. Each step is one O(N) pass with O(1) extra pointers.
+  real_world: >-
+    These three moves are everyday list surgery in systems code. Merge sort on linked lists
+    (how many standard libraries sort lists) splits with slow/fast pointers because it doesn't
+    know the length. Kernel and allocator free lists (Linux's list_head) are rewired in place
+    because allocating in a hot path isn't allowed, and feed services zipper-merge two ranked
+    streams (organic and sponsored, near and top-rated) exactly like step three.
+
+statement:
+  clean: |
+    You are given the `head` of a singly linked list. The list can be represented as:
+
+    `L0 → L1 → … → Ln - 1 → Ln`
+
+    **Reorder the list** to be on the following form:
+
+    `L0 → Ln → L1 → Ln - 1 → L2 → Ln - 2 → …`
+
+    You **may not modify the values** in the list's nodes. Only nodes themselves may be
+    changed. Do not return anything; rearrange the list in place.
+  oa_story: |
+    **BogieBuild Rail Systems — OA Round 1**
+
+    BogieBuild writes the yard software for a coach-maintenance depot near Yeshwanthpur. A rake
+    (a train of coaches) arrives with its coaches coupled one behind another, and each coach's
+    controller only knows the coach coupled directly behind it. For a load-balancing test, the
+    depot wants the rake rearranged so the coaches alternate from the two ends: the front coach,
+    then the last coach, then the second coach, then the second-last coach, and so on until the
+    two ends meet.
+
+    Coach numbers are painted on and can't be swapped between coaches; only the couplings can be
+    changed. The shunting yard has no spare siding, so you can't park the coaches anywhere else
+    while you work, and rakes can have up to 50,000 coaches in the simulation. Given the front
+    coach, re-couple the rake in place.
+  trigger_keywords: ["Reorder the list", "may not modify the values", "L0 → Ln → L1"]
+  examples:
+    - input: "head = [1,2,3,4]"
+      output: "[1,4,2,3]"
+      explanation: "First half 1 → 2, second half reversed 4 → 3, zipped: 1, 4, 2, 3."
+    - input: "head = [1,2,3,4,5]"
+      output: "[1,5,2,4,3]"
+      explanation: "With an odd length the first half keeps the middle node 3, which ends up last."
+  constraints:
+    - "The number of nodes in the list is in the range [1, 5 * 10^4]"
+    - "1 <= Node.val <= 1000"
+
+constraint_quiz:
+  prompt: >-
+    The list can have 5 × 10⁴ nodes and the interviewer says "no extra data structures". What
+    should you aim for?
+  options: ["O(N²) time, O(1) space", "O(N) time, O(N) space", "O(N) time, O(1) space", "O(N log N) time, O(1) space"]
+  answer: 2
+  explanation: >-
+    Re-walking to the tail for every splice is O(N²), about N²/4 ≈ 6 × 10⁸ hops here, which is too slow.
+    Copying the nodes into an array (or a stack) is O(N) time but O(N) space, which breaks the
+    "no extra data structures" rule. Nothing here needs sorting, so O(N log N) is just slower
+    for no reason. Three linear passes (middle, reverse, merge) with a handful of pointers give
+    O(N) time and O(1) space.
+
+pattern_quiz:
+  prompt: >-
+    You must interleave a singly linked list's front with its back, in place, without changing
+    values. Which pattern fits?
+  options:
+    - "Sort the nodes by value and relink them"
+    - "Push every node on a stack, then pop from the back while walking from the front"
+    - "Slow/fast pointers to find the middle, reverse the second half, merge the halves alternately"
+    - "Two pointers from both ends, like on an array"
+  answer: 2
+  explanation: >-
+    "Reorder" here is about positions, not values, so sorting is wrong. A stack works but
+    costs O(N) memory. Array-style two pointers from both ends need a pointer that moves
+    backwards, which a singly linked list doesn't have. The trigger "front and back
+    alternately, in place, O(1) space" means: make the back walk forward by reversing it,
+    which needs the middle first (slow/fast), and then a zipper merge.
+
+function:
+  name: reorderList
+  params: [{name: head, type: ListNode}]
+  inplace_arg: 0
+
+starter_code: |
+  # Definition for singly-linked list.
+  # class ListNode:
+  #     def __init__(self, val=0, next=None):
+  #         self.val = val
+  #         self.next = next
+  class Solution:
+      def reorderList(self, head: Optional[ListNode]) -> None:
+          """
+          Do not return anything, modify head in-place instead.
+          """
+          pass
+
+tests:
+  - {args: [[1, 2, 3, 4]], expected: [1, 4, 2, 3]}
+  - {args: [[1, 2, 3, 4, 5]], expected: [1, 5, 2, 4, 3], note: "odd length: the middle node ends up last"}
+  - {args: [[1]], expected: [1], note: single node}
+  - {args: [[1, 2]], expected: [1, 2], note: "two nodes are already in order"}
+  - {args: [[1, 2, 3]], expected: [1, 3, 2], note: smallest list that actually moves}
+  - {args: [[1, 2, 3, 4, 5, 6]], expected: [1, 6, 2, 5, 3, 4]}
+  - {args: [[5, 5, 1, 1]], expected: [5, 1, 5, 1], note: "duplicate values: move nodes, never compare values"}
+  - {args: [[10, 20, 30, 40, 50, 60, 70]], expected: [10, 70, 20, 60, 30, 50, 40]}
+visualize_test: 1
+
+drills:
+  - title: Find the middle and cut the list in two
+    skill: setup
+    goal: Use slow/fast pointers to stop slow at the last node of the first half, then cut there.
+    instructions: |
+      Move `slow` one step and `fast` two steps while `fast.next` and `fast.next.next` exist.
+      `slow` then sits on the **last node of the first half**. Cut the list after `slow`
+      (`slow.next = None`) and return the head of the second half.
+
+      For `[1,2,3,4]` the second half is `[3,4]`; for `[1,2,3,4,5]` it is `[4,5]` (the first
+      half keeps the extra node). Reorder List needs exactly this split: if you don't cut,
+      the first half still runs into the second and the merge creates a cycle.
+    function:
+      name: cutSecondHalf
+      params: [{name: head, type: ListNode}]
+      returns: ListNode
+    starter_code: |
+      class Solution:
+          def cutSecondHalf(self, head: Optional[ListNode]) -> Optional[ListNode]:
+              pass
+    tests:
+      - {args: [[1, 2, 3, 4]], expected: [3, 4]}
+      - {args: [[1, 2, 3, 4, 5]], expected: [4, 5], note: the first half keeps the middle}
+      - {args: [[1, 2]], expected: [2]}
+      - {args: [[1]], expected: [], note: a single node has an empty second half}
+      - {args: [[1, 2, 3, 4, 5, 6]], expected: [4, 5, 6]}
+    solution: |
+      class Solution:
+          def cutSecondHalf(self, head: Optional[ListNode]) -> Optional[ListNode]:
+              slow, fast = head, head
+              while fast.next and fast.next.next:
+                  slow = slow.next
+                  fast = fast.next.next
+              second = slow.next
+              slow.next = None  # cut, so the first half ends at slow
+              return second
+    hint: "Checking `fast.next and fast.next.next` (not `fast and fast.next`) stops slow one node earlier on even lengths."
+
+  - title: Reverse the second half in place
+    skill: core
+    goal: Reverse a list with prev/cur/nxt, saving next before you rewire.
+    instructions: |
+      Reverse the list and return its new head. Keep three pointers: `prev` (the reversed part
+      so far, starting at `None`), `cur` (the node being flipped) and `nxt` (saved *before*
+      `cur.next` is overwritten, or you lose the rest of the list).
+
+      In Reorder List this is what turns `Ln-1 → Ln` into `Ln → Ln-1`, so the back half can be
+      read from the end while still only walking forward.
+    function:
+      name: reverseChain
+      params: [{name: head, type: ListNode}]
+      returns: ListNode
+    starter_code: |
+      class Solution:
+          def reverseChain(self, head: Optional[ListNode]) -> Optional[ListNode]:
+              pass
+    tests:
+      - {args: [[3, 4]], expected: [4, 3]}
+      - {args: [[4, 5, 6]], expected: [6, 5, 4]}
+      - {args: [[7]], expected: [7]}
+      - {args: [[]], expected: [], note: an empty second half (single-node list) must not crash}
+    solution: |
+      class Solution:
+          def reverseChain(self, head: Optional[ListNode]) -> Optional[ListNode]:
+              prev, cur = None, head
+              while cur:
+                  nxt = cur.next  # save before rewiring
+                  cur.next = prev
+                  prev, cur = cur, nxt
+              return prev
+    hint: "Save `nxt = cur.next` first; then point `cur.next` back at `prev`."
+
+  - title: Zip two halves, first half one longer
+    skill: edge
+    goal: Merge alternately, saving both next pointers, and stop when the shorter second half runs out.
+    instructions: |
+      `first` and `second` are two separate lists; `first` has the same length as `second` or
+      exactly one more node. Link them alternately (first, second, first, second, …) by
+      rewiring nodes and return the head of the merged list.
+
+      The edge people get wrong: loop **while `second`**, not while `first`. When the lengths
+      differ, the leftover node of `first` is the middle of the original list; it is already
+      in the right place and its `next` is already `None` because of the cut. Save
+      `first.next` and `second.next` before rewiring either one.
+    function:
+      name: zipHalves
+      params: [{name: first, type: ListNode}, {name: second, type: ListNode}]
+      returns: ListNode
+    starter_code: |
+      class Solution:
+          def zipHalves(self, first: Optional[ListNode], second: Optional[ListNode]) -> Optional[ListNode]:
+              pass
+    tests:
+      - {args: [[1, 2, 3], [5, 4]], expected: [1, 5, 2, 4, 3], note: the extra first-half node stays last}
+      - {args: [[1, 2], [4, 3]], expected: [1, 4, 2, 3]}
+      - {args: [[1], []], expected: [1], note: nothing to merge}
+      - {args: [[1], [2]], expected: [1, 2]}
+      - {args: [[7, 8, 9], [1, 2]], expected: [7, 1, 8, 2, 9]}
+    solution: |
+      class Solution:
+          def zipHalves(self, first: Optional[ListNode], second: Optional[ListNode]) -> Optional[ListNode]:
+              head = first
+              while second:
+                  first_next, second_next = first.next, second.next
+                  first.next = second
+                  second.next = first_next
+                  first, second = first_next, second_next
+              return head
+    hint: "Two temporaries: `first_next, second_next = first.next, second.next`, then rewire, then advance both."
+
+hints:
+  - >-
+    A singly linked list can only walk forward, but the answer needs the last node, then the
+    second-last… How could you make the back half of the list readable from its end while
+    still only walking forward?
+  - >-
+    Split the list at the middle (slow moves 1, fast moves 2), cut the link so the halves are
+    separate, reverse the second half, then take one node from each half in turn. Which half
+    keeps the extra node when the length is odd, and what does that mean for when the merge
+    loop stops?
+  - |
+    slow, fast = head, head
+    while fast.next and fast.next.next: slow = slow.next; fast = fast.next.next
+    second = slow.next; slow.next = None          # cut
+    reverse second  -> prev is the new head of the back half
+    first, second = head, prev
+    while second:
+        save first.next and second.next
+        first.next = second; second.next = saved first.next
+        move first and second to the saved nodes
+
+solution:
+  code: |
+    class Solution:
+        def reorderList(self, head: Optional[ListNode]) -> None:
+            # 1. find the middle: slow stops at the last node of the first half
+            slow, fast = head, head
+            while fast.next and fast.next.next:
+                slow = slow.next
+                fast = fast.next.next
+
+            # 2. cut after slow and reverse the second half
+            second = slow.next
+            slow.next = None
+            prev = None
+            while second:
+                nxt = second.next
+                second.next = prev
+                prev = second
+                second = nxt
+
+            # 3. zip: one node from the front half, one from the reversed back half
+            first, second = head, prev
+            while second:
+                first_next, second_next = first.next, second.next
+                first.next = second
+                second.next = first_next
+                first, second = first_next, second_next
+  explanation: |
+    The target order is the first half merged alternately with the second half *reversed*.
+    So the solution is three linear passes.
+
+    **Middle.** With the loop condition `fast.next and fast.next.next`, `slow` stops on the
+    last node of the first half: node 2 of `[1,2,3,4]`, node 3 of `[1,2,3,4,5]`. The first
+    half therefore has the same length as the second, or one more. Setting `slow.next = None`
+    matters: without the cut, the end of the first half still points into the second half
+    and the merge builds a cycle.
+
+    **Reverse.** Standard in-place reversal; `nxt` is saved before `second.next` is
+    overwritten so the rest of the list isn't lost. `prev` ends as the head of the reversed
+    back half (`Ln`).
+
+    **Zip.** Take one node from each half in turn, saving both `next` pointers before
+    rewiring. The loop runs while `second` exists: when the length is odd, the first half's
+    extra node (the original middle) is left at the end, where it belongs, already pointing
+    to `None` because of the cut. A single-node list skips both loops and stays as it is.
+  time: O(N) — three passes (half the list for the middle, half to reverse, the whole list to zip)
+  space: O(1) — only a fixed number of pointers; nodes are rewired, never copied
+  brute_force_code: |
+    class Solution:
+        def reorderList(self, head: Optional[ListNode]) -> None:
+            cur = head
+            while cur and cur.next and cur.next.next:
+                # walk to the node just before the tail: O(N) every time
+                before_tail = cur
+                while before_tail.next.next:
+                    before_tail = before_tail.next
+                tail = before_tail.next
+                before_tail.next = None
+                tail.next = cur.next  # splice the tail in after cur
+                cur.next = tail
+                cur = tail.next
+
+pitch_script: |
+  **(Clarify)** "So I rearrange the nodes in place into first, last, second, second-last and so
+  on, I can't just swap values, and I don't return anything. The list has at least one node,
+  right?"
+
+  **(Brute force)** "The direct way is to walk to the tail, unhook it and splice it in after the
+  current node, then repeat. Every splice re-walks the rest of the list, so that's O(N²). I
+  could also copy the nodes into an array and use two indices, which is O(N) time but O(N)
+  extra space."
+
+  **(Trigger)** "The order is really the first half merged alternately with the second half
+  read backwards. On a singly linked list, 'read backwards' means reverse it, and to reverse
+  the second half I first need the middle, which is slow and fast pointers."
+
+  **(Optimal)** "Step one: slow moves one, fast moves two, and slow stops at the end of the
+  first half; I cut the list there. Step two: I reverse the second half in place. Step three:
+  I zip them, taking one node from each half, saving both next pointers before I rewire.
+  The loop runs while the second half has nodes, because on odd lengths the first half has
+  the extra middle node, which just stays at the end."
+
+  **(Complexity)** "Three linear passes, so O(N) time, and only a few pointers, so O(1) extra
+  space. No values are touched; only the next pointers change."
+
+twist:
+  lc: 234
+  title: Palindrome Linked List
+  why: >-
+    The same first two steps, a different third one. Find the middle with slow/fast pointers
+    and reverse the second half, but instead of zipping the halves together, walk both halves
+    side by side and compare values; any mismatch means it isn't a palindrome. That gives the
+    O(1)-space follow-up, and a polite answer reverses the second half back afterwards so the
+    caller's list is left intact.

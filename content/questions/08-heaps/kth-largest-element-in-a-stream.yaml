@@ -1,0 +1,379 @@
+slug: kth-largest-element-in-a-stream
+lc: 703
+
+concept:
+  problem_it_solves: >-
+    "What is the kth largest value right now?", asked again after every new value arrives in a
+    stream that only ever grows. Re-sorting the whole stream for each question repeats almost all
+    of the previous work. A heap answers it by remembering only the k values that can still
+    matter, and by keeping the weakest of them where you can read it instantly.
+  brute_force: >-
+    Keep every value in a list. On each add, append the new value, sort the list in descending
+    order and return index k − 1. The sort re-orders thousands of values whose relative order did
+    not change at all, and the list keeps growing even though values below the top k can never
+    be the answer again.
+  brute_force_complexity: >-
+    O(N log N) per add with a re-sort (still O(N) per add with bisect.insort, because the list has
+    to shift), O(N) space — 10⁴ adds on a stream that grows to 2 × 10⁴ values means at least ~10⁸
+    element moves, and memory grows forever.
+  key_insight: >-
+    Only the k largest values seen so far can ever be the answer, and the kth largest is the
+    *smallest* of those k. So keep exactly those k values in a min-heap: a complete binary tree
+    stored in a list where every parent is <= its children (heap[i] <= heap[2i+1] and
+    heap[2i+2]). That one rule puts the minimum at heap[0], so peeking is O(1), while push
+    (append, then sift up) and pop (move the last item to the root, then sift down) each walk a
+    single root-to-leaf path of height log k, so they cost O(log k). On add, push the value; if
+    the heap now holds k + 1 values, pop the smallest. Nothing is ever deleted from the stream,
+    so the kth largest can only stay the same or grow, which means an evicted value can never
+    become the answer again.
+  real_world: >-
+    Search engines keep the top k results per query this way: Lucene's top-hits collector holds
+    a size-k priority queue and rejects any document scoring below its root. Gaming and
+    fantasy-sports leaderboards use the same root as the "score needed to enter the top k"
+    cutoff, and monitoring agents track the k slowest requests in a fixed-size heap instead of
+    storing every latency.
+
+statement:
+  clean: |
+    Design a class to find the **kth largest element in a stream**. Note that it is the kth
+    largest element in the sorted order, **not the kth distinct element**.
+
+    Implement the `KthLargest` class:
+
+    - `KthLargest(int k, int[] nums)` initializes the object with the integer `k` and the
+      stream of integers `nums`.
+    - `int add(int val)` appends the integer `val` to the stream and returns the element
+      representing the kth largest element in the stream.
+  oa_story: |
+    **LeaderboardLabs — OA Round 1**
+
+    LeaderboardLabs runs fantasy-cricket contests for office leagues across Bengaluru. In a
+    contest, only the top `k` teams win prizes, so the app shows a live banner: "score needed to
+    reach the prize zone". When the contest page loads, the scores of teams already locked in
+    arrive as a list `nums`; after that, a new team's score arrives every time someone in
+    Manyata Tech Park submits a team.
+
+    Implement a `KthLargest` class: the constructor receives `k` and the starting scores, and
+    `add(val)` records a newly submitted score and returns the current cutoff, which is the
+    `k`-th highest score among all scores so far (two teams with equal scores take two separate
+    places). A cutoff is only requested once at least `k` scores exist. Popular contests get
+    thousands of submissions during a match, and the banner refreshes after every single one.
+  trigger_keywords: ["kth largest element in a stream", "not the kth distinct element"]
+  examples:
+    - input: |
+        ["KthLargest","add","add","add","add","add"]
+        [[3,[4,5,8,2]],[3],[5],[10],[9],[4]]
+      output: "[null,4,5,5,8,8]"
+      explanation: "The three largest after adding 3 are [4,5,8], so the answer is 4. Adding 5 gives [5,5,8] → 5. Adding 10 gives [5,8,10] → 5. Adding 9 gives [8,9,10] → 8, and 4 is too small to change anything."
+    - input: |
+        ["KthLargest","add","add","add","add"]
+        [[4,[7,7,7,7,8,3]],[2],[10],[9],[9]]
+      output: "[null,7,7,7,8]"
+      explanation: "Duplicates count separately: the four largest start as [7,7,7,8]. Only after 10, 9 and 9 arrive does the fourth largest become 8."
+  constraints:
+    - "0 <= nums.length <= 10^4"
+    - "1 <= k <= nums.length + 1"
+    - "-10^4 <= nums[i] <= 10^4"
+    - "-10^4 <= val <= 10^4"
+    - "At most 10^4 calls will be made to add."
+    - "It is guaranteed that there will be at least k elements in the array when you search for the kth element."
+
+constraint_quiz:
+  prompt: >-
+    The stream starts with up to 10⁴ values and add is called up to 10⁴ times, each call needing
+    an answer immediately. What should one add cost?
+  options: ["O(N log N) — re-sort the stream", "O(N) — insert into a sorted list", "O(log k) — push/pop on a heap of size k", "O(1) — update a single variable"]
+  answer: 2
+  explanation: >-
+    Re-sorting is O(N log N) per add, and over 10⁴ adds on a growing stream that is far more work
+    than needed. A sorted list with bisect.insort finds the spot in O(log N) but shifting the list
+    is O(N), so it's still ~10⁸ moves overall. A single variable can't work: when a bigger value
+    arrives, the new kth largest is the old (k−1)th largest, which you didn't store. A size-k
+    min-heap does one push and at most one pop, each O(log k), and reads the answer in O(1).
+
+pattern_quiz:
+  prompt: >-
+    Values keep arriving and after each one you need the kth largest so far. Which structure
+    fits?
+  options:
+    - "Sort the whole stream on every add"
+    - "A max-heap of every value, popping k times per query"
+    - "A min-heap that keeps only the k largest values seen so far"
+    - "A monotonic stack of decreasing values"
+  answer: 2
+  explanation: >-
+    "Kth largest" plus "stream" is the size-k min-heap trigger. The k largest values are the
+    only candidates, and the kth largest is the smallest of them, so a min-heap of exactly those
+    k puts the answer at the root. A max-heap of everything has to pop k values (and push them
+    back) on every query, O(k log N) each time. Sorting repeats work, and a monotonic stack
+    answers "next greater" questions, not order statistics.
+
+function:
+  kind: design
+  name: KthLargest
+
+starter_code: |
+  class KthLargest:
+
+      def __init__(self, k: int, nums: List[int]):
+          pass
+
+      def add(self, val: int) -> int:
+          pass
+
+tests:
+  - args:
+      ops: [KthLargest, add, add, add, add, add]
+      args: [[3, [4, 5, 8, 2]], [3], [5], [10], [9], [4]]
+    expected: [null, 4, 5, 5, 8, 8]
+  - args:
+      ops: [KthLargest, add, add, add, add]
+      args: [[4, [7, 7, 7, 7, 8, 3]], [2], [10], [9], [9]]
+    expected: [null, 7, 7, 7, 8]
+    note: "duplicates count as separate places, not distinct values"
+  - args:
+      ops: [KthLargest, add, add, add, add, add]
+      args: [[1, []], [-3], [-2], [-4], [0], [4]]
+    expected: [null, -3, -2, -2, 0, 4]
+    note: "empty starting stream and k = 1, so the answer is the running maximum"
+  - args:
+      ops: [KthLargest, add, add, add]
+      args: [[3, [5, 1]], [2], [7], [0]]
+    expected: [null, 1, 2, 2]
+    note: "k = nums.length + 1: the heap starts one short, so the first add must not pop"
+  - args:
+      ops: [KthLargest, add, add]
+      args: [[2, [9, 1, 8, 2, 7, 3]], [0], [10]]
+    expected: [null, 8, 9]
+    note: "the constructor must trim the starting values down to k"
+  - args:
+      ops: [KthLargest, add, add]
+      args: [[2, [5, 5, 5]], [5], [4]]
+    expected: [null, 5, 5]
+    note: all values equal
+  - args:
+      ops: [KthLargest, add, add, add]
+      args: [[1, [3, 1, 2]], [0], [4], [2]]
+    expected: [null, 3, 4, 4]
+    note: "k = 1 means the maximum; smaller values are evicted immediately"
+  - args:
+      ops: [KthLargest, add, add, add]
+      args: [[2, [-10000, 10000]], [-10000], [-5000], [10000]]
+    expected: [null, -10000, -5000, 10000]
+    note: extreme values
+visualize_test: 0
+
+drills:
+  - title: Build the size-k club
+    skill: setup
+    goal: Turn a list into a min-heap with heapify and trim it so only the k largest values remain.
+    instructions: |
+      Given `nums` and `k`, build a min-heap from a copy of `nums` with `heapq.heapify`, then pop
+      the smallest value until at most `k` values remain. Return what is left in **ascending
+      order** (use `sorted(heap)`, because a heap list is only partially ordered).
+
+      This is exactly the constructor of `KthLargest`. `heapify` is O(N), much cheaper than N
+      separate pushes, and every pop removes the current minimum, which can never be among the
+      k largest. If `nums` has fewer than `k` values, keep them all.
+    function:
+      name: topKClub
+      params: [{name: nums}, {name: k}]
+    starter_code: |
+      class Solution:
+          def topKClub(self, nums: List[int], k: int) -> List[int]:
+              pass
+    tests:
+      - {args: [[4, 5, 8, 2], 3], expected: [4, 5, 8]}
+      - {args: [[9, 1, 8, 2, 7, 3], 2], expected: [8, 9]}
+      - {args: [[5, 1], 3], expected: [1, 5], note: fewer than k values so nothing is popped}
+      - {args: [[], 1], expected: []}
+      - {args: [[7, 7, 7], 2], expected: [7, 7], note: duplicates are separate members}
+    solution: |
+      class Solution:
+          def topKClub(self, nums: List[int], k: int) -> List[int]:
+              heap = nums[:]
+              heapq.heapify(heap)
+              while len(heap) > k:
+                  heapq.heappop(heap)
+              return sorted(heap)
+    hint: "`heapq.heapify(heap)` works in place; then `while len(heap) > k: heapq.heappop(heap)`."
+
+  - title: Push, then evict the weakest
+    skill: core
+    goal: Push each arriving value and pop the minimum whenever the heap grows past k.
+    instructions: |
+      Start with an empty heap. For each value in `stream`, push it; if the heap now has more
+      than `k` values, pop the smallest. Return the list of **evicted** values, in the order
+      they were evicted.
+
+      Watching the evictions shows why this works: the value thrown out is always the smallest
+      of k + 1 candidates, so k values are bigger than it and it can never be the kth largest
+      again. A new value smaller than the root goes in and comes straight back out.
+    function:
+      name: evictions
+      params: [{name: k}, {name: stream}]
+    starter_code: |
+      class Solution:
+          def evictions(self, k: int, stream: List[int]) -> List[int]:
+              pass
+    tests:
+      - {args: [3, [4, 5, 8, 2, 3, 5, 10, 9, 4]], expected: [2, 3, 4, 5, 5, 4]}
+      - {args: [1, [3, 1, 2]], expected: [1, 2], note: with k = 1 only the maximum survives}
+      - {args: [2, [1, 2]], expected: [], note: the heap never grows past k}
+      - {args: [2, [5, 5, 5]], expected: [5]}
+    solution: |
+      class Solution:
+          def evictions(self, k: int, stream: List[int]) -> List[int]:
+              heap, out = [], []
+              for x in stream:
+                  heapq.heappush(heap, x)
+                  if len(heap) > k:
+                      out.append(heapq.heappop(heap))
+              return out
+    hint: "`heapq.heappop` returns the value it removes, so you can append it directly."
+
+  - title: The root is the answer only once the heap is full
+    skill: edge
+    goal: Peek at heap[0] without popping, and only trust it as the kth largest when the heap holds exactly k values.
+    instructions: |
+      Start with an empty heap. After each value in `stream` (push, and pop if over size `k`),
+      record the kth largest value seen so far, which is `heap[0]`, or `null` (`None`) if fewer
+      than `k` values have arrived yet. Return the recorded list.
+
+      Two details people get wrong: reading the answer is a **peek** (`heap[0]`), not a pop, and
+      while the heap is still short the root is just the minimum of everything, not the kth
+      largest. In the real problem this is the `k = nums.length + 1` case: the constructor
+      leaves k − 1 values and the first add fills the heap without evicting anything.
+    function:
+      name: kthOrNone
+      params: [{name: k}, {name: stream}]
+    starter_code: |
+      class Solution:
+          def kthOrNone(self, k: int, stream: List[int]) -> List[Optional[int]]:
+              pass
+    tests:
+      - {args: [3, [4, 5, 8, 2, 3]], expected: [null, null, 4, 4, 4]}
+      - {args: [1, [-1, -5, 2]], expected: [-1, -1, 2]}
+      - {args: [2, [7]], expected: [null], note: never enough values}
+      - {args: [2, []], expected: []}
+      - {args: [2, [3, 3, 1]], expected: [null, 3, 3]}
+    solution: |
+      class Solution:
+          def kthOrNone(self, k: int, stream: List[int]) -> List[Optional[int]]:
+              heap, out = [], []
+              for x in stream:
+                  heapq.heappush(heap, x)
+                  if len(heap) > k:
+                      heapq.heappop(heap)
+                  out.append(heap[0] if len(heap) == k else None)
+              return out
+    hint: "Check `len(heap) == k` before treating `heap[0]` as the answer."
+
+hints:
+  - >-
+    Once k values bigger than some value x have arrived, can x ever be the kth largest again,
+    given that values are only ever added? So how many values do you actually need to remember,
+    and which one of them is the answer?
+  - >-
+    Keep a min-heap of at most k values. On add, push the value; if the heap now has k + 1
+    values, pop the smallest. The root heap[0] is the kth largest. The constructor does the same
+    thing for the starting values: heapify, then pop until only k remain.
+  - |
+    init(k, nums):
+        heap = copy of nums; heapify(heap)
+        while size(heap) > k: pop smallest
+    add(val):
+        push val
+        if size(heap) > k: pop smallest
+        return heap root
+
+solution:
+  code: |
+    class KthLargest:
+
+        def __init__(self, k: int, nums: List[int]):
+            self.k = k
+            self.heap = nums[:]  # min-heap of the k largest values; heap[0] is the kth largest
+            heapq.heapify(self.heap)  # O(N): enforce parent <= children
+            while len(self.heap) > k:
+                heapq.heappop(self.heap)  # the smallest can never be among the k largest
+
+        def add(self, val: int) -> int:
+            heapq.heappush(self.heap, val)
+            if len(self.heap) > self.k:
+                heapq.heappop(self.heap)  # evict the weakest of the k + 1 candidates
+            return self.heap[0]
+  explanation: |
+    **The heap, in one rule.** Python's `heapq` stores a binary tree in a plain list: the
+    children of index `i` live at `2i + 1` and `2i + 2`, and every parent is `<=` its children.
+    That rule says nothing about siblings, so the list is *not* sorted, but it does force the
+    minimum to sit at `heap[0]`. `heappush` appends and swaps the value up past bigger parents;
+    `heappop` moves the last value to the root and swaps it down past smaller children. Both
+    follow one path through a tree of height log k, so they are O(log k), and peeking is O(1).
+    `heapify` builds a heap from a whole list in O(N).
+
+    **Why a min-heap for the k largest.** The heap holds the k largest values seen so far, and
+    the kth largest is the smallest of them, which is exactly the root. When a new value
+    arrives it is pushed, and if that makes k + 1 values, the smallest is popped. If the new
+    value was smaller than the root, it is the one evicted and nothing changes; otherwise the old
+    root leaves and a new kth largest rises to the top.
+
+    **Why evicting is safe.** Nothing is ever removed from the stream, so an evicted value
+    already has k values above it forever. It can never become the kth largest again.
+
+    **The edge case.** `k` can be `nums.length + 1`, so the constructor may leave only k − 1
+    values. That is why `add` checks `len(self.heap) > self.k` instead of always popping: the
+    first add just fills the heap. A common micro-optimisation is `heapq.heappushpop` (or
+    comparing `val` with `heap[0]` first and using `heapreplace`), which does push + pop in one
+    sift.
+  time: O(N log N) worst case for the constructor (heapify O(N) plus up to N − k pops at O(log N) each), O(log k) per add
+  space: O(k) — the heap never holds more than k values after construction
+  brute_force_code: |
+    class KthLargest:
+
+        def __init__(self, k: int, nums: List[int]):
+            self.k = k
+            self.nums = list(nums)
+
+        def add(self, val: int) -> int:
+            self.nums.append(val)
+            self.nums.sort(reverse=True)  # re-sort the whole stream on every add
+            return self.nums[self.k - 1]
+
+pitch_script: |
+  **(Clarify)** "So add returns the kth largest including duplicates, not the kth distinct value,
+  and I'm guaranteed at least k values whenever add returns. The starting list can have fewer
+  than k values, even zero, right?"
+
+  **(Brute force)** "The simple version keeps every value and re-sorts on each add, then reads
+  index k minus one. That's O(N log N) per add, and the list grows forever, even though most of
+  those values can never be the answer."
+
+  **(Trigger)** "'Kth largest' over a stream is the classic size-k heap signal. Once k bigger
+  values have arrived, a value can never be the kth largest again, because nothing is removed.
+  So I only need the k largest so far, and the answer is the smallest of those, which is exactly
+  what a min-heap keeps at its root."
+
+  **(Optimal)** "In the constructor I heapify a copy of nums and pop until only k values remain.
+  In add I push the value, and if the heap now has k plus one values I pop the smallest. Then I
+  return heap zero. Checking the size before popping handles the case where the constructor
+  started with only k minus one values."
+
+  **(Complexity)** "Each add is one push and at most one pop on a heap of size k, so O(log k),
+  and reading the root is O(1). The constructor is O(N) for heapify plus O(log N) per trimming
+  pop. Space is O(k)."
+
+twist:
+  lc: 692
+  title: Top K Frequent Words
+  why: >-
+    Now you keep the top k *words by frequency*, ties broken alphabetically, and return them
+    in order. It is still a size-k min-heap with the weakest candidate at the root, but the key
+    becomes (count, word) where a lower count, or an alphabetically *later* word on a tie,
+    counts as weaker. In Python that needs a small wrapper class with __lt__ (or a full sort by
+    (−count, word)), and because the heap pops weakest-first, the extracted list must be
+    reversed.
+
+viz:
+  heaps: [self.heap]
+  watch: [val, self.k]

@@ -1,0 +1,271 @@
+slug: contains-duplicate
+lc: 217
+
+concept:
+  problem_it_solves: >-
+    "Has this exact value shown up before?" Without memory, the only way to answer is to
+    re-read everything to your left for every element. A hash set remembers every value
+    you've already passed, so each "seen it?" question becomes one O(1) membership check.
+  brute_force: >-
+    Compare every pair (i, j) with two nested loops and return True if nums[i] == nums[j].
+    The inner loop re-reads the same values over and over, even though the outer loop has
+    already looked at all of them once and could simply have remembered them.
+  brute_force_complexity: O(N²) time, O(1) space — 10⁵ elements means ~5 × 10⁹ pair checks.
+  key_insight: >-
+    You don't need to know *which* pair matches, only whether the current value is already
+    in your memory. Keep a set of everything to your left, check membership before adding,
+    and the first repeat reveals itself the moment it arrives, so you can stop right there.
+  real_world: >-
+    Idempotency checks in payment APIs (Razorpay and Stripe use idempotency keys) reject a
+    request whose key was already processed. Kafka consumers dedupe message IDs, and web
+    crawlers keep a "visited URL" set so they never fetch the same page twice.
+
+statement:
+  clean: |
+    Given an integer array `nums`, return `true` if **any value appears at least twice** in
+    the array, and return `false` if **every element is distinct**.
+  oa_story: |
+    **TicketDhaba Events — OA Round 1**
+
+    TicketDhaba sells passes for weekend concerts at a Bengaluru venue near Manyata Tech
+    Park. Every pass carries a numeric pass code that the gate scanners read as fans walk
+    in. Last Saturday a printing glitch at the vendor may have stamped the same code onto
+    more than one pass, and security wants to know before gates open on Sunday.
+
+    You are given the list of pass codes printed for the event. Write a function that
+    returns `true` if the printer reused any code, so the batch must be pulled, and `false`
+    if every pass is safe to hand out.
+  trigger_keywords: ["appears at least twice", "every element is distinct"]
+  examples:
+    - input: "nums = [1,2,3,1]"
+      output: "true"
+      explanation: "The value 1 appears at index 0 and again at index 3."
+    - input: "nums = [1,2,3,4]"
+      output: "false"
+      explanation: "All four values are different."
+    - input: "nums = [1,1,1,3,3,4,3,2,4,2]"
+      output: "true"
+  constraints:
+    - "1 <= nums.length <= 10^5"
+    - "-10^9 <= nums[i] <= 10^9"
+
+constraint_quiz:
+  prompt: >-
+    N can be 10⁵ and values range up to ±10⁹. What time complexity should you aim for?
+  options: ["O(N²)", "O(N log N)", "O(N)", "O(1)"]
+  answer: 2
+  explanation: >-
+    O(N²) is ~5 × 10⁹ pair checks, far beyond the ~10⁸ simple operations a judge allows per
+    second. Sorting and comparing neighbours is O(N log N) and does pass, but it's not the
+    best and it reorders the input. A hash set gives O(N) average. O(1) is impossible: if
+    you skip even one element, it could be the duplicate.
+
+pattern_quiz:
+  prompt: You need to know whether any value repeats in an unsorted array. Which pattern fits?
+  options:
+    - "Two pointers from both ends"
+    - "Hash set of values seen so far"
+    - "Sliding window of fixed size"
+    - "Prefix sums"
+  answer: 1
+  explanation: >-
+    "Appears at least twice" is the textbook "seen before" trigger. Two pointers needs sorted
+    data and solves pair-sum questions, a fixed window only helps when duplicates must be
+    close together (that's the twist, #219), and prefix sums answer range-sum questions. A
+    set answers "is this value already in my memory?" in O(1).
+
+function:
+  name: containsDuplicate
+  params: [{name: nums}]
+
+starter_code: |
+  class Solution:
+      def containsDuplicate(self, nums: List[int]) -> bool:
+          pass
+
+tests:
+  - {args: [[1, 2, 3, 1]], expected: true}
+  - {args: [[1, 2, 3, 4]], expected: false}
+  - {args: [[1, 1, 1, 3, 3, 4, 3, 2, 4, 2]], expected: true}
+  - {args: [[7]], expected: false, note: "single element can't repeat"}
+  - {args: [[5, 5]], expected: true, note: smallest possible duplicate}
+  - {args: [[-3, 0, 3, -3]], expected: true, note: "negatives; repeat at the very end"}
+  - {args: [[0, -1, 1, 2, -2]], expected: false, note: "x and -x are different values"}
+  - {args: [[1000000000, -1000000000, 1000000000]], expected: true, note: extreme values}
+visualize_test: 0
+
+drills:
+  - title: Build the memory as you walk
+    skill: setup
+    goal: Create an empty set and add every element to it in a single loop.
+    instructions: |
+      Return the **number of distinct values** in `nums` by building a set one element at a
+      time inside a `for` loop (don't just call `len(set(nums))`).
+
+      Writing the loop yourself matters: the full solution needs to do something *between*
+      reading `x` and adding it, and `set(nums)` gives you no place to do that.
+    function:
+      name: countDistinct
+      params: [{name: nums}]
+    starter_code: |
+      class Solution:
+          def countDistinct(self, nums: List[int]) -> int:
+              pass
+    tests:
+      - {args: [[1, 2, 3, 1]], expected: 3}
+      - {args: [[4, 4, 4]], expected: 1}
+      - {args: [[]], expected: 0}
+      - {args: [[-1, 1, 0]], expected: 3}
+    solution: |
+      class Solution:
+          def countDistinct(self, nums: List[int]) -> int:
+              seen = set()
+              for x in nums:
+                  seen.add(x)
+              return len(seen)
+    hint: "Start with `seen = set()`; adding a value that's already there changes nothing."
+
+  - title: Stop at the first repeat
+    skill: core
+    goal: Check membership before inserting and exit early on the first repeated value.
+    instructions: |
+      Return the **first value that repeats**, meaning the value whose second occurrence
+      comes earliest in the array. Return `None` if every element is distinct.
+
+      This is the exact move inside Contains Duplicate: check `x in seen` *before*
+      `seen.add(x)`. If you add first, every element looks like it was "seen", by itself.
+      Returning immediately is what makes the best case O(1) on inputs like `[5, 5, ...]`.
+    function:
+      name: firstRepeatedValue
+      params: [{name: nums}]
+    starter_code: |
+      class Solution:
+          def firstRepeatedValue(self, nums: List[int]) -> Optional[int]:
+              pass
+    tests:
+      - {args: [[2, 1, 3, 1, 2]], expected: 1}
+      - {args: [[1, 2, 3]], expected: null}
+      - {args: [[9, 9]], expected: 9}
+      - {args: [[4, 6, 6, 4]], expected: 6}
+    solution: |
+      class Solution:
+          def firstRepeatedValue(self, nums: List[int]) -> Optional[int]:
+              seen = set()
+              for x in nums:
+                  if x in seen:
+                      return x
+                  seen.add(x)
+              return None
+    hint: "In `[2, 1, 3, 1, 2]` the 1 repeats at index 3, before the 2 repeats at index 4."
+
+  - title: Reason with sizes, not loops
+    skill: edge
+    goal: Know that a list has a duplicate exactly when its set is smaller than the list.
+    instructions: |
+      Return how many elements you would have to **delete** from `nums` so that every
+      remaining value is distinct.
+
+      Every duplicate collapses when you build a set, so the set is shorter than the list by
+      exactly the number of extra copies. That's why `len(set(nums)) < len(nums)` is a valid
+      one-line answer to Contains Duplicate, and why it can't exit early: it always builds
+      the whole set.
+    function:
+      name: extraCopies
+      params: [{name: nums}]
+    starter_code: |
+      class Solution:
+          def extraCopies(self, nums: List[int]) -> int:
+              pass
+    tests:
+      - {args: [[1, 2, 3, 1]], expected: 1}
+      - {args: [[1, 2, 3]], expected: 0}
+      - {args: [[5, 5, 5, 5]], expected: 3}
+      - {args: [[1, 1, 2, 2, 3]], expected: 2}
+      - {args: [[]], expected: 0}
+    solution: |
+      class Solution:
+          def extraCopies(self, nums: List[int]) -> int:
+              return len(nums) - len(set(nums))
+    hint: "Four 5s collapse into a set of size one. How many copies vanished?"
+
+hints:
+  - >-
+    When you stand at a number x, the only thing you need to know is whether x appeared
+    anywhere to your left. What structure answers "is this in my memory?" instantly?
+  - >-
+    Keep a set of every value you've already passed. At each step there are two moves: check
+    whether x is in the set, then add x. What do you do the moment the check succeeds, and
+    why does the order of those two moves matter?
+  - |
+    seen = empty set
+    for x in nums:
+        if x is in seen: return true
+        add x to seen
+    return false
+
+solution:
+  code: |
+    class Solution:
+        def containsDuplicate(self, nums: List[int]) -> bool:
+            seen = set()  # every value to the left of the current one
+            for x in nums:
+                if x in seen:
+                    return True  # second copy found, no need to look further
+                seen.add(x)
+            return False
+  explanation: |
+    Walk the array once while `seen` holds everything to the left. If the current `x` is
+    already in `seen`, an earlier copy exists, so the answer is `true` and we can stop right
+    there. Otherwise remember `x` and keep going. Reaching the end means no value ever
+    matched its memory, so every element is distinct.
+
+    The check has to come **before** the insert: adding first would make every element
+    "seen". The early return is why this beats `len(set(nums)) < len(nums)` in practice: on
+    an input that repeats near the front, it stops after a few steps instead of hashing all
+    10⁵ values. If extra memory were forbidden, sorting and comparing neighbours works in
+    O(N log N) time with O(1) extra space (beyond the sort itself).
+  time: O(N) — one pass, O(1) average per set lookup/insert
+  space: O(N) — the set holds up to N values when everything is distinct
+  brute_force_code: |
+    class Solution:
+        def containsDuplicate(self, nums: List[int]) -> bool:
+            n = len(nums)
+            for i in range(n):
+                for j in range(i + 1, n):
+                    if nums[i] == nums[j]:
+                        return True
+            return False
+
+pitch_script: |
+  **(Clarify)** "So I just return a boolean, not the duplicate itself or its index? And the
+  array isn't sorted, and I'm allowed to use extra memory?"
+
+  **(Brute force)** "The simplest approach compares every pair with two loops. That's O(N²)
+  time and O(1) space. With N up to 10⁵ that's about five billion comparisons, which won't
+  run in time."
+
+  **(Trigger)** "The question is really 'have I seen this value before?' for each element.
+  That's a membership question, and a hash set answers it in constant time on average."
+
+  **(Optimal)** "I'll walk the array once with a set of everything I've seen. For each value
+  I first check the set: if it's there, I return true immediately. Otherwise I add it and
+  move on. If the loop finishes, everything was distinct, so I return false. Checking before
+  adding is what keeps an element from matching itself."
+
+  **(Complexity)** "That's O(N) time and O(N) space in the worst case, when all values are
+  distinct. If memory were tight, I'd sort and compare adjacent elements, which is
+  O(N log N) time with no extra set."
+
+twist:
+  lc: 219
+  title: Contains Duplicate II
+  why: >-
+    Now the two copies must be at most k indices apart. A set of *all* past values is too
+    much memory, so you either store value → last index in a map and check i − last ≤ k, or
+    keep a set holding only the last k values, removing nums[i − k] as the window slides.
+    Same "seen before" check, with memory limited to a window.
+
+viz:
+  arrays: [nums]
+  maps: [seen]
+  watch: [x]

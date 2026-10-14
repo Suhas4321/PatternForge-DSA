@@ -1,0 +1,327 @@
+slug: max-consecutive-ones-iii
+lc: 1004
+
+concept:
+  problem_it_solves: >-
+    "What is the longest contiguous stretch that breaks the rule at most k times?" Here the
+    rule-breakers are zeros, and flipping a zero is just "allowing" it inside the stretch. A
+    variable-size window grows on the right, counts the bad elements inside it, and shrinks
+    from the left only when the count goes over k.
+  brute_force: >-
+    For every start l, extend r to the right counting zeros, and stop when the count passes
+    k. When the next start l + 1 begins, it throws all that work away and re-counts zeros it
+    had already counted, even though the window [l+1, r] only lost one element.
+  brute_force_complexity: >-
+    O(N²) time, O(1) space — 10⁵ elements means up to about 5 × 10⁹ steps on an all-ones
+    array.
+  key_insight: >-
+    Rephrase "flip at most k zeros" as "find the longest window containing at most k zeros";
+    flipping never needs to happen. Then notice the rule is monotonic: if [l, r] has too many
+    zeros, every bigger window that contains it does too. So when the window becomes invalid,
+    move l right until it's valid again and never move l back. r moves N times, l moves at
+    most N times in total, so the whole scan is O(N) even with a while loop inside the for.
+  real_world: >-
+    SRE teams track error budgets this way: "the longest stretch of minutes with at most k
+    SLO breaches" is a window counting bad minutes. Video streaming players (Hotstar,
+    YouTube) measure quality over windows that tolerate a few dropped segments, and fraud
+    systems flag the longest run of activity with at most k failed OTP attempts.
+
+statement:
+  clean: |
+    Given a binary array `nums` and an integer `k`, return the
+    **maximum number of consecutive 1's** in the array if you can **flip at most k** `0`'s.
+
+    Flipping a `0` turns it into a `1`. The consecutive `1`'s you count must form a single
+    **contiguous** run after the flips.
+  oa_story: |
+    **ParcelPandit — OA Round 2**
+
+    ParcelPandit runs same-day deliveries across Bengaluru, from HSR Layout to Hebbal. For
+    each rider it stores one flag per working day, in order: `1` if every parcel that day
+    reached the customer on time, `0` if at least one was late because of a Silk Board jam or
+    a wrong drop pin.
+
+    For the monthly "Pandit Streak" award, each rider gets `k` grace passes. A grace pass
+    erases one late day, turning it into an on-time day. Given a rider's daily flags and `k`,
+    return the length of the longest unbroken streak of on-time days the rider can reach
+    after using up to `k` passes. Riders can have up to 100,000 days of history and the
+    leaderboard refreshes every few minutes.
+  trigger_keywords: ["consecutive 1's", "flip at most k", "contiguous"]
+  examples:
+    - input: "nums = [1,1,1,0,0,0,1,1,1,1,0], k = 2"
+      output: "6"
+      explanation: "Flip the zeros at indices 5 and 10: [1,1,1,0,0,1,1,1,1,1,1] has six 1's in a row at indices 5..10."
+    - input: "nums = [0,0,1,1,0,0,1,1,1,0,1,1,0,0,0,1,1,1,1], k = 3"
+      output: "10"
+      explanation: "Flip the zeros at indices 4, 5 and 9: indices 2..11 become ten consecutive 1's."
+  constraints:
+    - "1 <= nums.length <= 10^5"
+    - "nums[i] is either 0 or 1"
+    - "0 <= k <= nums.length"
+
+constraint_quiz:
+  prompt: >-
+    N can be 10⁵ and k can be as large as N. What time complexity should you aim for?
+  options: ["O(N²)", "O(N·k)", "O(N log N)", "O(N)"]
+  answer: 3
+  explanation: >-
+    Trying every start is O(N²), about 5 × 10⁹ steps, which is too slow. O(N·k) (say, trying
+    each choice of which zero to flip next) is just as bad when k is near N. O(N log N) is
+    possible by binary searching on the answer length with prefix counts of zeros, so it
+    would pass, but it is more code and still not optimal. A variable sliding window is O(N),
+    because each pointer only moves forward and at most N times.
+
+pattern_quiz:
+  prompt: >-
+    You want the longest contiguous run that contains at most k "bad" elements. Which pattern
+    fits?
+  options:
+    - "Greedy: always flip the first k zeros you see"
+    - "Variable sliding window that counts zeros and shrinks while zeros > k"
+    - "Prefix sums + hash map of prefix counts"
+    - "Monotonic stack of zero positions"
+  answer: 1
+  explanation: >-
+    Flipping the first k zeros is wrong whenever the best run is further right (try example 1).
+    Prefix sums + hash map is for "sum exactly k" counting, not "longest with at most k". A
+    monotonic stack answers next-greater questions. "Longest contiguous", "at most k" and a
+    condition that only gets worse as the window grows is the exact trigger for a variable
+    window: grow r, and shrink l while the window is invalid.
+
+function:
+  name: longestOnes
+  params: [{name: nums}, {name: k}]
+
+starter_code: |
+  class Solution:
+      def longestOnes(self, nums: List[int], k: int) -> int:
+          pass
+
+tests:
+  - {args: [[1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 0], 2], expected: 6}
+  - {args: [[0, 0, 1, 1, 0, 0, 1, 1, 1, 0, 1, 1, 0, 0, 0, 1, 1, 1, 1], 3], expected: 10}
+  - {args: [[0, 0, 0], 0], expected: 0, note: "no 1's and no flips: the window stays empty"}
+  - {args: [[1, 1, 1], 0], expected: 3, note: nothing to flip}
+  - {args: [[0, 0, 0, 1], 4], expected: 4, note: "k exceeds the number of zeros: the whole array"}
+  - {args: [[0], 1], expected: 1, note: single zero that can be flipped}
+  - {args: [[1, 0, 1, 0, 1], 1], expected: 3, note: two equally good windows}
+  - {args: [[1, 0, 0, 1, 1, 0, 1], 0], expected: 2, note: "k = 0 is plain max consecutive ones"}
+  - {args: [[0, 1, 1, 0, 1, 1, 1, 0], 1], expected: 6, note: "the shrink has to skip past a zero"}
+visualize_test: 8
+
+drills:
+  - title: Window length is r − l + 1
+    skill: setup
+    goal: Track a window with two indices l and r, measure it with r − l + 1, and restart it on a 0.
+    instructions: |
+      Return the length of the longest run of consecutive `1`'s (no flips allowed).
+
+      Use the window vocabulary from the start: `r` walks the array, `l` marks where the
+      current run begins, and the run's length is `r - l + 1`. When `nums[r]` is `0`, no
+      window ending at `r` can be all ones, so restart with `l = r + 1`, which makes the
+      length `0`. This is the `k = 0` version of the full problem.
+    function:
+      name: maxConsecutiveOnes
+      params: [{name: nums}]
+    starter_code: |
+      class Solution:
+          def maxConsecutiveOnes(self, nums: List[int]) -> int:
+              pass
+    tests:
+      - {args: [[1, 1, 0, 1, 1, 1]], expected: 3}
+      - {args: [[0, 0]], expected: 0}
+      - {args: [[1]], expected: 1}
+      - {args: [[1, 0, 1, 1, 0, 1]], expected: 2}
+    solution: |
+      class Solution:
+          def maxConsecutiveOnes(self, nums: List[int]) -> int:
+              l, best = 0, 0
+              for r in range(len(nums)):
+                  if nums[r] == 0:
+                      l = r + 1  # the run restarts after this zero
+                  best = max(best, r - l + 1)
+              return best
+    hint: "On a zero, set `l = r + 1`; then `r - l + 1` is 0 and the next 1 starts a fresh run."
+
+  - title: Shrink while the window is invalid
+    skill: core
+    goal: Keep a zero count for nums[l..r] and move l right until zeros <= k again.
+    instructions: |
+      Run the window over `nums`: add `nums[r]` (count it if it's a zero), then shrink from the
+      left **while** the window holds more than `k` zeros. Return the value of `l` after the
+      shrink, for every `r`.
+
+      This is the heart of every "longest window" problem. When you remove `nums[l]`, only
+      decrement the count if that element was a zero. Notice that `l` never goes backwards:
+      the list you return is always non-decreasing.
+    function:
+      name: leftBounds
+      params: [{name: nums}, {name: k}]
+    starter_code: |
+      class Solution:
+          def leftBounds(self, nums: List[int], k: int) -> List[int]:
+              pass
+    tests:
+      - {args: [[1, 0, 0, 1, 0], 1], expected: [0, 0, 2, 2, 3]}
+      - {args: [[0, 0, 0], 0], expected: [1, 2, 3], note: "l can pass r, leaving an empty window"}
+      - {args: [[1, 1, 1], 1], expected: [0, 0, 0]}
+      - {args: [[0, 1, 0, 1, 0], 2], expected: [0, 0, 0, 0, 1]}
+    solution: |
+      class Solution:
+          def leftBounds(self, nums: List[int], k: int) -> List[int]:
+              l, zeros, out = 0, 0, []
+              for r in range(len(nums)):
+                  zeros += nums[r] == 0
+                  while zeros > k:
+                      zeros -= nums[l] == 0  # only a leaving zero lowers the count
+                      l += 1
+                  out.append(l)
+              return out
+    hint: "Inside the `while zeros > k` loop: if `nums[l] == 0`, decrement `zeros`; always `l += 1`."
+
+  - title: Score after shrinking, and allow an empty window
+    skill: edge
+    goal: Record the best window only after the shrink, so every recorded window is valid, including length 0.
+    instructions: |
+      Return the inclusive bounds `[l, r]` of the longest window with at most `k` zeros. On a
+      tie, return the earliest one. If no non-empty window is valid (all zeros with `k = 0`),
+      return `[-1, -1]`.
+
+      The ordering is the classic bug: if you score before the `while` loop, you record a
+      window that still has too many zeros. Score after it. And when `k = 0` meets a zero,
+      the shrink pushes `l` to `r + 1`: the length `r - l + 1` is `0`, which must never beat
+      a real window.
+    function:
+      name: longestWindowBounds
+      params: [{name: nums}, {name: k}]
+    starter_code: |
+      class Solution:
+          def longestWindowBounds(self, nums: List[int], k: int) -> List[int]:
+              pass
+    tests:
+      - {args: [[1, 1, 1, 0, 0, 0, 1, 1, 1, 1, 0], 2], expected: [4, 9], note: "[5, 10] ties but comes later"}
+      - {args: [[0, 0], 0], expected: [-1, -1], note: no valid non-empty window}
+      - {args: [[1, 0, 1], 0], expected: [0, 0]}
+      - {args: [[0, 0, 1], 2], expected: [0, 2]}
+      - {args: [[1, 0, 1, 0, 1], 1], expected: [0, 2]}
+    solution: |
+      class Solution:
+          def longestWindowBounds(self, nums: List[int], k: int) -> List[int]:
+              l, zeros, best, bounds = 0, 0, 0, [-1, -1]
+              for r in range(len(nums)):
+                  zeros += nums[r] == 0
+                  while zeros > k:
+                      zeros -= nums[l] == 0
+                      l += 1
+                  if r - l + 1 > best:  # after the shrink: the window is valid
+                      best, bounds = r - l + 1, [l, r]
+              return bounds
+    hint: "Put the `if r - l + 1 > best` check after the `while` loop, and start `best` at 0."
+
+hints:
+  - >-
+    You never actually need to flip anything. If a stretch of the array contains at most k
+    zeros, can it become all ones? So what are you really looking for?
+  - >-
+    Grow a window one element at a time on the right and keep a count of zeros inside it.
+    When the count goes over k, which end of the window should move, and how far? Could the
+    left end ever need to move back?
+  - |
+    l = 0, zeros = 0, best = 0
+    for r from 0 to n-1:
+        if nums[r] is 0: zeros = zeros + 1
+        while zeros > k:
+            if nums[l] is 0: zeros = zeros - 1
+            l = l + 1
+        best = max(best, r - l + 1)
+    return best
+
+solution:
+  code: |
+    class Solution:
+        def longestOnes(self, nums: List[int], k: int) -> int:
+            l = 0
+            zeros = 0  # zeros inside nums[l..r], i.e. flips this window needs
+            best = 0
+            for r in range(len(nums)):
+                if nums[r] == 0:
+                    zeros += 1
+                while zeros > k:  # too many flips needed: shrink from the left
+                    if nums[l] == 0:
+                        zeros -= 1
+                    l += 1
+                best = max(best, r - l + 1)  # nums[l..r] is valid here
+            return best
+  explanation: |
+    A window `nums[l..r]` can be turned into all ones exactly when it holds **at most `k`
+    zeros**, so the problem is "longest window with at most `k` zeros". This is the
+    **longest-window template** you'll reuse all through this world:
+
+    1. **Expand:** move `r` right and add `nums[r]` to the window's state (here, the zero count).
+    2. **Shrink:** *while* the window breaks the rule, remove `nums[l]` from the state and move `l` right.
+    3. **Score:** the window is now valid, so `r - l + 1` is a candidate answer.
+
+    Why is it safe to never move `l` back? If `nums[l..r]` has more than `k` zeros, any window
+    that starts at or before `l` and ends at or after `r` contains it and has at least as many
+    zeros. So once a left edge is too far left for some `r`, it stays useless for every
+    larger `r` too.
+
+    That is also why the nested loop is still O(N): `r` moves N times, and `l` only ever
+    moves forward and never past `r + 1`, so across the **whole** run the `while` body
+    executes at most N times. Total work is at most 2N pointer moves.
+
+    Scoring after the shrink matters: before it, the window may be invalid. And with `k = 0`
+    and a zero at `r`, the shrink pushes `l` to `r + 1`, giving an empty window of length 0,
+    which is exactly right for `[0, 0, 0]`.
+  time: O(N) — r moves N times and l moves at most N times in total
+  space: O(1) — two indices, a zero count and the best length
+  brute_force_code: |
+    class Solution:
+        def longestOnes(self, nums: List[int], k: int) -> int:
+            best = 0
+            for l in range(len(nums)):
+                zeros = 0
+                for r in range(l, len(nums)):
+                    zeros += nums[r] == 0
+                    if zeros > k:
+                        break
+                    best = max(best, r - l + 1)
+            return best
+
+pitch_script: |
+  **(Clarify)** "The array only has zeros and ones, I can flip up to k zeros, not exactly k,
+  and I return the length of the longest run of ones afterwards. k can be zero, and it can
+  be bigger than the number of zeros?"
+
+  **(Brute force)** "The brute force fixes each start and extends to the right while the
+  number of zeros stays within k. That's O(N²) time, O(1) space, around 5 billion steps for
+  10⁵ elements, so too slow."
+
+  **(Trigger)** "I don't need to actually flip anything. A stretch can become all ones if it
+  has at most k zeros, so this is 'longest contiguous window with at most k bad elements'.
+  That's a variable-size sliding window, because adding elements can only increase the
+  zero count."
+
+  **(Optimal)** "I move r across the array and count zeros in the window. Whenever the
+  count goes above k, I move l right, decrementing the count when a zero leaves, until it's
+  back to k. After that the window is valid, so I update the best with r minus l plus one.
+  The left pointer never needs to go back, because a window that's already invalid only
+  gets worse if it's extended."
+
+  **(Complexity)** "Each pointer moves forward at most N times, so it's O(N) time overall,
+  even with the inner while loop, and O(1) extra space."
+
+twist:
+  lc: 1493
+  title: Longest Subarray of 1's After Deleting One Element
+  why: >-
+    Now you must delete exactly one element and count the ones left. It is the same window
+    with k = 1 (at most one zero inside), but the deleted element doesn't count, so the
+    answer is r − l instead of r − l + 1. That also handles an all-ones array correctly,
+    since you are forced to delete one of the 1's.
+
+viz:
+  arrays: [nums]
+  pointers: [l, r]
+  window: [l, r]
+  watch: [zeros, k, best]

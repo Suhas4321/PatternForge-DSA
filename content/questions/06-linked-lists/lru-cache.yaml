@@ -1,0 +1,575 @@
+slug: lru-cache
+lc: 146
+
+concept:
+  problem_it_solves: >-
+    "Which key was used least recently?", answered in O(1) while keys are being read and
+    written all the time. A hash map finds a key instantly but has no idea of order; a list
+    keeps order but finding a key in it is O(N). Put both together, a map from key to a node
+    in a doubly linked list kept in recency order, and every operation becomes a lookup plus
+    a constant number of pointer changes.
+  brute_force: >-
+    Keep a dictionary for the values and a Python list of keys in recency order. Every get or
+    put on an existing key has to find that key in the list (list.remove) and move it to the
+    end, and evicting from the front (pop(0)) shifts every remaining element. The order
+    information is there, but reaching a key's position in it costs a scan every time.
+  brute_force_complexity: O(capacity) per get/put, O(capacity) space — 2 × 10⁵ calls on a 3000-entry cache means up to ~6 × 10⁸ element moves.
+  key_insight: >-
+    The two jobs need two structures that point at each other. A doubly linked list holds the
+    entries in recency order (most recent right after a dummy `head`, least recent right
+    before a dummy `tail`); because each node knows its `prev` and `next`, it can be unlinked
+    from the middle in O(1). The hash map stores key → node, so you can jump straight to the
+    node you need to move. And each node stores its own key, so when you evict `tail.prev`
+    you know which map entry to delete. The dummy head and tail mean insert and unlink never
+    have to check for an empty list or a missing neighbour.
+  real_world: >-
+    Memcached and Redis (allkeys-lru, approximated) evict cold keys this way, the Linux page
+    cache keeps active/inactive LRU lists of pages, and CDNs and browser caches drop the least
+    recently requested objects first. Python's functools.lru_cache is implemented as exactly
+    this: a dict plus a circular doubly linked list with a sentinel root.
+
+statement:
+  clean: |
+    Design a data structure that follows the constraints of a
+    **Least Recently Used (LRU) cache**.
+
+    Implement the `LRUCache` class:
+
+    - `LRUCache(int capacity)` initializes the LRU cache with **positive** size `capacity`.
+    - `int get(int key)` returns the value of the `key` if the key exists, otherwise returns
+      `-1`.
+    - `void put(int key, int value)` updates the value of the `key` if the `key` exists.
+      Otherwise, adds the key-value pair to the cache. If the number of keys exceeds the
+      `capacity` from this operation, **evict the least recently used key**.
+
+    The functions `get` and `put` must each run in **O(1) average time complexity**.
+
+    Both `get` and `put` count as a use of the key.
+  oa_story: |
+    **CacheChai Edge — OA Round 2**
+
+    CacheChai runs a small edge server in every Bengaluru data-centre rack for food-delivery
+    apps. Each server keeps restaurant menus in memory, but it only has room for `capacity`
+    menus at once. A menu is "touched" whenever it is read or written. When a new menu has to
+    be stored and the server is full, the menu that has gone the longest without being touched
+    is thrown out to make room. Updating a menu that is already stored just replaces its
+    contents and counts as a touch.
+
+    Implement `LRUCache(capacity)`, `get(key)` (return the stored menu version for restaurant
+    `key`, or -1 if it isn't on the server) and `put(key, value)` (store or update a menu). A
+    lunch rush at 1 PM sends up to 200,000 requests, so every call must take the same small,
+    constant amount of work regardless of how many menus are stored.
+  trigger_keywords: ["Least Recently Used (LRU) cache", "evict the least recently used key", "O(1) average time complexity"]
+  examples:
+    - input: |
+        ["LRUCache","put","put","get","put","get","put","get","get","get"]
+        [[2],[1,1],[2,2],[1],[3,3],[2],[4,4],[1],[3],[4]]
+      output: "[null,null,null,1,null,-1,null,-1,3,4]"
+      explanation: "get(1) makes key 1 the most recent, so put(3) evicts key 2. Then put(4) evicts key 1, the least recent of {1, 3}."
+    - input: |
+        ["LRUCache","put","put","get","put","put","get"]
+        [[2],[2,1],[2,2],[2],[1,1],[4,1],[2]]
+      output: "[null,null,null,2,null,null,-1]"
+      explanation: "put(2, 2) updates key 2 instead of adding a second entry. After put(1, 1) and put(4, 1), key 2 is the least recent and gets evicted."
+  constraints:
+    - "1 <= capacity <= 3000"
+    - "0 <= key <= 10^4"
+    - "0 <= value <= 10^5"
+    - "At most 2 * 10^5 calls will be made to get and put."
+
+constraint_quiz:
+  prompt: >-
+    Up to 2 × 10⁵ calls with a capacity of up to 3000, and the statement demands O(1) average
+    per call. What can a single get or put afford?
+  options:
+    - "O(capacity) — scan a list of keys to update the order"
+    - "O(log capacity) — keep entries in a heap ordered by last-used time"
+    - "O(1) — a hash lookup plus a constant number of pointer changes"
+    - "O(1) for get, O(capacity) for put — only scan when evicting"
+  answer: 2
+  explanation: >-
+    Scanning a key list is O(capacity), up to ~6 × 10⁸ steps here and it breaks the stated
+    requirement. A heap of timestamps makes each touch O(log capacity) and needs lazy
+    deletion for stale entries, so it isn't O(1). "Only scan when evicting" fails too: once
+    the cache is full, every put of a new key evicts, so put is O(capacity) on exactly the
+    hot path. A hash map into a doubly linked list makes both calls a lookup plus a few
+    pointer writes.
+
+pattern_quiz:
+  prompt: >-
+    You need O(1) lookup by key and O(1) "move this entry to the most-recent end" and
+    "remove the oldest entry". Which design fits?
+  options:
+    - "A hash map plus a queue of keys"
+    - "A hash map from key to node in a doubly linked list ordered by recency, with dummy head and tail"
+    - "A hash map plus a singly linked list ordered by recency"
+    - "A min-heap keyed by last access time"
+  answer: 1
+  explanation: >-
+    A queue can pop the oldest key, but a get on a key in the middle has to move it to the
+    back, which a queue can't do without scanning. A singly linked list can't unlink a node in
+    O(1) because the node doesn't know its predecessor. A heap gives O(log N), not O(1). The
+    trigger "evict least recently used" + "O(1)" points to the doubly linked list: the map
+    jumps to the node, and prev/next let you cut it out and reinsert it at the front in
+    constant time.
+
+function:
+  kind: design
+  name: LRUCache
+
+starter_code: |
+  class LRUCache:
+
+      def __init__(self, capacity: int):
+          pass
+
+      def get(self, key: int) -> int:
+          pass
+
+      def put(self, key: int, value: int) -> None:
+          pass
+
+tests:
+  - args:
+      ops: [LRUCache, put, put, get, put, get, put, get, get, get]
+      args: [[2], [1, 1], [2, 2], [1], [3, 3], [2], [4, 4], [1], [3], [4]]
+    expected: [null, null, null, 1, null, -1, null, -1, 3, 4]
+  - args:
+      ops: [LRUCache, put, put, get, put, put, get]
+      args: [[2], [2, 1], [2, 2], [2], [1, 1], [4, 1], [2]]
+    expected: [null, null, null, 2, null, null, -1]
+    note: "updating an existing key must not add a second entry"
+  - args:
+      ops: [LRUCache, put, put, get, get]
+      args: [[1], [1, 1], [2, 2], [1], [2]]
+    expected: [null, null, null, -1, 2]
+    note: "capacity 1: every new key evicts the previous one"
+  - args:
+      ops: [LRUCache, put, put, put, put, get, get]
+      args: [[2], [1, 1], [2, 2], [1, 10], [3, 3], [1], [2]]
+    expected: [null, null, null, null, null, 10, -1]
+    note: "put on an existing key counts as a use, so key 2 is evicted, not key 1"
+  - args:
+      ops: [LRUCache, put, put, get, put, get, get, get]
+      args: [[2], [1, 1], [2, 2], [1], [3, 3], [1], [2], [3]]
+    expected: [null, null, null, 1, null, 1, -1, 3]
+    note: "get refreshes recency"
+  - args:
+      ops: [LRUCache, put, put, get, put, get, get]
+      args: [[2], [1, 1], [2, 2], [9], [3, 3], [1], [2]]
+    expected: [null, null, null, -1, null, -1, 2]
+    note: "a get on a missing key changes nothing"
+  - args:
+      ops: [LRUCache, get, put, get]
+      args: [[1], [5], [5, 50], [5]]
+    expected: [null, -1, null, 50]
+    note: get on an empty cache
+  - args:
+      ops: [LRUCache, put, put, put, get, put, get, get, put, get, get, get]
+      args: [[3], [1, 10], [2, 20], [3, 30], [1], [4, 40], [2], [3], [5, 50], [1], [4], [5]]
+    expected: [null, null, null, null, 10, null, -1, 30, null, -1, 40, 50]
+    note: "capacity 3: the evicted key is always the one at the tail end"
+visualize_test: 0
+
+drills:
+  - title: Insert right after the dummy head
+    skill: setup
+    goal: Set up dummy head and tail sentinels and insert nodes at the front with all four pointer writes.
+    instructions: |
+      Keys are used in the order given. Starting from an empty list with a dummy `head` and a
+      dummy `tail` (`head.next = tail`, `tail.prev = head`), insert each key **right after
+      `head`**, so the most recently used key is always first. Return
+      `[forward, backward]`: the keys walking `head → tail` via `next`, and walking
+      `tail → head` via `prev`.
+
+      Inserting after the head takes four pointer writes: the new node's `prev` and `next`,
+      the old first node's `prev`, and `head.next`. Forget one and the backward walk gives a
+      different answer from the forward walk, which is exactly the kind of bug that makes an
+      LRU cache evict the wrong key.
+    function:
+      name: frontInserts
+      params: [{name: keys}]
+    starter_code: |
+      class Node:
+          def __init__(self, key=0):
+              self.key = key
+              self.prev = None
+              self.next = None
+
+
+      class Solution:
+          def frontInserts(self, keys: List[int]) -> List[List[int]]:
+              pass
+    tests:
+      - {args: [[1, 2, 3]], expected: [[3, 2, 1], [1, 2, 3]]}
+      - {args: [[7]], expected: [[7], [7]]}
+      - {args: [[]], expected: [[], []], note: "only the two sentinels: head.next is tail"}
+      - {args: [[4, 9]], expected: [[9, 4], [4, 9]]}
+    solution: |
+      class Node:
+          def __init__(self, key=0):
+              self.key = key
+              self.prev = None
+              self.next = None
+
+
+      class Solution:
+          def frontInserts(self, keys: List[int]) -> List[List[int]]:
+              head, tail = Node(), Node()
+              head.next, tail.prev = tail, head
+              for k in keys:
+                  node = Node(k)
+                  node.prev, node.next = head, head.next
+                  head.next.prev = node
+                  head.next = node
+              forward, cur = [], head.next
+              while cur is not tail:
+                  forward.append(cur.key)
+                  cur = cur.next
+              backward, cur = [], tail.prev
+              while cur is not head:
+                  backward.append(cur.key)
+                  cur = cur.prev
+              return [forward, backward]
+    hint: "Wire the new node first (`node.prev, node.next = head, head.next`), then fix its neighbours."
+
+  - title: Touch a key, move it to the front
+    skill: core
+    goal: Unlink a node from the middle in O(1) using prev/next, then reinsert it after the head.
+    instructions: |
+      The list is built for you from `keys` (most recent first), with a `nodes` dictionary
+      from key to node, exactly like the cache's map. Key `key` has just been used: unlink its
+      node from where it is and insert it right after `head`. Return the keys from most to
+      least recent.
+
+      This is what `get` and an updating `put` do. Unlinking needs only the node itself:
+      `node.prev.next = node.next` and `node.next.prev = node.prev`. Thanks to the dummy
+      sentinels, the first and last real nodes have neighbours too, so there are no special
+      cases.
+    function:
+      name: touch
+      params: [{name: keys}, {name: key}]
+    starter_code: |
+      class Node:
+          def __init__(self, key=0):
+              self.key = key
+              self.prev = None
+              self.next = None
+
+
+      def build(keys):
+          """dummy head <-> keys... <-> dummy tail; returns head, tail and {key: node}."""
+          head, tail = Node(), Node()
+          head.next, tail.prev = tail, head
+          nodes = {}
+          for k in keys:
+              node = Node(k)
+              node.prev, node.next = tail.prev, tail
+              tail.prev.next = node
+              tail.prev = node
+              nodes[k] = node
+          return head, tail, nodes
+
+
+      class Solution:
+          def touch(self, keys: List[int], key: int) -> List[int]:
+              head, tail, nodes = build(keys)
+              pass
+    tests:
+      - {args: [[1, 2, 3], 3], expected: [3, 1, 2], note: the least recent key jumps to the front}
+      - {args: [[1, 2, 3], 2], expected: [2, 1, 3]}
+      - {args: [[1, 2, 3], 1], expected: [1, 2, 3], note: already the most recent}
+      - {args: [[5], 5], expected: [5], note: the only real node}
+    solution: |
+      class Node:
+          def __init__(self, key=0):
+              self.key = key
+              self.prev = None
+              self.next = None
+
+
+      def build(keys):
+          """dummy head <-> keys... <-> dummy tail; returns head, tail and {key: node}."""
+          head, tail = Node(), Node()
+          head.next, tail.prev = tail, head
+          nodes = {}
+          for k in keys:
+              node = Node(k)
+              node.prev, node.next = tail.prev, tail
+              tail.prev.next = node
+              tail.prev = node
+              nodes[k] = node
+          return head, tail, nodes
+
+
+      class Solution:
+          def touch(self, keys: List[int], key: int) -> List[int]:
+              head, tail, nodes = build(keys)
+              node = nodes[key]
+              node.prev.next = node.next  # unlink: neighbours skip over node
+              node.next.prev = node.prev
+              node.prev, node.next = head, head.next  # reinsert after head
+              head.next.prev = node
+              head.next = node
+              order, cur = [], head.next
+              while cur is not tail:
+                  order.append(cur.key)
+                  cur = cur.next
+              return order
+    hint: "Unlink first, then insert; if you insert first, `node.prev`/`node.next` no longer describe where it was."
+
+  - title: Evict from the tail, and know which key you evicted
+    skill: edge
+    goal: After inserting a new key, evict tail.prev when over capacity and remove it from the map using the node's key.
+    instructions: |
+      The list is built for you from `keys` (most recent first) with a `nodes` map. A **new**
+      key `key` is put: insert it after `head` and add it to `nodes`. If `len(nodes)` now
+      exceeds `capacity`, evict the least recently used node, `tail.prev`: unlink it and
+      delete it from `nodes`. Return `[order, evicted]`, where `order` is the keys from most
+      to least recent and `evicted` is the evicted key, or `-1` if nothing was evicted.
+
+      Two classic mistakes live here: evicting before inserting (which can throw out a key
+      when there was still room), and not knowing which map entry to delete. The list node is
+      the only thing that knows its key at eviction time, which is why cache nodes store the
+      key and not just the value.
+    function:
+      name: putNew
+      params: [{name: keys}, {name: capacity}, {name: key}]
+    starter_code: |
+      class Node:
+          def __init__(self, key=0):
+              self.key = key
+              self.prev = None
+              self.next = None
+
+
+      def build(keys):
+          """dummy head <-> keys... <-> dummy tail; returns head, tail and {key: node}."""
+          head, tail = Node(), Node()
+          head.next, tail.prev = tail, head
+          nodes = {}
+          for k in keys:
+              node = Node(k)
+              node.prev, node.next = tail.prev, tail
+              tail.prev.next = node
+              tail.prev = node
+              nodes[k] = node
+          return head, tail, nodes
+
+
+      class Solution:
+          def putNew(self, keys: List[int], capacity: int, key: int) -> List:
+              head, tail, nodes = build(keys)
+              pass
+    tests:
+      - {args: [[2, 1], 2, 3], expected: [[3, 2], 1], note: "full: the tail end (key 1) is evicted"}
+      - {args: [[4, 3], 3, 9], expected: [[9, 4, 3], -1], note: "still room: nothing is evicted"}
+      - {args: [[1], 1, 2], expected: [[2], 1], note: capacity 1}
+      - {args: [[], 1, 5], expected: [[5], -1], note: empty cache}
+      - {args: [[8, 6, 7], 3, 1], expected: [[1, 8, 6], 7]}
+    solution: |
+      class Node:
+          def __init__(self, key=0):
+              self.key = key
+              self.prev = None
+              self.next = None
+
+
+      def build(keys):
+          """dummy head <-> keys... <-> dummy tail; returns head, tail and {key: node}."""
+          head, tail = Node(), Node()
+          head.next, tail.prev = tail, head
+          nodes = {}
+          for k in keys:
+              node = Node(k)
+              node.prev, node.next = tail.prev, tail
+              tail.prev.next = node
+              tail.prev = node
+              nodes[k] = node
+          return head, tail, nodes
+
+
+      class Solution:
+          def putNew(self, keys: List[int], capacity: int, key: int) -> List:
+              head, tail, nodes = build(keys)
+              node = Node(key)
+              nodes[key] = node
+              node.prev, node.next = head, head.next
+              head.next.prev = node
+              head.next = node
+              evicted = -1
+              if len(nodes) > capacity:  # insert first, then check
+                  lru = tail.prev
+                  lru.prev.next = tail  # unlink the last real node
+                  tail.prev = lru.prev
+                  del nodes[lru.key]  # the node knows its own key
+                  evicted = lru.key
+              order, cur = [], head.next
+              while cur is not tail:
+                  order.append(cur.key)
+                  cur = cur.next
+              return [order, evicted]
+    hint: "The least recently used node is always `tail.prev`; read `lru.key` before you lose the node."
+
+hints:
+  - >-
+    A dictionary finds a key in O(1) but forgets order; a list remembers order but finding a
+    key in it is O(N). What if the dictionary pointed straight at the key's position in an
+    ordered list, and that list let you cut a node out from the middle in O(1)?
+  - >-
+    Keep a doubly linked list in recency order between a dummy head (most recent side) and a
+    dummy tail (least recent side), and a dict key → node. get: look up the node, move it to
+    the front, return its value. put: update-and-move, or create-and-insert at the front; if
+    the dict is now larger than capacity, remove tail.prev from the list and its key from the
+    dict.
+  - |
+    init: cache = {}; head <-> tail (dummy sentinels)
+    remove(node):   node.prev.next = node.next; node.next.prev = node.prev
+    add_front(node): link node between head and head.next
+    get(key):
+        if key not in cache: return -1
+        node = cache[key]; remove(node); add_front(node); return node.val
+    put(key, value):
+        if key in cache: node = cache[key]; node.val = value; remove(node)
+        else: node = new Node(key, value); cache[key] = node
+        add_front(node)
+        if len(cache) > capacity: lru = tail.prev; remove(lru); delete cache[lru.key]
+
+solution:
+  code: |
+    class Node:
+        def __init__(self, key=0, val=0):
+            self.key = key  # stored so eviction knows which map entry to delete
+            self.val = val
+            self.prev = None
+            self.next = None
+
+
+    class LRUCache:
+
+        def __init__(self, capacity: int):
+            self.capacity = capacity
+            self.cache = {}  # key -> Node
+            # sentinels: head.next is the most recent entry, tail.prev the least recent
+            self.head, self.tail = Node(), Node()
+            self.head.next, self.tail.prev = self.tail, self.head
+
+        def _remove(self, node):
+            before, after = node.prev, node.next
+            before.next, after.prev = after, before
+
+        def _add_front(self, node):
+            first = self.head.next
+            node.prev, node.next = self.head, first
+            first.prev = node
+            self.head.next = node
+
+        def get(self, key: int) -> int:
+            if key not in self.cache:
+                return -1
+            node = self.cache[key]
+            self._remove(node)  # a read is a use: move to the front
+            self._add_front(node)
+            return node.val
+
+        def put(self, key: int, value: int) -> None:
+            if key in self.cache:
+                node = self.cache[key]
+                node.val = value
+                self._remove(node)
+            else:
+                node = Node(key, value)
+                self.cache[key] = node
+            self._add_front(node)
+            if len(self.cache) > self.capacity:
+                lru = self.tail.prev  # least recently used sits just before the tail
+                self._remove(lru)
+                del self.cache[lru.key]
+  explanation: |
+    Two structures, each covering the other's weakness. The dictionary `cache` maps a key to
+    its node in O(1). The doubly linked list keeps the nodes in recency order: `head.next` is
+    the most recently used, `tail.prev` the least. Because each node has `prev` and `next`,
+    `_remove` can cut it out of the middle with two pointer writes, and `_add_front` links it
+    back in after the head with four.
+
+    **get** is a use, so a hit moves the node to the front before returning its value; a miss
+    changes nothing. **put** on an existing key updates the value and moves the node to the
+    front (it's a use, and it must not create a second node). A new key gets a new node at
+    the front; only then, if the cache holds more than `capacity` keys, the node at
+    `tail.prev` is evicted. Inserting first and evicting after means an update on a full
+    cache never evicts anything, because the size didn't grow.
+
+    The node stores its `key` because at eviction time all you have is the node, and you
+    still need to delete its entry from the dictionary. The dummy `head` and `tail` mean every
+    real node always has two neighbours, so neither helper ever checks for `None`.
+
+    **The shortcut.** In Python, `collections.OrderedDict` with `move_to_end(key)` and
+    `popitem(last=False)` does all of this in about ten lines. Mention it, but many
+    interviewers will then ask you to build the linked list yourself, because that is the
+    skill being tested.
+  time: O(1) — get and put each do one dict operation and a constant number of pointer writes (average, because of hashing)
+  space: O(capacity) — at most capacity + 1 nodes and dict entries (briefly one over before eviction), plus two sentinels
+  brute_force_code: |
+    class LRUCache:
+
+        def __init__(self, capacity: int):
+            self.capacity = capacity
+            self.values = {}
+            self.order = []  # keys, least recent first
+
+        def get(self, key: int) -> int:
+            if key not in self.values:
+                return -1
+            self.order.remove(key)  # O(capacity) scan
+            self.order.append(key)
+            return self.values[key]
+
+        def put(self, key: int, value: int) -> None:
+            if key in self.values:
+                self.order.remove(key)
+            elif len(self.values) == self.capacity:
+                oldest = self.order.pop(0)  # O(capacity) shift
+                del self.values[oldest]
+            self.values[key] = value
+            self.order.append(key)
+
+pitch_script: |
+  **(Clarify)** "So get returns the value or -1, put inserts or updates, and both count as a
+  use. When a put pushes the size over capacity I evict the least recently used key, and both
+  operations should be O(1) on average. Capacity is at least 1, right?"
+
+  **(Brute force)** "A dict for values plus a list of keys in recency order works, but every
+  get has to find the key in the list and move it, and evicting from the front shifts the
+  list, so each call is O(capacity)."
+
+  **(Trigger)** "O(1) lookup by key plus O(1) 'move this to the most-recent end' and 'drop
+  the oldest' is the hash map plus doubly linked list design. The map jumps to the node, and
+  prev and next pointers let me unlink it from anywhere in constant time."
+
+  **(Optimal)** "I keep a dict from key to node and a doubly linked list between a dummy head
+  and a dummy tail, with the most recent entry right after the head. get looks up the node,
+  moves it to the front and returns its value. put updates and moves an existing node, or
+  creates a new one at the front; then, if the size is over capacity, I remove tail.prev and
+  delete its key from the dict, which is why every node stores its key. The sentinels mean I
+  never special-case an empty list."
+
+  **(Complexity)** "Every operation is one dict lookup and a constant number of pointer
+  changes, so O(1) average time, and O(capacity) space. In production Python I'd reach for
+  OrderedDict with move_to_end and popitem(last=False), but I'm happy to build the list by
+  hand, since that's the part being tested."
+
+twist:
+  lc: 460
+  title: LFU Cache
+  why: >-
+    Now you evict the *least frequently* used key, breaking ties by least recently used. One
+    recency list isn't enough: keep a dict from frequency → its own LRU doubly linked list,
+    the key → node map, and a `min_freq` counter. A get or put moves the node from the list
+    for frequency f to the front of the list for f + 1 (bumping min_freq if list f became
+    empty); eviction removes the tail of the min_freq list. Same unlink/insert-at-front moves,
+    just one list per frequency.
+
+viz:
+  layout: current
+  maps: [self.cache]
+  watch: [key, value]

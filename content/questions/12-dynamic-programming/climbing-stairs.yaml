@@ -1,0 +1,346 @@
+slug: climbing-stairs
+lc: 70
+
+concept:
+  problem_it_solves: >-
+    "In how many different ways can I build up to a target, when every move is one of a few
+    small choices?" Listing every sequence of moves explodes, but the count for a target only
+    depends on the counts for slightly smaller targets. Dynamic programming is just this:
+    answer each smaller version of the question once, write it down, and build the big
+    answer out of the stored small ones.
+  brute_force: >-
+    Recurse: ways(n) = ways(n − 1) + ways(n − 2), with ways(0) = ways(1) = 1. It's correct,
+    but draw the call tree for ways(5): ways(3) is computed twice, ways(2) three times,
+    ways(1) five times. The two branches keep re-solving the same small staircases from
+    scratch. Worse, the only numbers ever returned at the bottom are 1s, so the recursion
+    literally counts the answer one route at a time: it makes exactly 2 × answer − 1 calls.
+  brute_force_complexity: >-
+    O(φⁿ) ≈ O(1.618ⁿ) time (often loosely called O(2ⁿ)), O(N) recursion stack — n = 45 has
+    1,836,311,903 routes, so the plain recursion makes about 3.7 × 10⁹ calls.
+  key_insight: >-
+    Think about the LAST move, not the first. Every route that ends on step i arrives either
+    with a 1-step from step i − 1 or with a 2-step from step i − 2. Those two groups never
+    overlap (the last move differs) and together they cover every route, so
+    ways(i) = ways(i − 1) + ways(i − 2). There are only n + 1 different questions (steps 0 to
+    n), so store each answer in dp[i] the first time you compute it, and fill the table from
+    the bottom up. That is the whole of DP: a recurrence plus a memory, never solving the
+    same subproblem twice.
+  real_world: >-
+    Memoisation is caching: the same idea as putting a computed result in Redis or
+    functools.lru_cache so an identical request never recomputes it. Bottom-up tabulation is
+    how a spreadsheet engine recalculates (each cell is computed once, after the cells it
+    depends on), and how build systems like Bazel reuse the output of identical sub-builds
+    instead of rebuilding them for every target that needs them.
+
+statement:
+  clean: |
+    You are climbing a staircase. It takes `n` steps to reach the top.
+
+    Each time you can either climb 1 or 2 steps. In **how many distinct ways** can you climb
+    to the top?
+  oa_story: |
+    **StepSathi Fitness — OA Round 1**
+
+    StepSathi runs a stair-climbing challenge at Namma Metro stations: users climb the
+    station stairwell and the app records their stride on every move. A stride is either a
+    single step or a long stride that skips one step, and the app treats two climbs as
+    different if their sequences of strides differ, even when they use the same number of
+    each.
+
+    For a new "never repeat a pattern" badge, StepSathi needs to know how many different
+    stride sequences exist for a stairwell of `n` steps, ending exactly on the top step.
+    Stairwells in the network have at most 45 steps, and the badge service must answer
+    instantly for any of them.
+  trigger_keywords: ["how many distinct ways", "1 or 2 steps"]
+  examples:
+    - input: "n = 2"
+      output: "2"
+      explanation: "1 step + 1 step, or a single 2-step."
+    - input: "n = 3"
+      output: "3"
+      explanation: "1 + 1 + 1, 1 + 2, or 2 + 1. Order matters: 1 + 2 and 2 + 1 are different ways."
+  constraints:
+    - "1 <= n <= 45"
+
+constraint_quiz:
+  prompt: >-
+    n is at most 45. Plain recursion makes about 2 × answer calls, and the answer for n = 45 is
+    about 1.8 × 10⁹. What complexity should you aim for?
+  options:
+    - "O(2ⁿ) — recursion is fine because n is small"
+    - "O(N) — compute the count for each step exactly once"
+    - "O(N²) — for each step, sum over every earlier step"
+    - "O(log N) — binary search the number of 2-steps"
+  answer: 1
+  explanation: >-
+    "n is small" is a trap here: the recursion makes about 3.7 × 10⁹ calls at n = 45, which
+    takes minutes in Python. There are only 46 different subproblems (steps 0 to 45), and each
+    needs just the two before it, so O(N) is natural. O(N²) would technically pass for n = 45,
+    but nothing needs a scan over every earlier step: only the last move matters. Binary
+    search doesn't apply because no monotonic yes/no question is being asked; we are counting.
+    (There is an O(log N) matrix-power trick, but it isn't what this option describes and no
+    interviewer expects it.)
+
+pattern_quiz:
+  prompt: >-
+    You must count all distinct move sequences, the count for step n depends on smaller
+    staircases, and the same smaller staircases come up again and again. Which pattern fits?
+  options:
+    - "Greedy: take as many 2-steps as possible"
+    - "Backtracking: generate every sequence and count them"
+    - "1D dynamic programming: dp[i] = dp[i − 1] + dp[i − 2]"
+    - "Sliding window over the steps"
+  answer: 2
+  explanation: >-
+    "How many distinct ways" plus "each move is a small fixed choice" is the counting-DP
+    trigger, and the repeated smaller staircases are the overlapping subproblems that make
+    storing answers pay off. Greedy finds one route, not the number of routes. Backtracking
+    is correct but enumerates ~1.8 × 10⁹ sequences for n = 45. There is no contiguous range
+    with a window condition here, so a sliding window has nothing to slide over.
+
+function:
+  name: climbStairs
+  params: [{name: n}]
+
+starter_code: |
+  class Solution:
+      def climbStairs(self, n: int) -> int:
+          pass
+
+tests:
+  - {args: [2], expected: 2}
+  - {args: [3], expected: 3}
+  - {args: [1], expected: 1, note: "single step: the loop never runs, dp[1] is the answer"}
+  - {args: [4], expected: 5}
+  - {args: [5], expected: 8, note: "the Fibonacci pattern: 1, 1, 2, 3, 5, 8"}
+  - {args: [10], expected: 89}
+  - {args: [20], expected: 10946}
+  - {args: [25], expected: 121393, note: "kept small so the exponential brute force still finishes; n = 45 gives 1836311903"}
+visualize_test: 4
+
+drills:
+  - title: Build the whole table
+    skill: setup
+    goal: Allocate dp of size n + 1, set the base cases dp[0] and dp[1], and fill it left to right.
+    instructions: |
+      Return the full list `dp` where `dp[i]` is the number of distinct ways to reach step
+      `i` with 1-steps and 2-steps (`dp[0]` is the ground, `dp[n]` is the top).
+
+      Seeing the whole table is the point of this drill: DP is not a magic formula, it is a
+      list of answers to smaller questions. The size is `n + 1` because step 0 (standing on
+      the ground) is a real state. `dp[0] = 1` means "there is exactly one way to have
+      climbed nothing: do nothing", and that 1 is what makes `dp[2] = dp[1] + dp[0] = 2`
+      come out right. `n` is at least 1 in every test.
+    function:
+      name: waysTable
+      params: [{name: n}]
+    starter_code: |
+      class Solution:
+          def waysTable(self, n: int) -> List[int]:
+              pass
+    tests:
+      - {args: [1], expected: [1, 1], note: "only the base cases"}
+      - {args: [2], expected: [1, 1, 2]}
+      - {args: [5], expected: [1, 1, 2, 3, 5, 8]}
+      - {args: [7], expected: [1, 1, 2, 3, 5, 8, 13, 21]}
+    solution: |
+      class Solution:
+          def waysTable(self, n: int) -> List[int]:
+              dp = [0] * (n + 1)
+              dp[0], dp[1] = 1, 1
+              for i in range(2, n + 1):
+                  dp[i] = dp[i - 1] + dp[i - 2]
+              return dp
+    hint: "Set `dp[0]` and `dp[1]` before the loop, then start the loop at `i = 2` so `dp[i - 2]` always exists."
+
+  - title: The last move decides the recurrence
+    skill: core
+    goal: Derive the recurrence by asking "what was the last move?" when the allowed step sizes change.
+    instructions: |
+      Now each move may be any size listed in `steps` (for example `[1, 3, 5]`). Return the
+      number of distinct ordered sequences of moves that land exactly on step `n`.
+
+      Use the same question as the main problem: the last move onto step `i` was some size
+      `s` from `steps`, so it came from step `i - s`. Add up `dp[i - s]` over every `s` that
+      doesn't go below the ground. With `steps = [1, 2]` this becomes exactly
+      `dp[i - 1] + dp[i - 2]`. If you can rebuild the recurrence from the last move, you
+      never need to memorise it, which is what saves you when the interviewer changes the
+      rules.
+    function:
+      name: waysWithSteps
+      params: [{name: n}, {name: steps}]
+    starter_code: |
+      class Solution:
+          def waysWithSteps(self, n: int, steps: List[int]) -> int:
+              pass
+    tests:
+      - {args: [4, [1, 3, 5]], expected: 3, note: "1+1+1+1, 1+3, 3+1"}
+      - {args: [5, [1, 3, 5]], expected: 5}
+      - {args: [6, [2, 3]], expected: 2, note: "2+2+2 and 3+3"}
+      - {args: [7, [2]], expected: 0, note: "odd height with only 2-steps: impossible"}
+      - {args: [0, [1, 2]], expected: 1, note: "already at the top: the empty sequence counts once"}
+      - {args: [10, [1, 2, 3]], expected: 274}
+    solution: |
+      class Solution:
+          def waysWithSteps(self, n: int, steps: List[int]) -> int:
+              dp = [0] * (n + 1)
+              dp[0] = 1
+              for i in range(1, n + 1):
+                  for s in steps:
+                      if i - s >= 0:
+                          dp[i] += dp[i - s]
+              return dp[n]
+    hint: "Every route to step i ends with some move s; the routes that end with s are exactly the routes to step i - s."
+
+  - title: Two variables instead of a table
+    skill: edge
+    goal: Roll the table down to two variables and update them in the right order.
+    instructions: |
+      Return the number of ways to climb `n` steps (1-steps or 2-steps) using **O(1) extra
+      space**: no list at all, just two variables holding the last two table values.
+
+      This is the classic interview follow-up. `dp[i]` only ever reads `dp[i - 1]` and
+      `dp[i - 2]`, so everything older can be forgotten. The trap is the update order: if you
+      overwrite one variable before using its old value, you silently compute the wrong
+      sequence. Python's tuple assignment (`a, b = b, a + b`) evaluates the right side first,
+      which avoids it. Also check `n = 1`, where the loop never runs.
+    function:
+      name: climbRolling
+      params: [{name: n}]
+    starter_code: |
+      class Solution:
+          def climbRolling(self, n: int) -> int:
+              pass
+    tests:
+      - {args: [1], expected: 1, note: "loop never runs"}
+      - {args: [2], expected: 2}
+      - {args: [3], expected: 3}
+      - {args: [5], expected: 8}
+      - {args: [45], expected: 1836311903, note: "the largest input: instant with O(N) time"}
+    solution: |
+      class Solution:
+          def climbRolling(self, n: int) -> int:
+              prev2, prev1 = 1, 1  # dp[i - 2], dp[i - 1], starting at dp[0], dp[1]
+              for _ in range(2, n + 1):
+                  prev2, prev1 = prev1, prev1 + prev2
+              return prev1
+    hint: "Start with the two base cases `1, 1`; after each step the pair shifts one place to the right."
+
+hints:
+  - >-
+    Don't think about how the climb starts. You are standing on step n. Where could you have
+    been one move ago, and how do the routes to those places relate to the routes to n?
+  - >-
+    Let dp[i] be the number of ways to stand on step i. The last move was a 1-step from i − 1
+    or a 2-step from i − 2, so dp[i] = dp[i − 1] + dp[i − 2]. Base cases: dp[0] = 1 (one way
+    to have climbed nothing) and dp[1] = 1. Fill i = 2 .. n in increasing order.
+  - |
+    dp = list of n + 1 zeros
+    dp[0] = 1, dp[1] = 1
+    for i from 2 to n:
+        dp[i] = dp[i - 1] + dp[i - 2]
+    return dp[n]
+
+solution:
+  code: |
+    class Solution:
+        def climbStairs(self, n: int) -> int:
+            # dp[i] = number of distinct ways to stand on step i (step 0 is the ground)
+            dp = [0] * (n + 1)
+            dp[0] = 1  # one way to have climbed nothing: do nothing
+            dp[1] = 1  # one way to reach step 1: a single 1-step
+            for i in range(2, n + 1):
+                # the last move onto step i came from step i - 1 or from step i - 2
+                dp[i] = dp[i - 1] + dp[i - 2]
+            return dp[n]
+  explanation: |
+    This is your first DP, so here is the **recipe** you'll reuse for every problem in this
+    world. Say these five things out loud before writing any code:
+
+    1. **Define the state in plain English.** `dp[i]` = the number of distinct ways to end up
+       standing on step `i`. If you can't say what one cell means in a sentence, you can't
+       write the recurrence.
+    2. **Write the recurrence by thinking about the LAST move.** Any route onto step `i`
+       finishes with either a 1-step (from `i - 1`) or a 2-step (from `i - 2`). Every route is
+       in exactly one of those two groups, so `dp[i] = dp[i - 1] + dp[i - 2]`. Adding is right
+       because the groups don't overlap; for counting problems, "or" between disjoint choices
+       means "+".
+    3. **Base cases.** The recurrence needs two earlier values, so seed two: `dp[0] = 1` (one
+       way to have climbed nothing, the empty route) and `dp[1] = 1`. If `dp[0] = 0` feels
+       more natural, check it: it would make `dp[2] = 1`, but there are two ways to climb two
+       steps.
+    4. **Fill order.** Each cell reads smaller indices, so fill `i = 2, 3, ..., n` from left
+       to right. By the time you compute `dp[i]`, both cells it needs are already final.
+    5. **Answer location.** The top is step `n`, so return `dp[n]`.
+
+    **How you get here from recursion.** The natural first version is the recursion
+    `ways(i) = ways(i - 1) + ways(i - 2)`. It is correct but exponential, because the same
+    `ways(k)` is recomputed in many branches. Add a cache and each `ways(k)` is computed once:
+
+    ```python
+    from functools import lru_cache
+
+    @lru_cache(maxsize=None)
+    def ways(i):
+        if i <= 1:
+            return 1
+        return ways(i - 1) + ways(i - 2)
+    ```
+
+    That memoised version is already O(N). The table above is the same computation turned
+    inside out: instead of recursing down from `n` and caching on the way back up, start at
+    the base cases and fill upward. No recursion stack, no cache lookups, and the order of
+    work is explicit. In an interview, saying "recursion, then memo, then table" shows you
+    *derived* the solution rather than recalled it.
+
+    **The O(1)-space follow-up.** `dp[i]` only reads the two previous cells, so you can keep
+    just two variables and shift them along (`prev2, prev1 = prev1, prev1 + prev2`). The
+    values are the Fibonacci numbers: `dp[i]` is the (i + 1)-th Fibonacci number.
+  time: O(N) — each of the n + 1 cells is computed once with one addition
+  space: O(N) — the dp table (O(1) with two rolling variables)
+  brute_force_code: |
+    class Solution:
+        def climbStairs(self, n: int) -> int:
+            def ways(i):
+                # ways to stand on step i, recomputed from scratch every time it's asked
+                if i <= 1:
+                    return 1
+                return ways(i - 1) + ways(i - 2)
+
+            return ways(n)
+
+pitch_script: |
+  **(Clarify)** "So I can take 1 or 2 steps each move, I have to land exactly on step n, and
+  the order of moves matters, so 1 then 2 is different from 2 then 1. n is at most 45. Right?"
+
+  **(Brute force)** "The direct approach is recursion: the number of ways to reach n is the
+  ways to reach n minus 1 plus the ways to reach n minus 2. That's correct, but the two
+  branches recompute the same smaller staircases again and again, so it's exponential,
+  roughly 1.6 to the n. At 45 that's billions of calls."
+
+  **(Trigger)** "'How many distinct ways' with a small fixed set of moves, and the same
+  subproblems repeating, tells me this is dynamic programming. I'll define dp of i as the
+  number of ways to stand on step i."
+
+  **(Optimal)** "The last move onto step i was either a 1-step from i minus 1 or a 2-step
+  from i minus 2, and those cases don't overlap, so dp of i is dp of i minus 1 plus dp of i
+  minus 2. The base cases are dp of 0 equals 1, the empty climb, and dp of 1 equals 1. I fill
+  the table left to right and return dp of n. It's the same recurrence as the recursion, just
+  computed bottom-up so each value is computed once."
+
+  **(Complexity)** "That's O(N) time and O(N) space for the table. Since each cell only needs
+  the previous two, I can drop the table and keep two variables, which makes it O(1) space."
+
+twist:
+  lc: 1137
+  title: N-th Tribonacci Number
+  why: >-
+    Each term is now the sum of the previous three: T(n) = T(n − 1) + T(n − 2) + T(n − 3),
+    with three base cases T(0) = 0, T(1) = T(2) = 1. The recipe is unchanged: the recurrence
+    just reaches one step further back, so you seed three cells instead of two, start the
+    loop at 3, and the rolling version keeps three variables. It's the same as climbing
+    stairs with 1-, 2- or 3-steps, apart from the base cases.
+
+viz:
+  table: dp
+  watch: [i, n]

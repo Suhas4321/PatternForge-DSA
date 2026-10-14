@@ -1,0 +1,337 @@
+slug: trapping-rain-water
+lc: 42
+
+concept:
+  problem_it_solves: >-
+    "How much water sits on top of each bar?" Water above bar i rises to the lower of the
+    tallest wall on its left and the tallest wall on its right, so the answer is a sum of
+    min(maxLeft, maxRight) − height[i]. The whole problem is getting those two maxima for
+    every bar cheaply: prefix/suffix arrays do it in O(N) space, and two pointers do it in
+    O(1) by noticing you only ever need the smaller of the two.
+  brute_force: >-
+    For every bar, scan all the way left for the tallest wall and all the way right for the
+    tallest wall, then add min of the two minus the bar's height. Neighbouring bars share
+    almost the same left and right scans, yet each bar redoes them from scratch.
+  brute_force_complexity: O(N²) time, O(1) space — 2 × 10⁴ bars means about 4 × 10⁸ reads.
+  key_insight: >-
+    Water at i only depends on the *smaller* of maxLeft and maxRight. With l and r at the
+    two ends and running maxima on each side, if height[l] < height[r] then the right side
+    is already guaranteed to have a wall at least height[r], which is at least as tall as
+    anything the left side has produced so far. So the left side is the bottleneck for bar l, its
+    water is exactly left_max − height[l], and l can be settled and moved, without knowing
+    the true maxRight. Mirror the argument when the right bar is the shorter one.
+  real_world: >-
+    Hydrology and GIS tools (flood-fill on digital elevation models, used by city drainage
+    planners like Bengaluru's BBMP storm-water projects) compute exactly this "level is
+    bounded by the lower rim" quantity. In systems work, the same running-max-from-both-
+    sides idea appears in computing water marks and envelopes over metric time series, and
+    in finding how much capacity sits idle between two peaks.
+
+statement:
+  clean: |
+    Given `n` non-negative integers representing an **elevation map** where the
+    **width of each bar is 1**, compute how much water it can **trap after raining**.
+  oa_story: |
+    **MetroMitra Mobility — OA Round 2**
+
+    MetroMitra's commute app warns riders about waterlogged stretches near metro stations
+    after Bengaluru's evening downpours. The civic data team has surveyed a road stretch
+    near the Silk Board junction in 1-metre segments and recorded the ground level of each
+    segment, in centimetres above a reference point. During a heavy shower, water collects
+    wherever lower segments are boxed in by higher ground on both sides, and runs off the
+    two ends of the stretch.
+
+    Given the list of segment levels from one end of the stretch to the other, return the
+    total amount of water (in centimetre-metres) that stays on the road once the rain
+    stops. Surveys can have up to 20,000 segments, and the alert must be computed on a
+    phone with very little memory to spare.
+  trigger_keywords: ["elevation map", "width of each bar is 1", "trap after raining"]
+  examples:
+    - input: "height = [0,1,0,2,1,0,1,3,2,1,2,1]"
+      output: "6"
+      explanation: "Bars 2, 4, 5, 6 and 9 hold 1, 1, 2, 1 and 1 units: 6 in total."
+    - input: "height = [4,2,0,3,2,5]"
+      output: "9"
+      explanation: "The 4 on the left is the lower rim, so the water level is 4 over bars 1 to 4: 2 + 4 + 1 + 2 = 9."
+  constraints:
+    - "n == height.length"
+    - "1 <= n <= 2 * 10^4"
+    - "0 <= height[i] <= 10^5"
+
+constraint_quiz:
+  prompt: >-
+    N is up to 2 × 10⁴. You present a prefix-max / suffix-max solution and the interviewer
+    asks "can you do it without the extra arrays?". What are you aiming for now?
+  options:
+    - "O(N²) time, O(1) space"
+    - "O(N log N) time, O(1) space"
+    - "O(N) time, O(N) space"
+    - "O(N) time, O(1) space"
+  answer: 3
+  explanation: >-
+    O(N²) is about 4 × 10⁸ reads, too slow, and it's the brute force you started from.
+    Nothing here needs sorting, and sorting destroys the positions that decide which walls
+    surround each bar, so O(N log N) isn't a real option. O(N) time with O(N) space is the
+    answer you already gave. "Without the extra arrays" means keeping O(N) time while
+    replacing the two arrays with two running maxima: O(N) time, O(1) space.
+
+pattern_quiz:
+  prompt: >-
+    Each bar's water depends on the tallest wall to its left and the tallest wall to its
+    right. Which approach gives O(N) time and O(1) extra space?
+  options:
+    - "Monotonic stack of decreasing bar indices"
+    - "Two pointers from both ends with running left_max and right_max"
+    - "Sliding window between consecutive tall bars"
+    - "Sort the bars by height and fill from the tallest down"
+  answer: 1
+  explanation: >-
+    A monotonic stack also solves it in O(N) time, but the stack can hold O(N) indices, so
+    it misses the O(1) space target. A window between "tall bars" fails because a later,
+    taller wall changes the level of an earlier stretch. Sorting loses positions. "Max from
+    both sides" plus "constant space" is the two-pointer trigger: process from whichever end
+    has the lower wall, because that side is the bottleneck.
+
+function:
+  name: trap
+  params: [{name: height}]
+
+starter_code: |
+  class Solution:
+      def trap(self, height: List[int]) -> int:
+          pass
+
+tests:
+  - {args: [[0, 1, 0, 2, 1, 0, 1, 3, 2, 1, 2, 1]], expected: 6}
+  - {args: [[4, 2, 0, 3, 2, 5]], expected: 9}
+  - {args: [[5]], expected: 0, note: single bar holds nothing}
+  - {args: [[1, 2, 3, 4]], expected: 0, note: "strictly increasing, so water runs off the left"}
+  - {args: [[4, 3, 2, 1]], expected: 0, note: "strictly decreasing, so water runs off the right"}
+  - {args: [[3, 0, 3]], expected: 3, note: equal walls}
+  - {args: [[5, 4, 1, 2]], expected: 1, note: "the lower rim is the right end, not the tall left wall"}
+  - {args: [[0, 0, 0]], expected: 0, note: flat ground}
+  - {args: [[5, 2, 1, 2, 1, 5]], expected: 14, note: one wide basin}
+visualize_test: 1
+
+drills:
+  - title: Running maximum from the left
+    skill: setup
+    goal: Build the tallest-wall-so-far for every position in one pass with a single running variable.
+    instructions: |
+      Return a list where position `i` holds the tallest bar among `height[0..i]`,
+      **including** bar `i` itself.
+
+      This is `maxLeft` from the water formula. Including bar `i` matters: if bar `i` is
+      the tallest so far, its own height is the level, and the water above it comes out as
+      0 instead of a negative number. Do it with one running variable, not `max(height[:i+1])`
+      at every step (that's O(N²)).
+    function:
+      name: leftMaxes
+      params: [{name: height}]
+    starter_code: |
+      class Solution:
+          def leftMaxes(self, height: List[int]) -> List[int]:
+              pass
+    tests:
+      - {args: [[0, 1, 0, 2, 1, 0, 1, 3, 2, 1, 2, 1]], expected: [0, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 3]}
+      - {args: [[4, 2, 0, 3, 2, 5]], expected: [4, 4, 4, 4, 4, 5]}
+      - {args: [[3, 1, 2]], expected: [3, 3, 3]}
+      - {args: [[1]], expected: [1]}
+    solution: |
+      class Solution:
+          def leftMaxes(self, height: List[int]) -> List[int]:
+              best = 0
+              out = []
+              for h in height:
+                  best = max(best, h)
+                  out.append(best)
+              return out
+    hint: "Update `best = max(best, h)` before appending, so bar `i` is included."
+
+  - title: Settle the side with the lower wall
+    skill: core
+    goal: With pointers at both ends, always process the side whose current bar is lower.
+    instructions: |
+      Run the two-pointer sweep and return the indices in the order they get **settled**.
+      While `l < r`: if `height[l] < height[r]` settle `l` and move it right, otherwise
+      settle `r` and move it left. The bar where the pointers meet is never settled (it is
+      the tallest bar, so it holds no water).
+
+      Why the lower side? If `height[l] < height[r]`, the right side already has a wall at
+      least `height[r]`, which is taller than anything seen on the left. So bar `l`'s water
+      is decided by the left maximum alone, and you can settle it now without knowing the
+      true right maximum.
+    function:
+      name: settleOrder
+      params: [{name: height}]
+    starter_code: |
+      class Solution:
+          def settleOrder(self, height: List[int]) -> List[int]:
+              pass
+    tests:
+      - {args: [[4, 2, 0, 3, 2, 5]], expected: [0, 1, 2, 3, 4], note: the 5 on the right lets the whole left side settle}
+      - {args: [[5, 1, 2]], expected: [2, 1]}
+      - {args: [[2, 1, 3, 1, 2]], expected: [4, 3, 0, 1], note: "tie, so the right side moves first"}
+      - {args: [[5]], expected: []}
+    solution: |
+      class Solution:
+          def settleOrder(self, height: List[int]) -> List[int]:
+              l, r = 0, len(height) - 1
+              order = []
+              while l < r:
+                  if height[l] < height[r]:
+                      order.append(l)
+                      l += 1
+                  else:
+                      order.append(r)
+                      r -= 1
+              return order
+    hint: "Same loop shape as Container With Most Water: the smaller bar's pointer moves."
+
+  - title: Water per bar, never negative
+    skill: edge
+    goal: Apply water[i] = min(maxLeft[i], maxRight[i]) − height[i] with inclusive maxima so ends and peaks get 0.
+    instructions: |
+      Return a list with the water held above each bar. Build `maxLeft` (tallest in
+      `height[0..i]`) and `maxRight` (tallest in `height[i..n-1]`), both **including** bar
+      `i`, then `water[i] = min(maxLeft[i], maxRight[i]) - height[i]`.
+
+      The edge cases are the bars that hold nothing: the first and last bars (one side has
+      no wall beyond them) and any bar that is a local peak. With inclusive maxima they come
+      out as exactly 0 without any special-case `if`. If you use "strictly left of i"
+      maxima instead, the first bar compares against nothing and peaks go negative.
+    function:
+      name: waterPerBar
+      params: [{name: height}]
+    starter_code: |
+      class Solution:
+          def waterPerBar(self, height: List[int]) -> List[int]:
+              pass
+    tests:
+      - {args: [[4, 2, 0, 3, 2, 5]], expected: [0, 2, 4, 1, 2, 0]}
+      - {args: [[3, 0, 3]], expected: [0, 3, 0]}
+      - {args: [[2, 1, 3, 1, 2]], expected: [0, 1, 0, 1, 0], note: the middle peak holds nothing}
+      - {args: [[1, 2, 3]], expected: [0, 0, 0]}
+      - {args: [[5]], expected: [0]}
+    solution: |
+      class Solution:
+          def waterPerBar(self, height: List[int]) -> List[int]:
+              n = len(height)
+              max_left, max_right = [0] * n, [0] * n
+              for i in range(n):
+                  max_left[i] = max(height[i], max_left[i - 1] if i else 0)
+              for i in range(n - 1, -1, -1):
+                  max_right[i] = max(height[i], max_right[i + 1] if i < n - 1 else 0)
+              return [min(max_left[i], max_right[i]) - height[i] for i in range(n)]
+    hint: "Fill `max_left` forwards and `max_right` backwards, each starting from the bar itself."
+
+hints:
+  - >-
+    Forget the whole picture and look at one bar. How high can the water above it rise
+    before it spills over the left or the right? Which two numbers decide that?
+  - >-
+    water[i] = min(tallest on the left, tallest on the right) − height[i]. Now put l and r
+    at the ends with left_max and right_max. If height[l] < height[r], which of the two
+    maxima is the bottleneck for bar l, even though you haven't seen the whole right side?
+  - |
+    l = 0, r = n - 1, left_max = 0, right_max = 0, total = 0
+    while l < r:
+        if height[l] < height[r]:
+            left_max = max(left_max, height[l])
+            total += left_max - height[l]
+            l += 1
+        else:
+            right_max = max(right_max, height[r])
+            total += right_max - height[r]
+            r -= 1
+    return total
+
+solution:
+  code: |
+    class Solution:
+        def trap(self, height: List[int]) -> int:
+            l, r = 0, len(height) - 1
+            left_max = right_max = 0
+            total = 0
+            while l < r:
+                if height[l] < height[r]:
+                    # left_max <= height[r] <= tallest wall to the right: left is the bottleneck
+                    left_max = max(left_max, height[l])
+                    total += left_max - height[l]
+                    l += 1
+                else:
+                    # right_max <= height[l] <= tallest wall to the left: right is the bottleneck
+                    right_max = max(right_max, height[r])
+                    total += right_max - height[r]
+                    r -= 1
+            return total
+  explanation: |
+    **Step 1: the formula.** Water above bar `i` rises until it would spill over the lower
+    of its two rims: `water[i] = min(maxLeft[i], maxRight[i]) - height[i]`, where both
+    maxima include bar `i` (so a peak gets 0, never a negative). The answer is the sum.
+
+    **Step 2: the stepping stone.** Precompute `maxLeft` in a forward pass and `maxRight`
+    in a backward pass, then sum the formula. That's O(N) time and O(N) space, and it's a
+    perfectly good answer to give first.
+
+    **Step 3: drop the arrays.** For each bar we only need the *smaller* of the two maxima.
+    Keep `l` and `r` at the ends with `left_max` and `right_max`. If
+    `height[l] < height[r]`, then after including bar `l`, `left_max <= height[r]`. Why: a
+    pointer only ever moves off the *lower* of the two current bars, so every bar settled so
+    far is no taller than the taller of the two bars still standing, which right now is
+    `height[r]`. And `height[r] <= maxRight[l]` because bar `r` is to the right of `l`. So
+    `min(maxLeft[l], maxRight[l]) = left_max`, bar `l`'s water is exactly
+    `left_max - height[l]`, and we settle it and move `l` without ever knowing the true
+    right maximum. The mirror argument settles `r` when `height[l] >= height[r]`.
+
+    Update the running max **before** adding water: if bar `l` is the new tallest on its
+    side it holds 0, rather than `left_max - height[l]` going negative. The loop stops at
+    `l == r`; that last bar is the tallest overall and holds nothing.
+  time: O(N) — each iteration settles one bar
+  space: O(1) — two pointers, two running maxima and the total
+  brute_force_code: |
+    class Solution:
+        def trap(self, height: List[int]) -> int:
+            total = 0
+            for i in range(len(height)):
+                left = max(height[: i + 1])
+                right = max(height[i:])
+                total += min(left, right) - height[i]
+            return total
+
+pitch_script: |
+  **(Clarify)** "The bars have width one, heights are non-negative, and water runs off both
+  ends. I return the total units trapped. A single bar or a monotonic slope traps nothing,
+  right?"
+
+  **(Brute force)** "For each bar, the water above it is the smaller of the tallest wall on
+  its left and the tallest wall on its right, minus its own height. Scanning both sides for
+  every bar is O(N²), about 4 × 10⁸ steps at 2 × 10⁴ bars."
+
+  **(Trigger)** "Every bar needs a running max from both sides. I can precompute prefix-max
+  and suffix-max arrays for O(N) time and O(N) space. To get rid of the arrays, I can use
+  two pointers, because for each bar I only need the smaller of the two maxima."
+
+  **(Optimal)** "I put l and r at the ends and track left_max and right_max. If the left bar
+  is lower than the right bar, the right side is guaranteed to have a wall at least that
+  tall, so the left max is the bottleneck for bar l. I update left_max, add left_max minus
+  height[l], and move l. Otherwise I do the same on the right. I stop when they meet."
+
+  **(Complexity)** "Each step settles one bar, so it's O(N) time, and only a few variables,
+  so O(1) extra space."
+
+twist:
+  lc: 2012
+  title: Sum of Beauty in the Array
+  why: >-
+    Each index's score again depends on everything to its left and everything to its
+    right: a full beauty of 2 needs nums[i] to be bigger than the prefix maximum and smaller
+    than the suffix minimum. So the prefix-max / suffix-min arrays from Step 2 are exactly
+    the tool. The twist is that the O(1) two-pointer shortcut no longer works: here you need
+    both bounds for every index, not just the smaller one, so neither side can be settled
+    early and the arrays (or one array plus a running variable) stay.
+
+viz:
+  arrays: [height]
+  pointers: [l, r]
+  watch: [left_max, right_max, total]

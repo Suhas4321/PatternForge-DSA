@@ -1,0 +1,352 @@
+slug: word-search
+lc: 79
+
+concept:
+  problem_it_solves: >-
+    "Is there a path through a grid, one step at a time to a neighbouring cell, that spells
+    this sequence without stepping on the same cell twice?" Each step branches into up to four
+    directions, and a cell used earlier in the path is off-limits only *for that path*. Grid
+    backtracking explores those paths depth-first, marks cells as used while they're on the
+    current path, and releases them on the way back so other paths can use them.
+  brute_force: >-
+    List every sequence of L cells (L = word length), then check that consecutive cells are
+    adjacent, no cell repeats, and the letters spell the word. Almost every sequence is
+    garbage: it wanders off to cells that aren't even neighbours, or its very first letter is
+    already wrong, and it is still generated in full before being rejected.
+  brute_force_complexity: >-
+    O((M·N)^L · L) time — a 6 × 6 board and a 15-letter word means 36^15 ≈ 2 × 10^23
+    sequences.
+  key_insight: >-
+    Grow the path one matching letter at a time. dfs(r, c, k) asks "can word[k:] be spelled
+    starting at cell (r, c)?". If the cell is off the board or its letter isn't word[k], the
+    branch dies immediately. Otherwise mark the cell (overwrite it with '#') so deeper calls
+    can't reuse it, try the four neighbours for word[k + 1], and then **restore the letter**
+    before returning. The restore is the un-choose step: the cell is only "used" by the
+    current path, and a different path tried later may legitimately pass through it.
+  real_world: >-
+    Word games and puzzle generators (Boggle, Wordle helpers, crossword checkers) run exactly
+    this DFS. Robot and warehouse path planners explore grid routes with an "on current path"
+    mark that is released on backtrack, and image-processing tools trace connected outlines
+    of pixels the same way. Google's Boggle-style solvers combine it with a Trie (the Word
+    Search II twist).
+
+statement:
+  clean: |
+    Given an `m x n` grid of characters `board` and a string `word`, return `true` if `word`
+    **exists in the grid**.
+
+    The word can be constructed from letters of **sequentially adjacent cells**, where
+    adjacent cells are horizontally or vertically neighbouring. The
+    **same letter cell may not be used more than once** in a word.
+  oa_story: |
+    **ShabdSearch Games — OA Round 1**
+
+    ShabdSearch makes a Kannada-English word-hunt game that's big on the Namma Metro commute.
+    Each level is an `m x n` tile board with one letter per tile, and a player traces a word
+    by dragging a finger from tile to tile. The finger may only slide to the tile directly
+    above, below, left or right of the current one, never diagonally, and a tile that is
+    already part of the current trace lights up and can't be touched again in that trace.
+
+    Before a level is published, the level designer's tool must confirm that a given target
+    word can actually be traced somewhere on the board. Return `true` if it can, `false`
+    otherwise. Boards are at most 6 x 6, words are at most 15 characters, and letters are
+    case-sensitive English letters.
+  trigger_keywords: ["exists in the grid", "sequentially adjacent cells", "same letter cell may not be used more than once"]
+  examples:
+    - input: "board = [[\"A\",\"B\",\"C\",\"E\"],[\"S\",\"F\",\"C\",\"S\"],[\"A\",\"D\",\"E\",\"E\"]], word = \"ABCCED\""
+      output: "true"
+      explanation: "A(0,0) → B(0,1) → C(0,2) → C(1,2) → E(2,2) → D(2,1)."
+    - input: "board = [[\"A\",\"B\",\"C\",\"E\"],[\"S\",\"F\",\"C\",\"S\"],[\"A\",\"D\",\"E\",\"E\"]], word = \"SEE\""
+      output: "true"
+      explanation: "S(1,3) → E(2,3) → E(2,2)."
+    - input: "board = [[\"A\",\"B\",\"C\",\"E\"],[\"S\",\"F\",\"C\",\"S\"],[\"A\",\"D\",\"E\",\"E\"]], word = \"ABCB\""
+      output: "false"
+      explanation: "The only B is at (0,1), and it would have to be used twice."
+  constraints:
+    - "m == board.length"
+    - "n == board[i].length"
+    - "1 <= m, n <= 6"
+    - "1 <= word.length <= 15"
+    - "board and word consist of only lowercase and uppercase English letters."
+
+constraint_quiz:
+  prompt: >-
+    The board is at most 6 × 6 and the word at most 15 letters. A DFS from every cell
+    explores paths that never step back onto the cell they came from. What's the worst-case
+    time bound?
+  options:
+    - "O(M · N) — each cell is visited once"
+    - "O(M · N · L) — one pass per letter"
+    - "O(M · N · 3^L) — every start cell, then at most 3 new directions per letter"
+    - "O((M · N)!) — every ordering of the cells"
+  answer: 2
+  explanation: >-
+    A cell can be visited many times, once per different path through it, so O(M · N) and
+    O(M · N · L) are only true for plain flood fill with a permanent visited set, which would
+    give wrong answers here. From each of the M · N starts, the first step has 4 directions
+    and every later step at most 3 (the cell you came from is marked), giving
+    O(M · N · 4 · 3^(L−1)) = O(M · N · 3^L). That looks huge, but letter mismatches kill
+    branches immediately, and the limits are tiny. O((M · N)!) ignores that a path has only L
+    cells.
+
+pattern_quiz:
+  prompt: >-
+    You must find whether a word can be traced through neighbouring grid cells, and a cell may
+    be used at most once per trace. Which pattern fits?
+  options:
+    - "BFS from the first letter with a global visited set"
+    - "DFS backtracking: mark the cell as used, explore 4 neighbours, restore it on return"
+    - "Dynamic programming over cells: dp[r][c] = word prefix ending here"
+    - "Union-find of cells with the same letter"
+  answer: 1
+  explanation: >-
+    "Sequentially adjacent cells" + "may not be used more than once" is grid backtracking: a
+    cell is used only by the current path, so it must be released when that path is
+    abandoned. A global visited set (BFS or plain DFS) never releases cells, so a dead-end
+    attempt would block the real path. A DP over cells can't remember which cells the path
+    already used, and union-find answers connectivity, not "spell this exact sequence".
+
+function:
+  name: exist
+  params: [{name: board}, {name: word}]
+
+starter_code: |
+  class Solution:
+      def exist(self, board: List[List[str]], word: str) -> bool:
+          pass
+
+tests:
+  - {args: [[["A", "B", "C", "E"], ["S", "F", "C", "S"], ["A", "D", "E", "E"]], "ABCCED"], expected: true}
+  - {args: [[["A", "B", "C", "E"], ["S", "F", "C", "S"], ["A", "D", "E", "E"]], "SEE"], expected: true}
+  - {args: [[["A", "B", "C", "E"], ["S", "F", "C", "S"], ["A", "D", "E", "E"]], "ABCB"], expected: false, note: "would need the single B twice"}
+  - {args: [[["A"]], "A"], expected: true, note: one cell and a one-letter word}
+  - {args: [[["A"]], "AA"], expected: false, note: a cell can't be reused to repeat a letter}
+  - {args: [[["a", "b"], ["c", "d"]], "abdc"], expected: true, note: "the path turns: right, down, left"}
+  - {args: [[["a", "b"], ["c", "d"]], "abcd"], expected: false, note: "b to c is diagonal, which is not adjacent"}
+  - {args: [[["C", "A", "A"], ["A", "A", "A"], ["B", "C", "D"]], "AAB"], expected: true, note: several A starts hit dead ends before one works}
+  - {args: [[["A", "B", "C", "E"], ["S", "F", "E", "S"], ["A", "D", "E", "E"]], "ABCESEEEFS"], expected: true, note: "fails without restoring cells: an early dead end must release its Es"}
+visualize_test: 0
+
+drills:
+  - title: The four in-bounds neighbours
+    skill: setup
+    goal: Generate the up/down/left/right neighbours of a cell and drop the ones off the board.
+    instructions: |
+      Return the in-bounds neighbours of cell `(r, c)` on a `rows x cols` board, as
+      `[row, col]` pairs, in the order **down, up, right, left**.
+
+      Every grid DFS starts with this: a direction list `(1, 0), (-1, 0), (0, 1), (0, -1)`
+      and a bounds check `0 <= nr < rows and 0 <= nc < cols`. In Word Search the bounds check
+      usually moves to the top of `dfs` instead (call first, reject inside), but the four
+      directions and the off-by-one in `< rows` are the same.
+    function:
+      name: neighbours
+      params: [{name: rows}, {name: cols}, {name: r}, {name: c}]
+    starter_code: |
+      class Solution:
+          def neighbours(self, rows: int, cols: int, r: int, c: int) -> List[List[int]]:
+              pass
+    tests:
+      - {args: [3, 4, 0, 0], expected: [[1, 0], [0, 1]], note: top-left corner}
+      - {args: [3, 4, 1, 1], expected: [[2, 1], [0, 1], [1, 2], [1, 0]]}
+      - {args: [1, 1, 0, 0], expected: [], note: a single cell has no neighbours}
+      - {args: [2, 3, 1, 2], expected: [[0, 2], [1, 1]], note: bottom-right corner}
+    solution: |
+      class Solution:
+          def neighbours(self, rows: int, cols: int, r: int, c: int) -> List[List[int]]:
+              out = []
+              for dr, dc in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                  nr, nc = r + dr, c + dc
+                  if 0 <= nr < rows and 0 <= nc < cols:
+                      out.append([nr, nc])
+              return out
+    hint: "Loop over the four `(dr, dc)` offsets and keep `[r + dr, c + dc]` only when both coordinates are in range."
+
+  - title: Mark, explore, restore
+    skill: core
+    goal: Mark a cell in place while it's on the current path and restore it when the call returns.
+    instructions: |
+      Return **how many different paths** spell `word` on the board (paths are different if
+      their cell sequences differ), using the same adjacency and no-reuse rules as Word
+      Search.
+
+      Counting forces you to explore *every* branch, so the mark/restore step has to be
+      right: set `board[r][c] = '#'` before exploring the neighbours and put `word[k]` back
+      after. Forget the restore and later paths find `'#'` where a letter should be, so the
+      count comes out too small. Also put the "last letter matched" check **after** the
+      letter check, not as `k == len(word)` at the top: otherwise one finished path gets
+      counted once per neighbour call.
+    function:
+      name: countPaths
+      params: [{name: board}, {name: word}]
+    starter_code: |
+      class Solution:
+          def countPaths(self, board: List[List[str]], word: str) -> int:
+              pass
+    tests:
+      - {args: [[["A", "A"], ["A", "A"]], "AA"], expected: 8, note: "4 cells × 2 neighbours each"}
+      - {args: [[["A", "A"], ["A", "A"]], "AAA"], expected: 8, note: the third step can't return to the marked first cell}
+      - {args: [[["A", "A"], ["A", "A"]], "AAAAA"], expected: 0, note: only 4 cells exist}
+      - {args: [[["A", "B"], ["C", "D"]], "ABDC"], expected: 1}
+      - {args: [[["A", "A", "A"]], "AA"], expected: 4}
+      - {args: [[["A"]], "A"], expected: 1, note: one-letter word}
+    solution: |
+      class Solution:
+          def countPaths(self, board: List[List[str]], word: str) -> int:
+              rows, cols = len(board), len(board[0])
+
+              def dfs(r, c, k):
+                  if r < 0 or c < 0 or r >= rows or c >= cols or board[r][c] != word[k]:
+                      return 0
+                  if k == len(word) - 1:
+                      return 1
+                  board[r][c] = '#'
+                  total = dfs(r + 1, c, k + 1) + dfs(r - 1, c, k + 1) + dfs(r, c + 1, k + 1) + dfs(r, c - 1, k + 1)
+                  board[r][c] = word[k]
+                  return total
+
+              return sum(dfs(r, c, 0) for r in range(rows) for c in range(cols))
+    hint: "Save nothing extra: `board[r][c] = '#'`, add up the four recursive calls, then `board[r][c] = word[k]`."
+
+  - title: Reject impossible words before searching
+    skill: edge
+    goal: Prune with letter counts so a word that needs more copies of a letter than the board has fails in O(M·N + L).
+    instructions: |
+      Return `True` if the board contains **at least as many** copies of every letter as
+      `word` needs, otherwise `False`. Letters are case-sensitive.
+
+      This is the cheap check that saves the worst cases. A board full of `'A'` and the word
+      `"AAAAAAAAAAAAAB"` makes the DFS explore a huge number of A-paths before discovering
+      there's no B anywhere. Counting first rejects it instantly. It's a necessary condition,
+      not a sufficient one: `"ABCB"` on the example board fails the count (one B), but
+      `"ABCD"` on a 2 x 2 board passes it and still has no path.
+    function:
+      name: enoughLetters
+      params: [{name: board}, {name: word}]
+    starter_code: |
+      class Solution:
+          def enoughLetters(self, board: List[List[str]], word: str) -> bool:
+              pass
+    tests:
+      - {args: [[["A", "B", "C", "E"], ["S", "F", "C", "S"], ["A", "D", "E", "E"]], "ABCCED"], expected: true}
+      - {args: [[["A", "B", "C", "E"], ["S", "F", "C", "S"], ["A", "D", "E", "E"]], "ABCB"], expected: false, note: the word needs two Bs}
+      - {args: [[["a"]], "aa"], expected: false}
+      - {args: [[["a", "b"]], "ba"], expected: true, note: counts ignore order}
+      - {args: [[["A"]], "a"], expected: false, note: case-sensitive}
+    solution: |
+      from collections import Counter
+
+      class Solution:
+          def enoughLetters(self, board: List[List[str]], word: str) -> bool:
+              have = Counter(ch for row in board for ch in row)
+              need = Counter(word)
+              return all(have[ch] >= cnt for ch, cnt in need.items())
+    hint: "Build two Counters, then check `have[ch] >= cnt` for every letter the word needs."
+
+hints:
+  - >-
+    Suppose you've matched the first k letters and you're standing on the cell that matched
+    word[k − 1]. Which cells can hold word[k]? And why can't you simply keep a permanent
+    "visited" set across all attempts?
+  - >-
+    dfs(r, c, k): if k == len(word) you're done. If (r, c) is off the board or
+    board[r][c] != word[k], fail. Otherwise overwrite the cell with '#', try the four
+    neighbours with k + 1, put the letter back, and return whether any neighbour succeeded.
+    Run it from every cell.
+  - |
+    dfs(r, c, k):
+        if k == len(word): return true
+        if (r, c) out of bounds or board[r][c] != word[k]: return false
+        board[r][c] = '#'                      (choose: on the current path)
+        found = dfs down or up or right or left with k + 1
+        board[r][c] = word[k]                  (un-choose: release the cell)
+        return found
+    return true if dfs(r, c, 0) for any cell
+
+solution:
+  code: |
+    class Solution:
+        def exist(self, board: List[List[str]], word: str) -> bool:
+            rows, cols = len(board), len(board[0])
+
+            def dfs(r, c, k):  # can word[k:] be spelled starting at (r, c)?
+                if k == len(word):
+                    return True  # every letter matched
+                if r < 0 or c < 0 or r >= rows or c >= cols or board[r][c] != word[k]:
+                    return False  # off the board, already on the path ('#'), or wrong letter
+                board[r][c] = '#'  # choose: this cell is on the current path
+                found = (dfs(r + 1, c, k + 1) or dfs(r - 1, c, k + 1)
+                         or dfs(r, c + 1, k + 1) or dfs(r, c - 1, k + 1))
+                board[r][c] = word[k]  # un-choose: release it for other paths
+                return found
+
+            for r in range(rows):
+                for c in range(cols):
+                    if dfs(r, c, 0):
+                        return True
+            return False
+  explanation: |
+    The recursion state is `(r, c, k)`: "I'm at cell (r, c) and need it to be `word[k]`".
+    One combined check rejects the three ways a step can fail: off the board, a cell that is
+    already on the current path, or the wrong letter. Marking with `'#'` makes the second
+    case free, because `'#'` never equals a letter, so no separate `visited` set is needed.
+
+    **Why restore?** The mark means "used by the path I'm building right now", not "visited
+    forever". In `"ABCESEEEFS"` on the second board, the search first walks into a dead end
+    through some E cells; if those cells stayed marked, the correct path that needs them
+    afterwards would be blocked and the answer would wrongly be `false`. Putting
+    `board[r][c] = word[k]` back on every return is the un-choose step of the template, and
+    it also leaves the board unchanged for the caller.
+
+    **Why `or`?** It short-circuits: as soon as one direction succeeds, the rest aren't
+    tried, and the `True` propagates straight up. The restore still runs before returning,
+    because `found` is computed first.
+
+    **Optional pruning:** before searching, count letters. If the board has fewer copies of
+    some letter than the word needs, return `false` immediately. If the last letter of the
+    word is rarer on the board than the first, search for the reversed word, so the DFS
+    starts from fewer cells and branches less.
+  time: >-
+    O(M · N · 3^L) — M · N start cells; the first step tries 4 directions and every later
+    step at most 3, since the cell you came from is marked
+  space: O(L) — recursion depth is at most the word length; marking in place needs no visited set
+
+pitch_script: |
+  **(Clarify)** "Moves are only up, down, left and right, a cell can't be reused within one
+  word, and letters are case-sensitive. The board is at most 6 by 6 and the word at most 15
+  letters. I just return true or false?"
+
+  **(Brute force)** "In principle I could try every sequence of L cells and check it, but
+  that's astronomically many sequences. The better idea is to only extend a path when the
+  next cell matches the next letter."
+
+  **(Trigger)** "'Sequentially adjacent cells' and 'the same cell may not be used more than
+  once' tell me this is grid backtracking: DFS where a cell is blocked only while it's on the
+  current path, so I have to release it when I backtrack."
+
+  **(Optimal)** "I write dfs(r, c, k). If k equals the word length, I've matched everything.
+  If the cell is out of bounds or doesn't match word[k], I return false. Otherwise I
+  overwrite the cell with '#', try all four neighbours with k + 1, restore the letter, and
+  return whether any succeeded. I start this from every cell. As an optimisation I can first
+  check letter counts, and search the reversed word if its last letter is rarer."
+
+  **(Complexity)** "There are M·N starting cells, and after the first step each step has at
+  most three new directions, so it's O(M · N · 3^L) time in the worst case. Space is O(L)
+  for the recursion, since I mark the board in place instead of keeping a visited set."
+
+twist:
+  lc: 212
+  title: Word Search II
+  why: >-
+    Now you get a whole list of words and must return every one that appears. Running this
+    DFS once per word repeats the same grid walks thousands of times. Instead, insert all
+    words into a Trie and run one DFS from each cell that walks the board and the Trie
+    together: a step is allowed only if the next letter is a child of the current Trie node,
+    and reaching a node that ends a word records it. The mark/restore with '#' stays exactly
+    the same; the Trie replaces "compare with word[k]", and pruning finished leaves keeps it
+    fast.
+
+viz:
+  grid: board
+  cell: [r, c]
+  watch: [k, found]

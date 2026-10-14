@@ -1,0 +1,361 @@
+slug: binary-tree-level-order-traversal
+lc: 102
+
+concept:
+  problem_it_solves: >-
+    "What does the tree look like one level at a time?" DFS answers questions about a subtree
+    by diving to the bottom first, so it naturally mixes depths together. When the answer is
+    organised by distance from the root (level 0, level 1, level 2, ...), you want to finish
+    every node at one depth before touching the next, and a FIFO queue does exactly that.
+  brute_force: >-
+    Compute the height H, then for each depth d run a fresh DFS from the root that collects only
+    the nodes at depth d. It produces the right answer, but every pass re-walks all the levels
+    above d just to reach the ones it wants, so the top of the tree is visited H times.
+  brute_force_complexity: >-
+    O(N · H) time, O(H) space — on a skewed tree H = N, so 2000 nodes means about 2 × 10⁶
+    node visits for a job that needs 2000.
+  key_insight: >-
+    A queue is first-in, first-out, so if you push children as you pop parents, every node of
+    level d leaves the queue before any node of level d + 1. The only extra trick is knowing
+    where one level ends: at the start of each round, len(queue) is exactly the number of nodes
+    on the current level (everything in it was pushed by the previous level). Pop exactly that
+    many, collect their values, push their children, and the queue now holds exactly the next
+    level.
+  real_world: >-
+    Social graphs compute "friends, then friends-of-friends" (LinkedIn's 1st/2nd/3rd degree
+    connections) level by level. Web crawlers fetch pages in BFS waves by link distance from
+    the seed, and org-chart tools render a reporting tree row by row: CEO, then VPs, then
+    directors.
+
+statement:
+  clean: |
+    Given the `root` of a binary tree, return the **level order traversal** of its nodes'
+    values, that is, the values **level by level**, each level read **from left to right**.
+
+    Return a list of lists: the first inner list holds the root's value, the second holds the
+    values of the root's children, and so on. An empty tree returns an empty list.
+  oa_story: |
+    **ReferralRoots — OA Round 1**
+
+    ReferralRoots runs the referral programme for a fintech app that is spreading through
+    Bengaluru's tech parks. The founder was the first member. Every member gets two invite
+    slots, a "left" invite and a "right" invite, and each invite can bring in at most one new
+    member, who then gets two slots of their own. The data team stores this as each member
+    pointing to the (up to two) people they brought in.
+
+    For the quarterly report the growth team wants the members grouped by **generation**:
+    generation 0 is the founder, generation 1 is everyone the founder invited, generation 2 is
+    everyone those people invited, and so on. Within a generation, list members in invite
+    order: everything that came through a left slot before its sibling's right slot, and
+    earlier branches before later ones. Return one list of member IDs per generation, starting
+    from the founder. If the programme has no members yet, return an empty list.
+  trigger_keywords: ["level order traversal", "level by level", "from left to right"]
+  examples:
+    - input: "root = [3,9,20,null,null,15,7]"
+      output: "[[3],[9,20],[15,7]]"
+      explanation: "Level 0 is 3, level 1 is 9 then 20, level 2 is 15 then 7 (both children of 20)."
+    - input: "root = [1]"
+      output: "[[1]]"
+    - input: "root = []"
+      output: "[]"
+  constraints:
+    - "The number of nodes in the tree is in the range [0, 2000]"
+    - "-1000 <= Node.val <= 1000"
+
+constraint_quiz:
+  prompt: >-
+    The tree has up to 2000 nodes and can be completely skewed (a single long chain). What
+    time complexity should a good solution have?
+  options:
+    - "O(N · H) — one DFS per depth"
+    - "O(N log N) — sort nodes by depth"
+    - "O(N) — visit each node once"
+    - "O(H) — walk one path from the root"
+  answer: 2
+  explanation: >-
+    One DFS per depth is O(N · H), which becomes O(N²) on a chain because the top levels are
+    re-walked every pass. Sorting by (depth, position) works but adds a log factor for no
+    reason, since a queue already produces nodes in that order. O(H) is impossible: every value
+    has to appear in the output, so you must visit all N nodes. A BFS touches each node exactly
+    once: O(N).
+
+pattern_quiz:
+  prompt: >-
+    The output is grouped by distance from the root, and each group is ordered left to right.
+    Which pattern fits?
+  options:
+    - "Pre-order DFS, appending values to one list"
+    - "BFS with a queue, processing one level per round"
+    - "In-order traversal"
+    - "Two pointers over the level-order array"
+  answer: 1
+  explanation: >-
+    "Level by level" is the BFS trigger. A FIFO queue releases nodes in order of depth, and
+    snapshotting len(queue) at the start of each round tells you where a level ends. A plain
+    pre-order DFS mixes depths (it goes 3, 9, 20, 15, 7 only by luck here; on deeper trees it
+    dives before finishing a level). In-order sorts a BST, which is unrelated. There is no
+    array to point into: the input is a tree of nodes.
+
+function:
+  name: levelOrder
+  params: [{name: root, type: TreeNode}]
+
+starter_code: |
+  # Definition for a binary tree node.
+  # class TreeNode:
+  #     def __init__(self, val=0, left=None, right=None):
+  #         self.val = val
+  #         self.left = left
+  #         self.right = right
+  class Solution:
+      def levelOrder(self, root: Optional[TreeNode]) -> List[List[int]]:
+          pass
+
+tests:
+  - {args: [[3, 9, 20, null, null, 15, 7]], expected: [[3], [9, 20], [15, 7]]}
+  - {args: [[1]], expected: [[1]], note: single node}
+  - {args: [[]], expected: [], note: "empty tree: [] not [[]]"}
+  - {args: [[1, 2, 3, 4, 5, 6, 7]], expected: [[1], [2, 3], [4, 5, 6, 7]], note: perfect tree}
+  - {args: [[1, 2, 3, 4, null, null, 5]], expected: [[1], [2, 3], [4, 5]], note: "4 and 5 are cousins, not siblings, but share a level"}
+  - {args: [[1, 2, null, 3, null, 4]], expected: [[1], [2], [3], [4]], note: "left-skewed chain: one node per level"}
+  - {args: [[1, null, 2, null, 3]], expected: [[1], [2], [3]], note: right-skewed chain}
+  - {args: [[0, -1, -2, null, -3]], expected: [[0], [-1, -2], [-3]], note: negative values and a missing left child}
+visualize_test: 0
+
+drills:
+  - title: Drain a queue in BFS order
+    skill: setup
+    goal: Initialise a deque with the root and run the popleft-then-push-children loop.
+    instructions: |
+      Return all node values in BFS order as **one flat list** (no grouping yet). Return `[]`
+      for an empty tree.
+
+      This is the engine of every BFS: start with `queue = deque([root])`, then repeatedly
+      `popleft()` a node, record it, and append its non-null children. Because the queue is
+      first-in first-out, a node's children always wait behind everything already queued,
+      which is exactly why the output comes out level by level.
+    function:
+      name: bfsOrder
+      params: [{name: root, type: TreeNode}]
+    starter_code: |
+      class Solution:
+          def bfsOrder(self, root: Optional[TreeNode]) -> List[int]:
+              pass
+    tests:
+      - {args: [[3, 9, 20, null, null, 15, 7]], expected: [3, 9, 20, 15, 7]}
+      - {args: [[1, 2, 3, 4, null, null, 5]], expected: [1, 2, 3, 4, 5]}
+      - {args: [[]], expected: [], note: empty tree}
+      - {args: [[1, null, 2]], expected: [1, 2]}
+    solution: |
+      class Solution:
+          def bfsOrder(self, root: Optional[TreeNode]) -> List[int]:
+              if not root:
+                  return []
+              order = []
+              queue = deque([root])
+              while queue:
+                  node = queue.popleft()
+                  order.append(node.val)
+                  if node.left:
+                      queue.append(node.left)
+                  if node.right:
+                      queue.append(node.right)
+              return order
+    hint: "Guard the empty tree first, so you never put `None` in the queue."
+
+  - title: Snapshot the level size
+    skill: core
+    goal: Read len(queue) at the start of each round and pop exactly that many nodes.
+    instructions: |
+      Return a list with the **number of nodes on each level**, from the root down. Return
+      `[]` for an empty tree.
+
+      This isolates the one line that turns a flat BFS into a level-by-level BFS. At the start
+      of a round the queue holds only the current level, so `size = len(queue)` is that
+      level's node count. Pop exactly `size` nodes; the children you push during those pops
+      are the next level and must not be counted now. Reading `len(queue)` inside the loop
+      instead would count them too.
+    function:
+      name: levelSizes
+      params: [{name: root, type: TreeNode}]
+    starter_code: |
+      class Solution:
+          def levelSizes(self, root: Optional[TreeNode]) -> List[int]:
+              pass
+    tests:
+      - {args: [[3, 9, 20, null, null, 15, 7]], expected: [1, 2, 2]}
+      - {args: [[1, 2, 3, 4, 5, 6, 7]], expected: [1, 2, 4]}
+      - {args: [[1, 2, null, 3]], expected: [1, 1, 1], note: chain}
+      - {args: [[]], expected: []}
+    solution: |
+      class Solution:
+          def levelSizes(self, root: Optional[TreeNode]) -> List[int]:
+              if not root:
+                  return []
+              sizes = []
+              queue = deque([root])
+              while queue:
+                  size = len(queue)  # frozen before any children are pushed
+                  sizes.append(size)
+                  for _ in range(size):
+                      node = queue.popleft()
+                      queue.extend(c for c in (node.left, node.right) if c)
+              return sizes
+    hint: "`range(len(queue))` is evaluated once, before the loop body runs."
+
+  - title: Keep only the deepest level
+    skill: edge
+    goal: Build each level in a fresh list and extract the right one at the end, including for an empty tree.
+    instructions: |
+      Return the values on the **deepest level**, left to right. Return `[]` for an empty tree.
+
+      Two details trip people up in the full problem. First, `level` must be a **new list each
+      round**; reusing one list (or clearing it after appending it to the result) leaves every
+      entry pointing at the same object. Second, the empty tree must return `[]`, not `[[]]`
+      and not a crash on `None.left`. Here you overwrite `last` with each finished level, so
+      when the queue empties it holds the bottom row.
+    function:
+      name: deepestLevel
+      params: [{name: root, type: TreeNode}]
+    starter_code: |
+      class Solution:
+          def deepestLevel(self, root: Optional[TreeNode]) -> List[int]:
+              pass
+    tests:
+      - {args: [[3, 9, 20, null, null, 15, 7]], expected: [15, 7]}
+      - {args: [[1, 2, 3, 4, null, null, 5]], expected: [4, 5], note: "cousins on the bottom row"}
+      - {args: [[1]], expected: [1]}
+      - {args: [[]], expected: [], note: empty tree}
+      - {args: [[1, 2, 3, null, 4]], expected: [4], note: "the deepest level has a single node"}
+    solution: |
+      class Solution:
+          def deepestLevel(self, root: Optional[TreeNode]) -> List[int]:
+              last = []
+              queue = deque([root] if root else [])
+              while queue:
+                  level = []  # a brand-new list every round
+                  for _ in range(len(queue)):
+                      node = queue.popleft()
+                      level.append(node.val)
+                      queue.extend(c for c in (node.left, node.right) if c)
+                  last = level
+              return last
+    hint: "Start `queue` empty when `root` is `None`, and the while loop never runs."
+
+hints:
+  - >-
+    DFS goes deep before it goes wide. Which data structure hands nodes back in the order they
+    were discovered, so that everything at depth 1 comes out before anything at depth 2?
+  - >-
+    Use a queue that starts with the root. Each round, the queue holds exactly one level: read
+    its length first, pop that many nodes, record their values in a new list, and push their
+    children. When the round ends, the queue holds exactly the next level.
+  - |
+    if root is empty: return []
+    result = [], queue = [root]
+    while queue is not empty:
+        level = []
+        repeat len(queue) times:
+            node = pop from the front
+            add node.val to level
+            push node.left, node.right (if they exist) to the back
+        add level to result
+    return result
+
+solution:
+  code: |
+    class Solution:
+        def levelOrder(self, root: Optional[TreeNode]) -> List[List[int]]:
+            if not root:
+                return []
+            res = []
+            queue = deque([root])
+            while queue:
+                level = []
+                for _ in range(len(queue)):  # exactly the nodes of the current level
+                    node = queue.popleft()
+                    level.append(node.val)
+                    if node.left:
+                        queue.append(node.left)
+                    if node.right:
+                        queue.append(node.right)
+                res.append(level)  # the queue now holds exactly the next level
+            return res
+  explanation: |
+    The invariant is: **at the top of the `while` loop, the queue contains exactly one full
+    level, in left-to-right order.** It holds at the start (just the root). During a round we
+    pop the `len(queue)` nodes of the current level, left to right, and push their children
+    left before right. So when the round ends, the old level is gone and the queue holds the
+    next level, again left to right. The invariant holds again, and by induction every round
+    produces one correct level.
+
+    `range(len(queue))` is computed **once**, before the loop body runs, so the children we
+    push during the round don't get mixed into the current level. That single snapshot is what
+    separates level-order BFS from a plain BFS.
+
+    Use `collections.deque`, not a list: `list.pop(0)` shifts every remaining element and costs
+    O(N), which would make the whole traversal O(N²). The empty tree is handled up front so
+    `None` never enters the queue.
+
+    A DFS also works if you pass the depth down: `dfs(node, depth)` appends to `res[depth]`,
+    creating the list the first time a depth is reached. Pre-order with left before right
+    visits each level left to right, so the order still comes out correct. BFS is the more
+    natural fit because the problem *is* "level by level".
+  time: O(N) — every node is pushed and popped exactly once
+  space: O(W) for the queue, where W is the widest level (up to about N / 2 on a perfect tree), plus O(N) for the output
+  brute_force_code: |
+    class Solution:
+        def levelOrder(self, root: Optional[TreeNode]) -> List[List[int]]:
+            def height(node):
+                return 0 if not node else 1 + max(height(node.left), height(node.right))
+
+            def collect(node, d, out):  # re-walks from the root for every depth
+                if not node:
+                    return
+                if d == 0:
+                    out.append(node.val)
+                    return
+                collect(node.left, d - 1, out)
+                collect(node.right, d - 1, out)
+
+            res = []
+            for d in range(height(root)):
+                level = []
+                collect(root, d, level)
+                res.append(level)
+            return res
+
+pitch_script: |
+  **(Clarify)** "So I return one list per level, top to bottom, and each level left to right.
+  For an empty tree I return an empty list, not a list containing an empty list. Right?"
+
+  **(Brute force)** "One way is to find the height, then for each depth run a DFS from the
+  root that collects only the nodes at that depth. That's O(N times H), which is O(N²) on a
+  skewed tree, because I keep re-walking the top of the tree."
+
+  **(Trigger)** "The phrase 'level by level' tells me BFS. A queue is first-in first-out, so if
+  I push children while popping parents, all of one level comes out before any of the next."
+
+  **(Optimal)** "I start the queue with the root. Each round, I read the queue's length first,
+  because at that moment the queue holds exactly the current level. I pop that many nodes,
+  collect their values into a new list, and push their left and right children. After the
+  round the queue holds exactly the next level, so I append the list and repeat until the
+  queue is empty."
+
+  **(Complexity)** "Every node goes in and out of the queue once, so it's O(N) time. Space is
+  O(W) for the queue, where W is the widest level, which can be about N over 2 for a perfect
+  tree, plus the output itself. I'd use a deque, because popping from the front of a Python
+  list is O(N)."
+
+twist:
+  lc: 103
+  title: Binary Tree Zigzag Level Order Traversal
+  why: >-
+    Same BFS, same len(queue) snapshot, but the reading direction alternates: level 0 left to
+    right, level 1 right to left, and so on. Keep the queue order unchanged (children are still
+    pushed left then right, otherwise the next level comes out scrambled) and only flip how you
+    record the level: reverse `level` on odd rounds, or build it with a deque and appendleft
+    when going right to left. The traversal never changes; only the output does.
+
+viz:
+  arrays: [queue, level, res]

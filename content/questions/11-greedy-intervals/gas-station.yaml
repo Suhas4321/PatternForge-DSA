@@ -1,0 +1,345 @@
+slug: gas-station
+lc: 134
+
+concept:
+  problem_it_solves: >-
+    "On a loop of stops with gains and costs, where can I start so my running balance never
+    goes negative?" Simulating from every start repeats the same arithmetic N times. Two
+    facts collapse it to one pass: if the total gain covers the total cost a valid start
+    must exist, and a start that fails at station k rules out every station between it and
+    k as well.
+  brute_force: >-
+    Try every station as the start and drive the full loop, failing as soon as the tank goes
+    negative. It wastes work because after a start s fails at station k, it goes on to try
+    s + 1, s + 2, … k, re-driving the same stretch of road, even though none of those
+    starts can possibly do better.
+  brute_force_complexity: O(N²) time, O(1) space — 10⁵ stations means up to 10¹⁰ steps.
+  key_insight: >-
+    Drive once from station 0 with a running tank. When the tank goes negative at station
+    k, don't retry s + 1: every station between s and k was reached with a non-negative
+    tank, so starting there with an empty tank is never better, and it would fail at k too.
+    Jump the candidate straight to k + 1 with an empty tank. Separately, if sum(gas) ≥
+    sum(cost), the last candidate standing is guaranteed to complete the circuit.
+  real_world: >-
+    EV fleet operators (Ather, Yulu) and logistics teams plan loop routes the same way:
+    find the depot from which a vehicle never runs dry. Cash-management systems use it to
+    pick the day to start a recurring cycle of inflows and outflows so the balance never
+    dips below zero, and stream processors use the reset trick to find where a running
+    budget first becomes sustainable.
+
+statement:
+  clean: |
+    There are `n` gas stations along a **circular route**, where the amount of gas at the
+    `i`th station is `gas[i]`.
+
+    You have a car with an unlimited gas tank, and it costs `cost[i]` of gas to travel from
+    the `i`th station to the next `(i + 1)`th station. You begin the journey with an
+    **empty tank** at one of the gas stations.
+
+    Given two integer arrays `gas` and `cost`, return the
+    **starting gas station's index** if you can **travel around the circuit once** in the
+    clockwise direction, otherwise return `-1`. If there exists a solution, it is
+    guaranteed to be **unique**.
+  oa_story: |
+    **ClinicQ — OA Round 2**
+
+    ClinicQ runs a mobile health van that loops through a fixed circuit of neighbourhood
+    camps around Bengaluru: Yelahanka, Hebbal, RT Nagar and onward, eventually back to the
+    first camp. At each camp the van collects a known number of vaccine cold-packs donated
+    by local clinics, and the trip from that camp to the next one uses up a known number of
+    cold-packs to keep the vials at temperature. The van leaves its first camp with no
+    packs on board and cannot carry a deficit.
+
+    Given the packs collected at each camp and the packs used on the leg to the next camp,
+    return the index of the camp where the van should begin so it completes one full loop
+    without ever running out, or `-1` if no such camp exists. Planning guarantees at most
+    one valid camp. Circuits can have 100,000 camps, so the planner must work in one pass.
+  trigger_keywords: ["circular route", "starting gas station's index", "travel around the circuit once"]
+  examples:
+    - input: "gas = [1,2,3,4,5], cost = [3,4,5,1,2]"
+      output: "3"
+      explanation: >-
+        Start at station 3 and fill up with 4. Tank after arriving and filling up at each
+        next station: 4 - 1 + 5 = 8, 8 - 2 + 1 = 7, 7 - 3 + 2 = 6, 6 - 4 + 3 = 5. The last
+        leg back to station 3 costs 5, leaving exactly 0, so it never goes negative.
+    - input: "gas = [2,3,4], cost = [3,4,3]"
+      output: "-1"
+      explanation: "Total gas is 9 but total cost is 10, so no start can work."
+  constraints:
+    - "n == gas.length == cost.length"
+    - "1 <= n <= 10^5"
+    - "0 <= gas[i], cost[i] <= 10^4"
+    - "The input is generated such that the answer is unique."
+
+constraint_quiz:
+  prompt: With up to 10⁵ stations, what time complexity should you aim for?
+  options: ["O(N²)", "O(N log N)", "O(N)", "O(N) per candidate start"]
+  answer: 2
+  explanation: >-
+    Simulating from every start is O(N²), up to 10¹⁰ steps. Nothing benefits from sorting
+    (the order of stations is the whole problem), so O(N log N) isn't a natural target.
+    O(N) per candidate start is just the brute force again. A single pass with the reset
+    trick is O(N), because each station is visited exactly once.
+
+pattern_quiz:
+  prompt: >-
+    A circular list of gains and costs; find the unique start where the running balance
+    never goes negative. Which pattern fits?
+  options:
+    - "Two pointers closing in from both ends"
+    - "Greedy one pass: reset the start after any station where the tank goes negative"
+    - "Sliding window of fixed size n over the doubled array"
+    - "Sort stations by gas − cost and start at the best one"
+  answer: 1
+  explanation: >-
+    The running balance from a failed start tells you about every station in between, so
+    the greedy can skip them all and reset after the failure point. That's the reset-start
+    trigger. Sorting by surplus breaks the circular order, and starting at the biggest
+    surplus isn't always right. A window over a doubled array can work but is clumsier, and
+    two pointers don't model a running balance.
+
+function:
+  name: canCompleteCircuit
+  params: [{name: gas}, {name: cost}]
+
+starter_code: |
+  class Solution:
+      def canCompleteCircuit(self, gas: List[int], cost: List[int]) -> int:
+          pass
+
+tests:
+  - {args: [[1, 2, 3, 4, 5], [3, 4, 5, 1, 2]], expected: 3}
+  - {args: [[2, 3, 4], [3, 4, 3]], expected: -1}
+  - {args: [[5], [4]], expected: 0, note: single station}
+  - {args: [[2], [2]], expected: 0, note: "tank ends at exactly 0, which is allowed"}
+  - {args: [[1], [2]], expected: -1, note: single station that can't pay its leg}
+  - {args: [[3, 1, 1], [1, 2, 2]], expected: 0, note: "total surplus is exactly 0: still feasible"}
+  - {args: [[5, 1, 2, 3, 4], [4, 4, 1, 5, 1]], expected: 4, note: answer is the last station}
+  - {args: [[4, 5, 2, 6, 5, 3], [3, 2, 7, 3, 2, 9]], expected: -1, note: total short by just 1}
+  - {args: [[2, 2, 0, 4], [1, 3, 3, 1]], expected: 3, note: "tank touches 0 at station 1 without a reset"}
+visualize_test: 0
+
+drills:
+  - title: Drive the loop from one start
+    skill: setup
+    goal: Simulate a full circuit from a given start with wrap-around indexing and a never-negative tank check.
+    instructions: |
+      Return `True` if starting at station `start` with an empty tank, you can visit every
+      station once and come back, otherwise `False`.
+
+      Use `(start + k) % n` to wrap around the circle, and fail the moment the tank drops
+      below zero (exactly zero is fine). This is the brute force's inner loop, and the
+      greedy is all about avoiding running it N times.
+    function:
+      name: simulateFrom
+      params: [{name: gas}, {name: cost}, {name: start}]
+    starter_code: |
+      class Solution:
+          def simulateFrom(self, gas: List[int], cost: List[int], start: int) -> bool:
+              pass
+    tests:
+      - {args: [[1, 2, 3, 4, 5], [3, 4, 5, 1, 2], 3], expected: true}
+      - {args: [[1, 2, 3, 4, 5], [3, 4, 5, 1, 2], 0], expected: false}
+      - {args: [[2], [2], 0], expected: true}
+      - {args: [[3, 1, 1], [1, 2, 2], 1], expected: false}
+    solution: |
+      class Solution:
+          def simulateFrom(self, gas: List[int], cost: List[int], start: int) -> bool:
+              n, tank = len(gas), 0
+              for k in range(n):
+                  i = (start + k) % n
+                  tank += gas[i] - cost[i]
+                  if tank < 0:
+                      return False
+              return True
+    hint: "After `k` legs you're at station `(start + k) % n`; add `gas[i] - cost[i]` and check `< 0`."
+
+  - title: Reset the start after a failure
+    skill: core
+    goal: Make one pass that jumps the candidate start to i + 1 whenever the tank goes negative.
+    instructions: |
+      Scan stations `0..n-1` once with a running tank, starting with candidate `0`. Whenever
+      the tank goes **negative** at station `i`, the new candidate is `i + 1` and the tank
+      resets to 0. Return the list of candidates in the order they were tried.
+
+      The reason you may skip straight to `i + 1`: every station between the old candidate
+      and `i` was reached with fuel to spare, so starting there with an empty tank can only
+      be worse, and it would also die at `i`. Notice the last candidate can be invalid (even
+      `n`) when there isn't enough gas in total; that's why the full solution also checks
+      the totals.
+    function:
+      name: resetStarts
+      params: [{name: gas}, {name: cost}]
+    starter_code: |
+      class Solution:
+          def resetStarts(self, gas: List[int], cost: List[int]) -> List[int]:
+              pass
+    tests:
+      - {args: [[1, 2, 3, 4, 5], [3, 4, 5, 1, 2]], expected: [0, 1, 2, 3]}
+      - {args: [[5, 1, 2, 3, 4], [4, 4, 1, 5, 1]], expected: [0, 2, 4], note: skips stations 1 and 3}
+      - {args: [[3, 1, 1], [1, 2, 2]], expected: [0]}
+      - {args: [[1], [2]], expected: [0, 1], note: "infeasible: the last candidate is off the end"}
+    solution: |
+      class Solution:
+          def resetStarts(self, gas: List[int], cost: List[int]) -> List[int]:
+              starts, tank = [0], 0
+              for i in range(len(gas)):
+                  tank += gas[i] - cost[i]
+                  if tank < 0:
+                      tank = 0
+                      starts.append(i + 1)
+              return starts
+    hint: "Reset only on `tank < 0`, not `<= 0`: arriving with exactly zero is still allowed."
+
+  - title: Start right after the lowest point
+    skill: edge
+    goal: Read the answer off the running balance's lowest point, and return -1 when the overall total is negative.
+    instructions: |
+      Track the running balance `sum(gas[0..i] - cost[0..i])` and remember the first index
+      where it reaches its **lowest** value below 0. Return `-1` if the final balance is
+      negative; otherwise return the station right after that lowest point, or `0` if the
+      balance never dips below zero.
+
+      This is the same answer the reset scan finds, seen from a different angle: starting
+      just after the deepest deficit means every later dip is shallower, so the tank never
+      goes negative. The two edges are the "never dips, so start at 0" case and the
+      infeasible total.
+    function:
+      name: lowestPointStart
+      params: [{name: gas}, {name: cost}]
+    starter_code: |
+      class Solution:
+          def lowestPointStart(self, gas: List[int], cost: List[int]) -> int:
+              pass
+    tests:
+      - {args: [[1, 2, 3, 4, 5], [3, 4, 5, 1, 2]], expected: 3}
+      - {args: [[5, 1, 2, 3, 4], [4, 4, 1, 5, 1]], expected: 4}
+      - {args: [[2, 3, 4], [3, 4, 3]], expected: -1}
+      - {args: [[3, 1, 1], [1, 2, 2]], expected: 0, note: balance never dips}
+      - {args: [[2, 2, 0, 4], [1, 3, 3, 1]], expected: 3}
+    solution: |
+      class Solution:
+          def lowestPointStart(self, gas: List[int], cost: List[int]) -> int:
+              balance, low, low_i = 0, 0, -1
+              for i in range(len(gas)):
+                  balance += gas[i] - cost[i]
+                  if balance < low:
+                      low, low_i = balance, i
+              return -1 if balance < 0 else low_i + 1
+    hint: "Start `low` at 0 and `low_i` at -1, so 'never dipped' naturally gives `low_i + 1 == 0`."
+
+hints:
+  - >-
+    Suppose you start at station s and run dry at station k. What do you know about the tank
+    when you arrived at any station between s and k? Would starting at one of them with an
+    empty tank help?
+  - >-
+    Keep a running tank and a candidate start. When the tank goes negative at i, every
+    station from the candidate to i is ruled out, so the candidate becomes i + 1 and the tank
+    resets to 0. Separately, what does comparing sum(gas) with sum(cost) tell you about
+    whether any answer exists?
+  - |
+    if total gas < total cost: return -1
+    start = 0, tank = 0
+    for i from 0 to n - 1:
+        tank = tank + gas[i] - cost[i]
+        if tank < 0:
+            start = i + 1
+            tank = 0
+    return start
+
+solution:
+  code: |
+    class Solution:
+        def canCompleteCircuit(self, gas: List[int], cost: List[int]) -> int:
+            if sum(gas) < sum(cost):
+                return -1  # not enough fuel in the whole loop, whatever the start
+            start = 0
+            tank = 0  # fuel in the tank since leaving `start`
+            for i in range(len(gas)):
+                tank += gas[i] - cost[i]
+                if tank < 0:  # can't make the leg out of i: no start in start..i works
+                    start = i + 1
+                    tank = 0
+            return start
+  explanation: |
+    **If total gas < total cost, no start can work**: over one full loop you collect every
+    `gas[i]` and pay every `cost[i]` exactly once, so you'd end below zero.
+
+    **Why every station between the old start and the failure point can be skipped.** Say
+    we start at `s` and the tank first goes negative on the leg out of station `k`. For any
+    station `m` with `s < m <= k`, we arrived at `m` from `s` with a tank of at least 0.
+    Starting at `m` instead means arriving there with exactly 0, which is no more fuel than
+    before, and the road from `m` to `k` is the same. So the tank at `k` would be no higher,
+    and it would also go negative. All of `s..k` fail, and the next possible start is
+    `k + 1`. That's why each station is examined only once.
+
+    **Why the final candidate is the answer when total ≥ 0.** From `start` to the end of the
+    array the tank never went negative, so we wrap round to station 0 carrying some surplus.
+    The skipped region `0..start-1` is made of blocks that each ran a deficit, and any
+    *tail* of it also runs a deficit (inside a failed block the prefixes were ≥ 0 but the
+    whole block was < 0, so what remains after any prefix is < 0). At any station `j` in
+    the skipped region, the tank equals the total surplus of the loop minus the stretch
+    `j+1..start-1` still ahead, and that stretch is a deficit (or empty, at `j = start-1`),
+    so the tank is at least the total, which is ≥ 0. The tank never goes negative on the
+    way back to `start`.
+
+    Use `tank < 0`, not `<= 0`: arriving with exactly zero fuel is fine (`gas = [2]`,
+    `cost = [2]` returns 0). The check for totals also guards against returning `n`, which
+    the reset can produce on infeasible inputs like `gas = [1]`, `cost = [2]`.
+  time: O(N) — one pass for the sums and one for the scan
+  space: O(1) — a few integers
+  brute_force_code: |
+    class Solution:
+        def canCompleteCircuit(self, gas: List[int], cost: List[int]) -> int:
+            n = len(gas)
+            for s in range(n):
+                tank = 0
+                for k in range(n):
+                    i = (s + k) % n
+                    tank += gas[i] - cost[i]
+                    if tank < 0:
+                        break
+                else:
+                    return s
+            return -1
+
+pitch_script: |
+  **(Clarify)** "So the route is circular, I start with an empty tank, cost[i] is the fuel to
+  go from i to i plus one, and arriving with exactly zero fuel is fine? I return the unique
+  start, or -1?"
+
+  **(Brute force)** "I could try every start and simulate the full loop, stopping at the
+  first negative tank. That's O(N²), up to 10¹⁰ steps for 10⁵ stations."
+
+  **(Trigger)** "Two observations. First, if total gas is less than total cost, no start can
+  work, and if it's at least the total cost, some start must work. Second, if I start at s
+  and fail at k, then every station between s and k also fails, because I reached each of
+  them with a non-negative tank, and starting there with zero fuel can only be worse. So I
+  never need to retry them."
+
+  **(Optimal)** "I check the totals first. Then I scan once with a running tank and a
+  candidate start of zero. Whenever the tank goes negative at i, I set the candidate to i
+  plus one and reset the tank. At the end, the candidate is the answer: everything I skipped
+  ran a deficit, and since the totals balance, the surplus from the candidate to the end
+  covers it on the way back round."
+
+  **(Complexity)** "O(N) time, since the sums and the scan are each one pass, and O(1) extra
+  space."
+
+twist:
+  lc: 871
+  title: Minimum Number of Refueling Stops
+  why: >-
+    Now the route is a straight line to a target, you start with some fuel, and you want the
+    fewest refuelling stops instead of a starting point. The reset trick doesn't apply,
+    because there's no choice of start, only a choice of which stations to use. The greedy
+    becomes "drive as far as you can; when you can't reach the next station, retroactively
+    refuel at the biggest station you've passed", using a max-heap of passed stations. The
+    exchange argument is that if you must stop once more among the stations behind you,
+    taking the most fuel is never worse. That's O(N log N).
+
+viz:
+  arrays: [gas, cost]
+  pointers: [i, start]
+  watch: [tank, start]

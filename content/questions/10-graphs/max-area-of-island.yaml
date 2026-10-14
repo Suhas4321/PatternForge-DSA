@@ -1,0 +1,347 @@
+slug: max-area-of-island
+lc: 695
+
+concept:
+  problem_it_solves: >-
+    "How big is each connected group, and which is biggest?" Number of Islands only asked whether a
+    component exists. Here each component also has a size, so the traversal has to *report back* how
+    many cells it covered. It's the same scan-and-sink loop, with one change: the DFS returns a
+    number instead of nothing.
+  brute_force: >-
+    For every land cell, explore its island from scratch with a fresh visited set and count the
+    cells reached, then keep the maximum. Every island of K cells is explored K times (once from
+    each of its own cells) and gives the same answer each time, because nothing remembers that the
+    island was already measured.
+  brute_force_complexity: >-
+    O((M·N)²) time, O(M·N) space — a 50 × 50 all-land grid has 2,500 cells, each re-exploring a
+    2,500-cell island: ~6 × 10⁶ steps here, and 8 × 10⁹ on a 300 × 300 grid.
+  key_insight: >-
+    Make the DFS return the size of what it just sank: a water or off-grid cell contributes 0, and
+    a land cell contributes 1 (itself) plus whatever its four neighbours' DFS calls return. Because
+    each cell is sunk before recursing, no cell is ever counted twice, even when the island has
+    loops. The scan then calls the DFS once per island and keeps the maximum, still O(M·N) overall.
+    This "DFS returns an aggregate of its subtree" step is exactly how tree recursion works, and you
+    will reuse it for perimeter, sum-of-values and "largest region" questions.
+  real_world: >-
+    Image processing libraries (OpenCV's connectedComponentsWithStats, scikit-image's regionprops)
+    label regions and report each region's pixel area, used to find the largest tumour in a scan or
+    the largest flooded area in satellite imagery. Real-estate and land-records systems use the
+    same idea to find the largest contiguous parcel owned by one party.
+
+statement:
+  clean: |
+    You are given an `m x n` binary matrix `grid`. An island is a group of `1`s (land) connected
+    **4-directionally** (horizontally or vertically). You may assume all four edges of the grid are
+    surrounded by water.
+
+    The **area of an island** is the number of cells with value `1` in the island.
+
+    Return the **maximum area of an island** in `grid`. If there is no island, return `0`.
+  oa_story: |
+    **PlotPilot Realty — OA Round 1**
+
+    PlotPilot digitises land records for layouts on the outskirts of Bengaluru, from Sarjapur to
+    Devanahalli. Each surveyed layout becomes a grid of 1-acre cells: `1` means the cell belongs to
+    a client who wants to sell, `0` means it belongs to someone else or is a road. A developer
+    planning a tech park can only buy a single parcel whose cells are joined edge to edge; cells
+    that touch only at a corner can't be combined because the boundary walls meet there.
+
+    Given the survey grid, return the size in acres of the largest parcel the developer could buy
+    in one deal, or `0` if no client cell exists. Survey grids are at most 50 × 50 cells.
+  trigger_keywords: ["4-directionally", "area of an island", "maximum area of an island"]
+  examples:
+    - input: "grid = [[0,0,1,0,0,0,0,1,0,0,0,0,0],[0,0,0,0,0,0,0,1,1,1,0,0,0],[0,1,1,0,1,0,0,0,0,0,0,0,0],[0,1,0,0,1,1,0,0,1,0,1,0,0],[0,1,0,0,1,1,0,0,1,1,1,0,0],[0,0,0,0,0,0,0,0,0,0,1,0,0],[0,0,0,0,0,0,0,1,1,1,0,0,0],[0,0,0,0,0,0,0,1,1,0,0,0,0]]"
+      output: "6"
+      explanation: >-
+        The largest island is the 6-cell one on the right (rows 3 to 5, columns 8 to 10). The
+        5-cell block in the middle comes second, and cells that touch only at a corner stay
+        separate islands.
+    - input: "grid = [[0,0,0,0,0,0,0,0]]"
+      output: "0"
+      explanation: "No land at all, so the answer is 0."
+  constraints:
+    - "m == grid.length"
+    - "n == grid[i].length"
+    - "1 <= m, n <= 50"
+    - "grid[i][j] is either 0 or 1"
+
+constraint_quiz:
+  prompt: >-
+    The grid has at most 50 × 50 = 2,500 cells, but the same scan must work on much larger maps.
+    What complexity should you aim for?
+  options:
+    - "O((M·N)²) — measure each land cell's island separately"
+    - "O(M·N) — measure each island once with a size-returning DFS"
+    - "O(M·N · log(M·N)) — sort islands by size with a heap"
+    - "O(M·N · 4^(M·N)) — try every subset of connected cells"
+  answer: 1
+  explanation: >-
+    Measuring from every land cell repeats each island's work once per cell, which is quadratic.
+    A heap would sort island sizes, but you only need the maximum, so a running `max` is enough
+    and the log factor buys nothing. Enumerating subsets is exponential and confuses "area of an
+    island" with "choose cells". A single scan where each island is sunk and measured once is
+    O(M·N), optimal because every cell must be read.
+
+pattern_quiz:
+  prompt: >-
+    You need the size of the largest group of 1s connected 4-directionally. Which approach fits?
+  options:
+    - "Sliding window: the longest run of 1s in any row or column"
+    - "Grid DFS that returns the number of cells it sank, maximised over the scan"
+    - "2D prefix sums to count 1s in every sub-rectangle"
+    - "Binary search on the area"
+  answer: 1
+  explanation: >-
+    "Islands / connected regions" plus "size of" means: count components, and let each component's
+    traversal return its size. Row or column runs miss islands that bend, and prefix sums count 1s
+    inside rectangles regardless of whether they're connected. Binary search would need a cheap
+    "is there an island of size ≥ k?" check, which itself requires the traversal.
+
+function:
+  name: maxAreaOfIsland
+  params: [{name: grid}]
+
+starter_code: |
+  class Solution:
+      def maxAreaOfIsland(self, grid: List[List[int]]) -> int:
+          pass
+
+tests:
+  - {args: [[[0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0], [0, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0], [0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 0], [0, 1, 0, 0, 1, 1, 0, 0, 1, 1, 1, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0], [0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0]]], expected: 6}
+  - {args: [[[0, 0, 0, 0, 0, 0, 0, 0]]], expected: 0, note: "no land: 0, not -infinity"}
+  - {args: [[[1]]], expected: 1, note: "1x1 land"}
+  - {args: [[[1, 1, 1, 1], [1, 1, 1, 1], [1, 1, 1, 1]]], expected: 12, note: "all land: one island covering the grid"}
+  - {args: [[[1, 0, 1], [0, 1, 0], [1, 0, 1]]], expected: 1, note: "diagonals do not connect"}
+  - {args: [[[1, 1, 0, 0], [0, 0, 0, 1], [0, 1, 1, 1]]], expected: 4, note: "the largest island is found last"}
+  - {args: [[[1], [1], [0], [1]]], expected: 2, note: "single column"}
+  - {args: [[[1, 1, 1], [1, 0, 1], [1, 1, 1]]], expected: 8, note: "a ring: the loop must not be counted twice"}
+visualize_test: 5
+
+drills:
+  - title: Measure one island with an explicit stack
+    skill: setup
+    goal: Write an iterative DFS with a stack, marking cells when they are pushed and counting them when popped.
+    instructions: |
+      Return the number of land cells (`1`) in the island containing `(sr, sc)`, or `0` if that cell
+      is water. Use an explicit `stack` instead of recursion.
+
+      This is the same traversal as the recursive DFS, written so that it can never hit Python's
+      recursion limit. The rule that keeps the count right: **mark a cell (set it to 0) when you push
+      it**, not when you pop it. If you mark on pop, a cell with two land neighbours gets pushed
+      twice before either copy is popped, and it is counted twice.
+    function:
+      name: islandAreaAt
+      params: [{name: grid}, {name: sr}, {name: sc}]
+    starter_code: |
+      class Solution:
+          def islandAreaAt(self, grid: List[List[int]], sr: int, sc: int) -> int:
+              pass
+    tests:
+      - {args: [[[1, 1, 0], [1, 1, 0], [0, 0, 1]], 0, 0], expected: 4}
+      - {args: [[[1, 1, 0], [1, 1, 0], [0, 0, 1]], 2, 2], expected: 1}
+      - {args: [[[1, 0], [0, 1]], 0, 1], expected: 0, note: "start on water"}
+      - {args: [[[1, 1, 1], [1, 0, 1], [1, 1, 1]], 1, 2], expected: 8, note: "a ring: each cell counted once"}
+    solution: |
+      class Solution:
+          def islandAreaAt(self, grid: List[List[int]], sr: int, sc: int) -> int:
+              if grid[sr][sc] != 1:
+                  return 0
+              rows, cols = len(grid), len(grid[0])
+              grid[sr][sc] = 0  # mark on push
+              stack, area = [(sr, sc)], 0
+              while stack:
+                  r, c = stack.pop()
+                  area += 1
+                  for nr, nc in ((r + 1, c), (r - 1, c), (r, c + 1), (r, c - 1)):
+                      if 0 <= nr < rows and 0 <= nc < cols and grid[nr][nc] == 1:
+                          grid[nr][nc] = 0
+                          stack.append((nr, nc))
+              return area
+    hint: "Set a neighbour to 0 at the moment you append it, so it can never be appended again."
+
+  - title: Let the recursion return the area
+    skill: core
+    goal: Turn a void DFS into one that returns 1 plus the sum of its four neighbours' results.
+    instructions: |
+      Return the area of every island, in the order the row-major scan discovers them.
+
+      The heart of Max Area of Island is a DFS that *returns* something: off-grid or water returns
+      `0`; land sinks itself and returns `1 + down + up + right + left`. The scan then gets one
+      number per island for free. Sinking before the four calls is what makes the sum honest: a
+      neighbour's call that looks back at you sees water and contributes 0.
+    function:
+      name: islandAreas
+      params: [{name: grid}]
+    starter_code: |
+      class Solution:
+          def islandAreas(self, grid: List[List[int]]) -> List[int]:
+              pass
+    tests:
+      - {args: [[[1, 1, 0, 0], [0, 0, 0, 1], [0, 1, 1, 1]]], expected: [2, 4]}
+      - {args: [[[0, 0], [0, 0]]], expected: [], note: "no islands"}
+      - {args: [[[1, 0, 1], [0, 1, 0]]], expected: [1, 1, 1], note: "diagonals stay separate"}
+      - {args: [[[1, 1], [1, 1]]], expected: [4]}
+    solution: |
+      class Solution:
+          def islandAreas(self, grid: List[List[int]]) -> List[int]:
+              rows, cols = len(grid), len(grid[0])
+              def area(r, c):
+                  if r < 0 or r >= rows or c < 0 or c >= cols or grid[r][c] != 1:
+                      return 0
+                  grid[r][c] = 0
+                  return 1 + area(r + 1, c) + area(r - 1, c) + area(r, c + 1) + area(r, c - 1)
+              return [area(r, c) for r in range(rows) for c in range(cols) if grid[r][c] == 1]
+    hint: "The base case returns 0; the land case returns `1 + ` the four recursive calls."
+
+  - title: Track where the winner starts
+    skill: edge
+    goal: Keep an arg-max next to the max, break ties toward the first island, and handle "no island".
+    instructions: |
+      Return `[r, c]`, the first cell (in row-major order) of the island with the largest area. If
+      two islands tie, return the one found **first**. If there is no land, return `[-1, -1]`.
+
+      Result extraction is where correct traversals still fail: start `best` at `0` (not `-1` or
+      `-inf`, which leak out when the grid has no land), use a strict `>` so a later island with
+      the same area doesn't replace the first one, and decide up front what "no answer" returns.
+    function:
+      name: largestIslandStart
+      params: [{name: grid}]
+    starter_code: |
+      class Solution:
+          def largestIslandStart(self, grid: List[List[int]]) -> List[int]:
+              pass
+    tests:
+      - {args: [[[1, 1, 0, 0], [0, 0, 0, 1], [0, 1, 1, 1]]], expected: [1, 3]}
+      - {args: [[[1, 0, 1]]], expected: [0, 0], note: "tie: keep the first island"}
+      - {args: [[[0, 0], [0, 0]]], expected: [-1, -1], note: "no land"}
+      - {args: [[[0, 1], [1, 1]]], expected: [0, 1]}
+    solution: |
+      class Solution:
+          def largestIslandStart(self, grid: List[List[int]]) -> List[int]:
+              rows, cols = len(grid), len(grid[0])
+              def area(r, c):
+                  if r < 0 or r >= rows or c < 0 or c >= cols or grid[r][c] != 1:
+                      return 0
+                  grid[r][c] = 0
+                  return 1 + area(r + 1, c) + area(r - 1, c) + area(r, c + 1) + area(r, c - 1)
+              best, where = 0, [-1, -1]
+              for r in range(rows):
+                  for c in range(cols):
+                      if grid[r][c] == 1:
+                          size = area(r, c)
+                          if size > best:  # strict: ties keep the earlier island
+                              best, where = size, [r, c]
+              return where
+    hint: "Initialise `where = [-1, -1]` and only overwrite it when `size > best`."
+
+hints:
+  - >-
+    You already know how to find and sink one island with a DFS. What if, instead of returning
+    nothing, that DFS told you how many cells it just sank?
+  - >-
+    area(r, c) = 0 if (r, c) is off the grid or water. Otherwise sink it and return 1 plus the area
+    of its four neighbours. Scan the grid, call area() on every land cell you find, and keep the
+    maximum. Why can't a cell be counted twice?
+  - |
+    area(r, c):
+        if (r, c) outside the grid or grid[r][c] != 1: return 0
+        grid[r][c] = 0                          (sink before recursing)
+        return 1 + area(down) + area(up) + area(right) + area(left)
+    best = 0
+    for each cell (r, c):
+        if grid[r][c] == 1: best = max(best, area(r, c))
+    return best
+
+solution:
+  code: |
+    class Solution:
+        def maxAreaOfIsland(self, grid: List[List[int]]) -> int:
+            rows, cols = len(grid), len(grid[0])
+
+            def area(r, c):
+                if r < 0 or r >= rows or c < 0 or c >= cols:
+                    return 0  # off the map adds nothing
+                if grid[r][c] != 1:
+                    return 0  # water, or land already counted
+                grid[r][c] = 0  # sink first, so no path can count this cell again
+                return 1 + area(r + 1, c) + area(r - 1, c) + area(r, c + 1) + area(r, c - 1)
+
+            best = 0  # "no island" must answer 0
+            for r in range(rows):
+                for c in range(cols):
+                    if grid[r][c] == 1:
+                        best = max(best, area(r, c))
+            return best
+  explanation: |
+    **One change from Number of Islands.** The scan is the same, the sink is the same, but the DFS
+    now **returns** the number of cells it sank: `0` for off-grid or water, and
+    `1 + (the four neighbours' areas)` for land. Instead of `count += 1` per island, the scan does
+    `best = max(best, area(r, c))`.
+
+    **Why the sum never double-counts.** A cell is set to `0` *before* its four recursive calls.
+    Any later call that reaches it, including the neighbour that looks straight back at it, or a
+    path coming around a ring-shaped island, sees water and returns 0. So each land cell
+    contributes exactly one `1` to exactly one island's total. That's why the ring test returns 8,
+    not something larger.
+
+    **Why `best = 0`.** The problem defines "no island" as 0. Starting at `-1` or `float('-inf')`
+    would leak out on an all-water grid.
+
+    This "return an aggregate from the recursion" shape is the same one you'll use for tree height
+    and subtree sums: the base case returns the identity (0), the recursive case combines itself
+    with its children. As before, recursion depth can reach M·N (2,500 here); use an explicit
+    stack for much larger grids.
+  time: O(M·N) — each cell is scanned once and each land cell is sunk exactly once
+  space: O(M·N) — recursion depth in the worst case (one island covering the grid)
+  brute_force_code: |
+    class Solution:
+        def maxAreaOfIsland(self, grid: List[List[int]]) -> int:
+            rows, cols = len(grid), len(grid[0])
+            best = 0
+            for r in range(rows):
+                for c in range(cols):
+                    if grid[r][c] != 1:
+                        continue
+                    seen, stack = {(r, c)}, [(r, c)]  # fresh exploration every time
+                    while stack:
+                        cr, cc = stack.pop()
+                        for nr, nc in ((cr + 1, cc), (cr - 1, cc), (cr, cc + 1), (cr, cc - 1)):
+                            if 0 <= nr < rows and 0 <= nc < cols and grid[nr][nc] == 1 and (nr, nc) not in seen:
+                                seen.add((nr, nc))
+                                stack.append((nr, nc))
+                    best = max(best, len(seen))
+            return best
+
+pitch_script: |
+  **(Clarify)** "Islands are 1s connected horizontally or vertically, area is the number of cells,
+  and if there's no land I return 0. Can I modify the grid in place?"
+
+  **(Brute force)** "I could start a fresh traversal from every land cell and measure its island,
+  keeping the max. But a big island gets re-measured once per cell, so that's O((M·N)²)."
+
+  **(Trigger)** "This is connected components on the grid, like Number of Islands, but I need each
+  component's size. So the traversal should return a count instead of nothing."
+
+  **(Optimal)** "I'll write area(r, c): if it's out of bounds or not land, return 0; otherwise sink
+  the cell by setting it to 0 and return 1 plus the area of the four neighbours. Sinking before
+  recursing means no cell is counted twice, even on ring-shaped islands. Then I scan the grid and
+  take the max of area() over every land cell I hit, starting from 0 so an empty grid returns 0."
+
+  **(Complexity)** "Every cell is visited a constant number of times, so O(M·N) time, and O(M·N)
+  space for the recursion stack in the worst case. If the grid were huge I'd use an explicit stack
+  to avoid recursion limits."
+
+twist:
+  lc: 827
+  title: Making A Large Island
+  why: >-
+    Now you may flip one 0 to 1 before measuring. Trying every flip and re-running this solution is
+    O(N⁴) on an N × N grid. Instead, run this exact DFS once but label each island with an id (2, 3, 4...) and
+    record id → area. Then for each 0, look at the distinct island ids among its four neighbours and
+    sum 1 + their areas; use a set so an island touching the 0 on two sides isn't added twice.
+    Remember the all-land case, where no flip is possible and the answer is N².
+
+viz:
+  grid: grid
+  cell: [r, c]
+  watch: [best]

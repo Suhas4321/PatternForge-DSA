@@ -1,0 +1,316 @@
+slug: top-k-frequent-elements
+lc: 347
+
+concept:
+  problem_it_solves: >-
+    "Which items show up the most?" First you need how often each value appears, which a hash
+    map answers in one pass. Then you need the k biggest counts without paying for a full sort,
+    and the trick is that a count can never exceed N, so counts themselves can be used as array
+    indices.
+  brute_force: >-
+    For every distinct value, call nums.count(x) to scan the whole array again, then sort the
+    (count, value) pairs and take the first k. Each rescan re-reads elements that earlier scans
+    already counted, and the sort orders all distinct values even though you only need the top k.
+  brute_force_complexity: >-
+    O(N²) time (N distinct values × an O(N) rescan each) plus O(N log N) for the sort, O(N)
+    space — 10⁵ elements means up to 10¹⁰ steps.
+  key_insight: >-
+    Frequencies are small integers between 1 and N, so you don't need a comparison sort to
+    order them. Make an array of N + 1 buckets where buckets[f] holds every value that appears
+    exactly f times, then walk from the highest bucket down and stop as soon as you have k
+    values. The count becomes the address.
+  real_world: >-
+    "Trending now" rails on Swiggy, Zomato or YouTube, top error codes on an observability
+    dashboard, and heavy-hitter detection in rate limiters all count events in a hash map and
+    pull out the top k. At very large scale, systems like Redis TopK or Count-Min Sketch
+    approximate the count step, but the "count, then extract top k" shape is the same.
+
+statement:
+  clean: |
+    Given an integer array `nums` and an integer `k`, return the **k most frequent elements**.
+    You may return the answer in **any order**.
+
+    It is guaranteed that the answer is **unique**, meaning the set of the k most frequent
+    elements is well defined (there is never a tie at the k-th place).
+
+    **Follow-up:** your algorithm's time complexity must be better than O(n log n), where n is
+    the array's size.
+  oa_story: |
+    **QuickMandi Growth — OA Round 1**
+
+    QuickMandi delivers groceries in 15 minutes across Bengaluru. The growth team wants a
+    "Trending in Koramangala" banner on the home screen, built from the last hour of orders.
+    The order log is a list of product IDs `nums`, one entry per item ordered, so a product
+    ID repeats every time someone adds it to a cart.
+
+    Given the order log and the banner size `k`, return the IDs of the `k` products that were
+    ordered the most times. The banner can show them in any order. The analytics team
+    guarantees there is never a tie for the last banner slot. The log can be long, and the
+    banner is recomputed every minute, so sorting the entire catalogue each time is not an
+    option.
+  trigger_keywords: ["k most frequent elements", "any order", "better than O(n log n)"]
+  examples:
+    - input: "nums = [1,1,1,2,2,3], k = 2"
+      output: "[1,2]"
+      explanation: "1 appears 3 times and 2 appears twice; 3 appears only once."
+    - input: "nums = [1], k = 1"
+      output: "[1]"
+    - input: "nums = [1,2,1,2,1,2,3,1,3,2], k = 2"
+      output: "[1,2]"
+      explanation: "1 and 2 both appear 4 times, 3 appears twice, so the top two are 1 and 2."
+  constraints:
+    - "1 <= nums.length <= 10^5"
+    - "-10^4 <= nums[i] <= 10^4"
+    - "k is in the range [1, the number of unique elements in the array]."
+    - "It is guaranteed that the answer is unique."
+
+constraint_quiz:
+  prompt: >-
+    N can be 10⁵ and the follow-up demands better than O(N log N). What time complexity should
+    you aim for?
+  options:
+    - "O(N²)"
+    - "O(N log N)"
+    - "O(N) — count, then bucket by frequency"
+    - "O(k)"
+  answer: 2
+  explanation: >-
+    O(N²) is up to 10¹⁰ steps. O(N log N) is what sorting by frequency costs, and the follow-up
+    explicitly rules it out. O(k) is impossible because you must read all N elements to know
+    any frequency. Counting is O(N), and since every frequency lies in 1..N, bucketing by
+    frequency is O(N) too. (A size-k min-heap gives O(N log k), which also beats O(N log N).)
+
+pattern_quiz:
+  prompt: >-
+    You need the k values with the highest counts, in any order, faster than sorting. Which
+    pattern fits?
+  options:
+    - "Sort the array and scan runs of equal values"
+    - "Frequency hash map + bucket sort by count"
+    - "Two pointers from both ends"
+    - "Prefix sums over the array"
+  answer: 1
+  explanation: >-
+    "Most frequent" is the frequency-count trigger: a hash map from value → count. "Top k,
+    better than O(n log n)" is the bucket-sort trigger: counts are bounded by N, so index an
+    array by count instead of comparing. Sorting the array and scanning runs counts correctly
+    but costs O(N log N). Two pointers and prefix sums answer questions about positions and
+    ranges, not frequencies.
+
+function:
+  name: topKFrequent
+  params: [{name: nums}, {name: k}]
+  compare: unordered
+
+starter_code: |
+  class Solution:
+      def topKFrequent(self, nums: List[int], k: int) -> List[int]:
+          pass
+
+tests:
+  - {args: [[1, 1, 1, 2, 2, 3], 2], expected: [1, 2]}
+  - {args: [[1], 1], expected: [1], note: single element}
+  - {args: [[1, 2, 1, 2, 1, 2, 3, 1, 3, 2], 2], expected: [1, 2], note: "1 and 2 tie with each other, but both are in the top 2"}
+  - {args: [[4, 4, 4, 4], 1], expected: [4], note: "all the same: the only non-empty bucket is the last one"}
+  - {args: [[-1, -1, 5, 5, 5, 2], 2], expected: [5, -1], note: negatives}
+  - {args: [[1, 2, 3, 4], 4], expected: [1, 2, 3, 4], note: "k equals the number of distinct values"}
+  - {args: [[7, 7, 8, 8, 8, 9, 9, 9, 9], 3], expected: [9, 8, 7]}
+  - {args: [[3, 0, 1, 0], 1], expected: [0], note: "value 0 appears twice: don't confuse values with bucket indices"}
+visualize_test: 0
+
+drills:
+  - title: Count every value
+    skill: setup
+    goal: Build a value → count map in one pass and return it as [value, count] pairs.
+    instructions: |
+      Return a list of `[value, count]` pairs, one per distinct value in `nums`, in any order.
+
+      This is step one of Top K Frequent: before you can rank anything you need each value's
+      frequency, and a dictionary gives you that in one pass instead of rescanning the array
+      for every value. Return pairs, not the dict.
+    function:
+      name: countPairs
+      params: [{name: nums}]
+      compare: unordered
+    starter_code: |
+      class Solution:
+          def countPairs(self, nums: List[int]) -> List[List[int]]:
+              pass
+    tests:
+      - {args: [[1, 1, 1, 2, 2, 3]], expected: [[1, 3], [2, 2], [3, 1]]}
+      - {args: [[5]], expected: [[5, 1]]}
+      - {args: [[-2, 0, -2, 0, -2]], expected: [[-2, 3], [0, 2]]}
+      - {args: [[]], expected: []}
+    solution: |
+      class Solution:
+          def countPairs(self, nums: List[int]) -> List[List[int]]:
+              count = {}
+              for x in nums:
+                  count[x] = count.get(x, 0) + 1
+              return [[x, c] for x, c in count.items()]
+    hint: "`count[x] = count.get(x, 0) + 1` inside a single loop, then turn `count.items()` into pairs."
+
+  - title: Use the count as an index
+    skill: core
+    goal: Build frequency buckets where buckets[f] lists every value that appears exactly f times.
+    instructions: |
+      Return a list `buckets` of length `len(nums) + 1` where `buckets[f]` is the list of
+      values that appear exactly `f` times in `nums`. Inside each bucket, keep values in the
+      order they **first appear** in `nums` (that is the order a dict or `Counter` iterates in).
+
+      This is the move that beats sorting: a frequency is an integer from 1 to N, so it can be
+      an array index. Why `len(nums) + 1` buckets? If every element is the same value, its
+      count is N, and index N must exist. `buckets[0]` is always empty.
+    function:
+      name: frequencyBuckets
+      params: [{name: nums}]
+    starter_code: |
+      class Solution:
+          def frequencyBuckets(self, nums: List[int]) -> List[List[int]]:
+              pass
+    tests:
+      - {args: [[1, 1, 1, 2, 2, 3]], expected: [[], [3], [2], [1], [], [], []]}
+      - {args: [[4, 4, 4]], expected: [[], [], [], [4]]}
+      - {args: [[5, 6, 5, 6]], expected: [[], [], [5, 6], [], []]}
+      - {args: [[9]], expected: [[], [9]]}
+    solution: |
+      class Solution:
+          def frequencyBuckets(self, nums: List[int]) -> List[List[int]]:
+              count = Counter(nums)
+              buckets = [[] for _ in range(len(nums) + 1)]
+              for x, f in count.items():
+                  buckets[f].append(x)
+              return buckets
+    hint: "Create the buckets with `[[] for _ in range(len(nums) + 1)]`, never `[[]] * n` (that shares one list)."
+
+  - title: Collect from the top and stop at k
+    skill: edge
+    goal: Walk buckets from the highest frequency down, skip empty buckets, and stop exactly at k values.
+    instructions: |
+      You are given `buckets` (where `buckets[f]` holds the values that appear `f` times) and
+      `k`. Return the `k` values with the highest frequencies, in any order.
+
+      The mistakes people make here: starting at the wrong end (you want the **highest** index
+      first), crashing or wasting time on the many empty buckets, and not stopping the moment
+      the result reaches `k` items, which means returning from inside a nested loop.
+    function:
+      name: collectTopK
+      params: [{name: buckets}, {name: k}]
+      compare: unordered
+    starter_code: |
+      class Solution:
+          def collectTopK(self, buckets: List[List[int]], k: int) -> List[int]:
+              pass
+    tests:
+      - {args: [[[], [3], [], [1, 2]], 2], expected: [1, 2]}
+      - {args: [[[], [9], [4]], 2], expected: [4, 9]}
+      - {args: [[[], [5, 6, 7], [], [], []], 3], expected: [5, 6, 7]}
+      - {args: [[[], [], [8], [1]], 1], expected: [1]}
+      - {args: [[[], [2], [], [6], [], []], 2], expected: [6, 2]}
+    solution: |
+      class Solution:
+          def collectTopK(self, buckets: List[List[int]], k: int) -> List[int]:
+              res = []
+              for f in range(len(buckets) - 1, 0, -1):
+                  for x in buckets[f]:
+                      res.append(x)
+                      if len(res) == k:
+                          return res
+              return res
+    hint: "`for f in range(len(buckets) - 1, 0, -1):` walks from the top; check `len(res) == k` right after each append."
+
+hints:
+  - >-
+    First, how would you know how often each value appears without rescanning the array? Then:
+    a frequency is always a whole number between 1 and N. How could you order values by
+    frequency without comparing them?
+  - >-
+    Count with a hash map. Then make N + 1 buckets and drop each value into buckets[count].
+    The answer is whatever you meet first walking from bucket N down to bucket 1, stopping as
+    soon as you have k values.
+  - |
+    count = map of value -> frequency
+    buckets = N + 1 empty lists
+    for each (value, freq) in count: buckets[freq].append(value)
+    res = []
+    for freq from N down to 1:
+        for each value in buckets[freq]:
+            add value to res; if res has k items: return res
+
+solution:
+  code: |
+    class Solution:
+        def topKFrequent(self, nums: List[int], k: int) -> List[int]:
+            count = Counter(nums)  # value -> how many times it appears
+            # buckets[f] = values that appear exactly f times; f can be at most len(nums)
+            buckets = [[] for _ in range(len(nums) + 1)]
+            for x, f in count.items():
+                buckets[f].append(x)
+            res = []
+            for f in range(len(buckets) - 1, 0, -1):  # highest frequency first
+                for x in buckets[f]:
+                    res.append(x)
+                    if len(res) == k:
+                        return res
+            return res
+  explanation: |
+    Counting is one pass with a `Counter`. The interesting part is ranking: instead of sorting
+    values by count, we notice that a count is an integer between 1 and N, so we can use it as
+    an index. Each value goes into `buckets[count]`, and walking the buckets from the top
+    visits values in decreasing frequency order without a single comparison.
+
+    We stop the moment `res` has `k` values. The guarantee that the answer is unique means the
+    k-th slot is never shared by a tie, so we never have to choose between values in the same
+    bucket. The array needs `len(nums) + 1` slots because a value can appear all N times. The
+    bucket walk touches N + 1 buckets and at most N values in total, so it is O(N) no matter
+    how the counts are spread. The common alternative is a min-heap of size k over the
+    `(count, value)` pairs: O(N log k), handy when k is tiny or the data is a stream.
+  time: O(N) — one counting pass, one pass over at most N distinct values, and one walk over N + 1 buckets
+  space: O(N) — the counter and the buckets each hold at most N entries
+  brute_force_code: |
+    class Solution:
+        def topKFrequent(self, nums: List[int], k: int) -> List[int]:
+            pairs = []
+            for x in set(nums):
+                pairs.append((nums.count(x), x))
+            pairs.sort(reverse=True)
+            return [x for _, x in pairs[:k]]
+
+pitch_script: |
+  **(Clarify)** "Just to confirm: I return k values in any order, k is at most the number of
+  distinct values, and there's never a tie for the k-th spot? And values can be negative?"
+
+  **(Brute force)** "The simplest version counts each distinct value by rescanning the array,
+  then sorts by count and takes the first k. That rescanning is O(N²) in the worst case. Even
+  with a hash map for counting, sorting by frequency is O(N log N), and the follow-up asks me
+  to beat that."
+
+  **(Trigger)** "'Most frequent' tells me I need a frequency map. 'Top k, better than
+  N log N' makes me think about what I'm sorting: frequencies, which are integers between 1
+  and N. Bounded integer keys mean I can bucket sort instead of comparison sort."
+
+  **(Optimal)** "I'll count with a hash map, then create N + 1 buckets where bucket f holds
+  every value that appears exactly f times. Then I walk from bucket N down to 1, appending
+  values to the result, and return as soon as I have k. Because the answer is unique, I never
+  have to break a tie inside a bucket."
+
+  **(Complexity)** "Counting is O(N), filling buckets is O(number of distinct values), and the
+  walk is O(N), so O(N) time overall and O(N) space. If memory mattered more, or the input
+  were a stream, I'd use a min-heap of size k for O(N log k) time and O(k) extra space beyond
+  the counts."
+
+twist:
+  lc: 451
+  title: Sort Characters By Frequency
+  why: >-
+    Instead of the top k values, you must output the whole string with characters ordered by
+    how often they occur, each character repeated as many times as it appears. The template is
+    identical: count with a hash map, drop characters into buckets indexed by frequency, then
+    walk from the highest bucket down. The change is the extraction step: you never stop early,
+    and you emit `ch * f` for every character in bucket f instead of appending it once.
+
+viz:
+  arrays: [nums, buckets, res]
+  pointers: ["f:buckets"]
+  maps: [count]
+  watch: [k, x, f]

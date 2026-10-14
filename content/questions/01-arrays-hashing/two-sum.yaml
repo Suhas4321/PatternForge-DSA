@@ -1,0 +1,274 @@
+slug: two-sum
+lc: 1
+
+concept:
+  problem_it_solves: >-
+    "Have I already seen the value I need?" Without memory, answering that means re-scanning
+    everything to your left, every single time. A hash map remembers every value you've passed
+    (and where), so the question becomes a single O(1) lookup.
+  brute_force: >-
+    Try every pair (i, j) with two nested loops and check nums[i] + nums[j] == target.
+    The inner loop keeps re-reading values the outer loop has already seen.
+  brute_force_complexity: O(N²) time, O(1) space — 10⁴ elements means ~5 × 10⁷ pair checks.
+  key_insight: >-
+    Flip the question. Instead of "which pair sums to target?", stand at x and ask "have I
+    already seen target − x?". Store each value → index in a map *after* checking, and the
+    answer appears the moment the second half of the pair arrives.
+  real_world: >-
+    Payment reconciliation at fintechs (Razorpay, PhonePe): match a refund against two prior
+    transactions. Fraud engines and dedup pipelines use the same "seen-before" hash lookup,
+    and database hash joins are exactly this idea at scale.
+
+statement:
+  clean: |
+    Given an array of integers `nums` and an integer `target`, return the **indices** of the
+    two numbers that **add up to target**.
+
+    You may assume that each input has **exactly one solution**, and you may not use the
+    same element twice. You can return the answer in any order.
+  oa_story: |
+    **SwiftCart Logistics — OA Round 1**
+
+    SwiftCart's Bengaluru dark-store team packs combo orders into insulated bags. Each bag
+    must be filled to an exact weight, `target` grams, using **exactly two** items from
+    today's packing queue so riders aren't overloaded on Outer Ring Road.
+
+    The packing queue is a list of item weights in the order they arrived. The warehouse
+    system needs the **queue positions** (0-indexed) of the two items to pick. Operations
+    guarantees that exactly one valid pair exists for every bag, and an item can't be picked
+    twice. Return the two positions in any order.
+  trigger_keywords: ["indices", "add up to target", "exactly one solution"]
+  examples:
+    - input: "nums = [2,7,11,15], target = 9"
+      output: "[0,1]"
+      explanation: "nums[0] + nums[1] = 2 + 7 = 9."
+    - input: "nums = [3,2,4], target = 6"
+      output: "[1,2]"
+      explanation: "3 + 3 would need the same element twice, so the answer is 2 + 4."
+    - input: "nums = [3,3], target = 6"
+      output: "[0,1]"
+  constraints:
+    - "2 <= nums.length <= 10^4"
+    - "-10^9 <= nums[i] <= 10^9"
+    - "-10^9 <= target <= 10^9"
+    - "Only one valid answer exists."
+
+constraint_quiz:
+  prompt: >-
+    N can be 10⁴ and the follow-up asks for "less than O(N²)". What time complexity should
+    you aim for?
+  options: ["O(N²)", "O(N log N)", "O(N)", "O(log N)"]
+  answer: 2
+  explanation: >-
+    O(N²) is ~10⁸ operations in the worst case, which is too slow for the follow-up.
+    Sorting gives O(N log N) but scrambles the original indices you must return. A single
+    pass with a hash map is O(N). O(log N) is impossible because you have to read every
+    element at least once.
+
+pattern_quiz:
+  prompt: The array is unsorted and you must return original indices. Which pattern fits?
+  options:
+    - "Two pointers from both ends"
+    - "Hash map of value → index (complement lookup)"
+    - "Sliding window"
+    - "Binary search for the complement"
+  answer: 1
+  explanation: >-
+    Two pointers and binary search both need sorted data, and sorting destroys the indices
+    you must return. "Return indices of a pair that sums to X" on unsorted data is the
+    classic complement-lookup trigger: remember what you've seen, look up target − x.
+
+function:
+  name: twoSum
+  params: [{name: nums}, {name: target}]
+  compare: unordered
+
+starter_code: |
+  class Solution:
+      def twoSum(self, nums: List[int], target: int) -> List[int]:
+          pass
+
+tests:
+  - {args: [[2, 7, 11, 15], 9], expected: [0, 1]}
+  - {args: [[3, 2, 4], 6], expected: [1, 2], note: "can't reuse index 0 for 3 + 3"}
+  - {args: [[3, 3], 6], expected: [0, 1], note: duplicate values}
+  - {args: [[-1, -2, -3, -4, -5], -8], expected: [2, 4], note: negatives}
+  - {args: [[0, 4, 3, 0], 0], expected: [0, 3], note: zeros}
+  - {args: [[1, 5, 9, 13, 21, 2], 23], expected: [4, 5], note: pair at the very end}
+  - {args: [[1000000000, -1000000000, 7], 0], expected: [0, 1], note: large values}
+visualize_test: 0
+
+drills:
+  - title: Compute what each element needs
+    skill: setup
+    goal: Loop with enumerate and compute the complement target − x at each index.
+    instructions: |
+      Return a list of `[index, needed]` pairs where `needed` is the value that would complete
+      the sum with `nums[index]`, i.e. `target - nums[index]`.
+
+      This is the mental flip at the heart of Two Sum: at every index, you are not looking at
+      `x`, you are looking for `target - x`.
+    function:
+      name: complements
+      params: [{name: nums}, {name: target}]
+    starter_code: |
+      class Solution:
+          def complements(self, nums: List[int], target: int) -> List[List[int]]:
+              pass
+    tests:
+      - {args: [[2, 7, 11, 15], 9], expected: [[0, 7], [1, 2], [2, -2], [3, -6]]}
+      - {args: [[3, 3], 6], expected: [[0, 3], [1, 3]]}
+      - {args: [[-4, 0], -4], expected: [[0, 0], [1, -4]]}
+    solution: |
+      class Solution:
+          def complements(self, nums: List[int], target: int) -> List[List[int]]:
+              out = []
+              for i, x in enumerate(nums):
+                  out.append([i, target - x])
+              return out
+    hint: "`for i, x in enumerate(nums):` gives you index and value together."
+
+  - title: Check before you insert
+    skill: core
+    goal: Use a set to answer "have I seen this before?" and insert only after checking.
+    instructions: |
+      Return the index of the **first element that has already appeared earlier** in the
+      array, or `-1` if every element is unique.
+
+      Order matters: check the set first, then add the current value. If you add first,
+      every element "has been seen" — by itself.
+    function:
+      name: firstRepeatIndex
+      params: [{name: nums}]
+    starter_code: |
+      class Solution:
+          def firstRepeatIndex(self, nums: List[int]) -> int:
+              pass
+    tests:
+      - {args: [[5, 1, 5, 2]], expected: 2}
+      - {args: [[1, 2, 3]], expected: -1}
+      - {args: [[7, 7]], expected: 1}
+      - {args: [[4, 9, 2, 9, 4]], expected: 3}
+    solution: |
+      class Solution:
+          def firstRepeatIndex(self, nums: List[int]) -> int:
+              seen = set()
+              for i, x in enumerate(nums):
+                  if x in seen:
+                      return i
+                  seen.add(x)
+              return -1
+    hint: "Inside the loop: `if x in seen: return i`, and only then `seen.add(x)`."
+
+  - title: Never pair an element with itself
+    skill: edge
+    goal: Combine complement + check-before-insert so an element can't match itself.
+    instructions: |
+      Return `True` if some element has an **earlier** partner that adds up to `target`,
+      otherwise `False`.
+
+      Watch the edge case: `nums = [3]`, `target = 6`. The 3 must not pair with itself, so
+      the answer is `False`. With `[3, 3]` it's `True`.
+    function:
+      name: hasEarlierPartner
+      params: [{name: nums}, {name: target}]
+    starter_code: |
+      class Solution:
+          def hasEarlierPartner(self, nums: List[int], target: int) -> bool:
+              pass
+    tests:
+      - {args: [[3], 6], expected: false}
+      - {args: [[3, 3], 6], expected: true}
+      - {args: [[1, 2, 4], 8], expected: false}
+      - {args: [[1, 2, 4], 6], expected: true}
+      - {args: [[], 0], expected: false}
+    solution: |
+      class Solution:
+          def hasEarlierPartner(self, nums: List[int], target: int) -> bool:
+              seen = set()
+              for x in nums:
+                  if target - x in seen:
+                      return True
+                  seen.add(x)
+              return False
+    hint: "Look up `target - x` in `seen` *before* adding `x` to `seen`."
+
+hints:
+  - >-
+    When you stand at a number x, you already know exactly which number would finish the
+    pair. What is it, and how could you find out instantly whether it appeared earlier?
+  - >-
+    Keep a dictionary from value → index for everything to your left. At each step there are
+    two moves: look up the complement, then record the current value. Which order keeps you
+    from pairing an element with itself?
+  - |
+    seen = {}
+    for i, x in enumerate(nums):
+        if (target - x) is in seen: return [seen[target - x], i]
+        seen[x] = i
+
+solution:
+  code: |
+    class Solution:
+        def twoSum(self, nums: List[int], target: int) -> List[int]:
+            seen = {}  # value -> index, for everything to the left of i
+            for i, x in enumerate(nums):
+                need = target - x
+                if need in seen:
+                    return [seen[need], i]
+                seen[x] = i
+            return []
+  explanation: |
+    Walk the array once. For each `x`, the partner we need is `target - x`. If it is already
+    in `seen`, we found the pair: its stored index plus the current index. Otherwise record
+    `x → i` and move on.
+
+    Inserting **after** the lookup is what stops `[3]` with target 6 from matching itself,
+    and it still handles duplicates like `[3, 3]`: the first 3 is stored, and the second one
+    finds it.
+  time: O(N) — one pass, O(1) average per hash lookup/insert
+  space: O(N) — the map can hold up to N − 1 entries
+  brute_force_code: |
+    class Solution:
+        def twoSum(self, nums: List[int], target: int) -> List[int]:
+            n = len(nums)
+            for i in range(n):
+                for j in range(i + 1, n):
+                    if nums[i] + nums[j] == target:
+                        return [i, j]
+            return []
+
+pitch_script: |
+  **(Clarify)** "Just to confirm: exactly one valid pair, I return indices, and I can't use
+  the same element twice, right? And the array isn't sorted?"
+
+  **(Brute force)** "The straightforward approach checks every pair with two loops. That's
+  O(N²) time and O(1) space. With N up to 10⁴ that's around 50 million checks, so let's do
+  better."
+
+  **(Trigger)** "The key observation: for each number x, I know exactly what I'm looking
+  for, which is target minus x. So the problem becomes 'have I seen this value before, and
+  where?', and that's a hash map lookup."
+
+  **(Optimal)** "I'll make one pass with a map from value to index. At each index I first
+  check whether the complement is in the map. If it is, I return both indices. If not, I
+  store the current value. Checking before inserting makes sure I never pair an element
+  with itself, and duplicates like [3, 3] still work."
+
+  **(Complexity)** "That's O(N) time with average O(1) hash operations, and O(N) extra
+  space for the map. If memory were tight I could sort index-value pairs and use two
+  pointers, at O(N log N) time."
+
+twist:
+  lc: 167
+  title: Two Sum II - Input Array Is Sorted
+  why: >-
+    The array is now sorted and you must use O(1) extra space. The map is no longer allowed,
+    but sortedness lets two pointers from both ends discard one candidate per comparison.
+    Same question, different trigger.
+
+viz:
+  arrays: [nums]
+  pointers: [i]
+  maps: [seen]
+  watch: [x, need, target]

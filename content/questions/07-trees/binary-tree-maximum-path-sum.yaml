@@ -1,0 +1,364 @@
+slug: binary-tree-maximum-path-sum
+lc: 124
+
+concept:
+  problem_it_solves: >-
+    "What is the best path that bends at this node?" Any path in a tree has exactly one
+    highest node: the path climbs up one side to it and goes down the other side. So the
+    overall best path is the best "bent" path over all choices of that top node. To score the
+    bend at a node, you need the best straight-down path from each child, and that's exactly
+    what each recursive call can return to its parent.
+  brute_force: >-
+    Try every node as the top of the path. For each one, compute from scratch the best
+    downward path in its left subtree and in its right subtree (dropping a side if it's
+    negative), and score node.val + left + right. Correct, but each "best downward path" is a
+    full scan of a subtree, so every node is re-scanned once for each of its ancestors.
+  brute_force_complexity: >-
+    O(N · H) time, O(H) space — on a 3 × 10⁴-node chain that's about 4.5 × 10⁸ node visits.
+  key_insight: >-
+    Separate what a call *returns* from what it *records*. A parent can only extend a path
+    that goes straight down through one child, so each call returns node.val + max(left, right):
+    the best downward path starting here, using at most one side. But the best path that bends
+    here uses both sides, node.val + left + right, and a parent can't extend that, so it's
+    recorded in a global best instead of returned. A side whose best gain is negative is
+    clamped to 0, meaning "don't go that way". One post-order pass computes everything.
+  real_world: >-
+    Midpoint rooting in phylogenetics finds the longest leaf-to-leaf path in an evolutionary
+    tree with weighted branches, which is exactly "the best path that bends at some node",
+    computed in one post-order pass. Network planners do the same on tree-shaped distribution
+    topologies whose links carry gains and costs, picking the most valuable chain of connected
+    hops without enumerating every pair of endpoints.
+
+statement:
+  clean: |
+    A **path** in a binary tree is a sequence of nodes where each pair of adjacent nodes in the
+    sequence has an edge connecting them. A node can appear in the sequence **at most once**.
+    Note that the path **does not need to pass through the root**.
+
+    The **path sum** of a path is the sum of the node's values in the path.
+
+    Given the `root` of a binary tree, return the maximum path sum of **any non-empty path**.
+    Node values can be negative.
+  oa_story: |
+    **SangamSys Energy — OA Round 1**
+
+    SangamSys runs the electricity distribution network for a group of tech parks on the
+    outskirts of Bengaluru. Power flows from a main substation through relay stations; each
+    relay feeds at most two downstream relays, and there are no loops, so every pair of relays
+    is connected by exactly one chain of cables. Each relay has a net score: rooftop solar
+    makes some relays net producers (positive), while others lose more to transformer losses
+    than they generate (negative).
+
+    For a pilot microgrid, SangamSys wants to pick one unbroken chain of directly connected
+    relays, visiting each relay at most once, and island it from the rest of the network. The
+    chain doesn't have to include the main substation, and it can go up from one relay
+    towards the substation and back down a different branch. It must contain at least one
+    relay. Return the largest total net score such a chain can have. There can be up to 30,000
+    relays, and in a bad week every score may be negative.
+  trigger_keywords: ["path sum", "any non-empty path", "does not need to pass through the root"]
+  examples:
+    - input: "root = [1,2,3]"
+      output: "6"
+      explanation: "The path 2 → 1 → 3 sums to 6."
+    - input: "root = [-10,9,20,null,null,15,7]"
+      output: "42"
+      explanation: "The path 15 → 20 → 7 sums to 42. Going up to -10 would only lower it."
+    - input: "root = [-3]"
+      output: "-3"
+      explanation: "The path must be non-empty, so a single negative node is the answer."
+  constraints:
+    - "The number of nodes in the tree is in the range [1, 3 * 10^4]"
+    - "-1000 <= Node.val <= 1000"
+
+constraint_quiz:
+  prompt: >-
+    The tree has up to 3 × 10⁴ nodes and may be a long chain. What time complexity should you
+    aim for?
+  options:
+    - "O(N²) — try every pair of endpoints"
+    - "O(N · H) — recompute each node's best downward paths from scratch"
+    - "O(N) — one post-order pass"
+    - "O(N log N) — sort the node values"
+  answer: 2
+  explanation: >-
+    Every pair of endpoints is about 4.5 × 10⁸ pairs, each with a path to sum, which is far too
+    slow. Recomputing downward paths per node is O(N · H), O(N²) on a chain. Sorting values
+    destroys the connectivity that defines a path. A single post-order pass where each call
+    returns its best downward path gives every node what it needs from its children in O(1):
+    O(N) total.
+
+pattern_quiz:
+  prompt: >-
+    The best path can bend at any node, using both of that node's subtrees, but a parent can
+    only extend a path that goes straight down. Which pattern fits?
+  options:
+    - "BFS level by level, summing each level"
+    - "DFS that returns the best one-sided downward path and updates a global best with both sides"
+    - "DFS passing the running path sum down from the root"
+    - "Kadane's algorithm on the in-order traversal"
+  answer: 1
+  explanation: >-
+    This is the same shape as Diameter of Binary Tree: each call returns one thing to its
+    parent (the best downward path, one side only) and records another (the bent path, both
+    sides) in a global. Passing the sum down only covers paths that start at the root, but
+    the statement says the best path doesn't have to touch the root at all. Levels don't form paths, and in-order
+    neighbours are often not connected by an edge, so Kadane's on that list sums non-paths.
+
+function:
+  name: maxPathSum
+  params: [{name: root, type: TreeNode}]
+
+starter_code: |
+  # Definition for a binary tree node.
+  # class TreeNode:
+  #     def __init__(self, val=0, left=None, right=None):
+  #         self.val = val
+  #         self.left = left
+  #         self.right = right
+  class Solution:
+      def maxPathSum(self, root: Optional[TreeNode]) -> int:
+          pass
+
+tests:
+  - {args: [[1, 2, 3]], expected: 6}
+  - {args: [[-10, 9, 20, null, null, 15, 7]], expected: 42}
+  - {args: [[-3]], expected: -3, note: "single negative node: the path can't be empty"}
+  - {args: [[-2, -1]], expected: -1, note: "all negative: the best path is the largest single node, not the root"}
+  - {args: [[2, -1]], expected: 2, note: "drop a negative child"}
+  - {args: [[-1, 5, null, 4, null, null, 2, -4]], expected: 11, note: "best path 5 → 4 → 2 avoids the root"}
+  - {args: [[5, 4, 8, 11, null, 13, 4, 7, 2, null, null, null, 1]], expected: 48, note: "7 → 11 → 4 → 5 → 8 → 13 bends at the root"}
+  - {args: [[10, 2, 10, 20, 1, null, -25, null, null, null, null, 3, 4]], expected: 42, note: "a subtree with a negative total gain (-25 → 4) is clamped away"}
+  - {args: [[1, 2, null, 3, 4]], expected: 9, note: "3 → 2 → 4; returning both sides upward would wrongly give 10"}
+visualize_test: 1
+
+drills:
+  - title: Return one branch to the parent
+    skill: setup
+    goal: Write a DFS whose return value is the best sum going down one side only.
+    instructions: |
+      Return the largest **root-to-leaf** path sum. A leaf is a node with no children; the path
+      must start at the root and end at a leaf.
+
+      This trains the return-value shape the full problem needs: each call returns
+      `node.val + max(best_left, best_right)`, because a path coming down from above can
+      continue into **one** child, never both. Careful with nodes that have only one child: the
+      missing side isn't a leaf, so it must not win the `max`. Returning `-inf` for `None`
+      handles that.
+    function:
+      name: maxRootToLeaf
+      params: [{name: root, type: TreeNode}]
+    starter_code: |
+      class Solution:
+          def maxRootToLeaf(self, root: Optional[TreeNode]) -> int:
+              pass
+    tests:
+      - {args: [[1, 2, 3]], expected: 4}
+      - {args: [[-10, 9, 20, null, null, 15, 7]], expected: 25}
+      - {args: [[1, -5]], expected: -4, note: "must reach the leaf, even if it hurts"}
+      - {args: [[-3]], expected: -3}
+    solution: |
+      class Solution:
+          def maxRootToLeaf(self, root: Optional[TreeNode]) -> int:
+              def best(node):
+                  if not node:
+                      return float('-inf')  # not a leaf: never the better choice
+                  if not node.left and not node.right:
+                      return node.val
+                  return node.val + max(best(node.left), best(node.right))
+
+              return best(root)
+    hint: "A leaf returns its own value; any other node adds its value to the better child."
+
+  - title: Clamp a losing branch to zero
+    skill: core
+    goal: Let the downward path stop anywhere by treating a negative child gain as 0.
+    instructions: |
+      Return the best sum of a path that **starts at the root and goes down**, but may stop at
+      **any** node (not necessarily a leaf). The root itself must be included.
+
+      This is the `gain` function of the full solution. A child's best downward path is only
+      worth taking if it adds something, so use `max(child_gain, 0)`: zero means "stop here".
+      Compare `[1, -5]` with the previous drill: there the path had to reach the leaf (-4);
+      here it stops at the root (1). Note what is clamped: the **children's** gains, never the
+      node itself, since the node is on the path whether it helps or not.
+    function:
+      name: maxDownPath
+      params: [{name: root, type: TreeNode}]
+    starter_code: |
+      class Solution:
+          def maxDownPath(self, root: Optional[TreeNode]) -> int:
+              pass
+    tests:
+      - {args: [[1, -5]], expected: 1, note: "stop at the root"}
+      - {args: [[-10, 9, 20, null, null, 15, 7]], expected: 25}
+      - {args: [[2, -1, 3, null, null, -4, 5]], expected: 10}
+      - {args: [[-3, -1]], expected: -3, note: "the root is included even when negative"}
+    solution: |
+      class Solution:
+          def maxDownPath(self, root: Optional[TreeNode]) -> int:
+              def gain(node):
+                  if not node:
+                      return 0
+                  return node.val + max(gain(node.left), gain(node.right), 0)
+
+              return gain(root)
+    hint: "Putting `0` inside the `max` is the same as clamping both children's gains."
+
+  - title: Record the bend, return the branch
+    skill: edge
+    goal: Score the path that bends at a node with both sides, and see why it can't be returned upward.
+    instructions: |
+      Return the best sum of a path whose **highest node is the root**: it may go down into
+      the left subtree, the right subtree, both, or neither.
+
+      Its score is `root.val + max(gain(left), 0) + max(gain(right), 0)`, using both sides.
+      This is the number the full solution records at **every** node in a global best. It is
+      never returned to a parent, because a parent can't continue a path that already uses
+      both of this node's children: that would visit this node twice. Mixing up "the value I
+      record" and "the value I return" is the classic bug on this problem. Also note
+      `[-2, -1]` gives `-2` here because the root is forced; in the real problem the global
+      best, starting at `root.val` and updated at every node, finds `-1`.
+    function:
+      name: bestPathThroughRoot
+      params: [{name: root, type: TreeNode}]
+    starter_code: |
+      class Solution:
+          def bestPathThroughRoot(self, root: Optional[TreeNode]) -> int:
+              pass
+    tests:
+      - {args: [[1, 2, 3]], expected: 6}
+      - {args: [[-10, 9, 20, null, null, 15, 7]], expected: 34, note: "9 + (-10) + 20 + 15"}
+      - {args: [[-2, -1]], expected: -2, note: "the root is forced in"}
+      - {args: [[1, -2, 3]], expected: 4, note: "the left side is dropped"}
+    solution: |
+      class Solution:
+          def bestPathThroughRoot(self, root: Optional[TreeNode]) -> int:
+              def down(node):  # best one-sided path going down from node, or 0 to skip
+                  if not node:
+                      return 0
+                  return max(0, node.val + max(down(node.left), down(node.right)))
+
+              return root.val + down(root.left) + down(root.right)
+    hint: "Compute the clamped downward gain of each child, then add both to the root."
+
+hints:
+  - >-
+    Every path has one highest node, where it turns from going up to going down. If you knew
+    the best straight-down path starting at each child of that node, how would you score the
+    path that bends there?
+  - >-
+    Let each call return the best downward path starting at its node, using at most one child
+    and dropping negative gains: node.val + max(left, right, 0). Inside the call, also compute
+    the bent path node.val + left + right (with left and right clamped at 0) and use it to
+    update a global best.
+  - |
+    best = root.val
+    gain(node):
+        if node is empty: return 0
+        left  = max(gain(node.left), 0)
+        right = max(gain(node.right), 0)
+        best  = max(best, node.val + left + right)     (path that bends here)
+        return node.val + max(left, right)             (parent may extend one side)
+    gain(root)
+    return best
+
+solution:
+  code: |
+    class Solution:
+        def maxPathSum(self, root: Optional[TreeNode]) -> int:
+            best = root.val  # a path has at least one node: covers all-negative trees
+
+            def gain(node):
+                nonlocal best
+                if not node:
+                    return 0
+                left = max(gain(node.left), 0)  # a negative branch is never worth taking
+                right = max(gain(node.right), 0)
+                best = max(best, node.val + left + right)  # best path that bends at node
+                return node.val + max(left, right)  # the parent can extend only one side
+
+            gain(root)
+            return best
+  explanation: |
+    This is Diameter of Binary Tree with values instead of edge counts, and the same two
+    questions answer it.
+
+    **What does each call return to its parent?** The best path that *starts* at this node
+    and goes straight down: `node.val + max(left, right)`. Only one side, because the parent
+    will attach this path to itself, and a path can't fork.
+
+    **What does each call record?** The best path whose highest point is this node:
+    `node.val + left + right`. It may use both sides, so it can't be extended upward; that's
+    why it goes into the global `best` rather than the return value. Every path has exactly
+    one highest node, so trying every node as the bend covers every path.
+
+    **Negatives.** `max(gain(child), 0)` means "if the best I can get from that side is
+    negative, don't go there". The node itself is never clamped, since it is on the path.
+    `best` starts at `root.val`, not 0: in `[-2, -1]` the answer is -1, and a start of 0 would
+    wrongly report an empty path. (Starting at `float('-inf')` also works.)
+
+    **Order.** Both children must be computed before the node (post-order), because the
+    bend's score needs both of their answers. Returning `left + right + node.val` to the
+    parent is the classic bug: on `[1, 2, null, 3, 4]` node 2 would hand up 3 + 2 + 4 = 9, the
+    root would add itself and report 10, but 3 → 2 → 4 plus 1 is not a path (it forks at 2).
+    The correct answer is 9.
+  time: O(N) — every node is visited once, with O(1) work per call
+  space: O(H) — the recursion stack; O(log N) when balanced, O(N) for a chain
+  brute_force_code: |
+    class Solution:
+        def maxPathSum(self, root: Optional[TreeNode]) -> int:
+            def down(node):  # best downward path from node, recomputed from scratch each time
+                if not node:
+                    return 0
+                return node.val + max(0, down(node.left), down(node.right))
+
+            best = float('-inf')
+            stack = [root]
+            while stack:  # try every node as the top of the path
+                node = stack.pop()
+                if not node:
+                    continue
+                left = max(0, down(node.left))
+                right = max(0, down(node.right))
+                best = max(best, node.val + left + right)
+                stack.extend([node.left, node.right])
+            return best
+
+pitch_script: |
+  **(Clarify)** "A path is any chain of connected nodes, it doesn't have to touch the root or a
+  leaf, it has at least one node, and values can be negative. So if everything is negative,
+  the answer is the largest single value, right?"
+
+  **(Brute force)** "Every path has one highest node where it bends. I could try every node as
+  that top, and compute the best downward path on each side from scratch. That's O(N times H),
+  so O(N²) on a skewed tree."
+
+  **(Trigger)** "That's the diameter pattern: the bend needs the best downward path from each
+  child, which is exactly what a recursive call can return. So I'll return one value and track
+  the real answer in a global."
+
+  **(Optimal)** "My helper returns the best downward path starting at a node. It calls both
+  children and clamps their results at zero, since a negative branch isn't worth taking. Then
+  it updates the global best with node value plus left plus right, the path that bends here,
+  and returns node value plus the larger of left and right, because the parent can only extend
+  one side. I initialise the best with the root's value, so an all-negative tree still works."
+
+  **(Complexity)** "One post-order pass, so O(N) time, and O(H) recursion stack, which is O(N)
+  in the worst case for a skewed tree."
+
+twist:
+  lc: 1372
+  title: Longest ZigZag Path in a Binary Tree
+  why: >-
+    Same "return a partial path, record the best in a global" template, but what a call
+    returns changes. A zigzag path must alternate left and right moves, so a single number
+    isn't enough: each call returns two, the longest zigzag starting here whose first move is
+    left, and the one whose first move is right. A node's go-left value is 1 + its left child's
+    go-right value (the next move must switch direction), and vice versa; a missing child
+    contributes -1 so that a single move scores 1. Every returned value updates the global
+    best. I picked this over Path Sum III because Path Sum III passes prefix sums down with a
+    hash map, a different template, while this one exercises exactly the "what do I return vs
+    what do I record" split from this problem.
+
+viz:
+  watch: [best, left, right]

@@ -1,0 +1,324 @@
+slug: permutation-in-string
+lc: 567
+
+concept:
+  problem_it_solves: >-
+    "Does some stretch of s2 contain exactly the same letters as s1, in any order?" Order
+    doesn't matter, so a permutation is fully described by its letter counts. Any matching
+    stretch must have length len(s1), so you slide one fixed-size window across s2 and ask
+    "do the window's counts equal s1's counts?" at each position.
+  brute_force: >-
+    Generating every permutation of s1 and searching for each one is O(k!) and hopeless. The
+    usual brute force takes every window of length k = len(s1) in s2 and sorts it (or counts
+    it from scratch) to compare with s1. Neighbouring windows share k − 1 letters, yet each
+    window is re-counted from nothing.
+  brute_force_complexity: >-
+    O((n − k + 1) · k log k) time with sorting, O((n − k + 1) · k) with fresh counts, O(k)
+    space — with n = 10⁴ and k = 5 × 10³ that is ~2.5 × 10⁷ letter reads before the log
+    factor, and it grows quadratically with n.
+  key_insight: >-
+    Moving the window one step changes exactly two counts: s2[r] comes in on the right and
+    s2[r − k] leaves on the left. Keep a 26-slot count array for the window, update those two
+    slots per step, and compare it with s1's array. Comparing two length-26 arrays is O(26),
+    a constant, so the whole scan is O(26 · n).
+  real_world: >-
+    Network intrusion detection (Snort-style signatures) and plagiarism or spam detectors
+    use rolling fingerprints over fixed-size windows of a stream, where the fingerprint must
+    be updatable in O(1) as one item enters and one leaves. Rabin–Karp hashing, used by rsync
+    and many dedup systems, is the same "update, don't recompute" window.
+
+statement:
+  clean: |
+    Given two strings `s1` and `s2`, return `true` if `s2` **contains a permutation** of
+    `s1`, or `false` otherwise.
+
+    In other words, return `true` if one of `s1`'s permutations is a **substring** of `s2`.
+    A substring is a contiguous sequence of characters, so any match has exactly
+    `s1.length` characters.
+  oa_story: |
+    **SwasthyaSync Diagnostics — OA Round 1**
+
+    SwasthyaSync runs the sample-processing software for diagnostic labs across Jayanagar
+    and Indiranagar. A health-checkup package is described as a string of lowercase test
+    codes, one letter per test (a package can include the same test twice, for example two
+    blood-sugar readings). The lab analyser logs every test it processes during the day as
+    another string of letters, in processing order.
+
+    A package counts as "processed in one sitting" if the analyser ran exactly that
+    package's tests back-to-back, in any order, with nothing else in between. Given the
+    package string and the day's log, return `true` if the package was processed in one
+    sitting at some point, otherwise `false`. Logs can have 10,000 entries and packages can
+    be just as long.
+  trigger_keywords: ["contains a permutation", "substring", "contiguous"]
+  examples:
+    - input: "s1 = \"ab\", s2 = \"eidbaooo\""
+      output: "true"
+      explanation: "s2 contains one permutation of s1 (\"ba\")."
+    - input: "s1 = \"ab\", s2 = \"eidboaoo\""
+      output: "false"
+      explanation: "The letters a and b both appear, but never next to each other."
+  constraints:
+    - "1 <= s1.length, s2.length <= 10^4"
+    - "s1 and s2 consist of lowercase English letters."
+
+constraint_quiz:
+  prompt: >-
+    Both strings can have up to 10⁴ letters, and there are only 26 possible letters. What
+    time complexity should you aim for?
+  options: ["O(k! · n)", "O(n · k log k)", "O(n²)", "O(26 · n)"]
+  answer: 3
+  explanation: >-
+    Generating permutations is O(k!), which explodes past k ≈ 10. Sorting every window is
+    O(n · k log k), about 3 × 10⁸ steps when k is around n / 2. Re-counting every window is
+    O(n²) in the worst case, ~2.5 × 10⁷ letter reads, slow in Python and exactly the
+    repeated work the interviewer wants removed. Updating two counts per slide and comparing
+    26-slot arrays is O(26 · n), about 2.6 × 10⁵ steps.
+
+pattern_quiz:
+  prompt: >-
+    You must check whether any length-k stretch of s2 is a rearrangement of s1. Which
+    pattern fits?
+  options:
+    - "Generate all permutations of s1 and search for each"
+    - "Fixed-size sliding window with letter-count arrays"
+    - "Variable sliding window that grows until a letter is repeated"
+    - "Sort s2 and binary search for s1's letters"
+  answer: 1
+  explanation: >-
+    "Permutation" means "same letter counts", and "substring" with a known length means a
+    window of size exactly len(s1). That is the fixed-window trigger: one letter in, one
+    letter out, compare counts. A variable window has no "longest/shortest" to optimise
+    here, and sorting s2 destroys the contiguity the question depends on.
+
+function:
+  name: checkInclusion
+  params: [{name: s1}, {name: s2}]
+
+starter_code: |
+  class Solution:
+      def checkInclusion(self, s1: str, s2: str) -> bool:
+          pass
+
+tests:
+  - {args: ["ab", "eidbaooo"], expected: true}
+  - {args: ["ab", "eidboaoo"], expected: false}
+  - {args: ["abc", "ab"], expected: false, note: s1 longer than s2}
+  - {args: ["a", "a"], expected: true, note: single letter}
+  - {args: ["abc", "bcaxyz"], expected: true, note: match in the very first window}
+  - {args: ["adc", "dcda"], expected: true, note: match in the last window}
+  - {args: ["aab", "abbab"], expected: false, note: "right letters, wrong counts"}
+  - {args: ["hello", "ooolleoooleh"], expected: false}
+  - {args: ["xyz", "zzyxa"], expected: true, note: duplicates in s2 must leave the window}
+visualize_test: 0
+
+drills:
+  - title: Count letters into 26 slots
+    skill: setup
+    goal: Build a fixed-size count array indexed by ord(c) − ord('a').
+    instructions: |
+      Return a list of 26 integers where position `i` holds how many times the `i`-th
+      lowercase letter appears in `s` (`'a'` is 0, `'z'` is 25).
+
+      This is the "fingerprint" of a permutation: two strings are permutations of each other
+      exactly when their count arrays are equal. A list beats a dictionary here because it
+      always has the same 26 slots, so `==` compares it in O(26) with no missing-key
+      surprises.
+    function:
+      name: letterCounts
+      params: [{name: s}]
+    starter_code: |
+      class Solution:
+          def letterCounts(self, s: str) -> List[int]:
+              pass
+    tests:
+      - {args: ["abca"], expected: [2, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]}
+      - {args: ["leet"], expected: [0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0]}
+      - {args: ["zz"], expected: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2]}
+      - {args: [""], expected: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]}
+    solution: |
+      class Solution:
+          def letterCounts(self, s: str) -> List[int]:
+              counts = [0] * 26
+              for c in s:
+                  counts[ord(c) - ord('a')] += 1
+              return counts
+    hint: "`ord(c) - ord('a')` turns `'a'..'z'` into `0..25`."
+
+  - title: Slide one in, one out
+    skill: core
+    goal: Maintain a count over a fixed window of size k by adding s[r] and removing s[r − k].
+    instructions: |
+      For every window of length `k` in `s`, report how many times the letter `ch` appears in
+      it. Return the counts in window order (there are `len(s) - k + 1` windows).
+
+      Don't re-count each window. When the window moves one step, exactly one letter enters
+      (`s[r]`) and one leaves (`s[r - k]`); update the count for just those two. In the full
+      problem you do the same thing to all 26 slots at once.
+    function:
+      name: windowCountOf
+      params: [{name: s}, {name: k}, {name: ch}]
+    starter_code: |
+      class Solution:
+          def windowCountOf(self, s: str, k: int, ch: str) -> List[int]:
+              pass
+    tests:
+      - {args: ["abacaba", 3, "a"], expected: [2, 1, 2, 1, 2]}
+      - {args: ["aaaa", 2, "a"], expected: [2, 2, 2]}
+      - {args: ["xyz", 3, "y"], expected: [1], note: one window}
+      - {args: ["bcbc", 1, "c"], expected: [0, 1, 0, 1]}
+    solution: |
+      class Solution:
+          def windowCountOf(self, s: str, k: int, ch: str) -> List[int]:
+              count = 0
+              out = []
+              for r in range(len(s)):
+                  count += s[r] == ch
+                  if r >= k:
+                      count -= s[r - k] == ch
+                  if r >= k - 1:
+                      out.append(count)
+              return out
+    hint: "The letter leaving when `r` enters is `s[r - k]`; a window is complete once `r >= k - 1`."
+
+  - title: Check the first window and every window after
+    skill: edge
+    goal: Return where the first matching window starts, without missing window 0 or crashing when s1 is longer.
+    instructions: |
+      Return the **start index** of the first window of `s2` that is a permutation of `s1`,
+      or `-1` if there is none.
+
+      The edge cases that break submissions: `s1` longer than `s2` (no window exists at all),
+      a match in the **very first** window (people who build window 0 separately and only
+      compare after sliding miss it), and converting `r` back to a start: the window ending
+      at `r` starts at `r - k + 1`.
+    function:
+      name: firstMatchStart
+      params: [{name: s1}, {name: s2}]
+    starter_code: |
+      class Solution:
+          def firstMatchStart(self, s1: str, s2: str) -> int:
+              pass
+    tests:
+      - {args: ["ab", "eidbaooo"], expected: 3}
+      - {args: ["abc", "ab"], expected: -1, note: s1 longer}
+      - {args: ["abc", "cbad"], expected: 0, note: match in window 0}
+      - {args: ["ab", "xxba"], expected: 2, note: match in the last window}
+      - {args: ["aa", "abab"], expected: -1}
+    solution: |
+      class Solution:
+          def firstMatchStart(self, s1: str, s2: str) -> int:
+              k = len(s1)
+              need, have = [0] * 26, [0] * 26
+              for c in s1:
+                  need[ord(c) - 97] += 1
+              for r, c in enumerate(s2):
+                  have[ord(c) - 97] += 1
+                  if r >= k:
+                      have[ord(s2[r - k]) - 97] -= 1
+                  if have == need:
+                      return r - k + 1
+              return -1
+    hint: "Compare after every add/remove, starting from the first step; if s1 is longer, `have` can never equal `need`."
+
+hints:
+  - >-
+    A permutation of s1 can be in any order, so what single description of s1 stays the same
+    no matter how you shuffle it? And how long must a matching substring of s2 be?
+  - >-
+    Keep a 26-slot count for s1 and another for the current length-len(s1) window of s2. Each
+    step, add the letter entering on the right, remove the one falling off the left, then
+    compare the two arrays.
+  - |
+    if len(s1) > len(s2): return false
+    need = counts of s1, have = 26 zeros, l = 0
+    for r from 0 to len(s2) - 1:
+        have[s2[r]] += 1
+        if window r - l + 1 is longer than len(s1):
+            have[s2[l]] -= 1
+            l = l + 1
+        if window length == len(s1) and have == need: return true
+    return false
+
+solution:
+  code: |
+    class Solution:
+        def checkInclusion(self, s1: str, s2: str) -> bool:
+            k = len(s1)
+            if k > len(s2):
+                return False
+            need = [0] * 26  # letter counts of s1
+            have = [0] * 26  # letter counts of s2[l..r]
+            for c in s1:
+                need[ord(c) - ord('a')] += 1
+            l = 0
+            for r in range(len(s2)):
+                have[ord(s2[r]) - ord('a')] += 1  # s2[r] enters on the right
+                if r - l + 1 > k:  # window too long: s2[l] leaves on the left
+                    have[ord(s2[l]) - ord('a')] -= 1
+                    l += 1
+                if r - l + 1 == k and have == need:
+                    return True
+            return False
+  explanation: |
+    Two strings are permutations of each other exactly when every letter appears the same
+    number of times in both, so `need` (for `s1`) is a complete description of what we're
+    looking for. Any match in `s2` has length exactly `k = len(s1)`, so the window is fixed:
+    it grows to size `k`, then every step one letter enters at `r` and one leaves at `l`.
+
+    Order of operations matters. Add `s2[r]` first, then drop `s2[l]` if the window has
+    grown past `k`, and only then compare: at that moment the window is exactly `s2[l..r]`
+    of length `k`. Comparing every step from the start means the very first window (indices
+    `0..k-1`) is checked too, which is where `"abc"` in `"bcaxyz"` matches. The early
+    `k > len(s2)` return handles strings where no window of size `k` exists.
+
+    `have == need` compares 26 numbers, a constant. You can make each step O(1) by also
+    keeping a `matches` counter of how many of the 26 slots are equal and updating it when a
+    slot changes, but that's an optimisation of the constant, not of the complexity.
+  time: O(26 · n) — n slides, each with two O(1) updates and one 26-slot comparison (n = len(s2))
+  space: O(1) — two arrays of 26 counts, independent of input size
+  brute_force_code: |
+    class Solution:
+        def checkInclusion(self, s1: str, s2: str) -> bool:
+            k = len(s1)
+            target = sorted(s1)
+            for i in range(len(s2) - k + 1):
+                if sorted(s2[i:i + k]) == target:
+                    return True
+            return False
+
+pitch_script: |
+  **(Clarify)** "So I just return true or false, the permutation has to appear as a
+  contiguous block in s2, and both strings are lowercase letters only? If s1 is longer than
+  s2, the answer is false."
+
+  **(Brute force)** "The naive way is to take every window of s2 of length len(s1) and sort
+  it, or count it, and compare with s1. That's O(n · k log k), and neighbouring windows
+  share almost all their letters, so most of that work is repeated."
+
+  **(Trigger)** "A permutation is just 'same letter counts', and the matching substring must
+  have exactly len(s1) letters. So this is a fixed-size sliding window where I keep counts
+  instead of re-counting."
+
+  **(Optimal)** "I build a 26-slot count for s1. Then I slide a window of size len(s1) over
+  s2: each step I add the letter coming in on the right and subtract the one leaving on the
+  left, and when the window is full I compare the two arrays. If they're ever equal, I
+  return true."
+
+  **(Complexity)** "There are n steps, each with two constant updates and a 26-element
+  comparison, so it's O(26 · n), which is linear, with O(1) extra space. If needed I can
+  keep a running count of matching slots to make each step strictly O(1)."
+
+twist:
+  lc: 438
+  title: Find All Anagrams in a String
+  why: >-
+    Instead of stopping at the first match, you return the start index of every window that
+    is an anagram of p. The window, the two count arrays and the comparison are identical;
+    you just append r − k + 1 to a result list instead of returning True, which makes the
+    "convert the right end back to a start index" step something you can't skip.
+
+viz:
+  arrays: [s2, s1]
+  pointers: [l, r]
+  window: [l, r]
+  watch: [k]

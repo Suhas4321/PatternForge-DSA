@@ -1,0 +1,308 @@
+slug: middle-of-the-linked-list
+lc: 876
+
+concept:
+  problem_it_solves: >-
+    "Where is the halfway point when I don't know how long the list is?" A linked list has no
+    length field and no indexing, so "go to index n / 2" means first discovering n. Two
+    pointers moving at different speeds measure the halfway point while walking, in a single
+    pass and without counting.
+  brute_force: >-
+    Copy every node into an array and return `nodes[len(nodes) // 2]`, or walk once to count
+    the nodes and walk again n // 2 steps. Both are linear, but the array costs O(N) memory and
+    the counting version walks the first half of the list twice. More importantly, neither
+    teaches the move that Linked List Cycle, Reorder List and Palindrome Linked List depend on.
+  brute_force_complexity: >-
+    O(N) time with O(N) extra space for the array, or O(N) time and O(1) space in two passes
+    (about 1.5 N steps) for the counting version.
+  key_insight: >-
+    Send `fast` two nodes per step and `slow` one node per step, both from the head. After k
+    steps slow is at index k and fast is at index 2k, so slow has always covered exactly half
+    of fast's distance. When fast can't take another double step, it has reached the end, and
+    slow is at the halfway point. The loop guard `while fast and fast.next` stops at the right
+    moment for both odd and even lengths, and for even lengths it leaves slow on the second
+    middle.
+  real_world: >-
+    Splitting a linked list in half is the first step of merge sort on linked lists, which is
+    how sorted linked structures are sorted without random access (GNU libstdc++'s
+    `std::list::sort` is a merge sort). The same "two readers at different speeds" idea finds
+    the halfway point of a stream of unknown length in one pass, for example when splitting a
+    work queue between two consumers.
+
+statement:
+  clean: |
+    Given the `head` of a singly linked list, return the **middle node** of the linked list.
+
+    If there are **two middle nodes**, return the **second middle** node.
+  oa_story: |
+    **QueueKart — OA Round 1**
+
+    QueueKart runs 10-minute grocery delivery out of dark stores in Whitefield. Orders waiting
+    for dispatch form a chain: each order slip stores a bill amount and a reference to the
+    slip packed after it, and nobody keeps a count of how many slips are in the chain. When a
+    rush hits, the chain is split between two riders: the first rider takes the front half and
+    the second rider starts at the halfway slip.
+
+    Given the first slip of a non-empty chain, return the slip where the second rider starts,
+    so that the second rider's chain is that slip and everything after it. With an odd number
+    of slips, the second rider starts at the exact centre. With an even number, there are two
+    central slips, and the second rider starts at the later one. The dispatch screen must
+    respond after reading the chain only once.
+  trigger_keywords: ["middle node", "two middle nodes", "second middle"]
+  examples:
+    - input: "head = [1,2,3,4,5]"
+      output: "[3,4,5]"
+      explanation: "The middle node is 3; returning it means returning the list 3 -> 4 -> 5."
+    - input: "head = [1,2,3,4,5,6]"
+      output: "[4,5,6]"
+      explanation: "There are two middle nodes, 3 and 4. We return the second one, 4."
+  constraints:
+    - "The number of nodes in the list is in the range [1, 100]."
+    - "1 <= Node.val <= 100"
+
+constraint_quiz:
+  prompt: >-
+    The list has at most 100 nodes, so almost anything passes on time. What should you aim
+    for to give the answer interviewers actually want?
+  options:
+    - "O(N²) time — for each node, count the nodes after it"
+    - "O(N) time, O(N) space — copy nodes into an array and index the middle"
+    - "O(N) time, O(1) space, one pass — slow and fast pointers"
+    - "O(log N) time — binary search for the middle"
+  answer: 2
+  explanation: >-
+    With N = 100, even O(N²) is only 10⁴ steps, so the constraint is not the filter here; the
+    interviewer is checking whether you know fast/slow pointers. Counting the suffix for every
+    node is pointless repeated work. The array works but spends O(N) memory. Binary search is
+    impossible because a linked list has no random access: reaching any node costs walking to
+    it. Slow and fast pointers find the middle in one pass with two variables.
+
+pattern_quiz:
+  prompt: >-
+    You need the middle of a singly linked list of unknown length, ideally in one pass with
+    O(1) extra space. Which pattern fits?
+  options:
+    - "Dummy head node"
+    - "Reverse the list, then walk half of it"
+    - "Fast and slow pointers"
+    - "Hash map from index to node"
+  answer: 2
+  explanation: >-
+    "Middle" of a linked list is the fast/slow trigger: fast moves two steps, slow moves one,
+    so slow is at the halfway point when fast reaches the end. A dummy head helps when the
+    head might be removed, which doesn't happen here. Reversing doesn't tell you the length.
+    An index map is just the O(N)-space array approach in disguise.
+
+function:
+  name: middleNode
+  params: [{name: head, type: ListNode}]
+  returns: ListNode
+
+starter_code: |
+  class Solution:
+      def middleNode(self, head: Optional[ListNode]) -> Optional[ListNode]:
+          pass
+
+tests:
+  - {args: [[1, 2, 3, 4, 5]], expected: [3, 4, 5]}
+  - {args: [[1, 2, 3, 4, 5, 6]], expected: [4, 5, 6], note: "even length: the second middle"}
+  - {args: [[1]], expected: [1], note: "single node: it is the middle"}
+  - {args: [[1, 2]], expected: [2], note: "two nodes: the second middle is the tail"}
+  - {args: [[1, 2, 3]], expected: [2, 3]}
+  - {args: [[5, 4, 3, 2, 1, 7, 9]], expected: [2, 1, 7, 9], note: "odd length 7: index 3"}
+  - {args: [[10, 20, 30, 40, 50, 60, 70, 80]], expected: [50, 60, 70, 80], note: "even length 8: index 4"}
+visualize_test: 1
+
+drills:
+  - title: Count the nodes
+    skill: setup
+    goal: Traverse the list with `while cur:` and count every node, the first pass of the two-pass method.
+    instructions: |
+      Return the number of nodes in the list (`0` for an empty list).
+
+      This is the "slow" way to find the middle: count `n`, then walk `n // 2` steps. It's
+      worth writing once so you see what fast/slow saves you: the count pass reads the whole
+      list just to learn a number that the two-speed walk never needs.
+    function:
+      name: countNodes
+      params: [{name: head, type: ListNode}]
+    starter_code: |
+      class Solution:
+          def countNodes(self, head: Optional[ListNode]) -> int:
+              pass
+    tests:
+      - {args: [[1, 2, 3, 4, 5]], expected: 5}
+      - {args: [[]], expected: 0, note: empty list}
+      - {args: [[9]], expected: 1}
+      - {args: [[2, 2, 2, 2]], expected: 4}
+    solution: |
+      class Solution:
+          def countNodes(self, head: Optional[ListNode]) -> int:
+              count = 0
+              cur = head
+              while cur:
+                  count += 1
+                  cur = cur.next
+              return count
+    hint: "Increment once per node, and stop when `cur` becomes `None`."
+
+  - title: The speed ratio decides where slow lands
+    skill: core
+    goal: Move fast three steps per slow step, with a guard that never dereferences None, to land on index n // 3.
+    instructions: |
+      Return the node at index `n // 3` (0-indexed), in **one pass** without counting. The
+      list is non-empty. For `[1,2,3,4,5,6]` that's index 2, so the answer is `[3,4,5,6]`.
+
+      This generalises the middle trick so you see why it works: if fast moves 3 nodes for
+      every 1 that slow moves, then when fast has covered the whole list, slow has covered a
+      third of it. The guard must check every node fast is about to hop through:
+      `while fast and fast.next and fast.next.next`. Miss one and `None.next` crashes. With a
+      speed of 2 and the guard `fast and fast.next`, the same reasoning gives the middle.
+    function:
+      name: oneThirdNode
+      params: [{name: head, type: ListNode}]
+      returns: ListNode
+    starter_code: |
+      class Solution:
+          def oneThirdNode(self, head: Optional[ListNode]) -> Optional[ListNode]:
+              pass
+    tests:
+      - {args: [[1, 2, 3, 4, 5, 6]], expected: [3, 4, 5, 6], note: "n = 6: index 2"}
+      - {args: [[1, 2, 3, 4, 5, 6, 7, 8, 9]], expected: [4, 5, 6, 7, 8, 9], note: "n = 9: index 3"}
+      - {args: [[1, 2, 3, 4, 5, 6, 7]], expected: [3, 4, 5, 6, 7], note: "n = 7: index 2"}
+      - {args: [[1, 2]], expected: [1, 2], note: "n = 2: index 0, slow never moves"}
+      - {args: [[1]], expected: [1]}
+    solution: |
+      class Solution:
+          def oneThirdNode(self, head: Optional[ListNode]) -> Optional[ListNode]:
+              slow = fast = head
+              while fast and fast.next and fast.next.next:
+                  slow = slow.next
+                  fast = fast.next.next.next
+              return slow
+    hint: "Fast hops three nodes, so the guard must check `fast`, `fast.next` and `fast.next.next`."
+
+  - title: First middle versus second middle
+    skill: edge
+    goal: Change the loop guard so that even-length lists stop on the first middle instead of the second.
+    instructions: |
+      Return the **first** middle node of a non-empty list: for `[1,2,3,4,5,6]` that's node 3
+      (`[3,4,5,6]`), and for odd lengths it's the usual centre.
+
+      The only change from the real problem is the loop guard. `while fast and fast.next` lets
+      slow take one more step on even lengths and lands on the second middle.
+      `while fast.next and fast.next.next` stops one step earlier, on the first middle. You
+      need the first middle whenever you split a list into two halves (Sort List, Reorder
+      List, Palindrome Linked List), because you must cut the link **after** slow. Getting
+      this wrong produces off-by-one halves or an infinite recursion in merge sort.
+    function:
+      name: firstMiddle
+      params: [{name: head, type: ListNode}]
+      returns: ListNode
+    starter_code: |
+      class Solution:
+          def firstMiddle(self, head: Optional[ListNode]) -> Optional[ListNode]:
+              pass
+    tests:
+      - {args: [[1, 2, 3, 4, 5, 6]], expected: [3, 4, 5, 6], note: "even: the first of 3 and 4"}
+      - {args: [[1, 2, 3, 4, 5]], expected: [3, 4, 5], note: "odd: the same centre as before"}
+      - {args: [[1, 2]], expected: [1, 2], note: "two nodes: slow stays on the head"}
+      - {args: [[1]], expected: [1]}
+      - {args: [[1, 2, 3, 4]], expected: [2, 3, 4]}
+    solution: |
+      class Solution:
+          def firstMiddle(self, head: Optional[ListNode]) -> Optional[ListNode]:
+              slow = fast = head
+              while fast.next and fast.next.next:
+                  slow = slow.next
+                  fast = fast.next.next
+              return slow
+    hint: "Stop when fast can't make a full double step from where it stands."
+
+hints:
+  - >-
+    Imagine two people walking the same list from the head, one twice as fast as the other.
+    Where is the slower one at the moment the faster one reaches the end?
+  - >-
+    Move slow one node and fast two nodes per step. Keep going while fast can still make a
+    double step, meaning both `fast` and `fast.next` exist. Work through lengths 5 and 6 by
+    hand to see which middle slow stops on.
+  - |
+    slow = head, fast = head
+    while fast is not none and fast.next is not none:
+        slow = slow.next
+        fast = fast.next.next
+    return slow
+
+solution:
+  code: |
+    class Solution:
+        def middleNode(self, head: Optional[ListNode]) -> Optional[ListNode]:
+            slow = fast = head
+            while fast and fast.next:  # fast can still take a double step
+                slow = slow.next  # one step
+                fast = fast.next.next  # two steps
+            return slow
+  explanation: |
+    After k iterations, slow is at index k and fast is at index 2k. Fast always has covered
+    exactly twice slow's distance, so when fast reaches the end, slow is halfway.
+
+    The guard decides exactly where "the end" is, for both parities. Number the nodes
+    0 to n − 1:
+
+    - **Odd n** (say 5): fast visits 0, 2, 4. At index 4 = n − 1, `fast.next` is `None`, so the
+      loop stops with k = 2 and slow on index 2, the exact centre.
+    - **Even n** (say 6): fast visits 0, 2, 4, then jumps to index 6, which is `None`. The loop
+      stops with k = 3 and slow on index 3, the **second** middle, which is what the problem
+      asks for.
+
+    In both cases slow ends at index n // 2. Both checks in the guard are needed: `fast`
+    catches the even case (fast has run off the end), and `fast.next` catches the odd case
+    (fast is on the last node, so `fast.next.next` would crash). Checking `fast` first also
+    matters, because `fast.next` on `None` raises an error.
+
+    Since the list has at least one node, there is no empty case; a single node never enters
+    the loop and is returned as its own middle.
+  time: O(N) — fast reaches the end after about N / 2 iterations, so roughly N / 2 loop steps
+  space: O(1) — two pointers
+  brute_force_code: |
+    class Solution:
+        def middleNode(self, head: Optional[ListNode]) -> Optional[ListNode]:
+            nodes = []
+            while head:
+                nodes.append(head)
+                head = head.next
+            return nodes[len(nodes) // 2]
+
+pitch_script: |
+  **(Clarify)** "The list has at least one node, and for an even length I return the second
+  of the two middle nodes, so for six nodes that's the fourth node. I return the node itself,
+  which means the list from there on."
+
+  **(Brute force)** "I could copy the nodes into an array and return the one at index n over
+  2. That's O(N) time but O(N) space. I could also count first and then walk n over 2 steps,
+  which is O(1) space but two passes."
+
+  **(Trigger)** "Finding the middle of a linked list without knowing its length is the
+  fast and slow pointer pattern. If one pointer moves twice as fast as the other, the slow one
+  is at the halfway point when the fast one finishes."
+
+  **(Optimal)** "Both start at head. While fast and fast.next both exist, slow moves one step
+  and fast moves two. For odd lengths, fast stops on the last node and slow is at the centre.
+  For even lengths, fast runs off the end and slow is on the second middle, which is exactly
+  what's asked. If they wanted the first middle, I'd change the guard to fast.next and
+  fast.next.next."
+
+  **(Complexity)** "It's one pass, about N over 2 iterations, so O(N) time and O(1) space."
+
+twist:
+  lc: 2095
+  title: Delete the Middle Node of a Linked List
+  why: >-
+    Now you must remove the middle node (index n // 2), so you need the node **before** it:
+    you can't unlink a node in a singly linked list from the node itself. Start fast one
+    double step ahead (`slow = head`, `fast = head.next.next`) so slow stops one node earlier,
+    then do `slow.next = slow.next.next`. The new edge case is a single-node list, whose middle
+    is the head itself: return `None` before the loop.
+
+viz: {}

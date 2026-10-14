@@ -1,0 +1,310 @@
+slug: k-closest-points-to-origin
+lc: 973
+
+concept:
+  problem_it_solves: >-
+    "Which k items are nearest to me?" You need the k smallest distances out of N, not a full
+    ranking of every point. A heap of size k remembers the best k candidates so far and keeps the
+    worst of them at the root, ready to be replaced the moment a closer point appears.
+  brute_force: >-
+    Compute every point's distance, sort all N points by it, and return the first k. Sorting
+    puts the 9,000th-closest point in its exact place even when you only need the closest 5, and
+    it needs every point in memory at once, which doesn't work if the points arrive as a stream.
+  brute_force_complexity: >-
+    O(N log N) time, O(N) space for the sorted list — about 1.3 × 10⁵ comparisons at N = 10⁴, which
+    passes, but it can't beat O(N log N) even when k = 1.
+  key_insight: >-
+    Keep the k closest points seen so far in a heap whose root is the *farthest* of them, because
+    that is the one to evict when a closer point arrives. "Root = largest" means a max-heap, so
+    in Python push (−dist², x, y). Compare squared distances: x² + y² preserves the order of the
+    real distance (sqrt is increasing), so you never need sqrt or floats. Push every point; when
+    the heap holds k + 1 entries, pop the root, the farthest of the k + 1. The heap never exceeds
+    k + 1 entries, so the whole scan is O(N log k).
+  real_world: >-
+    Ride-hailing and quick-commerce apps find the nearest drivers or dark stores by first
+    narrowing candidates with a geo-index (geohash or Uber's H3 cells) and then keeping the k
+    best in a bounded heap. Vector databases and libraries like FAISS and Elasticsearch's kNN
+    search keep a size-k max-heap of the best matches while scanning, evicting the worst match
+    whenever a closer vector is found.
+
+statement:
+  clean: |
+    Given an array of `points` where `points[i] = [xi, yi]` represents a point on the X-Y
+    plane and an integer `k`, return the **k closest points** to the **origin** `(0, 0)`.
+
+    The distance between two points on the X-Y plane is the Euclidean distance, i.e.
+    `√((x1 - x2)² + (y1 - y2)²)`.
+
+    You may return the answer in **any order**. The answer is guaranteed to be unique (except
+    for the order that it is in).
+  oa_story: |
+    **PickupPoint Logistics — OA Round 1**
+
+    PickupPoint runs self-service parcel lockers in apartment complexes, metro stations and
+    tech parks across Bengaluru. When a customer in Indiranagar chooses "collect from a locker",
+    the app shows the `k` lockers nearest to them. Each locker's position is given as an `[x, y]`
+    offset in metres from the customer's location, measured on a flat city map, and "nearest"
+    means straight-line distance.
+
+    Given the list of locker offsets `points` and the number of suggestions `k`, return the
+    offsets of the `k` nearest lockers in any order. The data team guarantees that the set of
+    nearest lockers is never ambiguous. A city can have up to 10,000 lockers, and the
+    suggestion list is computed for every checkout, so it must be fast.
+  trigger_keywords: ["k closest points", "origin", "any order"]
+  examples:
+    - input: "points = [[1,3],[-2,2]], k = 1"
+      output: "[[-2,2]]"
+      explanation: "The squared distance of (1, 3) is 1 + 9 = 10 and of (−2, 2) is 4 + 4 = 8, so (−2, 2) is closer."
+    - input: "points = [[3,3],[5,-1],[-2,4]], k = 2"
+      output: "[[3,3],[-2,4]]"
+      explanation: "Squared distances are 18, 26 and 20. The two smallest are 18 and 20. [[-2,4],[3,3]] is also accepted."
+  constraints:
+    - "1 <= k <= points.length <= 10^4"
+    - "-10^4 <= xi, yi <= 10^4"
+
+constraint_quiz:
+  prompt: >-
+    N is up to 10⁴ and k can be anything from 1 to N. Which target is right?
+  options:
+    - "O(N²) — compare every pair of points"
+    - "O(N log N) by sorting passes; a size-k heap improves it to O(N log k)"
+    - "O(k) — only k points need to be read"
+    - "O(log N) — binary search on the distance"
+  answer: 1
+  explanation: >-
+    Nothing here involves pairs of points, so O(N²) (10⁸ steps) is wasted work. Sorting by
+    distance is O(N log N) and passes at 10⁴, and a size-k max-heap brings it down to O(N log k),
+    which matters when k is small or points stream in. O(k) and O(log N) are impossible: the
+    points aren't ordered by distance, so any point you skip could be one of the closest.
+
+pattern_quiz:
+  prompt: >-
+    You need the k points with the smallest distance to the origin, in any order. Which pattern
+    fits?
+  options:
+    - "Sort the points by x-coordinate and take the first k"
+    - "A size-k max-heap keyed by squared distance"
+    - "A size-k min-heap keyed by squared distance"
+    - "A sliding window over the points"
+  answer: 1
+  explanation: >-
+    "K closest" is the size-k heap trigger, and the root must be the point you would evict.
+    You keep the k *smallest* distances, so you evict the *largest*: a max-heap. A size-k
+    min-heap does the opposite and ends up holding the k farthest points. Sorting by x ignores
+    y entirely, and a window needs a meaningful order of the input, which these points don't
+    have.
+
+function:
+  name: kClosest
+  params: [{name: points}, {name: k}]
+  compare: unordered
+
+starter_code: |
+  class Solution:
+      def kClosest(self, points: List[List[int]], k: int) -> List[List[int]]:
+          pass
+
+tests:
+  - {args: [[[1, 3], [-2, 2]], 1], expected: [[-2, 2]]}
+  - {args: [[[3, 3], [5, -1], [-2, 4]], 2], expected: [[3, 3], [-2, 4]]}
+  - {args: [[[3, 3], [5, -1], [-2, 4], [1, -1], [0, -7], [2, 2]], 3], expected: [[1, -1], [2, 2], [3, 3]]}
+  - {args: [[[0, 0]], 1], expected: [[0, 0]], note: a single point at the origin}
+  - {args: [[[1, 1], [2, 2], [3, 3]], 3], expected: [[1, 1], [2, 2], [3, 3]], note: "k = n, so nothing is evicted"}
+  - {args: [[[-5, 0], [0, 1], [4, 4], [-1, -1]], 2], expected: [[0, 1], [-1, -1]], note: negative coordinates}
+  - {args: [[[2, 2], [2, 2], [5, 5]], 2], expected: [[2, 2], [2, 2]], note: duplicate points are both returned}
+  - {args: [[[3, 4], [-3, -4], [0, 6]], 2], expected: [[3, 4], [-3, -4]], note: "a tie inside the answer is fine; only the cut at k must be unique"}
+  - {args: [[[10000, 10000], [-10000, -10000], [1, -10000]], 1], expected: [[1, -10000]], note: "extreme coordinates; squared distances reach 2 × 10^8 with no sqrt"}
+visualize_test: 2
+
+drills:
+  - title: Negated squared distance puts the farthest on top
+    skill: setup
+    goal: Build heap entries (−dist², x, y), heapify them, and read the farthest point from the root.
+    instructions: |
+      Return the point **farthest** from the origin, as `[x, y]`, by building a list of
+      `(-(x*x + y*y), x, y)` tuples, heapifying it, and reading `heap[0]`. The farthest point in
+      every test is unique.
+
+      This is the entry format of the real solution. Python compares tuples element by element,
+      so the first field decides the order; negating the squared distance makes the farthest
+      point the smallest tuple, i.e. the root of `heapq`'s min-heap. The `x, y` fields ride
+      along so you can rebuild the point.
+    function:
+      name: farthestPoint
+      params: [{name: points}]
+    starter_code: |
+      class Solution:
+          def farthestPoint(self, points: List[List[int]]) -> List[int]:
+              pass
+    tests:
+      - {args: [[[1, 3], [-2, 2]]], expected: [1, 3]}
+      - {args: [[[3, 3], [5, -1], [-2, 4]]], expected: [5, -1]}
+      - {args: [[[0, 0]]], expected: [0, 0]}
+      - {args: [[[-7, 0], [3, 3], [1, 6]]], expected: [-7, 0], note: negative coordinates square to positive}
+    solution: |
+      class Solution:
+          def farthestPoint(self, points: List[List[int]]) -> List[int]:
+              heap = [(-(x * x + y * y), x, y) for x, y in points]
+              heapq.heapify(heap)
+              _, x, y = heap[0]
+              return [x, y]
+    hint: "The root is `heap[0]`; unpack it as `_, x, y` and return `[x, y]`."
+
+  - title: Keep k, evict the farthest
+    skill: core
+    goal: Push each squared distance into a size-k max-heap and pop the root when it grows past k.
+    instructions: |
+      Return the **squared distance of the kth closest point**. Push `-(x*x + y*y)` for each
+      point; when the heap holds more than `k` values, pop. At the end, `-heap[0]` is the answer.
+
+      This is the core transition of K Closest Points with the coordinates stripped away, so you
+      can focus on the direction. The heap keeps the k smallest distances, so the value to throw
+      out is the *largest* one, and negation puts it at the root.
+    function:
+      name: kthClosestDistance
+      params: [{name: points}, {name: k}]
+    starter_code: |
+      class Solution:
+          def kthClosestDistance(self, points: List[List[int]], k: int) -> int:
+              pass
+    tests:
+      - {args: [[[1, 3], [-2, 2]], 1], expected: 8}
+      - {args: [[[3, 3], [5, -1], [-2, 4]], 2], expected: 20}
+      - {args: [[[1, 1], [2, 2], [3, 3]], 3], expected: 18, note: "k = n gives the farthest point"}
+      - {args: [[[2, 2], [2, 2], [5, 5]], 2], expected: 8, note: duplicates count separately}
+      - {args: [[[0, 0]], 1], expected: 0}
+    solution: |
+      class Solution:
+          def kthClosestDistance(self, points: List[List[int]], k: int) -> int:
+              heap = []
+              for x, y in points:
+                  heapq.heappush(heap, -(x * x + y * y))
+                  if len(heap) > k:
+                      heapq.heappop(heap)
+              return -heap[0]
+    hint: "Pop only when `len(heap) > k`; the farthest of the k + 1 is the one at the root."
+
+  - title: Pops come out farthest first
+    skill: edge
+    goal: Extract the k closest points from a max-heap in closest-first order by popping and reversing.
+    instructions: |
+      Return the `k` closest points **sorted from closest to farthest** (distances in the tests
+      are all distinct). Build the size-k heap of `(-dist², x, y)` as before, then pop everything
+      out and return the points in the right order.
+
+      The trap: the heap list itself is not sorted, and popping a max-heap gives the **farthest**
+      point first. Pop into a list and reverse it. (The real problem accepts any order, so there
+      you can simply read the tuples straight out of the heap list.)
+    function:
+      name: kClosestSorted
+      params: [{name: points}, {name: k}]
+    starter_code: |
+      class Solution:
+          def kClosestSorted(self, points: List[List[int]], k: int) -> List[List[int]]:
+              pass
+    tests:
+      - {args: [[[3, 3], [5, -1], [-2, 4]], 2], expected: [[3, 3], [-2, 4]]}
+      - {args: [[[3, 3], [5, -1], [-2, 4], [1, -1], [0, -7], [2, 2]], 3], expected: [[1, -1], [2, 2], [3, 3]]}
+      - {args: [[[0, 0]], 1], expected: [[0, 0]]}
+      - {args: [[[5, 0], [0, 1], [2, 0]], 3], expected: [[0, 1], [2, 0], [5, 0]], note: "k = n still has to be ordered"}
+    solution: |
+      class Solution:
+          def kClosestSorted(self, points: List[List[int]], k: int) -> List[List[int]]:
+              heap = []
+              for x, y in points:
+                  heapq.heappush(heap, (-(x * x + y * y), x, y))
+                  if len(heap) > k:
+                      heapq.heappop(heap)
+              out = [heapq.heappop(heap)[1:] for _ in range(len(heap))]
+              return [[x, y] for x, y in reversed(out)]
+    hint: "Each pop returns the farthest remaining point, so the list you build is backwards."
+
+hints:
+  - >-
+    You want the k smallest distances. If you hold k candidates and a new point arrives, which
+    candidate should it be compared with, and which candidate leaves if the new point wins? Do
+    you even need the square root to compare distances?
+  - >-
+    Keep a max-heap (negated min-heap) of (−(x² + y²), x, y) with at most k entries. Push every
+    point; whenever the heap holds k + 1 entries, pop the root, which is the farthest of them.
+    At the end, the heap holds exactly the k closest points.
+  - |
+    heap = empty
+    for (x, y) in points:
+        push (-(x*x + y*y), x, y)
+        if size(heap) > k: pop root   # the farthest of k + 1
+    return [x, y] for every entry in heap
+
+solution:
+  code: |
+    class Solution:
+        def kClosest(self, points: List[List[int]], k: int) -> List[List[int]]:
+            heap = []  # max-heap via negation: (-dist², x, y); root = farthest point kept
+            for x, y in points:
+                d = x * x + y * y  # squared distance has the same order as the real one
+                heapq.heappush(heap, (-d, x, y))
+                if len(heap) > k:
+                    heapq.heappop(heap)  # evict the farthest of the k + 1 candidates
+            return [[x, y] for _, x, y in heap]
+  explanation: |
+    The heap holds the k closest points seen so far, and its root is the **farthest** of them,
+    the weakest candidate. Every point is pushed; if that makes k + 1 entries, the farthest one
+    is popped. A popped point has k points at least as close as it, so it can't be in the
+    answer. After the scan, the heap is exactly the k closest points.
+
+    **Why a max-heap.** The root has to be the point you'd evict. We keep the *smallest*
+    distances, so we evict the *largest*, and `heapq` is a min-heap, so we store `-d`. Getting
+    this backwards (a plain min-heap of size k) silently returns the k *farthest* points.
+
+    **Why no sqrt.** `sqrt` is increasing, so `x² + y²` orders points exactly like the real
+    distance. Skipping it keeps everything in exact integers (no float rounding) and saves work.
+    With coordinates up to 10⁴, squared distances reach 2 × 10⁸, which Python handles exactly.
+
+    **Why the tuple.** Python compares tuples field by field, so `-d` decides the order. When
+    two points have the same distance, it falls back to `x` and `y`, which are plain integers,
+    so the comparison never fails. The answer accepts any order, so the heap list can be
+    returned as is. Alternatives: `heapq.nsmallest(k, points, key=...)` does the same O(N log k)
+    work in one line, and quickselect on the distances gives O(N) on average.
+  time: O(N log k) — N pushes and at most N − k pops on a heap of at most k + 1 entries
+  space: O(k) — the heap, plus the O(k) output list
+  brute_force_code: |
+    class Solution:
+        def kClosest(self, points: List[List[int]], k: int) -> List[List[int]]:
+            ordered = sorted(points, key=lambda p: p[0] * p[0] + p[1] * p[1])  # sort all N
+            return ordered[:k]
+
+pitch_script: |
+  **(Clarify)** "Distance is Euclidean from the origin, I can return the k points in any order,
+  and the set of k closest is guaranteed unique, so I don't need a tie-breaking rule at the
+  boundary. Coordinates can be negative, right?"
+
+  **(Brute force)** "The simple approach computes each distance, sorts all the points, and
+  takes the first k. That's O(N log N) time and O(N) space, which passes here, but it fully
+  ranks every point when I only need k of them."
+
+  **(Trigger)** "'K closest' is a size-k heap problem. I keep the k best candidates, and the
+  one I'd throw out is the farthest, so it should sit at the root. That means a max-heap, which
+  in Python is a min-heap on negated distances. I'll also compare squared distances, since sqrt
+  doesn't change the order."
+
+  **(Optimal)** "For each point I push a tuple of negative squared distance, x and y. If the
+  heap now has k plus one entries, I pop, which removes the farthest of them. After the loop
+  the heap holds exactly the k closest, and I return their coordinates."
+
+  **(Complexity)** "Every push and pop is on a heap of at most k plus one entries, so it's
+  O(N log k) time and O(k) space. If they wanted linear average time, I could quickselect on
+  the squared distances for O(N) expected."
+
+twist:
+  lc: 658
+  title: Find K Closest Elements
+  why: >-
+    Now the "points" are numbers in a sorted array, closeness is |a − x| with ties going to the
+    smaller value, and the result must be sorted. A size-k max-heap keyed by (|a − x|, a) still
+    works in O(N log k), but sortedness changes the best pattern: the answer is always a
+    contiguous window, so you can binary search for the window's left edge in O(log(N − k)) and
+    slice out k elements.
+
+viz:
+  heaps: [heap]
+  watch: [x, y, d, k]

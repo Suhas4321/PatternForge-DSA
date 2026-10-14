@@ -1,0 +1,357 @@
+slug: task-scheduler
+lc: 621
+
+concept:
+  problem_it_solves: >-
+    "Which job should run in this slot so that, in the end, I waste the fewest slots?" Every
+    task type has a cooldown, so the CPU sometimes has to sit idle. The answer is greedy: in
+    every slot, run the available task with the **most copies left**, because that task is the
+    bottleneck. A max-heap keeps "the task with the most copies left" one pop away, and a
+    queue keeps the tasks that are cooling down out of the way until they are allowed back.
+  brute_force: >-
+    Simulate the CPU one slot at a time and, at every slot, scan all task types to find the
+    available one with the most copies left (trying every possible ordering instead would be
+    factorial). The scan re-reads every task type in every slot, and idle slots are stepped
+    through one by one even when you already know nothing can run until a known future time.
+  brute_force_complexity: >-
+    O(T · K) time, O(K) space, where T is the schedule length and K ≤ 26 the number of task
+    types — with 10⁴ copies of one task and n = 100, T ≈ 10⁶ slots, each rescanning all types.
+  key_insight: >-
+    The most frequent task decides the shape of the schedule: each of its copies forces n slots
+    before the next one, so if you leave it for later, it piles up at the end with nothing to
+    fill the gaps. So always run the available task with the most copies left (max-heap), and
+    park every task you just ran in a FIFO cooldown queue tagged with the time it becomes free
+    again. Tasks leave the queue in the same order they entered, because every task has the
+    same cooldown n. Counting the result gives a closed formula too:
+    max(len(tasks), (maxCount − 1) · (n + 1) + numMax).
+  real_world: >-
+    Job schedulers that rate-limit per tenant or per downstream API (Sidekiq and Celery rate
+    limits, Kubernetes CronJob backoff) solve exactly this: pick the highest-priority job that
+    isn't cooling down. Linux's CFS and Go's goroutine scheduler also keep "who should run
+    next" in a priority structure instead of rescanning every runnable task each tick.
+
+statement:
+  clean: |
+    You are given an array of CPU `tasks`, each labelled with an uppercase letter from `A` to
+    `Z`, and a number `n` called the **cooling time**. Each CPU interval can either complete
+    one task or stay idle. Tasks can be completed in any order, but
+    **identical tasks must be separated by at least n intervals**, because of the cooling time.
+
+    Return the **minimum number of intervals** the CPU needs to complete all the tasks.
+  oa_story: |
+    **CronKaro — OA Round 1**
+
+    CronKaro runs scheduled jobs for D2C brands in Bengaluru: invoice generation, GST filing
+    syncs, WhatsApp reminders. Each brand's batch lands on a single worker that can execute one
+    job per tick or sit idle for that tick. Every job is tagged with a one-letter job type, and
+    jobs of the same type hit the same partner API, which throttles CronKaro if two calls of
+    the same type arrive less than `n + 1` ticks apart (so at least `n` other ticks must pass
+    between them).
+
+    Given the list of job type tags in a batch (in any order, and the worker may run them in
+    any order it likes) and the throttle gap `n`, return the smallest number of ticks the
+    worker needs to finish the whole batch, counting the idle ticks. Batches can have up to
+    10,000 jobs and gaps up to 100 ticks.
+  trigger_keywords: ["cooling time", "identical tasks must be separated by at least n intervals", "minimum number of intervals"]
+  examples:
+    - input: 'tasks = ["A","A","A","B","B","B"], n = 2'
+      output: "8"
+      explanation: "A -> B -> idle -> A -> B -> idle -> A -> B. After running A you must wait 2 intervals before the next A."
+    - input: 'tasks = ["A","C","A","B","D","B"], n = 1'
+      output: "6"
+      explanation: "A -> B -> C -> D -> A -> B. There are enough different tasks to fill every gap, so no interval is idle."
+    - input: 'tasks = ["A","A","A","B","B","B"], n = 3'
+      output: "10"
+      explanation: "A -> B -> idle -> idle -> A -> B -> idle -> idle -> A -> B."
+  constraints:
+    - "1 <= tasks.length <= 10^4"
+    - "tasks[i] is an uppercase English letter."
+    - "0 <= n <= 100"
+
+constraint_quiz:
+  prompt: >-
+    Up to 10⁴ tasks, at most 26 task types, cooling time up to 100. What time complexity
+    should you aim for?
+  options:
+    - "O(N!) — try every order of the tasks"
+    - "O(N²) — for every task, scan the schedule for the earliest legal slot"
+    - "O(N) — count, then O(log 26) heap work per task, or a closed formula"
+    - "O(log N)"
+  answer: 2
+  explanation: >-
+    Trying every order is hopeless even for 12 tasks. Scanning the schedule for each task is
+    O(N²), ~10⁸ steps, and the "earliest legal slot" greedy isn't even optimal. Counting the
+    tasks is O(N), and after that the heap holds at most 26 entries, so each push and pop is
+    O(log 26) = O(1); the counting formula is O(N) too. O(log N) is impossible because you
+    must read every task at least once to count it.
+
+pattern_quiz:
+  prompt: >-
+    Every interval you must choose which task to run, the same task needs a cooldown, and you
+    want the fewest intervals overall. Which pattern fits?
+  options:
+    - "Sort the tasks and run them in alphabetical order, adding idles when needed"
+    - "Max-heap of remaining counts plus a cooldown queue: always run the available task with the most copies left"
+    - "Sliding window of size n + 1 over the task list"
+    - "Binary search on the answer"
+  answer: 1
+  explanation: >-
+    "Schedule by priority" is the heap trigger: at each step you need the best available item
+    right now, and the best item changes as counts drop. Alphabetical order ignores which task
+    is the bottleneck (A×1, B×5 would leave B's copies stacked at the end). The order of the
+    input doesn't matter, so a window over it means nothing, and binary search would still need
+    a feasibility check that is the same greedy anyway.
+
+function:
+  name: leastInterval
+  params: [{name: tasks}, {name: n}]
+
+starter_code: |
+  class Solution:
+      def leastInterval(self, tasks: List[str], n: int) -> int:
+          pass
+
+tests:
+  - {args: [["A", "A", "A", "B", "B", "B"], 2], expected: 8}
+  - {args: [["A", "C", "A", "B", "D", "B"], 1], expected: 6, note: "enough variety: no idle at all"}
+  - {args: [["A", "A", "A", "B", "B", "B"], 3], expected: 10}
+  - {args: [["A", "A", "A", "B", "B", "B"], 0], expected: 6, note: "n = 0: no cooldown, so it is just len(tasks)"}
+  - {args: [["A"], 5], expected: 1, note: "single task: never count idles after the last task"}
+  - {args: [["A", "A", "A", "A"], 2], expected: 10, note: "one task type: every gap is idle"}
+  - {args: [["A", "A", "A", "A", "A", "A", "B", "C", "D", "E", "F", "G"], 2], expected: 16, note: "one dominant task decides the length"}
+  - {args: [["A", "B", "C", "D", "E", "A", "B", "C", "D", "E"], 2], expected: 10, note: "more types than slots per frame: formula part is 8, answer is len(tasks)"}
+visualize_test: 0
+
+drills:
+  - title: A max-heap of counts by negation
+    skill: setup
+    goal: Count the tasks and build a max-heap out of heapq's min-heap by storing negated counts.
+    instructions: |
+      Count how many times each task appears, push the **negated** counts into a heap, then pop
+      everything and return the counts (as positive numbers) in the order they come out.
+
+      `heapq` only gives you the smallest item. Storing `-count` makes the largest count the
+      smallest number, so `heap[0]` becomes "the task with the most copies left", which is
+      exactly what the scheduler asks for in every interval. The letters themselves don't
+      matter for the answer, only the counts.
+    function:
+      name: countsByPriority
+      params: [{name: tasks}]
+    starter_code: |
+      class Solution:
+          def countsByPriority(self, tasks: List[str]) -> List[int]:
+              pass
+    tests:
+      - {args: [["A", "A", "A", "B", "B", "C"]], expected: [3, 2, 1]}
+      - {args: [["C", "B", "C", "A", "C", "B"]], expected: [3, 2, 1], note: input order doesn't matter}
+      - {args: [["A", "B", "A", "B"]], expected: [2, 2]}
+      - {args: [["X"]], expected: [1]}
+    solution: |
+      class Solution:
+          def countsByPriority(self, tasks: List[str]) -> List[int]:
+              heap = [-c for c in Counter(tasks).values()]
+              heapq.heapify(heap)
+              out = []
+              while heap:
+                  out.append(-heapq.heappop(heap))
+              return out
+    hint: "Negate on the way in (`-c`) and again on the way out (`-heapq.heappop(heap)`)."
+
+  - title: When can a task run again?
+    skill: core
+    goal: Apply the cooldown rule — a task run in interval t is next allowed in interval t + n + 1.
+    instructions: |
+      Here the order is **fixed**: the CPU must run `order` exactly as given, idling when the
+      next task is still cooling down. Return the number of intervals used (intervals are
+      numbered from 1).
+
+      This is the rule the cooldown queue in the full solution encodes. If you run a task in
+      interval `t`, the next `n` intervals are blocked for it, so it may run again in interval
+      `t + n + 1`. Getting this off by one is the most common bug in the simulation.
+    function:
+      name: fixedOrderTime
+      params: [{name: order}, {name: n}]
+    starter_code: |
+      class Solution:
+          def fixedOrderTime(self, order: List[str], n: int) -> int:
+              pass
+    tests:
+      - {args: [["A", "A"], 2], expected: 4, note: "A, idle, idle, A"}
+      - {args: [["A", "B", "A"], 2], expected: 4, note: "A, B, idle, A"}
+      - {args: [["A", "B", "C", "A"], 2], expected: 4, note: no idle needed}
+      - {args: [["A", "A", "B", "B"], 1], expected: 6}
+      - {args: [["A", "A", "A"], 0], expected: 3}
+    solution: |
+      class Solution:
+          def fixedOrderTime(self, order: List[str], n: int) -> int:
+              ready = {}  # task -> first interval it may run in again
+              time = 0
+              for task in order:
+                  time = max(time + 1, ready.get(task, 0))
+                  ready[task] = time + n + 1
+              return time
+    hint: "The task runs in `max(next interval, the interval it is ready)`; then it is ready again `n + 1` later."
+
+  - title: The counting formula and its floor
+    skill: edge
+    goal: Compute the answer in O(N) with max(len(tasks), (maxCount − 1) · (n + 1) + numMax).
+    instructions: |
+      Solve the full problem without a heap. Picture the most frequent task laid out as
+      `maxCount − 1` frames of `n + 1` slots each, followed by a final row. The final row holds
+      every task that ties for the maximum count (`numMax` of them). Everything else fits into
+      the gaps inside the frames.
+
+      Two edges decide correctness: ties for the maximum all land in the last row (so add
+      `numMax`, not 1), and when there are more tasks than gaps, the frames simply stretch and
+      no idle is needed, so the answer can never be below `len(tasks)`.
+    function:
+      name: leastIntervalFormula
+      params: [{name: tasks}, {name: n}]
+    starter_code: |
+      class Solution:
+          def leastIntervalFormula(self, tasks: List[str], n: int) -> int:
+              pass
+    tests:
+      - {args: [["A", "A", "A", "B", "B", "B"], 2], expected: 8, note: "two tasks tie for the max: numMax = 2"}
+      - {args: [["A", "A", "A", "B", "B", "B"], 0], expected: 6, note: "formula part is 4: the floor len(tasks) wins"}
+      - {args: [["A", "A", "A", "A", "A", "A", "B", "C", "D", "E", "F", "G"], 2], expected: 16}
+      - {args: [["A", "B", "C", "D", "A", "B"], 1], expected: 6, note: "formula part is 4: gaps overflow"}
+      - {args: [["Z"], 100], expected: 1}
+    solution: |
+      class Solution:
+          def leastIntervalFormula(self, tasks: List[str], n: int) -> int:
+              counts = Counter(tasks).values()
+              max_count = max(counts)
+              num_max = sum(1 for c in counts if c == max_count)
+              return max(len(tasks), (max_count - 1) * (n + 1) + num_max)
+    hint: "Draw the frames for `A×3, B×3, n = 2`: `A B _ | A B _ | A B`. Where did the 2 in the last row come from?"
+
+hints:
+  - >-
+    Which task is the real bottleneck: the one with many copies or the one with few? If you
+    postpone it, what happens to the end of the schedule?
+  - >-
+    In every interval, run the available task with the most copies left (a max-heap of counts).
+    After running it, if copies remain, park it in a queue with the time it becomes available;
+    move it back into the heap when that time comes. If the heap is empty, the CPU idles.
+  - |
+    heap = max-heap of task counts
+    cooldown = empty queue of (remaining count, time it is free)
+    time = 0
+    while heap or cooldown not empty:
+        time += 1
+        if heap not empty:
+            pop the biggest count, run it once
+            if copies remain: append (count - 1, time + n) to cooldown
+        else:
+            jump time to cooldown front's free time (the CPU idles until then)
+        if cooldown front is free at time: move it back into heap
+    return time
+
+solution:
+  code: |
+    class Solution:
+        def leastInterval(self, tasks: List[str], n: int) -> int:
+            heap = [-c for c in Counter(tasks).values()]  # max-heap of copies left (negated)
+            heapq.heapify(heap)
+            cooldown = deque()  # (negated copies left, last interval it is still blocked)
+            time = 0
+            while heap or cooldown:
+                time += 1
+                if heap:
+                    remaining = heapq.heappop(heap) + 1  # run one copy (counts are negative)
+                    if remaining:
+                        cooldown.append((remaining, time + n))
+                else:
+                    time = cooldown[0][1]  # nothing can run: idle until the front is free
+                if cooldown and cooldown[0][1] == time:
+                    heapq.heappush(heap, cooldown.popleft()[0])
+            return time
+  explanation: |
+    **Why greedy on the biggest count works.** Every copy of a task forces `n` intervals
+    before its next copy. The task with the most copies left is the one that will run out of
+    room first, so running it now keeps its copies spread out and leaves the smaller tasks to
+    fill gaps later. Running a small task first can only push the big task's copies towards
+    the end, where nothing is left to fill its gaps.
+
+    **The two structures.** `heap` holds the counts of tasks that are allowed to run right now
+    (negated, because `heapq` is a min-heap). `cooldown` holds tasks that just ran, tagged with
+    `time + n`, the last interval in which they are still blocked. At the end of interval
+    `time + n` they go back into the heap, so they can run in interval `time + n + 1`. Every
+    task has the same cooldown, so tasks finish cooling in the order they started: a plain
+    FIFO deque is enough, no second heap needed.
+
+    **Idle intervals.** If the heap is empty, the CPU idles. Instead of stepping through idles
+    one at a time, the code jumps `time` straight to the interval in which the front of the
+    queue becomes free; all the skipped intervals are counted because `time` is the answer.
+    The loop stops as soon as both structures are empty, so no idle is ever counted after the
+    last task (that is why `["A"]` with `n = 5` is 1, not 6).
+
+    **The O(N) formula.** Lay out the most frequent task (count `maxCount`) as `maxCount − 1`
+    frames of `n + 1` slots, then a last row with every task that ties for `maxCount`
+    (`numMax` of them): `(maxCount − 1) · (n + 1) + numMax`. The other tasks fill the gaps; if
+    there are more tasks than gaps, the frames stretch and nothing idles, so the answer is
+    `max(len(tasks), (maxCount − 1) · (n + 1) + numMax)`. It is worth knowing both: the
+    simulation is the pattern that transfers to other problems, the formula is the fast answer.
+  time: O(N) — counting is O(N); the heap holds at most 26 entries, so each of the N pops and pushes is O(log 26)
+  space: O(1) — at most 26 counts in the heap and the cooldown queue combined (O(K) for K task types)
+  brute_force_code: |
+    class Solution:
+        def leastInterval(self, tasks: List[str], n: int) -> int:
+            remaining = Counter(tasks)
+            next_free = {task: 1 for task in remaining}  # first interval each task may run in
+            time = 0
+            left = len(tasks)
+            while left:
+                time += 1
+                best = None
+                for task, c in remaining.items():  # rescan every task type, every interval
+                    if c and next_free[task] <= time and (best is None or c > remaining[best]):
+                        best = task
+                if best is not None:
+                    remaining[best] -= 1
+                    next_free[best] = time + n + 1
+                    left -= 1
+            return time
+
+pitch_script: |
+  **(Clarify)** "So each interval runs one task or idles, the order is up to me, and two copies
+  of the same letter need at least n intervals between them. I just return the number of
+  intervals, not the schedule itself, right? And there are at most 26 task types."
+
+  **(Brute force)** "Trying every order is factorial, so that's out. A direct simulation would
+  go interval by interval, scan all task types for the available one with the most copies
+  left, and step through idle intervals one by one. That works but rescans everything each
+  interval and wastes time on idles."
+
+  **(Trigger)** "Choosing the best available task at every step is a priority-scheduling
+  problem, so a max-heap fits. The greedy choice is the task with the most copies left,
+  because it's the bottleneck: postpone it and its copies pile up at the end with idles in
+  between."
+
+  **(Optimal)** "I count the tasks and put the negated counts in a heap, since heapq is a
+  min-heap. Each interval I pop the biggest count, run one copy, and if copies remain I put it
+  in a FIFO cooldown queue with the time it stops being blocked. When that time arrives it
+  goes back into the heap. If the heap is empty I jump the clock to the queue's front. A
+  plain queue works because everyone has the same cooldown, so they come out in order."
+
+  **(Complexity)** "Counting is O(N). The heap never has more than 26 entries, so every push
+  and pop is O(log 26), constant, and the whole thing is O(N) time and O(1) extra space. There's
+  also a closed formula: max of len(tasks) and (maxCount − 1) times (n + 1) plus the number of
+  tasks tied for maxCount. I'd mention it as the optimisation, but the heap version is the one
+  that generalises."
+
+twist:
+  lc: 767
+  title: Reorganize String
+  why: >-
+    Now you must actually build an arrangement of the letters where no two equal letters are
+    adjacent (a cooldown of n = 1), or return "" if it's impossible. Same max-heap of counts,
+    but you hold back the letter you just placed for one step (instead of a cooldown queue) and
+    push it back after placing the next one. It's impossible exactly when the heap runs dry
+    while a letter is still being held back, i.e. when maxCount > (len + 1) / 2.
+
+viz:
+  heaps: [heap]
+  arrays: [cooldown]
+  watch: [time, remaining, n]

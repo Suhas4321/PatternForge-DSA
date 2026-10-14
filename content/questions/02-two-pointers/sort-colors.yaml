@@ -1,0 +1,339 @@
+slug: sort-colors
+lc: 75
+
+concept:
+  problem_it_solves: >-
+    "Can I split an array into three groups in a single sweep, without extra memory?" When
+    there are only three possible values, you don't need a general sort at all: you need to
+    grow a zone of 0s from the left, a zone of 2s from the right, and let the 1s settle in
+    the middle. Three pointers mark the zone boundaries, and each swap puts one element
+    into its final zone for good.
+  brute_force: >-
+    Call a general sort, or count how many 0s, 1s and 2s there are and then overwrite the
+    array. Sorting does O(N log N) comparisons to rediscover an order that only has three
+    levels. Counting is O(N) but needs two passes, and it only works because the values are
+    bare integers: if each element carried a payload (an order id, a ticket), overwriting by
+    counts would destroy it, while swapping keeps every element intact.
+  brute_force_complexity: >-
+    O(N log N) time with a library sort; counting is O(N) time and O(1) space but takes two
+    full passes and rewrites values instead of moving elements.
+  key_insight: >-
+    Keep four regions at all times: [0, low) is all 0s, [low, mid) is all 1s, [mid, high]
+    is still unknown, and (high, end] is all 2s. Look only at nums[mid]. A 0 is swapped to
+    low, a 1 stays, a 2 is swapped to high. Each step shrinks the unknown region by one, so
+    one pass finishes the job. The subtle part: after swapping with high, the element that
+    arrives at mid came from the unknown region, so mid must not move until it has been
+    looked at.
+  real_world: >-
+    This is the three-way partition that production quicksorts use to survive many
+    duplicate keys (Bentley–McIlroy partitioning, Java's dual-pivot quicksort, the
+    "partition equal" step of pdqsort in Rust's sort_unstable and Go's sort package), which
+    keeps an array full of repeats from degrading to O(N²). Job schedulers and
+    message brokers use the same in-place partition to bucket work by priority (urgent,
+    normal, batch) inside a fixed buffer without allocating.
+
+statement:
+  clean: |
+    Given an array `nums` with `n` objects coloured red, white, or blue, sort them
+    **in-place** so that objects of the same colour are adjacent, with the colours in the
+    order red, white, and blue.
+
+    The integers `0`, `1`, and `2` represent red, white, and blue respectively. You must
+    solve this problem **without using the library's sort function**.
+
+    **Follow-up:** can you come up with a **one-pass** algorithm using only
+    **constant extra space**?
+  oa_story: |
+    **ByteBazaar Fulfilment — OA Round 1**
+
+    ByteBazaar's Hosur Road warehouse loads delivery totes onto a single conveyor before
+    the evening dispatch. Every tote is tagged with a service level: 0 for Express (must
+    leave first), 1 for Standard, and 2 for Economy. The loading bay wants all Express totes
+    at the front of the conveyor, then all Standard, then all Economy, so riders can pick
+    them up in that order.
+
+    The conveyor has no spare slots: the robotic arm can only exchange two totes that are
+    already on the belt, and it gets one sweep down the belt before the trucks arrive. Given
+    the list of service tags in belt order, rearrange the list itself into the required
+    order. Using the platform's built-in ordering utility is not allowed, and the controller
+    has memory for only a handful of counters.
+  trigger_keywords: ["in-place", "one-pass", "constant extra space"]
+  examples:
+    - input: "nums = [2,0,2,1,1,0]"
+      output: "[0,0,1,1,2,2]"
+      explanation: "Two 0s, then two 1s, then two 2s."
+    - input: "nums = [2,0,1]"
+      output: "[0,1,2]"
+  constraints:
+    - "n == nums.length"
+    - "1 <= n <= 300"
+    - "nums[i] is either 0, 1, or 2."
+
+constraint_quiz:
+  prompt: >-
+    n is at most 300, so even O(N²) would pass. But the follow-up asks for one pass and
+    constant extra space. What should you aim for?
+  options:
+    - "O(N log N) time using sorted()"
+    - "O(N) time, two passes: count the 0s, 1s and 2s, then overwrite"
+    - "O(N) time, one pass, O(1) extra space"
+    - "O(N) time, one pass, O(N) extra space with three separate lists"
+  answer: 2
+  explanation: >-
+    sorted() is explicitly banned, and O(N log N) is more work than three levels need.
+    Counting is O(N) and O(1) space but takes two passes, so it fails the follow-up. Three
+    separate lists is one pass but O(N) extra memory and not in-place. The follow-up is a
+    direct hint at a single sweep with a constant number of pointers: O(N) time, O(1) space.
+
+pattern_quiz:
+  prompt: >-
+    Rearrange an array of only 0s, 1s and 2s in-place, in one pass, with O(1) extra space.
+    Which pattern fits?
+  options:
+    - "Hash map of value → count"
+    - "Two pointers from both ends that only swap 0s and 2s with each other"
+    - "Dutch National Flag: low, mid and high pointers with a shrinking unknown region"
+    - "Sliding window over runs of equal colours"
+  answer: 2
+  explanation: >-
+    A count map is the two-pass approach. Two end pointers that only exchange 0s and 2s
+    get stuck as soon as a 1 sits at one of the ends, because neither pointer knows where
+    the 1s belong. "In-place" plus exactly three categories is the Dutch National Flag
+    trigger: one pointer per boundary (end of 0s, end of 1s, start of 2s) and a scan that
+    shrinks the unknown middle by one element every step.
+
+function:
+  name: sortColors
+  params: [{name: nums}]
+  inplace_arg: 0
+
+starter_code: |
+  class Solution:
+      def sortColors(self, nums: List[int]) -> None:
+          pass
+
+tests:
+  - {args: [[2, 0, 2, 1, 1, 0]], expected: [0, 0, 1, 1, 2, 2]}
+  - {args: [[2, 0, 1]], expected: [0, 1, 2]}
+  - {args: [[0]], expected: [0], note: single element}
+  - {args: [[1, 0]], expected: [0, 1], note: "mid == high still needs a look, so loop while mid <= high"}
+  - {args: [[1, 2, 0]], expected: [0, 1, 2], note: "the 0 swapped in from the right must be re-checked before mid moves"}
+  - {args: [[2, 2, 2]], expected: [2, 2, 2], note: all the same colour}
+  - {args: [[0, 0, 1, 1, 2]], expected: [0, 0, 1, 1, 2], note: already sorted}
+  - {args: [[2, 1, 0, 2, 1, 0, 2]], expected: [0, 0, 1, 1, 2, 2, 2], note: reverse-ish order}
+visualize_test: 0
+
+drills:
+  - title: Grow the zone of 0s from the left
+    skill: setup
+    goal: Use a write pointer `low` so that everything left of it is always a 0.
+    instructions: |
+      `nums` contains only 0s and 1s. Rearrange it **in place** so all 0s come first.
+
+      Keep a pointer `low` that marks where the next 0 should go. Scan every index `i`;
+      whenever `nums[i]` is 0, swap it into position `low` and advance `low`. The invariant
+      "`nums[0..low-1]` are all 0s" is exactly the left boundary you maintain in Sort Colors.
+    function:
+      name: zerosToFront
+      params: [{name: nums}]
+      inplace_arg: 0
+    starter_code: |
+      class Solution:
+          def zerosToFront(self, nums: List[int]) -> None:
+              pass
+    tests:
+      - {args: [[1, 0, 1, 0]], expected: [0, 0, 1, 1]}
+      - {args: [[0, 0, 1]], expected: [0, 0, 1]}
+      - {args: [[1, 1, 1]], expected: [1, 1, 1]}
+      - {args: [[1, 0]], expected: [0, 1]}
+    solution: |
+      class Solution:
+          def zerosToFront(self, nums: List[int]) -> None:
+              low = 0  # nums[0..low-1] are all 0s
+              for i in range(len(nums)):
+                  if nums[i] == 0:
+                      nums[low], nums[i] = nums[i], nums[low]
+                      low += 1
+    hint: "Swap `nums[low]` and `nums[i]` only when `nums[i] == 0`, then `low += 1`."
+
+  - title: Throw to the back, then look again
+    skill: core
+    goal: Swap with `high` and keep `mid` still, because the element that arrives is unexamined.
+    instructions: |
+      `nums` contains only 0s and 1s. Rearrange it **in place** so all 1s are at the end,
+      using two pointers: `mid` scanning from the left and `high` marking where the next 1
+      should go, starting at the last index.
+
+      When `nums[mid]` is 1, swap it with `nums[high]` and move `high` left, but **do not**
+      move `mid`: the value that just arrived at `mid` came from the unknown part of the
+      array. Try `[1, 0, 1]`: if you advance `mid` after the first swap, a 1 is left stuck at
+      the front.
+    function:
+      name: onesToBack
+      params: [{name: nums}]
+      inplace_arg: 0
+    starter_code: |
+      class Solution:
+          def onesToBack(self, nums: List[int]) -> None:
+              pass
+    tests:
+      - {args: [[1, 0, 1]], expected: [0, 1, 1], note: the swapped-in 1 must be re-checked}
+      - {args: [[1, 1, 0, 0]], expected: [0, 0, 1, 1]}
+      - {args: [[0, 1]], expected: [0, 1]}
+      - {args: [[1]], expected: [1]}
+      - {args: [[1, 0, 1, 0, 1, 0]], expected: [0, 0, 0, 1, 1, 1]}
+    solution: |
+      class Solution:
+          def onesToBack(self, nums: List[int]) -> None:
+              mid, high = 0, len(nums) - 1  # nums[high+1..] are all 1s
+              while mid <= high:
+                  if nums[mid] == 1:
+                      nums[mid], nums[high] = nums[high], nums[mid]
+                      high -= 1  # mid stays: the new nums[mid] is unexamined
+                  else:
+                      mid += 1
+    hint: "In the swap branch only `high` moves; `mid` moves only when `nums[mid]` is already in place."
+
+  - title: Read the final boundaries, including empty zones
+    skill: edge
+    goal: Run a three-way partition around any pivot and return where the middle zone starts and ends.
+    instructions: |
+      `nums` holds arbitrary integers. Partition it in place in one pass into three zones:
+      values `< pivot`, values `== pivot`, values `> pivot`, using `low`, `mid`, `high`
+      exactly as in Sort Colors. Return `[low, high]`: the first and last index of the
+      `== pivot` zone when the loop ends.
+
+      The edge cases are the empty zones. If the pivot never appears, the middle zone is
+      empty and you will finish with `low == high + 1`. If every value is smaller, `high`
+      ends at `n - 1`; if every value is bigger, `low` stays at 0 and `high` ends at -1.
+      Getting these right means your loop condition is `mid <= high`, not `mid < high`.
+    function:
+      name: pivotZone
+      params: [{name: nums}, {name: pivot}]
+    starter_code: |
+      class Solution:
+          def pivotZone(self, nums: List[int], pivot: int) -> List[int]:
+              pass
+    tests:
+      - {args: [[5, 1, 5, 9, 3], 5], expected: [2, 3]}
+      - {args: [[4, 4, 4], 4], expected: [0, 2], note: everything equals the pivot}
+      - {args: [[3, 9], 5], expected: [1, 0], note: "pivot absent, so the middle zone is empty"}
+      - {args: [[1, 2, 3], 0], expected: [0, -1], note: everything is bigger}
+      - {args: [[7], 7], expected: [0, 0]}
+    solution: |
+      class Solution:
+          def pivotZone(self, nums: List[int], pivot: int) -> List[int]:
+              low, mid, high = 0, 0, len(nums) - 1
+              while mid <= high:
+                  if nums[mid] < pivot:
+                      nums[low], nums[mid] = nums[mid], nums[low]
+                      low, mid = low + 1, mid + 1
+                  elif nums[mid] > pivot:
+                      nums[mid], nums[high] = nums[high], nums[mid]
+                      high -= 1
+                  else:
+                      mid += 1
+              return [low, high]
+    hint: "When the loop stops, `low` is the count of smaller values and `high` is n − 1 minus the count of bigger ones."
+
+hints:
+  - >-
+    There are only three values. If you knew where the block of 0s ends and where the block
+    of 2s begins, where would each new element you look at have to go?
+  - >-
+    Keep low (next slot for a 0), mid (the element you're looking at) and high (next slot
+    for a 2). A 0 swaps with low and both advance; a 1 just advances mid; a 2 swaps with
+    high and only high moves back. Why is it safe to advance mid after the low swap but not
+    after the high swap?
+  - |
+    low = 0, mid = 0, high = n - 1
+    while mid <= high:
+        if nums[mid] is 0: swap nums[low], nums[mid]; low += 1; mid += 1
+        else if nums[mid] is 1: mid += 1
+        else: swap nums[mid], nums[high]; high -= 1   (mid stays)
+
+solution:
+  code: |
+    class Solution:
+        def sortColors(self, nums: List[int]) -> None:
+            # [0, low) = 0s, [low, mid) = 1s, [mid, high] = unknown, (high, end] = 2s
+            low, mid, high = 0, 0, len(nums) - 1
+            while mid <= high:
+                if nums[mid] == 0:
+                    nums[low], nums[mid] = nums[mid], nums[low]
+                    low += 1
+                    mid += 1
+                elif nums[mid] == 1:
+                    mid += 1
+                else:
+                    nums[mid], nums[high] = nums[high], nums[mid]
+                    high -= 1  # don't move mid: the value just swapped in is unexamined
+  explanation: |
+    The array is always split into four regions: `[0, low)` holds 0s, `[low, mid)` holds
+    1s, `[mid, high]` is unknown, and `(high, end]` holds 2s. Every iteration looks at
+    `nums[mid]`, the first unknown element, and moves one boundary, so the unknown region
+    shrinks by exactly one each time and the loop runs at most N times.
+
+    **Why `mid` advances after swapping with `low`:** the value that comes back from
+    `nums[low]` lives in `[low, mid)`, which is all 1s (or `low == mid`, in which case it is
+    the 0 we just looked at). Either way it is already known and in the right place, so
+    `mid` can move on.
+
+    **Why `mid` does not advance after swapping with `high`:** the value that comes back
+    from `nums[high]` was in the unknown region. It could be a 0, a 1 or a 2, so it has to
+    be examined on the next iteration. Advancing `mid` here is the classic bug: `[1, 2, 0]`
+    would end as `[1, 0, 2]`.
+
+    The loop runs while `mid <= high`, not `<`, because when they are equal there is still
+    one unknown element left. `[1, 0]` needs that final look to move the 0 to the front.
+  time: O(N) — every iteration shrinks the unknown region by one, so at most N iterations
+  space: O(1) — three integer pointers, all swaps happen inside nums
+  brute_force_code: |
+    class Solution:
+        def sortColors(self, nums: List[int]) -> None:
+            counts = [0, 0, 0]
+            for x in nums:
+                counts[x] += 1
+            i = 0
+            for colour in range(3):
+                for _ in range(counts[colour]):
+                    nums[i] = colour
+                    i += 1
+
+pitch_script: |
+  **(Clarify)** "So the array only ever contains 0, 1 and 2, I have to rearrange it in
+  place, and I can't call the library sort. Should I go for the one-pass, constant-space
+  follow-up?"
+
+  **(Brute force)** "The first thing that works is counting: one pass to count each colour
+  and a second pass to overwrite the array. That's O(N) time and O(1) space, but it's two
+  passes and it rewrites values rather than moving elements, which wouldn't work if each
+  element carried data."
+
+  **(Trigger)** "In-place, one pass, and exactly three categories: that's the Dutch
+  National Flag partition. I need one boundary for where the 0s end, one for where the 2s
+  begin, and a scanner in between."
+
+  **(Optimal)** "I keep low, mid and high. Everything before low is 0, between low and mid
+  is 1, after high is 2, and mid to high is unknown. If nums[mid] is 0, I swap it with low
+  and advance both. If it's 1, I just advance mid. If it's 2, I swap it with high and move
+  high back, but I don't advance mid, because the element I just pulled in from the right
+  hasn't been examined yet. I stop when mid passes high."
+
+  **(Complexity)** "Each iteration shrinks the unknown region by one, so it's O(N) time in
+  a single pass, and O(1) extra space since it's just three pointers and swaps."
+
+twist:
+  lc: 2161
+  title: Partition Array According to Given Pivot
+  why: >-
+    Now the three groups are "less than pivot", "equal to pivot" and "greater than pivot",
+    and the relative order inside each group must be preserved. Dutch National Flag swaps
+    are not stable, so the template changes: fill the result from both ends instead, with
+    one pointer writing the smaller values from the left (scanning forward) and one writing
+    the greater values from the right (scanning backward), then fill the gap with the pivot.
+    Same three-zone picture, but stability costs you an O(N) output array.
+
+viz:
+  arrays: [nums]
+  pointers: [low, mid, high]

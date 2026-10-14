@@ -1,0 +1,311 @@
+slug: maximum-depth-of-binary-tree
+lc: 104
+
+concept:
+  problem_it_solves: >-
+    "How far down does this tree go?" You never see the whole tree at once; you only ever hold
+    one node and two pointers to its children. Recursive DFS lets every node answer a tiny
+    question about its own subtree using the answers its children send back up, and that is
+    the template for almost every tree problem you will meet.
+  brute_force: >-
+    Write out every root-to-leaf path as its own list (copying the path so far at each node),
+    then return the length of the longest list. It works, but the top of the tree is copied
+    again into every path that passes through it: the root's value is copied once per node
+    below it, and nothing about those copies is ever used except their length.
+  brute_force_complexity: >-
+    O(N · H) time and space, where H is the height — on a skewed 10⁴-node tree the path
+    copies add up to 1 + 2 + … + 10⁴ ≈ 5 × 10⁷ copied values, just to measure one number.
+  key_insight: >-
+    Trust the recursion. Decide exactly what one call returns: maxDepth(node) = the number of
+    nodes on the longest downward path that starts at node. An empty subtree (None) returns 0.
+    For a real node, *assume* the two recursive calls already return the correct depths of the
+    left and right subtrees (don't trace them in your head), and the node's own answer is just
+    1 + max(left, right). If the contract holds for the children, it holds for the parent;
+    that's induction, and it's why the three lines are enough.
+  real_world: >-
+    JSON and protobuf parsers enforce a maximum nesting depth (Jackson, Go's encoding/json,
+    browsers' JSON.parse) by tracking exactly this number, because unbounded depth lets an
+    attacker overflow the call stack. File-system tools like `find -maxdepth` and `du` walk
+    directory trees the same way, and a database B-tree's height is the number of disk pages a
+    lookup has to read.
+
+statement:
+  clean: |
+    Given the `root` of a binary tree, return its **maximum depth**.
+
+    A binary tree's maximum depth is the number of nodes along the longest path from the root
+    node down to the **farthest leaf node**. An empty tree has depth 0.
+  oa_story: |
+    **OrgTree HR — OA Round 1**
+
+    OrgTree builds HR software for fast-growing Bengaluru startups. In its "pod" model, every
+    person (starting from the CEO) can have at most two direct reports: one engineering lead and
+    one operations lead. The HR system stores the hierarchy starting from the CEO's record, and
+    each record links to that person's direct reports, if any.
+
+    Before the annual appraisal cycle, the People team wants to know how many layers a policy
+    announcement passes through on its longest route: count every person on the chain from the
+    CEO down to the most junior employee at the end of the longest reporting line, both ends
+    included. A company with no records at all has 0 layers. Hierarchies can hold up to 10,000
+    employees.
+  trigger_keywords: ["maximum depth", "farthest leaf node"]
+  examples:
+    - input: "root = [3,9,20,null,null,15,7]"
+      output: "3"
+      explanation: "The longest root-to-leaf paths are 3 → 20 → 15 and 3 → 20 → 7: three nodes each."
+    - input: "root = [1,null,2]"
+      output: "2"
+      explanation: "1 has only a right child, 2. The path 1 → 2 has two nodes."
+  constraints:
+    - "The number of nodes in the tree is in the range [0, 10^4]."
+    - "-100 <= Node.val <= 100"
+
+constraint_quiz:
+  prompt: >-
+    The tree has up to 10⁴ nodes and its values follow no order. What is the best time
+    complexity you can aim for?
+  options: ["O(N²)", "O(N log N)", "O(N)", "O(log N)"]
+  answer: 2
+  explanation: >-
+    O(N²) (for example, measuring every node's depth by walking from the root again) is up to
+    10⁸ steps and pointless. O(N log N) would need a reason like sorting, and nothing here is
+    sorted. O(log N) assumes the tree is balanced, which it isn't promised to be, and any node
+    you skip could be the top of the deepest branch. So you must look at every node once: O(N),
+    with O(1) work per node.
+
+pattern_quiz:
+  prompt: >-
+    You need a single number describing the whole tree, and that number for a node can be
+    built from the same number for its two children. Which approach fits?
+  options:
+    - "Recursive DFS: each call returns its subtree's depth, and the parent returns 1 + max(left, right)"
+    - "Count the nodes N and return log₂(N) + 1"
+    - "Read the level-order array and return its length"
+    - "Two pointers walking down the leftmost and rightmost edges"
+  answer: 0
+  explanation: >-
+    "Depth / height" is the first tree trigger, and it decomposes cleanly: the depth of a tree
+    is one more than the deeper of its two subtrees. That is exactly a return-value DFS. log₂(N)
+    only works for perfectly balanced trees, the level-order array includes null placeholders
+    and says nothing about depth directly, and the deepest leaf can be anywhere, not on the
+    outer edges. (Counting levels with a BFS queue also works; it's the iterative alternative.)
+
+function:
+  name: maxDepth
+  params: [{name: root, type: TreeNode}]
+
+starter_code: |
+  class Solution:
+      def maxDepth(self, root: Optional[TreeNode]) -> int:
+          pass
+
+tests:
+  - {args: [[3, 9, 20, null, null, 15, 7]], expected: 3}
+  - {args: [[1, null, 2]], expected: 2, note: only a right child}
+  - {args: [[]], expected: 0, note: "empty tree: no nodes, depth 0"}
+  - {args: [[0]], expected: 1, note: "single node: the root is also a leaf"}
+  - {args: [[1, 2, null, 3, null, 4, null, 5]], expected: 5, note: "left-skewed tree: a linked list in disguise"}
+  - {args: [[1, 2, 3, 4, null, null, 5, null, null, null, 6]], expected: 4, note: "deepest leaf is on the right, the left side stops earlier"}
+  - {args: [[1, 2, 3, 4, 5, 6, 7]], expected: 3, note: perfect tree}
+  - {args: [[-100, -50, null, -25]], expected: 3, note: "negative values: depth ignores what the values are"}
+visualize_test: 0
+
+drills:
+  - title: The recursion skeleton — count the nodes
+    skill: setup
+    goal: Write the base case for None and combine the answers of both children.
+    instructions: |
+      Return the **number of nodes** in the tree.
+
+      This is the skeleton every tree recursion in this world reuses: decide what a call
+      returns for its subtree (here, how many nodes it contains), return the answer for an
+      empty subtree (`None` → 0), and build the node's answer from the two answers its
+      children return (`1 + left + right`). Max depth is the same skeleton with `max` instead
+      of `+`. Don't trace the calls in your head; trust that `countNodes(root.left)` really
+      returns the size of the left subtree.
+    function:
+      name: countNodes
+      params: [{name: root, type: TreeNode}]
+    starter_code: |
+      class Solution:
+          def countNodes(self, root: Optional[TreeNode]) -> int:
+              pass
+    tests:
+      - {args: [[3, 9, 20, null, null, 15, 7]], expected: 5}
+      - {args: [[]], expected: 0, note: empty tree}
+      - {args: [[1]], expected: 1}
+      - {args: [[1, 2, null, 3]], expected: 3, note: skewed}
+    solution: |
+      class Solution:
+          def countNodes(self, root: Optional[TreeNode]) -> int:
+              if root is None:
+                  return 0
+              return 1 + self.countNodes(root.left) + self.countNodes(root.right)
+    hint: "An empty subtree has 0 nodes. A real node is itself (1) plus whatever its two children report."
+
+  - title: Combine with max — the largest value
+    skill: core
+    goal: Build a node's answer as max(its own contribution, left answer, right answer) with the right identity for None.
+    instructions: |
+      Return the **largest value** stored anywhere in a non-empty tree.
+
+      Max depth combines its children with `max`, and so does this. The detail to get right
+      is what an empty subtree returns: it must never win the comparison, so it returns
+      `float("-inf")` (just as an empty subtree returns 0 depth, which never makes a depth larger).
+      Choosing the base-case value so it's "neutral" for your combine step is a decision
+      you'll make in every tree problem.
+    function:
+      name: maxValue
+      params: [{name: root, type: TreeNode}]
+    starter_code: |
+      class Solution:
+          def maxValue(self, root: Optional[TreeNode]) -> int:
+              pass
+    tests:
+      - {args: [[3, 9, 20, null, null, 15, 7]], expected: 20}
+      - {args: [[-5, -9, -2]], expected: -2, note: "all negative: None must not return 0"}
+      - {args: [[1, null, 2, null, 100]], expected: 100, note: deepest node is the largest}
+      - {args: [[7]], expected: 7}
+    solution: |
+      class Solution:
+          def maxValue(self, root: Optional[TreeNode]) -> int:
+              if root is None:
+                  return float("-inf")
+              return max(root.val, self.maxValue(root.left), self.maxValue(root.right))
+    hint: "If None returned 0, a tree of all-negative values would wrongly report 0."
+
+  - title: Empty is not a leaf — count the leaves
+    skill: edge
+    goal: Tell the difference between an empty subtree (None) and a leaf (a node with no children).
+    instructions: |
+      Return the **number of leaves**: nodes with no left child and no right child.
+
+      Depth counts nodes on a path, so `None` contributes 0 and a leaf contributes 1. Mixing
+      those two up is the most common tree bug, and it's exactly what breaks the twist
+      (Minimum Depth), where a node with one child is *not* a leaf. Here you need three cases:
+      `None` → 0, a leaf → 1, anything else → the sum of the children's answers.
+    function:
+      name: countLeaves
+      params: [{name: root, type: TreeNode}]
+    starter_code: |
+      class Solution:
+          def countLeaves(self, root: Optional[TreeNode]) -> int:
+              pass
+    tests:
+      - {args: [[3, 9, 20, null, null, 15, 7]], expected: 3}
+      - {args: [[]], expected: 0, note: "empty tree: no leaves at all"}
+      - {args: [[1]], expected: 1, note: "a lone root is a leaf"}
+      - {args: [[1, 2, null, 3]], expected: 1, note: "nodes with one child are not leaves"}
+      - {args: [[1, 2, 3, 4, 5, 6, 7]], expected: 4}
+    solution: |
+      class Solution:
+          def countLeaves(self, root: Optional[TreeNode]) -> int:
+              if root is None:
+                  return 0
+              if root.left is None and root.right is None:
+                  return 1
+              return self.countLeaves(root.left) + self.countLeaves(root.right)
+    hint: "Check `root is None` first, then `root.left is None and root.right is None`."
+
+hints:
+  - >-
+    Suppose a friend has already told you the maximum depth of the left subtree and of the
+    right subtree. What is the depth of the whole tree? And what should an empty tree report?
+  - >-
+    Define maxDepth(node) as "the number of nodes on the longest downward path starting at
+    node". None returns 0. A real node returns 1 (itself) plus the larger of its two
+    children's answers. Trust the recursive calls to keep that promise.
+  - |
+    maxDepth(node):
+        if node is empty: return 0
+        left  = maxDepth(node.left)
+        right = maxDepth(node.right)
+        return 1 + larger of (left, right)
+
+solution:
+  code: |
+    class Solution:
+        def maxDepth(self, root: Optional[TreeNode]) -> int:
+            if root is None:  # an empty subtree adds no levels
+                return 0
+            left = self.maxDepth(root.left)  # trust it: depth of the left subtree
+            right = self.maxDepth(root.right)  # trust it: depth of the right subtree
+            return 1 + max(left, right)  # this node, plus the deeper side
+  explanation: |
+    **The contract.** `maxDepth(node)` returns the number of nodes on the longest path from
+    `node` down to a leaf. Everything follows from writing that sentence down first.
+
+    **Base case.** An empty subtree has no nodes, so it returns 0. That also makes a leaf come
+    out right without a special case: `1 + max(0, 0) = 1`.
+
+    **Trust the recursion.** For a real node, don't try to picture the whole tree. Assume
+    `maxDepth(root.left)` and `maxDepth(root.right)` already return correct depths for their
+    subtrees (they're smaller trees, and the same three lines handle them). The longest path
+    from this node goes through this node and then down the deeper child, so the answer is
+    `1 + max(left, right)`. This is induction: correct for `None`, and correct for a node
+    whenever it's correct for its children.
+
+    **Order of work.** Each call finishes both children before computing its own answer
+    (post-order), so answers flow *upward*: leaves return 1, their parents return 2, and so on.
+    Watch the visualizer: the highlighted node waits while its children's calls are on the
+    call stack, then returns.
+
+    **Alternatives.** BFS with a queue counts levels: process the queue one level at a time
+    and increment a counter per level. An iterative DFS can push `(node, depth)` pairs onto a
+    stack. Both avoid recursion, which matters for a skewed 10⁴-node tree: the call stack gets
+    10⁴ deep, beyond Python's default recursion limit of 1000. Many judges raise that limit,
+    but if you see a RecursionError in an OA, switch to BFS or call `sys.setrecursionlimit`.
+  time: O(N) — every node is visited exactly once, with O(1) work per call
+  space: O(H) — the call stack holds one frame per level; O(log N) for a balanced tree, O(N) for a skewed one
+  brute_force_code: |
+    class Solution:
+        def maxDepth(self, root: Optional[TreeNode]) -> int:
+            if root is None:
+                return 0
+            paths = []
+
+            def walk(node, path):
+                path = path + [node.val]  # copies the whole path so far, at every node
+                if node.left is None and node.right is None:
+                    paths.append(path)
+                    return
+                if node.left:
+                    walk(node.left, path)
+                if node.right:
+                    walk(node.right, path)
+
+            walk(root, [])
+            return max(len(p) for p in paths)
+
+pitch_script: |
+  **(Clarify)** "Depth here counts nodes, not edges, so a single node has depth 1 and an empty
+  tree has depth 0, right? And there's no ordering on the values, it's a general binary tree?"
+
+  **(Brute force)** "One naive way is to build every root-to-leaf path as a list and take the
+  longest. That copies the upper part of the tree into every path, so it's O(N times H) time
+  and memory, which is quadratic for a skewed tree."
+
+  **(Trigger)** "But depth decomposes nicely: the depth of a tree is one more than the deeper
+  of its two subtrees. So I'll define a recursive function whose return value is the depth of
+  the subtree it's given, and trust the recursive calls for the children."
+
+  **(Optimal)** "If the node is null I return 0. Otherwise I get the left depth and the right
+  depth recursively and return 1 plus the max. A leaf naturally gets 1 plus max of 0 and 0,
+  so no special case. If the tree could be very deep, I'd do the same thing with a BFS queue,
+  counting levels, to avoid recursion limits."
+
+  **(Complexity)** "Each node is visited once with constant work, so O(N) time. Space is the
+  recursion depth, O(H): log N for a balanced tree, up to N for a skewed one."
+
+twist:
+  lc: 111
+  title: Minimum Depth of Binary Tree
+  why: >-
+    Now you want the nearest *leaf*. Swapping max for min breaks: for a node with only a right
+    child, min(0, right) picks the empty left side and reports depth 1, but None isn't a leaf,
+    so that path doesn't exist. The fix is the None-vs-leaf distinction from the edge drill: if
+    one child is missing, return 1 + the depth of the other child; only take min when both
+    exist. BFS is often better here, because it can stop at the first leaf it reaches.
+
+viz:
+  watch: [left, right]

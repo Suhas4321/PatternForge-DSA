@@ -1,0 +1,323 @@
+slug: valid-palindrome
+lc: 125
+
+concept:
+  problem_it_solves: >-
+    "Does every character match its mirror partner?" In a clean string the partner of index i
+    is simply n − 1 − i, but spaces and punctuation shift everything, so you can't compute the
+    partner with a formula. Two pointers, one from each end, find mirror partners on the fly:
+    each pointer skips junk on its own side until both sit on real characters, then they compare.
+  brute_force: >-
+    Build a cleaned copy (keep only letters and digits, lowercased), then compare it with its
+    reverse. It's correct and even linear, but it allocates two extra strings as long as the
+    input just to answer a yes/no question, and it always processes the whole string even when
+    the very first pair already mismatches.
+  brute_force_complexity: >-
+    O(N) time, O(N) extra space — a 2 × 10⁵-character input means a cleaned copy plus a reversed
+    copy, up to 4 × 10⁵ extra characters, before the first comparison even happens.
+  key_insight: >-
+    You never need the cleaned string; you only need to know, at each moment, which two real
+    characters should match next. The leftmost unchecked real character must match the rightmost
+    unchecked real character. So keep l at the left edge and r at the right edge of the unchecked
+    zone: skip junk under either pointer, compare when both are on letters or digits, and shrink
+    inward. A mismatch anywhere is an immediate "no".
+  real_world: >-
+    Search engines normalise text the same way before comparing it: Elasticsearch and Postgres
+    full-text analyzers lowercase and strip punctuation so "Bengaluru," matches "bengaluru".
+    Bioinformatics tools scan DNA from both ends to find palindromic sites where restriction
+    enzymes cut, and the in-place C `strrev` / Java `StringBuilder.reverse` both walk two
+    pointers toward the middle.
+
+statement:
+  clean: |
+    A phrase is a **palindrome** if, after converting all uppercase letters into lowercase
+    letters and removing all **non-alphanumeric** characters, it reads the same
+    **forward and backward**. Alphanumeric characters include letters and numbers.
+
+    Given a string `s`, return `true` if it is a palindrome, or `false` otherwise.
+  oa_story: |
+    **TiffinTrail Foods — OA Round 1**
+
+    TiffinTrail delivers home-style lunch boxes to tech parks along Outer Ring Road. For its
+    "Mirror Meal" Friday promo, customers type a free-text phrase into the app, and the phrase
+    wins a free dessert if it is symmetric: reading its letters and digits from the start gives
+    exactly the same sequence as reading them from the end. Case doesn't matter ("T" equals "t"),
+    and spaces, commas, apostrophes, underscores and all other punctuation are ignored entirely.
+
+    Write a function that takes the raw phrase and returns `true` if it wins, `false` otherwise.
+    Phrases can be up to 200,000 characters (some users paste entire chat logs), and the promo
+    service runs on small containers, so the check should not build copies of the phrase.
+  trigger_keywords: ["palindrome", "non-alphanumeric", "forward and backward"]
+  examples:
+    - input: 's = "A man, a plan, a canal: Panama"'
+      output: "true"
+      explanation: '"amanaplanacanalpanama" is a palindrome.'
+    - input: 's = "race a car"'
+      output: "false"
+      explanation: '"raceacar" is not a palindrome: the 4th letter from the start is "e" but the 4th from the end is "a".'
+    - input: 's = " "'
+      output: "true"
+      explanation: 'After removing non-alphanumeric characters s is the empty string "", which reads the same both ways.'
+  constraints:
+    - "1 <= s.length <= 2 * 10^5"
+    - "s consists only of printable ASCII characters."
+
+constraint_quiz:
+  prompt: >-
+    s can be 2 × 10⁵ characters and the interviewer asks you not to build a cleaned copy of the
+    string. What should you aim for?
+  options:
+    - "O(N²) time, O(1) space"
+    - "O(N log N) time, O(1) space"
+    - "O(N) time, O(N) space"
+    - "O(N) time, O(1) space"
+  answer: 3
+  explanation: >-
+    O(N²) (for example, re-scanning to find each mirror partner) is up to 4 × 10¹⁰ steps. Nothing
+    here needs sorting, so O(N log N) is just wasted work. O(N) time with O(N) space is the
+    clean-and-reverse approach, which the interviewer has ruled out. Two pointers read each
+    character at most once and keep only two integers: O(N) time, O(1) space.
+
+pattern_quiz:
+  prompt: >-
+    You must decide whether a string reads the same from both ends, ignoring some characters.
+    Which pattern fits?
+  options:
+    - "Hash map of character counts"
+    - "Two pointers from both ends, moving inward"
+    - "Sliding window"
+    - "Stack: push the first half, pop and compare with the second half"
+  answer: 1
+  explanation: >-
+    Character counts tell you whether the letters *could be rearranged* into a palindrome, not
+    whether they already form one ("ab" and "ba" have the same counts). A sliding window is for
+    contiguous ranges with a running property. A stack works but needs to know where the middle
+    is (hard with junk characters) and costs O(N) space. "Palindrome" and "reads the same forward
+    and backward" are the opposite-ends trigger: the first real character pairs with the last.
+
+function:
+  name: isPalindrome
+  params: [{name: s}]
+
+starter_code: |
+  class Solution:
+      def isPalindrome(self, s: str) -> bool:
+          pass
+
+tests:
+  - {args: ["A man, a plan, a canal: Panama"], expected: true}
+  - {args: ["race a car"], expected: false}
+  - {args: [" "], expected: true, note: "empty after cleaning: still a palindrome"}
+  - {args: ["0P"], expected: false, note: "digits count as alphanumeric: '0' vs 'p'"}
+  - {args: ["No, on"], expected: true, note: "skips the comma and space; N matches n"}
+  - {args: [".,!?"], expected: true, note: "only punctuation: pointers must not run past each other"}
+  - {args: ["ab_a"], expected: true, note: "underscore is NOT alphanumeric (regex \\w would keep it)"}
+  - {args: ["No 'x' in Nixon"], expected: true, note: apostrophes and mixed case}
+  - {args: ["ab2a"], expected: false, note: "mismatch in the middle pair only"}
+visualize_test: 4
+
+drills:
+  - title: Which pairs do the pointers compare?
+    skill: setup
+    goal: Start l at 0 and r at n − 1, move both inward, and stop exactly when they meet.
+    instructions: |
+      Return the list of `[l, r]` index pairs that two pointers visit on an array of length `n`
+      when `l` starts at `0`, `r` starts at `n - 1`, and each step moves both one place inward.
+
+      This is the skeleton of every opposite-ends problem. Notice the loop condition `l < r`:
+      when `n` is odd the middle element is never compared, because it is its own mirror and
+      always "matches". For `n = 0` or `n = 1` there is nothing to compare at all.
+    function:
+      name: mirrorPairs
+      params: [{name: n}]
+    starter_code: |
+      class Solution:
+          def mirrorPairs(self, n: int) -> List[List[int]]:
+              pass
+    tests:
+      - {args: [5], expected: [[0, 4], [1, 3]], note: middle index 2 is never compared}
+      - {args: [4], expected: [[0, 3], [1, 2]]}
+      - {args: [2], expected: [[0, 1]]}
+      - {args: [1], expected: []}
+      - {args: [0], expected: []}
+    solution: |
+      class Solution:
+          def mirrorPairs(self, n: int) -> List[List[int]]:
+              pairs = []
+              l, r = 0, n - 1
+              while l < r:
+                  pairs.append([l, r])
+                  l += 1
+                  r -= 1
+              return pairs
+    hint: "`l, r = 0, n - 1`, then `while l < r:` record the pair and move both inward."
+
+  - title: Skip the blanks on each side independently
+    skill: core
+    goal: In each step do exactly one move (skip left, skip right, or compare and shrink) so the pointers never cross.
+    instructions: |
+      `nums` is a list of integers where `0` means a **blank slot** that should be ignored.
+      Return `True` if the non-blank values read the same from both ends, otherwise `False`.
+
+      This is the heart of Valid Palindrome with the character details stripped away. The
+      blanks on the left and the right are in different places, so each pointer skips its own
+      blanks. Doing **one** action per loop iteration (an `if / elif / elif / else` chain) means
+      the `while l < r` check runs before every move, so a list of only blanks can't push a
+      pointer off the end.
+    function:
+      name: isPalindromeSkippingBlanks
+      params: [{name: nums}]
+    starter_code: |
+      class Solution:
+          def isPalindromeSkippingBlanks(self, nums: List[int]) -> bool:
+              pass
+    tests:
+      - {args: [[1, 0, 2, 1]], expected: true}
+      - {args: [[1, 2, 3, 0]], expected: false}
+      - {args: [[0, 0, 0]], expected: true, note: only blanks}
+      - {args: [[3, 0, 0, 4]], expected: false}
+      - {args: [[5, 0, 6, 0, 0, 6, 5, 0]], expected: true, note: blanks at different offsets on each side}
+    solution: |
+      class Solution:
+          def isPalindromeSkippingBlanks(self, nums: List[int]) -> bool:
+              l, r = 0, len(nums) - 1
+              while l < r:
+                  if nums[l] == 0:
+                      l += 1
+                  elif nums[r] == 0:
+                      r -= 1
+                  elif nums[l] != nums[r]:
+                      return False
+                  else:
+                      l += 1
+                      r -= 1
+              return True
+    hint: "Check `nums[l] == 0`, then `nums[r] == 0`, then compare; only move both when they match."
+
+  - title: Normalise one character by hand
+    skill: edge
+    goal: Decide what counts as alphanumeric and fold case without relying on library magic.
+    instructions: |
+      Given a single printable ASCII character `c`, return it **lowercased** if it is a letter,
+      **unchanged** if it is a digit, and the empty string `""` for anything else. Don't use
+      `isalnum()` or `lower()`: compare against the ranges `'a'..'z'`, `'A'..'Z'`, `'0'..'9'`.
+
+      This is where most wrong answers come from. Digits count (`"0P"` is **not** a palindrome),
+      the underscore does **not** count (regex `\w` would wrongly keep it), and uppercase must
+      match lowercase. In Java or C++ interviews you are often expected to write this check
+      yourself; in ASCII, an uppercase letter plus 32 is its lowercase version.
+    function:
+      name: normalizeChar
+      params: [{name: c}]
+    starter_code: |
+      class Solution:
+          def normalizeChar(self, c: str) -> str:
+              pass
+    tests:
+      - {args: ["Q"], expected: "q"}
+      - {args: ["7"], expected: "7", note: digits are kept}
+      - {args: ["_"], expected: "", note: underscore is not alphanumeric}
+      - {args: [","], expected: ""}
+      - {args: ["m"], expected: "m"}
+    solution: |
+      class Solution:
+          def normalizeChar(self, c: str) -> str:
+              if 'A' <= c <= 'Z':
+                  return chr(ord(c) + 32)  # 'A' is 65, 'a' is 97
+              if 'a' <= c <= 'z' or '0' <= c <= '9':
+                  return c
+              return ""
+    hint: "Python compares single characters by their codes, so `'A' <= c <= 'Z'` is a range check."
+
+hints:
+  - >-
+    The first real character must equal the last real character, the second must equal the
+    second-to-last, and so on. Where would you put two markers so you can check those pairs
+    without building a cleaned copy?
+  - >-
+    Keep l on the left and r on the right. In each step do one thing: if s[l] is junk, move l
+    right; else if s[r] is junk, move r left; else compare them case-insensitively. A mismatch
+    means false; a match means move both inward. What happens when l and r meet?
+  - |
+    l = 0, r = len(s) - 1
+    while l < r:
+        if s[l] is not a letter/digit: l = l + 1
+        else if s[r] is not a letter/digit: r = r - 1
+        else if lowercase(s[l]) != lowercase(s[r]): return false
+        else: l = l + 1, r = r - 1
+    return true
+
+solution:
+  code: |
+    class Solution:
+        def isPalindrome(self, s: str) -> bool:
+            l, r = 0, len(s) - 1  # s[l..r] is the part not yet checked
+            while l < r:
+                if not s[l].isalnum():
+                    l += 1            # junk on the left: skip it
+                elif not s[r].isalnum():
+                    r -= 1            # junk on the right: skip it
+                elif s[l].lower() != s[r].lower():
+                    return False      # two real characters disagree
+                else:
+                    l += 1            # this mirror pair matches: shrink inward
+                    r -= 1
+            return True
+  explanation: |
+    `s[l..r]` is always the unchecked middle. Everything outside it is either junk or a real
+    character that already matched its mirror partner. The leftmost real character of the middle
+    must equal the rightmost real one, so each step either skips a junk character under one
+    pointer or compares the two real characters under both.
+
+    The subtle decision is doing **one action per iteration**. A common version uses inner
+    `while` loops to skip junk, and then each inner loop needs its own `l < r` guard, or a string
+    like `".,!?"` walks a pointer off the end. With the `if / elif` chain, the outer `while l < r`
+    is checked before every single move, so the pointers can never cross. When they meet (odd
+    count of real characters) the middle character is its own mirror and needs no check; an
+    empty cleaned string (`" "`) never compares anything and correctly returns `True`.
+
+    `isalnum()` keeps letters and digits only, so `"0P"` compares `'0'` with `'p'` and fails, and
+    `_` is skipped like any other punctuation.
+  time: O(N) — every iteration moves at least one pointer inward, so at most N iterations
+  space: O(1) — two indices; no cleaned or reversed copy
+  brute_force_code: |
+    class Solution:
+        def isPalindrome(self, s: str) -> bool:
+            cleaned = [c.lower() for c in s if c.isalnum()]
+            return cleaned == cleaned[::-1]
+
+pitch_script: |
+  **(Clarify)** "So I ignore everything that isn't a letter or a digit, compare letters
+  case-insensitively, and digits do count, right? And a string that's empty after cleaning, like
+  a single space, counts as a palindrome?"
+
+  **(Brute force)** "The simplest approach is to build a cleaned, lowercased copy and compare it
+  with its reverse. That's O(N) time but O(N) extra space for the copy and the reversed copy, and
+  it does all that work even if the first two characters already mismatch."
+
+  **(Trigger)** "'Reads the same forward and backward' means the first real character pairs with
+  the last, the second with the second-to-last, and so on. That's the classic opposite-ends two
+  pointer setup, and it lets me skip the copy entirely."
+
+  **(Optimal)** "I put l at the start and r at the end. In each step I do exactly one thing: if
+  s[l] isn't alphanumeric I move l right, else if s[r] isn't I move r left, else I compare them
+  in lowercase. If they differ I return false; if they match I move both inward. Because the
+  loop condition l < r is checked before every move, a string of only punctuation can't push a
+  pointer out of bounds. If the loop finishes, it's a palindrome."
+
+  **(Complexity)** "Each iteration moves at least one pointer, so it's O(N) time, and I only
+  store two indices, so O(1) extra space."
+
+twist:
+  lc: 680
+  title: Valid Palindrome II
+  why: >-
+    Now you may delete at most one character. Run the same two pointers; at the first mismatch
+    you have exactly two choices, drop s[l] or drop s[r], so check whether s[l+1..r] or s[l..r-1]
+    is a plain palindrome with a second two-pointer pass. Still O(N) time and O(1) space, because
+    the mismatch branch happens at most once.
+
+viz:
+  arrays: [s]
+  pointers: [l, r]
+  window: [l, r]

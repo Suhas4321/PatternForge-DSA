@@ -1,0 +1,331 @@
+slug: longest-substring-without-repeating-characters
+lc: 3
+
+concept:
+  problem_it_solves: >-
+    "What is the longest unbroken stretch where nothing repeats?" A stretch that is valid
+    stays valid when you drop characters from its left, and becomes invalid the moment a
+    duplicate enters on its right. So instead of re-checking every substring, you keep one
+    window, grow it on the right, and shrink it on the left only as far as needed to push
+    the duplicate out.
+  brute_force: >-
+    Fix every start i, then extend j one character at a time with a fresh set, stopping at
+    the first repeat and recording j − i. Every new start throws the set away and re-reads
+    characters the previous start had already checked: for "abcdef…", start 1 re-verifies
+    almost exactly what start 0 just verified.
+  brute_force_complexity: >-
+    O(N · min(N, Σ)) time, O(min(N, Σ)) space, where Σ is the alphabet size. With an
+    unbounded alphabet that is O(N²): 5 × 10⁴ characters means ~1.25 × 10⁹ steps. Checking
+    every substring from scratch instead is O(N³).
+  key_insight: >-
+    When s[r] creates a duplicate, every window that starts at the current l (or anywhere
+    before the earlier copy of s[r]) and reaches r is invalid too. So you never need to go
+    back: slide l forward until the earlier copy leaves, and the window is valid again. l and
+    r both only move right, so each character enters the window once and leaves at most once.
+    Measure r − l + 1 right after the shrink, when the window is guaranteed valid.
+  real_world: >-
+    Music and video apps (Spotify shuffle, YouTube autoplay) keep a window of recently played
+    items so nothing repeats within it. Ad servers do frequency capping over a sliding window
+    of impressions, and stream processors (Kafka Streams, Flink) run "deduplicate within the
+    last N events" with exactly this add-on-the-right, evict-on-the-left bookkeeping.
+
+statement:
+  clean: |
+    Given a string `s`, find the length of the **longest substring** **without repeating
+    characters**.
+
+    A substring is a **contiguous** non-empty sequence of characters within the string. `s`
+    may contain English letters, digits, symbols and spaces, and every one of them counts as
+    a character.
+  oa_story: |
+    **CloudKirana Quick Commerce — OA Round 1**
+
+    CloudKirana runs 10-minute grocery dark stores across Whitefield and Bellandur. Every
+    time a picker scans an item, the handheld logs the shelf code of that item as a single
+    character, so a picker's whole shift becomes one long string of shelf codes in scan
+    order. Shelf codes can be letters, digits, symbols or even a space for the loose-produce
+    counter.
+
+    The operations team believes a picker is in "flow" when they visit a run of shelves
+    back-to-back without returning to any shelf they already visited in that run. Given a
+    picker's scan log, return the number of scans in their longest such run of consecutive
+    scans. Shift logs can have 50,000 scans, and the report runs for every picker every night.
+  trigger_keywords: ["longest substring", "without repeating", "contiguous"]
+  examples:
+    - input: "s = \"abcabcbb\""
+      output: "3"
+      explanation: "The answer is \"abc\", with length 3."
+    - input: "s = \"bbbbb\""
+      output: "1"
+      explanation: "The answer is \"b\", with length 1."
+    - input: "s = \"pwwkew\""
+      output: "3"
+      explanation: "The answer is \"wke\". \"pwke\" is a subsequence, not a substring."
+  constraints:
+    - "0 <= s.length <= 5 * 10^4"
+    - "s consists of English letters, digits, symbols and spaces."
+
+constraint_quiz:
+  prompt: >-
+    s can be 5 × 10⁴ characters long and contain letters, digits, symbols and spaces. What
+    time complexity should you aim for?
+  options: ["O(N³)", "O(N²)", "O(N log N)", "O(N)"]
+  answer: 3
+  explanation: >-
+    O(N³) re-checks every substring from scratch, about 2 × 10¹³ steps. O(N²) is ~1.25 × 10⁹
+    in the worst case and interviewers treat it as the brute force. O(N log N) has no natural
+    source here: sorting destroys the contiguity the question is about. A sliding window is
+    O(N) because l and r each move right at most N times.
+
+pattern_quiz:
+  prompt: >-
+    You need the longest contiguous stretch of a string in which no character appears twice.
+    Which pattern fits?
+  options:
+    - "Sort the characters and scan for duplicates"
+    - "Variable sliding window with a hash map (or set) of the window's characters"
+    - "Prefix sums + hash map of counts"
+    - "Two pointers moving inward from both ends"
+  answer: 1
+  explanation: >-
+    "Longest substring" plus a property that breaks when a bad element enters ("without
+    repeating") is the variable-window trigger: grow on the right, shrink on the left until
+    valid. Sorting destroys order, prefix sums answer "sum equals k" questions, and inward
+    two pointers need a sorted or symmetric structure, which a substring scan doesn't have.
+
+function:
+  name: lengthOfLongestSubstring
+  params: [{name: s}]
+
+starter_code: |
+  class Solution:
+      def lengthOfLongestSubstring(self, s: str) -> int:
+          pass
+
+tests:
+  - {args: ["abcabcbb"], expected: 3}
+  - {args: ["bbbbb"], expected: 1}
+  - {args: ["pwwkew"], expected: 3, note: "\"pwke\" is a subsequence, not a substring"}
+  - {args: [""], expected: 0, note: empty string}
+  - {args: [" "], expected: 1, note: a space is a character}
+  - {args: ["dvdf"], expected: 3, note: "don't restart from r on a repeat: the answer is \"vdf\""}
+  - {args: ["abba"], expected: 2, note: "l must never move backwards"}
+  - {args: ["tmmzuxt"], expected: 5, note: "the first t has already left the window when the second arrives"}
+  - {args: ["ab cd ef"], expected: 5, note: "spaces repeat too: \"ab cd\" and \"cd ef\""}
+visualize_test: 2
+
+drills:
+  - title: Expand r and count what's inside
+    skill: setup
+    goal: Grow the window one character at a time, keeping a hash map of counts for the window.
+    instructions: |
+      Walk the string with `r` from left to right, adding `s[r]` to a dictionary of counts.
+      Return a list where position `r` holds the count of `s[r]` **right after** you added it.
+
+      This is the expand half of every variable window. The moment a count becomes `2` is
+      exactly the moment the window stops being "without repeating characters", so this
+      number is the signal the full solution reacts to.
+    function:
+      name: countsOnEntry
+      params: [{name: s}]
+    starter_code: |
+      class Solution:
+          def countsOnEntry(self, s: str) -> List[int]:
+              pass
+    tests:
+      - {args: ["abca"], expected: [1, 1, 1, 2]}
+      - {args: ["bbb"], expected: [1, 2, 3]}
+      - {args: ["a b a"], expected: [1, 1, 1, 2, 2], note: spaces are counted too}
+      - {args: [""], expected: []}
+    solution: |
+      class Solution:
+          def countsOnEntry(self, s: str) -> List[int]:
+              count = {}
+              out = []
+              for r in range(len(s)):
+                  count[s[r]] = count.get(s[r], 0) + 1
+                  out.append(count[s[r]])
+              return out
+    hint: "`count[c] = count.get(c, 0) + 1` adds a character whether or not it was seen before."
+
+  - title: Move l until the window is valid again
+    skill: core
+    goal: Write the while loop that shrinks from the left until the duplicate has left the window.
+    instructions: |
+      Run the window over `s`: add `s[r]` to the counts, then **while** `s[r]` appears more
+      than once, remove `s[l]` from the counts and move `l` right. Return the value of `l`
+      after each step (one entry per `r`).
+
+      It has to be a `while`, not an `if`: in `"abcb"` the duplicate `b` sits at index 1, so
+      `l` must step past both `a` and `b` before the window is valid. And `l` only ever moves
+      forward, which is why the whole thing is O(N).
+    function:
+      name: leftAfterEachStep
+      params: [{name: s}]
+    starter_code: |
+      class Solution:
+          def leftAfterEachStep(self, s: str) -> List[int]:
+              pass
+    tests:
+      - {args: ["abcabcbb"], expected: [0, 0, 0, 1, 2, 3, 5, 7]}
+      - {args: ["dvdf"], expected: [0, 0, 1, 1]}
+      - {args: ["bbbb"], expected: [0, 1, 2, 3]}
+      - {args: ["abba"], expected: [0, 0, 2, 2], note: "the second a does not pull l back"}
+    solution: |
+      class Solution:
+          def leftAfterEachStep(self, s: str) -> List[int]:
+              count = {}
+              l = 0
+              lefts = []
+              for r, c in enumerate(s):
+                  count[c] = count.get(c, 0) + 1
+                  while count[c] > 1:
+                      count[s[l]] -= 1
+                      l += 1
+                  lefts.append(l)
+              return lefts
+    hint: "The loop condition is about the character that just entered: `while count[c] > 1`."
+
+  - title: Measure only when the window is valid
+    skill: edge
+    goal: Record r − l + 1 right after the shrink, and keep where the best window starts so you can return it.
+    instructions: |
+      Return the longest substring without repeating characters **itself**. If several have
+      the same maximum length, return the one that appears first. For an empty string,
+      return `""`.
+
+      Two details people get wrong: the length is `r - l + 1` (both ends are inside the
+      window), and it must be measured **after** the while loop, when the window is
+      guaranteed valid. Updating only on a strictly greater length keeps the earliest answer.
+    function:
+      name: longestUniqueSubstring
+      params: [{name: s}]
+    starter_code: |
+      class Solution:
+          def longestUniqueSubstring(self, s: str) -> str:
+              pass
+    tests:
+      - {args: ["abcabcbb"], expected: "abc", note: "ties: \"bca\" and \"cab\" come later"}
+      - {args: ["pwwkew"], expected: "wke"}
+      - {args: ["dvdf"], expected: "vdf"}
+      - {args: ["bbbbb"], expected: "b"}
+      - {args: [""], expected: ""}
+    solution: |
+      class Solution:
+          def longestUniqueSubstring(self, s: str) -> str:
+              seen = set()
+              l = best_l = best_len = 0
+              for r, c in enumerate(s):
+                  while c in seen:
+                      seen.remove(s[l])
+                      l += 1
+                  seen.add(c)
+                  if r - l + 1 > best_len:
+                      best_l, best_len = l, r - l + 1
+              return s[best_l:best_l + best_len]
+    hint: "Store the start and the length of the best window; slice once at the end."
+
+hints:
+  - >-
+    Suppose s[l..r-1] has no repeats and s[r] is a character already inside it. Is any window
+    that still contains both copies worth keeping? What is the smallest move that fixes the
+    window?
+  - >-
+    Keep a window [l, r] and a count map of its characters. For each r: add s[r]; while s[r]
+    now appears twice, remove s[l] and move l right; then the window is valid, so compare
+    r − l + 1 with the best so far.
+  - |
+    count = empty map, l = 0, best = 0
+    for r from 0 to len(s) - 1:
+        add s[r] to count
+        while count[s[r]] > 1:
+            remove s[l] from count
+            l = l + 1
+        best = max(best, r - l + 1)
+    return best
+
+solution:
+  code: |
+    class Solution:
+        def lengthOfLongestSubstring(self, s: str) -> int:
+            count = {}  # char -> occurrences inside s[l..r]
+            best = 0
+            l = 0
+            for r, c in enumerate(s):
+                count[c] = count.get(c, 0) + 1
+                # c is duplicated now: shrink from the left until its older copy leaves
+                while count[c] > 1:
+                    count[s[l]] -= 1
+                    l += 1
+                best = max(best, r - l + 1)  # the window is valid here
+            return best
+  explanation: |
+    The window `s[l..r]` always holds distinct characters. Adding `s[r]` can break that in
+    exactly one way: `s[r]` itself is now in there twice. So the while loop only needs to
+    watch `count[c]`, and it pops characters off the left until the older copy of `c` is
+    gone. After the loop the window is valid again, which is the only moment it is safe to
+    measure `r - l + 1`.
+
+    Why it is O(N) even with a loop inside a loop: `l` never moves backwards and never passes
+    `r`, so across the whole run it moves at most N times in total. Each character is added
+    once and removed at most once.
+
+    The cases that catch people: `"dvdf"` (on the second `d` you slide to index 1, not
+    restart at `r`, so `"vdf"` survives), and `"abba"` if you use the faster "jump" version
+    with a last-seen index map: `l = last[c] + 1` must only apply when `last[c] >= l`, or
+    the second `a` would drag `l` back to index 1. The count-map version used here never
+    moves `l` backwards, and it is the same template as Fruit Into Baskets and the windows
+    still to come.
+  time: O(N) — l and r each move right at most N times; O(1) average per map update
+  space: O(min(N, Σ)) — the map holds at most one entry per distinct character (Σ = alphabet size)
+  brute_force_code: |
+    class Solution:
+        def lengthOfLongestSubstring(self, s: str) -> int:
+            best = 0
+            for i in range(len(s)):
+                seen = set()
+                for j in range(i, len(s)):
+                    if s[j] in seen:
+                        break
+                    seen.add(s[j])
+                    best = max(best, j - i + 1)
+            return best
+
+pitch_script: |
+  **(Clarify)** "So I return the length, not the substring itself, and it has to be
+  contiguous. Spaces and symbols count as characters, and the empty string should give 0,
+  right?"
+
+  **(Brute force)** "The simple way is to fix every start, extend to the right with a set,
+  and stop at the first repeat. That's O(N²) in general. With 5 × 10⁴ characters that's
+  over a billion steps in the worst case, and most of it re-checks characters the previous
+  start already checked."
+
+  **(Trigger)** "'Longest substring' with a condition that breaks when a bad character
+  enters tells me it's a variable sliding window. If a window has a repeat, any bigger
+  window containing it also has the repeat, so I never need to move the left end backwards."
+
+  **(Optimal)** "I keep l and r and a count map of the window. For each r I add s[r]. If
+  that character now appears twice, I move l right, removing characters, until it appears
+  once. At that point the window is valid, so I update the best with r minus l plus one."
+
+  **(Complexity)** "Both pointers only move forward, so it's O(N) time overall with O(1)
+  hash operations, and the map holds at most one entry per distinct character, so the
+  space is bounded by the alphabet size. I could also store the last index of each
+  character and jump l directly, as long as I never let it move backwards."
+
+twist:
+  lc: 1695
+  title: Maximum Erasure Value
+  why: >-
+    Same "all elements unique" window, but over an integer array, and you maximise the sum
+    of the window instead of its length. The template is unchanged: grow r, shrink l while
+    nums[r] is duplicated. You just keep a running window sum, adding nums[r] on entry and
+    subtracting nums[l] on exit, and track the best sum instead of r − l + 1.
+
+viz:
+  arrays: [s]
+  pointers: [l, r]
+  window: [l, r]
+  maps: [count]
+  watch: [c, best]

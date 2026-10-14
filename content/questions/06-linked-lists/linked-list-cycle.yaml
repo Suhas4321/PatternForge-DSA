@@ -1,0 +1,343 @@
+slug: linked-list-cycle
+lc: 141
+
+concept:
+  problem_it_solves: >-
+    "If I keep following next pointers, do I ever reach the end?" A list without a cycle ends
+    in `None`. A list with a cycle never ends, so a plain walk just loops forever and never
+    gets to say "yes". You need a way to notice that you are going round in circles, and the
+    elegant way uses no memory at all: run two walkers at different speeds and see whether the
+    fast one ever catches the slow one.
+  brute_force: >-
+    Walk the list and put every node you visit into a hash set. If you reach a node that is
+    already in the set, you've come back around: there is a cycle. If you reach `None`, there
+    isn't. It's correct and linear, but it stores up to N node references just to answer a
+    yes/no question, and the follow-up explicitly asks for O(1) memory.
+  brute_force_complexity: >-
+    O(N) time, O(N) extra space — 10⁴ nodes means up to 10⁴ references held in a hash set.
+  key_insight: >-
+    Floyd's tortoise and hare: slow moves 1 node per step, fast moves 2. If there is no cycle,
+    fast reaches `None` first and you're done. If there is a cycle, both pointers eventually
+    end up circling inside it, and then fast gains exactly one node on slow per step. The gap
+    between them shrinks 3, 2, 1, 0: it can never jump from 1 to −1, so fast cannot skip over
+    slow. They must land on the same node, no later than the moment slow completes its first
+    lap of the cycle.
+  real_world: >-
+    Floyd's cycle detection (and its cousin, Brent's algorithm) powers Pollard's rho integer
+    factorisation and is used to find the period of pseudo-random number generators and
+    iterated hash functions. The hash-set version is how crawlers and HTTP clients detect
+    redirect loops, and how serialisers and garbage collectors notice cyclic references.
+
+statement:
+  clean: |
+    Given `head`, the head of a linked list, determine if the linked list **has a cycle** in
+    it.
+
+    There is a cycle in a linked list if there is some node in the list that can be
+    **reached again** by continuously following the `next` pointer. Internally, `pos` is used
+    to denote the index of the node that the tail's `next` pointer is connected to
+    (`pos = -1` means there is no cycle). Note that `pos` is **not passed** as a parameter.
+
+    Return `true` if there is a cycle in the linked list. Otherwise, return `false`.
+
+    **Follow up:** Can you solve it using **constant memory**, that is O(1) extra space?
+  oa_story: |
+    **MetroLoop — OA Round 1**
+
+    MetroLoop builds the journey-planner backend for Namma Metro feeder buses. Each route is
+    stored as a chain of stop records, where every stop knows only which stop comes next. A
+    correct route ends at a terminal stop that points to nothing. After a bad bulk import from
+    the depot in Peenya, some routes were corrupted so that a stop points back to an earlier
+    stop, and the planner, following the chain, spins forever and times out.
+
+    Write a check that takes the first stop of a route and returns `true` if following the
+    "next stop" links ever brings you back to a stop you've already been through, and `false`
+    if the route ends normally. Routes can have up to 10,000 stops, two different stops may
+    share the same stop code, and the check runs on a tiny on-bus device, so it must use only
+    a constant amount of extra memory.
+  trigger_keywords: ["has a cycle", "reached again", "constant memory"]
+  examples:
+    - input: "head = [3,2,0,-4], pos = 1"
+      output: "true"
+      explanation: "The tail (-4) points back to the node at index 1 (value 2)."
+    - input: "head = [1,2], pos = 0"
+      output: "true"
+      explanation: "The tail (2) points back to the head."
+    - input: "head = [1], pos = -1"
+      output: "false"
+      explanation: "The only node points to None, so the walk ends."
+  constraints:
+    - "The number of the nodes in the list is in the range [0, 10^4]."
+    - "-10^5 <= Node.val <= 10^5"
+    - "pos is -1 or a valid index in the linked-list."
+
+constraint_quiz:
+  prompt: >-
+    The list has up to 10⁴ nodes and the follow-up demands O(1) extra memory. What should you
+    aim for?
+  options:
+    - "O(N²) time, O(1) space — for each node, walk from the head to see if it appears twice"
+    - "O(N) time, O(N) space — hash set of visited nodes"
+    - "O(N) time, O(1) space — slow and fast pointers"
+    - "O(1) time — check whether the tail's next is None"
+  answer: 2
+  explanation: >-
+    The quadratic re-walk technically fits in O(1) memory but costs about 5 × 10⁷ steps for
+    10⁴ nodes. The hash set is linear but stores up to 10⁴ references, breaking the follow-up.
+    You can't check "the tail" in O(1), because a cyclic list has no tail you can reach
+    directly, and finding the end of a list means walking it. Floyd's two pointers take at
+    most N iterations with two variables: O(N) time, O(1) space.
+
+pattern_quiz:
+  prompt: >-
+    You must detect whether following next pointers ever loops back, using O(1) extra memory.
+    Which pattern fits?
+  options:
+    - "Reverse the list and check whether you end up back at the head"
+    - "Hash set of visited node values"
+    - "Slow and fast pointers (Floyd's tortoise and hare)"
+    - "Dummy head node"
+  answer: 2
+  explanation: >-
+    "Cycle" plus "O(1) memory" on a linked list is the Floyd trigger: a pointer moving twice
+    as fast catches the slow one only if the list loops. Reversal does detect a cycle in
+    theory, but it destroys the input and is far harder to reason about. A set of **values** is
+    simply wrong, because different nodes can hold equal values (a set of nodes is the O(N)
+    memory brute force). A dummy head solves head-removal edge cases, which don't arise here.
+
+function:
+  name: hasCycle
+  params: [{name: head, type: ListNodeCycle}]
+
+starter_code: |
+  class Solution:
+      def hasCycle(self, head: Optional[ListNode]) -> bool:
+          pass
+
+tests:
+  - {args: [{values: [3, 2, 0, -4], pos: 1}], expected: true}
+  - {args: [{values: [1, 2], pos: 0}], expected: true}
+  - {args: [{values: [1], pos: -1}], expected: false}
+  - {args: [{values: [], pos: -1}], expected: false, note: "empty list: head is None"}
+  - {args: [{values: [1], pos: 0}], expected: true, note: a single node pointing to itself}
+  - {args: [{values: [1, 2, 3, 4, 5, 6], pos: -1}], expected: false, note: "even length, no cycle: fast runs onto None"}
+  - {args: [{values: [1, 2, 3, 4, 5], pos: -1}], expected: false, note: "odd length, no cycle: fast stops on the last node"}
+  - {args: [{values: [1, 2, 3, 4, 5, 6, 7], pos: 6}], expected: true, note: "tail points to itself"}
+  - {args: [{values: [5, 5, 5, 5], pos: -1}], expected: false, note: "equal values are not a cycle: compare nodes, not values"}
+visualize_test: 0
+
+drills:
+  - title: Guard the double step
+    skill: setup
+    goal: Write the `while fast and fast.next` loop that moves a pointer two nodes at a time without crashing.
+    instructions: |
+      The list has no cycle. Move a pointer `fast` from the head two nodes at a time and
+      return how many double steps it completes before it can't take another one.
+
+      Both checks in the guard are required. If `fast` is `None` you can't read `fast.next`,
+      and if `fast.next` is `None`, then `fast.next.next` raises an error. An even-length list
+      ends with `fast` on `None`; an odd-length list ends with `fast` on the last node. Floyd's
+      algorithm uses exactly this guard, and it's how it answers `false` on lists without a
+      cycle.
+    function:
+      name: fastHops
+      params: [{name: head, type: ListNode}]
+    starter_code: |
+      class Solution:
+          def fastHops(self, head: Optional[ListNode]) -> int:
+              pass
+    tests:
+      - {args: [[1, 2, 3, 4, 5, 6]], expected: 3, note: "even length: fast ends on None"}
+      - {args: [[1, 2, 3]], expected: 1, note: "odd length: fast ends on the last node"}
+      - {args: [[]], expected: 0, note: empty list}
+      - {args: [[1]], expected: 0, note: "fast.next is None at the start"}
+      - {args: [[1, 2]], expected: 1}
+    solution: |
+      class Solution:
+          def fastHops(self, head: Optional[ListNode]) -> int:
+              hops = 0
+              fast = head
+              while fast and fast.next:
+                  fast = fast.next.next
+                  hops += 1
+              return hops
+    hint: "Check `fast` before `fast.next`: Python evaluates `and` left to right and stops early."
+
+  - title: Move first, then compare nodes
+    skill: core
+    goal: Advance slow by one and fast by two, then check `slow is fast` after the move.
+    instructions: |
+      Run Floyd's loop and return the number of steps (iterations) after which `slow` and
+      `fast` are on the same node, or `-1` if fast runs off the end.
+
+      Two details matter. First, both pointers start on the head, so they are trivially
+      "equal" before anything happens: you must move them **before** comparing, or every list
+      looks cyclic. Second, compare the nodes with `is`, not their values: two different nodes
+      can both hold 5. Look at the `[1,2,3,4,5,6,7,8]` loop-back-to-head case: the pointers
+      meet after 8 steps, exactly when slow finishes its first lap, never later.
+    function:
+      name: meetingStep
+      params: [{name: head, type: ListNodeCycle}]
+    starter_code: |
+      class Solution:
+          def meetingStep(self, head: Optional[ListNode]) -> int:
+              pass
+    tests:
+      - {args: [{values: [3, 2, 0, -4], pos: 1}], expected: 3}
+      - {args: [{values: [1, 2], pos: 0}], expected: 2}
+      - {args: [{values: [1], pos: 0}], expected: 1, note: "self-loop: they meet after one step"}
+      - {args: [{values: [1, 2, 3, 4, 5], pos: -1}], expected: -1, note: no cycle}
+      - {args: [{values: [1, 2, 3, 4, 5, 6, 7, 8], pos: 0}], expected: 8, note: "the whole list is the cycle: one full lap of slow"}
+    solution: |
+      class Solution:
+          def meetingStep(self, head: Optional[ListNode]) -> int:
+              slow = fast = head
+              steps = 0
+              while fast and fast.next:
+                  slow, fast = slow.next, fast.next.next
+                  steps += 1
+                  if slow is fast:
+                      return steps
+              return -1
+    hint: "The comparison goes after both pointers move, inside the loop."
+
+  - title: Measure the loop once you're inside it
+    skill: edge
+    goal: Use the meeting point as a node known to be on the cycle and count one lap to get the cycle length.
+    instructions: |
+      Return the number of nodes in the cycle, or `0` if there is no cycle.
+
+      The meeting point of slow and fast is guaranteed to be **inside** the cycle (fast never
+      leaves it once it enters, and they meet on fast's node). So from there, hold one pointer
+      still and walk another until it comes back, counting nodes. A self-loop has length 1,
+      and a list without a cycle never produces a meeting point at all. Knowing you are inside
+      the cycle after the meeting is also the first step of Linked List Cycle II.
+    function:
+      name: cycleLength
+      params: [{name: head, type: ListNodeCycle}]
+    starter_code: |
+      class Solution:
+          def cycleLength(self, head: Optional[ListNode]) -> int:
+              pass
+    tests:
+      - {args: [{values: [3, 2, 0, -4], pos: 1}], expected: 3}
+      - {args: [{values: [1, 2, 3, 4, 5, 6], pos: 2}], expected: 4}
+      - {args: [{values: [1, 2, 3, 4, 5, 6, 7], pos: 6}], expected: 1, note: "self-loop at the tail"}
+      - {args: [{values: [1, 2, 3], pos: -1}], expected: 0, note: no cycle}
+      - {args: [{values: [], pos: -1}], expected: 0, note: empty list}
+      - {args: [{values: [1, 2], pos: 0}], expected: 2}
+    solution: |
+      class Solution:
+          def cycleLength(self, head: Optional[ListNode]) -> int:
+              slow = fast = head
+              while fast and fast.next:
+                  slow, fast = slow.next, fast.next.next
+                  if slow is fast:  # slow is on the cycle: walk one lap
+                      length, walker = 1, slow.next
+                      while walker is not slow:
+                          walker, length = walker.next, length + 1
+                      return length
+              return 0
+    hint: "Start a walker at `slow.next` and count until it is `slow` again."
+
+hints:
+  - >-
+    Two runners on a circular track, one twice as fast as the other: does the faster one
+    eventually lap the slower one? And what happens if the track is a straight road with an
+    end instead?
+  - >-
+    Move slow one node and fast two nodes per step, then compare the nodes themselves. If fast
+    (or fast.next) ever becomes None, the list ends, so there's no cycle. Once both are inside
+    the cycle, how does the distance between them change each step?
+  - |
+    slow = head, fast = head
+    while fast is not none and fast.next is not none:
+        slow = slow.next
+        fast = fast.next.next
+        if slow and fast are the same node: return true
+    return false
+
+solution:
+  code: |
+    class Solution:
+        def hasCycle(self, head: Optional[ListNode]) -> bool:
+            slow = fast = head
+            while fast and fast.next:  # fast reaching the end means there is no cycle
+                slow = slow.next  # tortoise: 1 step
+                fast = fast.next.next  # hare: 2 steps
+                if slow is fast:  # same node, not just the same value
+                    return True
+            return False
+  explanation: |
+    **No cycle:** fast moves ahead of slow and reaches the end first, either landing on `None`
+    (even length) or on the last node (odd length). The guard `fast and fast.next` catches
+    both, and we return `False`. Fast never "passes" slow on a straight list, so a false
+    positive is impossible.
+
+    **Cycle:** fast enters the cycle first (or together with slow) and stays in it forever.
+    Once slow arrives too, measure the gap as the number of nodes fast is behind slow, going forward
+    around the cycle. Each step slow moves 1 and fast moves 2, so the gap shrinks by **exactly
+    1**: 4, 3, 2, 1, 0. Because it shrinks one at a time, it can't go from 1 straight past 0;
+    fast can't jump over slow, and they land on the same node. The gap is at most the cycle
+    length L when slow enters, so they meet within L steps, before slow completes more than
+    one lap. In total that's at most N iterations
+    (the nodes before the cycle plus one lap), for example 8 iterations when all 8 nodes form
+    the cycle.
+
+    Two easy-to-miss details. The comparison happens **after** moving, because both pointers
+    start on the head. And it uses `is` (node identity), not `slow.val == fast.val`: a list
+    like `[5,5,5,5]` with no cycle has many equal values. The hash-set brute force stores nodes
+    for the same reason.
+
+    Why speeds 1 and 2? Any pair of speeds whose difference is 1 has the "gap shrinks by one"
+    guarantee. With a difference of 2, an odd gap goes 3, 1, then jumps past 0; if the cycle
+    length is even, the gap stays odd forever and the pointers never meet. Speeds 1 and 2 are
+    the simplest choice that is always safe.
+  time: O(N) — at most N iterations (the nodes before the cycle plus one lap of slow)
+  space: O(1) — two pointers, no visited set
+  brute_force_code: |
+    class Solution:
+        def hasCycle(self, head: Optional[ListNode]) -> bool:
+            seen = set()  # node objects, not values
+            cur = head
+            while cur:
+                if cur in seen:
+                    return True
+                seen.add(cur)
+                cur = cur.next
+            return False
+
+pitch_script: |
+  **(Clarify)** "I only get the head, and I return whether following next pointers ever
+  revisits a node. Two different nodes can hold the same value, so I should compare nodes,
+  not values. And the follow-up asks for O(1) memory, right?"
+
+  **(Brute force)** "The easy approach is a hash set of visited nodes: if I reach a node I've
+  already seen, there's a cycle, and if I hit None, there isn't. That's O(N) time but O(N)
+  extra space."
+
+  **(Trigger)** "Cycle detection with constant memory on a linked list is Floyd's tortoise and
+  hare. Two pointers at different speeds: if there's a loop, the fast one has to catch the
+  slow one."
+
+  **(Optimal)** "Both start at head. In each step slow moves one node and fast moves two, then
+  I check if they're the same node. If fast or fast.next becomes None, the list ends, so I
+  return false. If there's a cycle, once both are inside it, fast closes the gap by exactly
+  one node per step, so it can't skip over slow; they have to meet, and that happens within
+  one lap of slow."
+
+  **(Complexity)** "At most N iterations: the part before the cycle plus one lap. So O(N) time
+  and O(1) space."
+
+twist:
+  lc: 142
+  title: Linked List Cycle II
+  why: >-
+    Now you must return the node where the cycle begins, not just whether one exists. Run the
+    same loop until slow and fast meet, then move one pointer back to the head and advance
+    both one step at a time: they meet again exactly at the cycle's entry. That works because
+    if the entry is μ nodes from the head, the distance from the meeting point forward to the
+    entry is also μ, modulo the cycle length (fast walked twice as far as slow, so slow's
+    distance is a multiple of the cycle length).
+
+viz: {}

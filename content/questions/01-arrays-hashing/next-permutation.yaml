@@ -1,0 +1,324 @@
+slug: next-permutation
+lc: 31
+
+concept:
+  problem_it_solves: >-
+    "What is the very next arrangement of these values in dictionary order?" Listing every
+    permutation and finding the one after yours is hopeless. Reading from the right tells
+    you exactly which position must change, what it changes to, and that the rest must be
+    as small as possible, so the answer is built with one scan, one swap and one reverse.
+  brute_force: >-
+    Generate all permutations, sort them, find the current one and return the next (or the
+    first if the current one is last). It wastes almost all its work: it builds N! orderings
+    when the next one differs from the current only in a short suffix.
+  brute_force_complexity: >-
+    O(N! · N) time, O(N! · N) space — even N = 12 is ~5.7 × 10⁹ steps, and N = 100 is
+    ~10¹⁵⁸.
+  key_insight: >-
+    Scan from the right. The longest non-increasing suffix is already at its largest
+    arrangement, so it can't produce a bigger number on its own. The element just before it
+    (the pivot) must grow, by the smallest possible amount: swap it with the rightmost value
+    larger than it. The suffix is still non-increasing after the swap, so reversing it makes
+    it the smallest arrangement. If there is no pivot, the whole array is the last
+    permutation and reversing it gives the first.
+  real_world: >-
+    C++'s std::next_permutation is exactly this algorithm and is used to enumerate test
+    cases, seat or route orderings, and brute-force schedulers without storing them. Load
+    testers and fuzzers (and combinatorial test generators in QA pipelines) step through
+    configurations in lexicographic order the same way, resuming from the last one tried
+    with O(1) memory.
+
+statement:
+  clean: |
+    A permutation of an array is an arrangement of its elements in some order. The
+    **next permutation** of an array is the next **lexicographically greater permutation**
+    of its integers. If no greater arrangement exists (the array is in descending order),
+    rearrange it into the **lowest possible order**, i.e. sorted ascending.
+
+    For example, the next permutation of `[1,2,3]` is `[1,3,2]`, of `[2,3,1]` is `[3,1,2]`,
+    and of `[3,2,1]` is `[1,2,3]`.
+
+    Given an array of integers `nums`, find the next permutation of `nums`. The replacement
+    must be **in place** and use only constant extra memory.
+  oa_story: |
+    **ShowSpot Ticketing — OA Round 1**
+
+    ShowSpot sells tickets for comedy nights and concerts across Bengaluru, from small rooms
+    in Indiranagar to arenas on Bellary Road. Its QA team stress-tests the seat-allocation
+    service by replaying every possible order in which a group of bookings could arrive,
+    one order per test run, in dictionary order. The test rig on the kiosk hardware has
+    almost no spare memory, so it can't store the list of orders: it only keeps the current
+    one.
+
+    Write the routine that turns the current arrival order (a list of booking IDs, possibly
+    with repeated IDs) into the one that comes **immediately after it** in dictionary order,
+    rewriting the list in place. If the current order is already the last one, the rig wraps
+    around and starts again from the very first order. The routine returns nothing.
+  trigger_keywords: ["next permutation", "lexicographically greater permutation", "in place", "constant extra memory"]
+  examples:
+    - input: "nums = [1,2,3]"
+      output: "[1,3,2]"
+    - input: "nums = [3,2,1]"
+      output: "[1,2,3]"
+      explanation: "[3,2,1] is the last permutation, so wrap around to the lowest order."
+    - input: "nums = [1,1,5]"
+      output: "[1,5,1]"
+  constraints:
+    - "1 <= nums.length <= 100"
+    - "0 <= nums[i] <= 100"
+
+constraint_quiz:
+  prompt: >-
+    N is at most 100, and the statement says in place with constant extra memory. What
+    complexity should you aim for?
+  options:
+    - "O(N! · N) — N is small, so generate all permutations"
+    - "O(N log N) time — sort the part after the changed position"
+    - "O(N) time, O(1) extra space"
+    - "O(log N) time"
+  answer: 2
+  explanation: >-
+    "N is only 100" is a trap: 100! is about 10¹⁵⁸, and storing permutations breaks the
+    constant-memory rule anyway. Sorting the suffix gives a correct O(N log N) answer, but it
+    is unnecessary: the suffix is already in descending order, so a reverse does the same
+    job in O(N). One scan from the right, one swap and one reverse is O(N) time and O(1)
+    space. O(log N) is impossible because you may have to rewrite the whole array.
+
+pattern_quiz:
+  prompt: >-
+    You must produce the next lexicographic arrangement in place with O(1) extra memory.
+    Which pattern fits?
+  options:
+    - "Backtracking to generate permutations in order"
+    - "Scan from the right for the first dip, swap with the next-larger value, reverse the suffix"
+    - "Sort the whole array"
+    - "Hash map of value → index"
+  answer: 1
+  explanation: >-
+    Backtracking generates everything and needs a recursion stack and storage. Sorting gives
+    the first permutation, not the next one. A hash map doesn't help with ordering at all.
+    "Next lexicographically greater" means "change as far right as possible, by as little
+    as possible", which is the right-to-left scan for the first position that can grow,
+    followed by a swap and an in-place reverse.
+
+function:
+  name: nextPermutation
+  params: [{name: nums}]
+  inplace_arg: 0
+
+starter_code: |
+  class Solution:
+      def nextPermutation(self, nums: List[int]) -> None:
+          pass
+
+tests:
+  - {args: [[1, 2, 3]], expected: [1, 3, 2]}
+  - {args: [[3, 2, 1]], expected: [1, 2, 3], note: "fully descending: no pivot, reverse all"}
+  - {args: [[1, 1, 5]], expected: [1, 5, 1], note: duplicates}
+  - {args: [[1]], expected: [1], note: single element}
+  - {args: [[2, 3, 1]], expected: [3, 1, 2], note: pivot at index 0}
+  - {args: [[2, 4, 1, 7, 5, 0]], expected: [2, 4, 5, 0, 1, 7]}
+  - {args: [[1, 5, 1]], expected: [5, 1, 1], note: "swap partner must be strictly greater"}
+  - {args: [[5, 1, 1]], expected: [1, 1, 5], note: "descending with ties: pivot check needs >="}
+  - {args: [[1, 5, 8, 4, 7, 6, 5, 3, 1]], expected: [1, 5, 8, 5, 1, 3, 4, 6, 7], note: long descending suffix}
+visualize_test: 5
+
+drills:
+  - title: Find the pivot from the right
+    skill: setup
+    goal: Scan right-to-left for the first index i with nums[i] < nums[i + 1].
+    instructions: |
+      Return the largest index `i` such that `nums[i] < nums[i + 1]`, or `-1` if no such
+      index exists (the array is non-increasing).
+
+      Everything to the right of this pivot is a non-increasing suffix, which is already its
+      biggest possible arrangement. The pivot is the rightmost position that *can* grow,
+      and changing the rightmost possible position is what makes the result the *next*
+      permutation rather than just a bigger one. Use `>=` when skipping, so ties are part of
+      the suffix.
+    function:
+      name: findPivot
+      params: [{name: nums}]
+    starter_code: |
+      class Solution:
+          def findPivot(self, nums: List[int]) -> int:
+              pass
+    tests:
+      - {args: [[1, 2, 3]], expected: 1}
+      - {args: [[3, 2, 1]], expected: -1}
+      - {args: [[2, 4, 1, 7, 5, 0]], expected: 2}
+      - {args: [[1, 5, 1]], expected: 0}
+      - {args: [[2, 2]], expected: -1}
+    solution: |
+      class Solution:
+          def findPivot(self, nums: List[int]) -> int:
+              i = len(nums) - 2
+              while i >= 0 and nums[i] >= nums[i + 1]:
+                  i -= 1
+              return i
+    hint: "Start at `len(nums) - 2` and move left while `nums[i] >= nums[i + 1]`."
+
+  - title: Pick the swap partner
+    skill: core
+    goal: Find the rightmost index j > i with nums[j] > nums[i], the smallest value that can replace the pivot.
+    instructions: |
+      You are given `nums` and a pivot index `i`, where everything after `i` is
+      non-increasing and at least one element after `i` is larger than `nums[i]`. Return the
+      **rightmost** index `j > i` with `nums[j] > nums[i]`.
+
+      Because the suffix is non-increasing, the rightmost larger element is also the
+      **smallest** larger element, so swapping it in grows the pivot by the least possible
+      amount. Picking the rightmost one among ties (e.g. `[2, 3, 3, 1]`) also keeps the
+      suffix non-increasing after the swap, which the final reverse depends on.
+    function:
+      name: findSwapPartner
+      params: [{name: nums}, {name: i}]
+    starter_code: |
+      class Solution:
+          def findSwapPartner(self, nums: List[int], i: int) -> int:
+              pass
+    tests:
+      - {args: [[2, 4, 1, 7, 5, 0], 2], expected: 4}
+      - {args: [[1, 5, 1], 0], expected: 1}
+      - {args: [[1, 2, 3], 1], expected: 2}
+      - {args: [[2, 3, 3, 1], 0], expected: 2}
+    solution: |
+      class Solution:
+          def findSwapPartner(self, nums: List[int], i: int) -> int:
+              j = len(nums) - 1
+              while nums[j] <= nums[i]:
+                  j -= 1
+              return j
+    hint: "Start `j` at the last index and move left while `nums[j] <= nums[i]`."
+
+  - title: Reverse the suffix in place
+    skill: edge
+    goal: Reverse nums[start:] in place with two pointers, including the start = 0 and one-element cases.
+    instructions: |
+      Reverse the elements of `nums` from index `start` to the end, **in place** (return
+      nothing; the tests check `nums` afterwards).
+
+      After the swap, the suffix is still non-increasing, so reversing it turns it into the
+      smallest arrangement in O(N) without sorting. The same reverse handles the "no pivot"
+      case: when the pivot is `-1`, `start` is `0` and the whole array is reversed. A suffix
+      of length 1 must be left alone.
+    function:
+      name: reverseSuffix
+      params: [{name: nums}, {name: start}]
+      inplace_arg: 0
+    starter_code: |
+      class Solution:
+          def reverseSuffix(self, nums: List[int], start: int) -> None:
+              pass
+    tests:
+      - {args: [[1, 3, 2], 1], expected: [1, 2, 3]}
+      - {args: [[3, 2, 1], 0], expected: [1, 2, 3]}
+      - {args: [[4, 5], 1], expected: [4, 5]}
+      - {args: [[2, 4, 5, 7, 1, 0], 3], expected: [2, 4, 5, 0, 1, 7]}
+    solution: |
+      class Solution:
+          def reverseSuffix(self, nums: List[int], start: int) -> None:
+              l, r = start, len(nums) - 1
+              while l < r:
+                  nums[l], nums[r] = nums[r], nums[l]
+                  l += 1
+                  r -= 1
+    hint: "Two pointers `l = start`, `r = len(nums) - 1`; swap and move inward while `l < r`."
+
+hints:
+  - >-
+    To get the *next* arrangement, you want to change a position as far to the right as
+    possible. Reading from the right, when does a stretch of numbers have no bigger
+    arrangement on its own, and which position is the first one that can grow?
+  - >-
+    Find the pivot i: the first index from the right with nums[i] < nums[i + 1]. Swap it with
+    the rightmost element bigger than it. The part after i is still in descending order, so
+    what single operation turns it into its smallest arrangement? And what if no pivot
+    exists?
+  - |
+    i = n - 2
+    while i >= 0 and nums[i] >= nums[i + 1]: i = i - 1
+    if i >= 0:
+        j = n - 1
+        while nums[j] <= nums[i]: j = j - 1
+        swap nums[i] and nums[j]
+    reverse nums[i + 1 .. n - 1] with two pointers
+
+solution:
+  code: |
+    class Solution:
+        def nextPermutation(self, nums: List[int]) -> None:
+            n = len(nums)
+            # 1. pivot: first index from the right that is smaller than its right neighbour
+            i = n - 2
+            while i >= 0 and nums[i] >= nums[i + 1]:
+                i -= 1
+            # 2. swap it with the rightmost (= smallest) larger element in the suffix
+            if i >= 0:
+                j = n - 1
+                while nums[j] <= nums[i]:
+                    j -= 1
+                nums[i], nums[j] = nums[j], nums[i]
+            # 3. the suffix is non-increasing: reverse it to make it as small as possible
+            l, r = i + 1, n - 1
+            while l < r:
+                nums[l], nums[r] = nums[r], nums[l]
+                l += 1
+                r -= 1
+  explanation: |
+    Read from the right. The longest non-increasing suffix (`[7, 5, 0]` in
+    `[2, 4, 1, 7, 5, 0]`) is already its largest arrangement, so no rearrangement of the
+    suffix alone gives a bigger permutation. The element just before it, the pivot `1`, is
+    the rightmost position that can grow, and changing the rightmost possible position is
+    what makes the result the *next* one.
+
+    The pivot should grow as little as possible, so swap it with the smallest value in the
+    suffix that is bigger than it. Because the suffix is non-increasing, that is simply the
+    **rightmost** element greater than the pivot (`5`). After the swap the suffix
+    `[7, 1, 0]` is still non-increasing, so reversing it (`[0, 1, 7]`) gives its smallest
+    arrangement, with no sort needed: `[2, 4, 5, 0, 1, 7]`.
+
+    The comparisons are deliberately `>=` and `<=`: equal values belong to the suffix, and
+    the partner must be strictly greater, otherwise `[1, 5, 1]` would swap 1 with 1 and
+    change nothing. If no pivot exists (`i = -1`), the swap is skipped and the reverse
+    covers the whole array, which turns the last permutation into the first.
+  time: O(N) — at most one right-to-left scan for the pivot, one for the partner, and one reverse
+  space: O(1) — only a few index variables; the array is modified in place
+
+pitch_script: |
+  **(Clarify)** "So I modify the array in place and return nothing, 'next' means the next
+  in lexicographic order, there can be duplicates, and if it's already the largest
+  arrangement I wrap around to ascending order?"
+
+  **(Brute force)** "The naive way is to generate all permutations, sort them, and pick the
+  one after the current one. That's O(N! times N) time and space, which is hopeless even
+  for N around 12, and it breaks the constant-memory requirement."
+
+  **(Trigger)** "'Next lexicographic' means I want to change the rightmost position I can,
+  by the smallest amount I can. Scanning from the right, a descending suffix is already
+  maxed out, so the first element that's smaller than its right neighbour is the one that
+  has to change."
+
+  **(Optimal)** "I find that pivot by scanning from the right. If it exists, I swap it with
+  the rightmost element larger than it, which is the smallest larger element because the
+  suffix is descending. The suffix stays descending after the swap, so I reverse it to get
+  its smallest order. If there's no pivot, I just reverse the whole array. I use
+  greater-or-equal in the pivot scan and strictly-greater for the partner so duplicates
+  behave."
+
+  **(Complexity)** "Each step is at most one linear pass, so O(N) time, and O(1) extra space
+  since everything is swaps on the input array."
+
+twist:
+  lc: 556
+  title: Next Greater Element III
+  why: >-
+    You are given a positive integer n and must return the smallest integer with the same
+    digits that is greater than n, or −1. Split n into a list of digits and run exactly the
+    same pivot / swap / reverse steps, but instead of wrapping around when there is no
+    pivot, return −1. One extra check: if the result exceeds 2³¹ − 1, also return −1.
+
+viz:
+  arrays: [nums]
+  pointers: [i, j, l, r]
+  watch: [i, j, n]

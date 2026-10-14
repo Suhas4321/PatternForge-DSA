@@ -1,0 +1,321 @@
+slug: product-of-array-except-self
+lc: 238
+
+concept:
+  problem_it_solves: >-
+    "What is the combined effect of everything except this one item?" Everything except index i
+    splits cleanly into two parts: everything to the left of i and everything to the right of
+    i. If you precompute running totals from both ends, each answer is just left part × right
+    part, and no work is ever repeated.
+  brute_force: >-
+    For each index i, loop over the whole array again and multiply every element except
+    nums[i]. Neighbouring answers share almost all of their factors, yet each one recomputes
+    the product from scratch. The tempting shortcut, total product ÷ nums[i], is banned, and it
+    breaks on zeros anyway.
+  brute_force_complexity: >-
+    O(N²) time, O(1) extra space — 10⁵ elements means 10¹⁰ multiplications.
+  key_insight: >-
+    answer[i] = (product of everything left of i) × (product of everything right of i). Both
+    halves are running products: sweep left to right carrying a prefix product, then right to
+    left carrying a suffix product. Store the prefix in the output array itself and fold the
+    suffix in on the way back, so the only extra memory is two numbers.
+  real_world: >-
+    Prefix/suffix aggregates power "leave-one-out" analysis: in ML feature attribution and
+    A/B experiment dashboards, you measure the effect of removing one factor from a pipeline.
+    Range-query systems and time-series databases store running aggregates for the same reason
+    (any range answer becomes a combination of two precomputed values), and the two-pass
+    left/right sweep shows up in stock-span and rain-water style analytics.
+
+statement:
+  clean: |
+    Given an integer array `nums`, return an array `answer` such that `answer[i]` is equal to
+    the **product of all the elements** of `nums` **except nums[i]**.
+
+    The product of any prefix or suffix of `nums` is guaranteed to fit in a 32-bit integer.
+
+    You must write an algorithm that runs in O(n) time and
+    **without using the division operation**.
+
+    **Follow-up:** can you solve it with O(1) extra space? (The output array does not count as
+    extra space.)
+  oa_story: |
+    **AutoSawari Pricing — OA Round 2**
+
+    AutoSawari runs auto-rickshaw bookings across Bengaluru. A fare passes through a chain of
+    pricing stages (base distance, rain surge, Silk Board traffic factor, night charge,
+    promo), and each stage multiplies the fare by an integer factor `nums[i]`. A stage that is
+    switched off for maintenance reports a factor of `0`, and promo stages can report negative
+    adjustment factors.
+
+    For a "what if we dropped this stage?" report, the pricing team needs, for every stage
+    `i`, the combined factor of **all the other stages** multiplied together. The pricing
+    service runs on a legacy embedded module that has no division instruction, the chain can
+    have up to 10⁵ stages, and the report must be produced in linear time using no memory
+    beyond the output list. Every partial product along the chain fits in a 32-bit integer.
+  trigger_keywords: ["product of all the elements", "except nums[i]", "without using the division operation"]
+  examples:
+    - input: "nums = [1,2,3,4]"
+      output: "[24,12,8,6]"
+      explanation: "answer[0] = 2·3·4 = 24, answer[1] = 1·3·4 = 12, answer[2] = 1·2·4 = 8, answer[3] = 1·2·3 = 6."
+    - input: "nums = [-1,1,0,-3,3]"
+      output: "[0,0,9,0,0]"
+      explanation: "Every product that includes the 0 is 0. Only answer[2] skips it: -1·1·-3·3 = 9."
+  constraints:
+    - "2 <= nums.length <= 10^5"
+    - "-30 <= nums[i] <= 30"
+    - "The product of any prefix or suffix of nums fits in a 32-bit integer."
+
+constraint_quiz:
+  prompt: >-
+    N can be 10⁵ and the statement demands O(n) time with no division. What time complexity
+    should you aim for?
+  options: ["O(N²)", "O(N log N)", "O(N)", "O(1)"]
+  answer: 2
+  explanation: >-
+    O(N²) is 10¹⁰ multiplications, far too slow, and the statement asks for O(n) directly.
+    O(N log N) usually means sorting, which scrambles the positions every answer[i] belongs to
+    and is slower than required. O(1) is impossible because you must produce N outputs. Two
+    linear sweeps (prefix then suffix) give O(N).
+
+pattern_quiz:
+  prompt: >-
+    Each answer[i] combines everything except position i, division is banned, and the result
+    must be O(n). Which pattern fits?
+  options:
+    - "Compute the total product, then divide by nums[i]"
+    - "Prefix products × suffix products"
+    - "Sliding window of fixed size"
+    - "Hash map from value → product"
+  answer: 1
+  explanation: >-
+    "Everything except i" is the prefix/suffix trigger: the excluded element splits the array
+    into a left part and a right part, and both can be built as running products. Division is
+    explicitly banned and fails on zeros. A sliding window covers a contiguous range, but
+    "everything except i" is two ranges with a hole. A hash map doesn't help because the
+    answer depends on positions, not on value lookups.
+
+function:
+  name: productExceptSelf
+  params: [{name: nums}]
+  compare: exact
+
+starter_code: |
+  class Solution:
+      def productExceptSelf(self, nums: List[int]) -> List[int]:
+          pass
+
+tests:
+  - {args: [[1, 2, 3, 4]], expected: [24, 12, 8, 6]}
+  - {args: [[-1, 1, 0, -3, 3]], expected: [0, 0, 9, 0, 0], note: "one zero: only its own position is non-zero"}
+  - {args: [[2, 3]], expected: [3, 2], note: minimum length}
+  - {args: [[0, 0, 5]], expected: [0, 0, 0], note: "two zeros: every answer includes at least one zero"}
+  - {args: [[4, 0, 2]], expected: [0, 8, 0], note: zero in the middle}
+  - {args: [[-2, -3, -4]], expected: [12, 8, 6], note: "negatives: signs must still work out"}
+  - {args: [[1, 1, 1, 1, 1]], expected: [1, 1, 1, 1, 1], note: all the same}
+  - {args: [[3, -1, 2, 5]], expected: [-10, 30, -15, -6]}
+visualize_test: 0
+
+drills:
+  - title: Running product from the left
+    skill: setup
+    goal: Build exclusive prefix products, where out[i] is the product of everything before i.
+    instructions: |
+      Return a list `out` where `out[i]` is the product of `nums[0] * ... * nums[i-1]`, and
+      `out[0] = 1` because nothing is to the left of index 0.
+
+      This is the left half of every answer. The detail that matters is **exclusive**: write
+      the running product into `out[i]` *before* multiplying in `nums[i]`, so index i never
+      includes itself.
+    function:
+      name: prefixProducts
+      params: [{name: nums}]
+    starter_code: |
+      class Solution:
+          def prefixProducts(self, nums: List[int]) -> List[int]:
+              pass
+    tests:
+      - {args: [[1, 2, 3, 4]], expected: [1, 1, 2, 6]}
+      - {args: [[5]], expected: [1]}
+      - {args: [[2, 0, 3]], expected: [1, 2, 0]}
+      - {args: [[-1, 2, -3]], expected: [1, -1, -2]}
+    solution: |
+      class Solution:
+          def prefixProducts(self, nums: List[int]) -> List[int]:
+              out = []
+              prefix = 1
+              for x in nums:
+                  out.append(prefix)
+                  prefix *= x
+              return out
+    hint: "Keep `prefix = 1`; at each step record it first, then `prefix *= x`."
+
+  - title: Running product from the right
+    skill: core
+    goal: Build exclusive suffix products by sweeping right to left.
+    instructions: |
+      Return a list `out` where `out[i]` is the product of `nums[i+1] * ... * nums[n-1]`, and
+      `out[n-1] = 1` because nothing is to the right of the last index.
+
+      This is the right half of every answer, and the mirror image of the prefix drill. Loop
+      with `range(n - 1, -1, -1)`, and again record before you multiply, so index i is
+      excluded from its own suffix.
+    function:
+      name: suffixProducts
+      params: [{name: nums}]
+    starter_code: |
+      class Solution:
+          def suffixProducts(self, nums: List[int]) -> List[int]:
+              pass
+    tests:
+      - {args: [[1, 2, 3, 4]], expected: [24, 12, 4, 1]}
+      - {args: [[5]], expected: [1]}
+      - {args: [[2, 0, 3]], expected: [0, 3, 1]}
+      - {args: [[-1, 2, -3]], expected: [-6, -3, 1]}
+    solution: |
+      class Solution:
+          def suffixProducts(self, nums: List[int]) -> List[int]:
+              n = len(nums)
+              out = [1] * n
+              suffix = 1
+              for i in range(n - 1, -1, -1):
+                  out[i] = suffix
+                  suffix *= nums[i]
+              return out
+    hint: "Pre-fill `out = [1] * n` so you can write by index while walking backwards."
+
+  - title: Fold the suffix into the output
+    skill: edge
+    goal: Multiply a running suffix into an array that already holds prefix products, in place.
+    instructions: |
+      `answer` already holds the exclusive prefix products of `nums` (the output of the first
+      drill). Walk from right to left with a running `suffix` variable, multiply it into
+      `answer[i]`, and return `answer`. Now `answer[i]` is the product of everything except
+      `nums[i]`, and you never needed a separate suffix array.
+
+      Two things to get right. Order: do `answer[i] *= suffix` **before** `suffix *= nums[i]`,
+      or index i multiplies itself in. Zeros: no special case is needed. With one zero at
+      position z, every prefix or suffix that crosses z becomes 0, so only `answer[z]` stays
+      non-zero. With two or more zeros, every index has a zero on at least one side, so all
+      answers are 0. This is exactly why division (total ÷ nums[i]) fails and this approach
+      doesn't.
+    function:
+      name: applySuffix
+      params: [{name: nums}, {name: answer}]
+    starter_code: |
+      class Solution:
+          def applySuffix(self, nums: List[int], answer: List[int]) -> List[int]:
+              pass
+    tests:
+      - {args: [[1, 2, 3, 4], [1, 1, 2, 6]], expected: [24, 12, 8, 6]}
+      - {args: [[4, 0, 2], [1, 4, 0]], expected: [0, 8, 0]}
+      - {args: [[0, 0, 5], [1, 0, 0]], expected: [0, 0, 0]}
+      - {args: [[7], [1]], expected: [1]}
+      - {args: [[-2, -3, -4], [1, -2, 6]], expected: [12, 8, 6]}
+    solution: |
+      class Solution:
+          def applySuffix(self, nums: List[int], answer: List[int]) -> List[int]:
+              suffix = 1
+              for i in range(len(nums) - 1, -1, -1):
+                  answer[i] *= suffix
+                  suffix *= nums[i]
+              return answer
+    hint: "Same loop shape as the suffix drill, but `answer[i] *= suffix` instead of `out[i] = suffix`."
+
+hints:
+  - >-
+    If you remove index i, the elements that remain form two pieces: the part to the left of i
+    and the part to the right of i. What could you precompute about each piece so that every
+    answer is a single multiplication?
+  - >-
+    Sweep left to right with a running prefix product and write it into answer[i] before
+    multiplying in nums[i]. Then sweep right to left with a running suffix product and multiply
+    it into answer[i] before multiplying in nums[i]. Each position ends up with left × right.
+  - |
+    answer = array of n ones
+    prefix = 1
+    for i from 0 to n-1:
+        answer[i] = prefix; prefix = prefix * nums[i]
+    suffix = 1
+    for i from n-1 down to 0:
+        answer[i] = answer[i] * suffix; suffix = suffix * nums[i]
+    return answer
+
+solution:
+  code: |
+    class Solution:
+        def productExceptSelf(self, nums: List[int]) -> List[int]:
+            n = len(nums)
+            answer = [1] * n
+            prefix = 1  # product of nums[0..i-1]
+            for i in range(n):
+                answer[i] = prefix
+                prefix *= nums[i]
+            suffix = 1  # product of nums[i+1..n-1]
+            for i in range(n - 1, -1, -1):
+                answer[i] *= suffix
+                suffix *= nums[i]
+            return answer
+  explanation: |
+    Every answer is (product of the left part) × (product of the right part). The first pass
+    walks left to right and stores in `answer[i]` the product of everything strictly before i.
+    The second pass walks right to left with a running `suffix`, the product of everything
+    strictly after i, and multiplies it in. After both passes, `answer[i]` holds exactly the
+    product of all elements except `nums[i]`.
+
+    The subtle decision is the order inside each loop: use the running product **before**
+    multiplying in `nums[i]`. That is what makes both products exclusive of i. Zeros need no
+    special case: a single zero makes every product that crosses it 0 while leaving its own
+    position as the product of the rest, and two zeros make every answer 0. Division would
+    have to special-case all of that (and is banned anyway). Reusing the output array for the
+    prefix and keeping the suffix in one variable meets the O(1) extra-space follow-up.
+  time: O(N) — two linear passes with one multiplication each per element
+  space: O(1) extra — only prefix and suffix; the output array doesn't count
+  brute_force_code: |
+    class Solution:
+        def productExceptSelf(self, nums: List[int]) -> List[int]:
+            n = len(nums)
+            answer = []
+            for i in range(n):
+                p = 1
+                for j in range(n):
+                    if j != i:
+                        p *= nums[j]
+                answer.append(p)
+            return answer
+
+pitch_script: |
+  **(Clarify)** "Just to confirm: no division allowed, the array can contain zeros and
+  negatives, all partial products fit in 32 bits, and the output array doesn't count as
+  extra space?"
+
+  **(Brute force)** "The direct approach recomputes the product of all other elements for
+  every index, which is O(N²): with N up to 10⁵ that's 10¹⁰ multiplications. The usual
+  shortcut, total product divided by nums[i], is not allowed, and it breaks on zeros anyway."
+
+  **(Trigger)** "'Everything except i' means the array splits into a left part and a right
+  part around i. That's a prefix/suffix pattern: if I know the product of everything to the
+  left and everything to the right, the answer is just their product."
+
+  **(Optimal)** "I'll do two passes. Left to right, I write the running prefix product into
+  answer[i] before multiplying in nums[i]. Right to left, I keep a running suffix product,
+  multiply it into answer[i], then multiply in nums[i]. Recording before multiplying keeps i
+  out of its own product, and zeros work out naturally without any special case."
+
+  **(Complexity)** "That's O(N) time for two passes and O(1) extra space, since the prefix
+  lives in the output array and the suffix is a single variable. If extra space were fine I
+  could keep separate prefix and suffix arrays, which is easier to explain but O(N) space."
+
+twist:
+  lc: 42
+  title: Trapping Rain Water
+  why: >-
+    The water above bar i depends on the tallest bar to its left and the tallest bar to its
+    right: min(leftMax, rightMax) − height[i]. That is the same "split at i into a left part
+    and a right part" idea, but the aggregate is a running max instead of a running product.
+    Build prefix maxima and suffix maxima (or squeeze both into two pointers for O(1) space),
+    then combine them per index exactly like prefix × suffix here.
+
+viz:
+  arrays: [nums, answer]
+  pointers: [i]
+  watch: [prefix, suffix]

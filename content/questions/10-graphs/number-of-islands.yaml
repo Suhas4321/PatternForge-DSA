@@ -1,0 +1,367 @@
+slug: number-of-islands
+lc: 200
+
+concept:
+  problem_it_solves: >-
+    "How many separate groups are there?" In graph terms that is "how many connected components?".
+    Every land cell is a node, side-by-side land cells share an edge, and an island is one connected
+    component. Counting islands means starting a traversal once per component, and making sure no
+    component is ever started twice.
+  brute_force: >-
+    For every land cell, explore its whole island from scratch with a fresh visited set, and count
+    the cell only if it is the first cell of its island in row-major order. It gives the right
+    answer, but an island of K cells is explored K times, once from each of its cells, because
+    nothing learned from one exploration is remembered for the next.
+  brute_force_complexity: >-
+    O((M·N)²) time, O(M·N) space — a 300 × 300 all-land grid is 9 × 10⁴ cells, each re-exploring
+    the same 9 × 10⁴-cell island: about 8 × 10⁹ steps.
+  key_insight: >-
+    Scan the grid once. The first time you step on unvisited land, you have found a new island:
+    add 1, then immediately "sink" the entire island with a DFS that turns every connected "1" into
+    "0". Sinking is the visited mark: every other cell of that island is now water, so the scan will
+    never count it again. The scan visits each cell once and every land cell is sunk exactly once,
+    so the total work is O(M·N). This "for each node: if unvisited, count++ and traverse" loop is the
+    universal connected-components template; only the definition of "node" and "edge" changes from
+    problem to problem.
+  real_world: >-
+    Satellite and drone imaging pipelines label connected regions (lakes, burnt forest, flooded
+    blocks) with exactly this component-labelling pass, often called connected-component labelling
+    in OpenCV. Social networks count friend clusters the same way, and infrastructure teams find
+    "islands" of services that can't reach each other after a network partition.
+
+statement:
+  clean: |
+    Given an `m x n` 2D binary grid `grid` that represents a map of `'1'`s (land) and `'0'`s
+    (water), return the **number of islands**.
+
+    An island is surrounded by water and is formed by
+    **connecting adjacent lands horizontally or vertically** (diagonal cells are not connected).
+    You may assume all four edges of the grid are surrounded by water.
+
+    Note that the cells are the **characters** `'1'` and `'0'`, not integers.
+  oa_story: |
+    **NeerNet Civic Labs — OA Round 1**
+
+    NeerNet is a BBMP-style civic startup that maps waterlogging across Bengaluru during the
+    monsoon. After every heavy spell, a drone photographs a ward and the image is reduced to a
+    grid of tiles: `'1'` means the tile is waterlogged, `'0'` means it is dry. Waterlogged tiles
+    that share a side drain into each other and need a single pump truck; tiles that only touch at
+    a corner do not drain into each other.
+
+    The control room needs to know how many pump trucks to dispatch to the ward, which is the number
+    of separate waterlogged patches. Given the tile grid (up to 300 × 300 tiles, entries are the
+    characters `'1'` and `'0'`), return that count. Everything outside the photographed area counts
+    as dry.
+  trigger_keywords: ["number of islands", "connecting adjacent lands horizontally or vertically"]
+  examples:
+    - input: 'grid = [["1","1","1","1","0"],["1","1","0","1","0"],["1","1","0","0","0"],["0","0","0","0","0"]]'
+      output: "1"
+      explanation: "All the land cells are connected through side-sharing steps."
+    - input: 'grid = [["1","1","0","0","0"],["1","1","0","0","0"],["0","0","1","0","0"],["0","0","0","1","1"]]'
+      output: "3"
+      explanation: >-
+        The top-left 2 × 2 block, the single centre cell, and the bottom-right pair. The centre
+        cell touches the others only diagonally, so it is its own island.
+  constraints:
+    - "m == grid.length"
+    - "n == grid[i].length"
+    - "1 <= m, n <= 300"
+    - "grid[i][j] is '0' or '1'"
+
+constraint_quiz:
+  prompt: >-
+    The grid can be 300 × 300, so up to 9 × 10⁴ cells. What time complexity do you need?
+  options:
+    - "O((M·N)²) — explore each land cell's island separately"
+    - "O(M·N · log(M·N)) — sort the land cells"
+    - "O(M·N) — scan once and sink each island once"
+    - "O(M + N) — count land runs per row and column"
+  answer: 2
+  explanation: >-
+    Exploring from every land cell is about 8 × 10⁹ steps on an all-land grid, far too slow.
+    Sorting cells doesn't reveal which ones touch, so it doesn't help. Row and column runs can't
+    tell whether two runs belong to the same bent island, and O(M + N) can't even read all M·N
+    cells. Scanning once and sinking each island once touches every cell a constant number of times:
+    O(M·N), about 4 × 10⁵ operations.
+
+pattern_quiz:
+  prompt: >-
+    Count groups of cells where a group is formed by cells connected horizontally or vertically.
+    Which pattern fits?
+  options:
+    - "Sliding window over each row"
+    - "Count connected components: scan, and DFS/BFS-sink each new group"
+    - "Dynamic programming: dp[r][c] = islands in the top-left sub-grid"
+    - "Monotonic stack per column"
+  answer: 1
+  explanation: >-
+    "Islands / connected regions" is the trigger for counting connected components. A row window
+    can't see that two runs join further down, and a top-left DP breaks on U-shaped islands that
+    only join at the bottom: they look like two islands until the join is reached. A scan with DFS
+    sinking (or BFS, or Union-Find) handles any shape.
+
+function:
+  name: numIslands
+  params: [{name: grid}]
+
+starter_code: |
+  class Solution:
+      def numIslands(self, grid: List[List[str]]) -> int:
+          pass
+
+tests:
+  - {args: [[["1", "1", "1", "1", "0"], ["1", "1", "0", "1", "0"], ["1", "1", "0", "0", "0"], ["0", "0", "0", "0", "0"]]], expected: 1}
+  - {args: [[["1", "1", "0", "0", "0"], ["1", "1", "0", "0", "0"], ["0", "0", "1", "0", "0"], ["0", "0", "0", "1", "1"]]], expected: 3}
+  - {args: [[["0"]]], expected: 0, note: "1x1 water"}
+  - {args: [[["1"]]], expected: 1, note: "1x1 land"}
+  - {args: [[["0", "0", "0"], ["0", "0", "0"]]], expected: 0, note: "all water"}
+  - {args: [[["1", "1", "1"], ["1", "1", "1"], ["1", "1", "1"]]], expected: 1, note: "all land is one island"}
+  - {args: [[["1", "0", "1"], ["0", "1", "0"], ["1", "0", "1"]]], expected: 5, note: "diagonals do not connect"}
+  - {args: [[["1", "0", "1", "1", "0", "1"]]], expected: 3, note: "single row"}
+  - {args: [[["1", "1", "1"], ["0", "0", "1"], ["1", "1", "1"]]], expected: 1, note: "U-turn: the bottom arm is reached only by moving left"}
+visualize_test: 1
+
+drills:
+  - title: Scan every cell, and compare characters
+    skill: setup
+    goal: Write the row-major double loop over a grid of character cells.
+    instructions: |
+      Return the number of land cells (`'1'`) in the grid.
+
+      This is the outer scan of Number of Islands: `rows, cols = len(grid), len(grid[0])` and two
+      nested loops over `r` and `c`. Watch the cell type: the grid holds the **strings** `'1'` and
+      `'0'`. `grid[r][c] == 1` is always `False` in Python, so a solution that compares with the
+      integer silently returns 0 for every input.
+    function:
+      name: countLand
+      params: [{name: grid}]
+    starter_code: |
+      class Solution:
+          def countLand(self, grid: List[List[str]]) -> int:
+              pass
+    tests:
+      - {args: [[["1", "1", "0"], ["0", "1", "0"]]], expected: 3}
+      - {args: [[["0"]]], expected: 0, note: "1x1 water"}
+      - {args: [[["1", "1"], ["1", "1"]]], expected: 4, note: "all land"}
+      - {args: [[["1"], ["0"], ["1"]]], expected: 2, note: "single column"}
+    solution: |
+      class Solution:
+          def countLand(self, grid: List[List[str]]) -> int:
+              rows, cols = len(grid), len(grid[0])
+              land = 0
+              for r in range(rows):
+                  for c in range(cols):
+                      if grid[r][c] == "1":
+                          land += 1
+              return land
+    hint: "Compare with the string `\"1\"`, not the number `1`."
+
+  - title: Sink one island
+    skill: core
+    goal: DFS from a land cell and overwrite its whole island with water, so it can never be counted again.
+    instructions: |
+      Turn every `'1'` in the island containing `(r, c)` into `'0'` and return the grid. If
+      `(r, c)` is water, return the grid unchanged. Other islands must stay untouched.
+
+      This is the visited mark of Number of Islands. Once an island is sunk, the outer scan walks
+      over its cells and sees only water. Sink the cell **before** recursing: the neighbour you
+      recurse into will look back at you, and it must see water, not land.
+    function:
+      name: sinkIsland
+      params: [{name: grid}, {name: r}, {name: c}]
+    starter_code: |
+      class Solution:
+          def sinkIsland(self, grid: List[List[str]], r: int, c: int) -> List[List[str]]:
+              pass
+    tests:
+      - {args: [[["1", "1", "0"], ["0", "1", "0"], ["1", "0", "1"]], 0, 0], expected: [["0", "0", "0"], ["0", "0", "0"], ["1", "0", "1"]]}
+      - {args: [[["1", "0"], ["0", "1"]], 0, 1], expected: [["1", "0"], ["0", "1"]], note: "start on water: nothing changes"}
+      - {args: [[["1", "1", "1"], ["0", "0", "1"], ["1", "1", "1"]], 2, 0], expected: [["0", "0", "0"], ["0", "0", "0"], ["0", "0", "0"]], note: "must go right, up and left"}
+      - {args: [[["1"]], 0, 0], expected: [["0"]]}
+    solution: |
+      class Solution:
+          def sinkIsland(self, grid: List[List[str]], r: int, c: int) -> List[List[str]]:
+              rows, cols = len(grid), len(grid[0])
+              def sink(r, c):
+                  if r < 0 or r >= rows or c < 0 or c >= cols or grid[r][c] != "1":
+                      return
+                  grid[r][c] = "0"  # mark before recursing
+                  sink(r + 1, c); sink(r - 1, c); sink(r, c + 1); sink(r, c - 1)
+              sink(r, c)
+              return grid
+    hint: "One guard handles bounds and water together; then set the cell to `\"0\"` and recurse four ways."
+
+  - title: The direction list is the edge set
+    skill: edge
+    goal: Change which neighbours count as edges (8 directions) and keep the bounds check correct at corners.
+    instructions: |
+      Count islands where land cells connect in **all 8 directions**, diagonals included.
+
+      Interviewers love this follow-up because it tests whether you understand *why* your DFS
+      works. The grid-graph's edges are nothing more than your list of `(dr, dc)` moves: add the
+      four diagonals and the graph changes, while the scan-and-sink loop stays identical. Diagonal
+      moves leave the grid at corners in two directions at once, so the bounds check matters even
+      more.
+    function:
+      name: numIslandsEightWay
+      params: [{name: grid}]
+    starter_code: |
+      class Solution:
+          def numIslandsEightWay(self, grid: List[List[str]]) -> int:
+              pass
+    tests:
+      - {args: [[["1", "0", "1"], ["0", "1", "0"], ["1", "0", "1"]]], expected: 1, note: "the X shape is one island now"}
+      - {args: [[["1", "1", "0", "0", "0"], ["1", "1", "0", "0", "0"], ["0", "0", "1", "0", "0"], ["0", "0", "0", "1", "1"]]], expected: 1}
+      - {args: [[["1", "0", "0"], ["0", "0", "1"]]], expected: 2, note: "two columns apart is still separate"}
+      - {args: [[["0"]]], expected: 0}
+      - {args: [[["1", "0", "1", "0", "1"]]], expected: 3}
+    solution: |
+      class Solution:
+          def numIslandsEightWay(self, grid: List[List[str]]) -> int:
+              rows, cols = len(grid), len(grid[0])
+              moves = [(dr, dc) for dr in (-1, 0, 1) for dc in (-1, 0, 1) if (dr, dc) != (0, 0)]
+              def sink(r, c):
+                  if 0 <= r < rows and 0 <= c < cols and grid[r][c] == "1":
+                      grid[r][c] = "0"
+                      for dr, dc in moves:
+                          sink(r + dr, c + dc)
+              count = 0
+              for r in range(rows):
+                  for c in range(cols):
+                      if grid[r][c] == "1":
+                          count += 1
+                          sink(r, c)
+              return count
+    hint: "Build the 8 moves from every `(dr, dc)` in `{-1, 0, 1}²` except `(0, 0)`."
+
+hints:
+  - >-
+    Think of each land cell as a node with edges to its land neighbours above, below, left and
+    right. What is an island in that graph? And when you find one land cell of a new island, how
+    could you make sure you never count the rest of that island again?
+  - >-
+    Scan every cell. When you hit a "1", that's a brand-new island: count it, then run a DFS that
+    turns every connected "1" into "0". After the DFS, that island no longer exists, so the scan
+    can only count each island once.
+  - |
+    count = 0
+    sink(r, c):
+        if (r, c) outside the grid or grid[r][c] != "1": return
+        grid[r][c] = "0"                    (mark before recursing)
+        sink down, up, right, left
+    for each cell (r, c) in row-major order:
+        if grid[r][c] == "1":
+            count += 1
+            sink(r, c)
+    return count
+
+solution:
+  code: |
+    class Solution:
+        def numIslands(self, grid: List[List[str]]) -> int:
+            rows, cols = len(grid), len(grid[0])
+
+            def sink(r, c):
+                if r < 0 or r >= rows or c < 0 or c >= cols:
+                    return  # off the map
+                if grid[r][c] != "1":
+                    return  # water, or land we already sank
+                grid[r][c] = "0"  # sink it: this is the visited mark
+                sink(r + 1, c)
+                sink(r - 1, c)
+                sink(r, c + 1)
+                sink(r, c - 1)
+
+            count = 0
+            for r in range(rows):
+                for c in range(cols):
+                    if grid[r][c] == "1":  # first cell of an island we haven't seen
+                        count += 1
+                        sink(r, c)  # erase the whole island so it's never counted again
+            return count
+  explanation: |
+    **Same template as Flood Fill, run once per component.** The DFS (`sink`) is the four-line
+    grid template: bounds check, "is this land?", mark it, recurse four ways. Sinking land to
+    `"0"` is the visited mark, exactly like painting was in Flood Fill.
+
+    **The counting loop** is the new part, and it's the template for every "how many connected
+    components?" question: scan every node; when you find one that isn't visited yet, it must
+    belong to a component you haven't seen, so add 1 and traverse that whole component. The DFS
+    guarantees that when it returns, every cell of that island is water, so the scan can never land
+    on that island again.
+
+    **Why it's O(M·N) even with a DFS inside a double loop:** each land cell is sunk exactly once
+    over the whole run (after that it's water and every guard rejects it), and each cell is scanned
+    once. The inner DFS isn't "per cell", it's spread across the entire grid.
+
+    **Alternatives an interviewer may ask about:**
+    - **BFS** with a `deque`: on finding a `"1"`, sink it, push it, and pop/expand until the queue
+      is empty. Same O(M·N), and no recursion depth problem. Recursive DFS can go 9 × 10⁴ calls
+      deep on a 300 × 300 all-land grid, past Python's default limit of 1,000, so on a platform
+      that doesn't raise the limit, use BFS or an explicit stack.
+    - **Union-Find**: start with one set per land cell, union each land cell with its land
+      neighbours to the right and below, and the answer is the number of land cells minus the
+      number of successful unions. Useful when land arrives one cell at a time (Number of
+      Islands II).
+    - **Don't modify the input?** Use a `visited` set of `(r, c)` instead of sinking.
+  time: O(M·N) — every cell is scanned once and every land cell is sunk once
+  space: O(M·N) — the recursion stack in the worst case (an all-land grid)
+  brute_force_code: |
+    class Solution:
+        def numIslands(self, grid: List[List[str]]) -> int:
+            rows, cols = len(grid), len(grid[0])
+            count = 0
+            for r in range(rows):
+                for c in range(cols):
+                    if grid[r][c] != "1":
+                        continue
+                    # explore this cell's island from scratch, with no shared memory
+                    seen, stack = {(r, c)}, [(r, c)]
+                    while stack:
+                        cr, cc = stack.pop()
+                        for nr, nc in ((cr + 1, cc), (cr - 1, cc), (cr, cc + 1), (cr, cc - 1)):
+                            if 0 <= nr < rows and 0 <= nc < cols and grid[nr][nc] == "1" and (nr, nc) not in seen:
+                                seen.add((nr, nc))
+                                stack.append((nr, nc))
+                    if min(seen) == (r, c):  # count the island only from its first cell
+                        count += 1
+            return count
+
+pitch_script: |
+  **(Clarify)** "Land is the character '1', water is '0', and cells connect only horizontally or
+  vertically, not diagonally. Outside the grid is water. Am I allowed to modify the grid, or should
+  I keep it intact?"
+
+  **(Brute force)** "Naively, I could explore each land cell's island separately and count it only
+  from its first cell. But an island of K cells gets explored K times, which is O((M·N)²), about
+  8 × 10⁹ steps on a 300 by 300 all-land grid."
+
+  **(Trigger)** "Counting islands is counting connected components in a graph where land cells are
+  nodes and side-sharing land cells are edges. The standard tool is: scan the nodes, and every time
+  I hit an unvisited one, that's a new component, so I count it and traverse the whole thing."
+
+  **(Optimal)** "I scan the grid. When I find a '1', I increment the count and run a DFS that sinks
+  the island, turning every connected '1' into '0'. The DFS checks bounds first, then whether the
+  cell is still land, sinks it, then recurses in four directions. Sinking is my visited marker, so
+  each island is counted exactly once. If I can't modify the grid I'd use a visited set instead."
+
+  **(Complexity)** "Each cell is scanned once and each land cell is sunk once, so it's O(M·N) time.
+  Space is O(M·N) for the recursion in the worst case. Since that recursion can be 90,000 deep, in
+  Python I'd consider BFS with a deque instead. Union-Find also works in about the same time, and
+  shines if land is added incrementally."
+
+twist:
+  lc: 1254
+  title: Number of Closed Islands
+  why: >-
+    Now only islands that never touch the grid's border count (and the encoding flips: 0 is land,
+    1 is water). The scan-and-sink loop is the same, but the DFS must report whether it ever stepped
+    off the grid: return True only if all four recursive calls return True, and be careful to call
+    all four instead of short-circuiting with `and`, or part of the island stays unsunk and gets
+    counted later. An alternative is to first sink every island touching the border, then count
+    what's left with this exact solution.
+
+viz:
+  grid: grid
+  cell: [r, c]
+  watch: [count]

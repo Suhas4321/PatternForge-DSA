@@ -1,0 +1,357 @@
+slug: asteroid-collision
+lc: 735
+
+concept:
+  problem_it_solves: >-
+    "When a new item arrives, does it cancel out the most recent survivor, and maybe the one
+    before that too?" Collisions only ever happen between the newest arrival and whatever is
+    still standing right next to it. A stack keeps the survivors in order, so the one a new
+    arrival can hit is always on top, and a chain reaction is just popping in a loop.
+  brute_force: >-
+    Simulate the physics literally: scan the row for the first adjacent pair where a
+    right-mover sits just left of a left-mover, resolve that one crash, then rescan from the
+    start. Each crash removes at least one asteroid, but every rescan re-reads all the
+    survivors that already settled and will never move again.
+  brute_force_complexity: >-
+    O(N²) time, O(N) space — up to N crashes, each followed by an O(N) rescan, so
+    10⁴ asteroids means around 10⁸ steps.
+  key_insight: >-
+    Process asteroids left to right and keep the survivors on a stack. A collision is only
+    possible when the incoming asteroid moves **left** (negative) and the top of the stack
+    moves **right** (positive); every other pair is moving apart or in the same direction and
+    never meets. When they do meet there are exactly three outcomes: the incoming one is
+    smaller (it explodes, stop), the top is smaller (pop it and check the new top), or they're
+    equal (pop the top, and the incoming one is gone too). Each asteroid is pushed once and
+    popped at most once, so the chain reactions add up to O(N) total.
+  real_world: >-
+    Order-book matching engines at exchanges like NSE resolve an incoming sell order against
+    the most recent resting buy orders the same way: the larger side survives with the
+    remainder. Text editors collapse backspaces with a stack, and Git-style undo/redo or
+    "cancel the last pending operation" queues in payment systems are the same collapse rule.
+
+statement:
+  clean: |
+    We are given an array `asteroids` of integers representing asteroids in a row. The
+    indices of the asteroids in the array represent their relative position in space.
+
+    For each asteroid, the **absolute value represents its size**, and the
+    **sign represents its direction** (positive meaning right, negative meaning left). Each
+    asteroid moves at the same speed.
+
+    Find out the state of the asteroids after all collisions. If two asteroids meet, the
+    smaller one will explode. If both are the same size, both will explode. **Two asteroids
+    moving in the same direction will never meet.**
+  oa_story: |
+    **AnnapurnaFoods — Online Assessment, SDE-1**
+
+    AnnapurnaFoods runs a central kitchen in Peenya that supplies its cloud kitchens across
+    Bengaluru. Food trolleys move through a single narrow service corridor. Each trolley is
+    logged as a signed integer: the number is its load in kilograms, positive if it is being
+    pushed towards the dispatch bay (to the right) and negative if it is returning to the wash
+    area (to the left). The log lists trolleys in their order along the corridor, and all of
+    them move at the same pace.
+
+    The corridor is too narrow to pass. When two trolleys meet head-on, the lighter one is
+    shunted into a side bay and leaves the corridor; if they weigh the same, both are shunted.
+    Trolleys heading the same way never meet. Return the trolleys still in the corridor once
+    nothing else can meet, in their original left-to-right order, so the floor manager knows
+    which ones to expect at each end.
+  trigger_keywords: ["absolute value represents its size", "sign represents its direction", "moving in the same direction will never meet"]
+  examples:
+    - input: "asteroids = [5,10,-5]"
+      output: "[5,10]"
+      explanation: "The 10 and -5 collide, leaving the 10. The 5 and 10 never collide."
+    - input: "asteroids = [8,-8]"
+      output: "[]"
+      explanation: "The 8 and -8 are the same size, so both explode."
+    - input: "asteroids = [10,2,-5]"
+      output: "[10]"
+      explanation: "The 2 and -5 collide, leaving the -5. Then the 10 and -5 collide, leaving the 10."
+  constraints:
+    - "2 <= asteroids.length <= 10^4"
+    - "-1000 <= asteroids[i] <= 1000"
+    - "asteroids[i] != 0"
+
+constraint_quiz:
+  prompt: With up to 10⁴ asteroids and chain reactions possible, what time complexity should you aim for?
+  options: ["O(N²)", "O(N log N)", "O(N)", "O(N · 1000)"]
+  answer: 2
+  explanation: >-
+    Repeated rescanning is O(N²), about 10⁸ steps here: it might squeak through in C++ but is
+    the answer interviewers want you to improve on. O(N log N) would suggest sorting, but
+    sorting destroys the left-to-right order that decides who meets whom. O(N) is achievable
+    because each asteroid is pushed once and popped at most once. O(N · 1000) ties the cost to
+    the size range, which has nothing to do with the number of collisions.
+
+pattern_quiz:
+  prompt: >-
+    Items arrive in order, and each new item may cancel the most recent survivors, possibly
+    several in a row. Which pattern fits?
+  options:
+    - "Two pointers from both ends"
+    - "Sliding window"
+    - "Stack of survivors that the incoming item collapses"
+    - "Sort by size and process largest first"
+  answer: 2
+  explanation: >-
+    "The newest arrival interacts with the most recent survivor, and a win lets it hit the one
+    before" is the collapse-stack trigger: the most recent unresolved thing is the one that
+    matters. Two pointers from both ends would pair the wrong asteroids (the leftmost and
+    rightmost never meet first), a window has no fixed boundary rule here, and sorting by size
+    throws away positions, which decide who meets whom.
+
+function:
+  name: asteroidCollision
+  params: [{name: asteroids}]
+
+starter_code: |
+  class Solution:
+      def asteroidCollision(self, asteroids: List[int]) -> List[int]:
+          pass
+
+tests:
+  - {args: [[5, 10, -5]], expected: [5, 10]}
+  - {args: [[8, -8]], expected: []}
+  - {args: [[10, 2, -5]], expected: [10]}
+  - {args: [[3, 5, -6, 2, -1, 4]], expected: [-6, 2, 4], note: "-6 destroys two in a chain, then a small left-mover dies"}
+  - {args: [[-2, -1, 1, 2]], expected: [-2, -1, 1, 2], note: "left-movers on the left, right-movers on the right: they move apart"}
+  - {args: [[1, 2, 3, -10]], expected: [-10], note: "one left-mover wipes out the whole stack"}
+  - {args: [[1, -1, -2]], expected: [-2], note: "after an equal crash the incoming asteroid is gone too: -2 then sails past"}
+  - {args: [[10, -1, -2, -3]], expected: [10], note: "a big right-mover absorbs every small left-mover"}
+  - {args: [[-5, 5]], expected: [-5, 5], note: "a negative before a positive never meets"}
+visualize_test: 3
+
+drills:
+  - title: Only right-then-left collides
+    skill: setup
+    goal: Walk the row with a stack of survivors and recognise the one situation where a collision happens.
+    instructions: |
+      Imagine a simpler universe where **every collision destroys both asteroids**,
+      regardless of size. Walk `asteroids` left to right with a stack. If the incoming
+      asteroid moves left (`a < 0`) and the top of the stack moves right (`stack[-1] > 0`),
+      pop the top and drop the incoming one. Otherwise push the incoming asteroid. Return the
+      stack.
+
+      This isolates the collision **condition**, which is where most people slip: a negative
+      top with a negative incoming never meets, and a positive incoming never hits anything
+      behind it, because it's moving away. Only "top goes right, incoming goes left" collides.
+    function:
+      name: mutualDestruction
+      params: [{name: asteroids}]
+    starter_code: |
+      class Solution:
+          def mutualDestruction(self, asteroids: List[int]) -> List[int]:
+              pass
+    tests:
+      - {args: [[5, 10, -5]], expected: [5]}
+      - {args: [[-2, -1, 1, 2]], expected: [-2, -1, 1, 2], note: nothing ever meets}
+      - {args: [[1, -1, -1]], expected: [-1], note: the second -1 finds an empty stack}
+      - {args: [[3, -1, 4, 5, -2]], expected: [4]}
+    solution: |
+      class Solution:
+          def mutualDestruction(self, asteroids: List[int]) -> List[int]:
+              stack = []
+              for a in asteroids:
+                  if a < 0 and stack and stack[-1] > 0:
+                      stack.pop()
+                  else:
+                      stack.append(a)
+              return stack
+    hint: "The collision test is `a < 0 and stack and stack[-1] > 0`; everything else is a push."
+
+  - title: Land one asteroid on the stack
+    skill: core
+    goal: Resolve a single incoming asteroid against the survivors, handling all three collision outcomes and the chain reaction.
+    instructions: |
+      You're given `stack`, the survivors so far (already stable: no collisions pending), and
+      one incoming asteroid `a`. Return the stack after `a` arrives and every resulting
+      collision is resolved.
+
+      While a collision is possible (`a < 0` and the top is positive), compare sizes:
+      - top smaller than `|a|`: the top explodes; pop it and **keep checking** the new top
+      - top equal to `|a|`: pop it, and `a` explodes too, so stop
+      - top bigger than `|a|`: `a` explodes, stop
+
+      Push `a` only if it survived. This loop is the heart of the full problem: the outer
+      loop just calls it once per asteroid.
+    function:
+      name: landOne
+      params: [{name: stack}, {name: a}]
+    starter_code: |
+      class Solution:
+          def landOne(self, stack: List[int], a: int) -> List[int]:
+              pass
+    tests:
+      - {args: [[5, 10], -5], expected: [5, 10], note: incoming is smaller}
+      - {args: [[10, 2], -5], expected: [10], note: "pop the 2, then lose to the 10"}
+      - {args: [[8], -8], expected: [], note: equal sizes}
+      - {args: [[1, 2, 3], -10], expected: [-10], note: chain reaction empties the stack}
+      - {args: [[-3], -1], expected: [-3, -1], note: both move left}
+    solution: |
+      class Solution:
+          def landOne(self, stack: List[int], a: int) -> List[int]:
+              while a < 0 and stack and stack[-1] > 0:
+                  if stack[-1] < -a:
+                      stack.pop()
+                      continue
+                  if stack[-1] == -a:
+                      stack.pop()
+                  return stack
+              stack.append(a)
+              return stack
+    hint: "Keep looping only in the 'top is smaller' case; both other outcomes end with `a` destroyed."
+
+  - title: Does the incoming one survive?
+    skill: edge
+    goal: Decide whether an incoming asteroid ends up on the stack, getting the equal-size and empty-stack cases right.
+    instructions: |
+      Given a stable `stack` and an incoming asteroid `a`, return `True` if `a` survives
+      (ends up pushed) and `False` if it explodes. Don't modify the stack: just look down it
+      from the top.
+
+      This is the decision people get wrong under pressure: an **equal** crash destroys the
+      incoming asteroid too (so it must not be pushed afterwards), a right-mover always
+      survives, and a left-mover that meets a left-mover, or reaches the bottom, is safe.
+    function:
+      name: incomingSurvives
+      params: [{name: stack}, {name: a}]
+    starter_code: |
+      class Solution:
+          def incomingSurvives(self, stack: List[int], a: int) -> bool:
+              pass
+    tests:
+      - {args: [[5, 10], -5], expected: false}
+      - {args: [[8], -8], expected: false, note: "equal: both explode"}
+      - {args: [[1, 2, 3], -10], expected: true, note: beats everything and reaches the bottom}
+      - {args: [[-3, 4], -5], expected: true, note: "beats the 4, then meets a left-mover"}
+      - {args: [[4], 3], expected: true, note: a right-mover never hits what's behind it}
+      - {args: [[], -1], expected: true}
+    solution: |
+      class Solution:
+          def incomingSurvives(self, stack: List[int], a: int) -> bool:
+              if a > 0:
+                  return True
+              for top in reversed(stack):
+                  if top < 0:
+                      return True
+                  if top >= -a:
+                      return False
+              return True
+    hint: "Walk `reversed(stack)`: a negative top means safe, a top of size `>= |a|` means destroyed."
+
+hints:
+  - >-
+    When a left-moving asteroid arrives, which asteroid can it hit first? And if it wins, who
+    is next in line? Does it ever matter what happened further back than that?
+  - >-
+    Keep survivors on a stack. While the incoming asteroid moves left and the top moves right,
+    compare sizes: pop the top if it's smaller and keep going, pop and stop if they're equal,
+    and stop if the top is bigger. Push the incoming asteroid only if it survived.
+  - |
+    stack = empty
+    for a in asteroids:
+        alive = true
+        while alive and a < 0 and stack not empty and top > 0:
+            if top < |a|:   pop                    # top explodes, keep checking
+            elif top == |a|: pop; alive = false    # both explode
+            else:            alive = false         # incoming explodes
+        if alive: push a
+    return stack
+
+solution:
+  code: |
+    class Solution:
+        def asteroidCollision(self, asteroids: List[int]) -> List[int]:
+            stack = []  # survivors so far, in left-to-right order
+            for a in asteroids:
+                alive = True
+                # only a right-moving top and a left-moving incoming can meet
+                while alive and a < 0 and stack and stack[-1] > 0:
+                    top = stack[-1]
+                    if top < -a:
+                        stack.pop()  # top explodes; the next one may be hit too
+                    elif top == -a:
+                        stack.pop()  # equal size: both explode
+                        alive = False
+                    else:
+                        alive = False  # incoming explodes
+                if alive:
+                    stack.append(a)
+            return stack
+  explanation: |
+    The stack always holds a **stable** row: no two asteroids on it will ever meet. That's true
+    because any right-mover sitting directly left of a left-mover has already been resolved.
+    So when a new asteroid arrives, the only one it can possibly hit is the top of the stack.
+
+    If the incoming asteroid moves right, it is moving away from everything on the stack, so it
+    is pushed. If it moves left and the top also moves left, they travel together forever, so
+    it is pushed. Only "top positive, incoming negative" collides, and then the sizes decide:
+    a smaller top is popped and the incoming asteroid **keeps going** to hit the next one (the
+    chain reaction); an equal top is popped and the incoming asteroid is destroyed too; a
+    bigger top destroys the incoming asteroid.
+
+    The `alive` flag is the subtle part. Without it, an asteroid that died in an equal crash
+    would still be pushed at the end, and the test `[1, -1, -2]` would wrongly keep the `-1`.
+
+    Although there's a `while` inside the `for`, every asteroid is pushed at most once and
+    popped at most once, so the total work across all chain reactions is O(N).
+  time: O(N) — every asteroid is pushed at most once and popped at most once
+  space: O(N) — the stack holds every asteroid when nothing collides
+  brute_force_code: |
+    class Solution:
+        def asteroidCollision(self, asteroids: List[int]) -> List[int]:
+            row = list(asteroids)
+            changed = True
+            while changed:
+                changed = False
+                for k in range(len(row) - 1):
+                    if row[k] > 0 and row[k + 1] < 0:  # first pair that meets
+                        left, right = row[k], -row[k + 1]
+                        if left > right:
+                            del row[k + 1]
+                        elif left < right:
+                            del row[k]
+                        else:
+                            del row[k:k + 2]
+                        changed = True
+                        break  # rescan from the start
+            return row
+
+pitch_script: |
+  **(Clarify)** "So positive moves right, negative moves left, all at the same speed. When two
+  meet the smaller one explodes, equal sizes both explode, and I return the survivors in their
+  original order. And a left-mover sitting to the left of a right-mover just drifts apart,
+  right?"
+
+  **(Brute force)** "I could simulate it: find the first adjacent pair where a positive is
+  directly followed by a negative, resolve it, and rescan. That's up to N crashes times an O(N)
+  scan, so O(N²), and most of each rescan re-reads asteroids that have already settled."
+
+  **(Trigger)** "The thing a new asteroid can hit is always the most recent survivor next to
+  it, and if it wins, the one before that. 'The newest arrival collapses the most recent
+  survivors' is a stack."
+
+  **(Optimal)** "I go left to right with a stack of survivors. If the incoming asteroid moves
+  left and the top moves right, I compare sizes: if the top is smaller I pop it and keep
+  checking, if they're equal I pop it and the incoming one is gone too, and if the top is
+  bigger the incoming one is gone. I push the incoming asteroid only if it survived. Every
+  other direction combination never collides, so it's just a push."
+
+  **(Complexity)** "Each asteroid is pushed once and popped at most once, so it's O(N) time
+  overall even with the inner loop, and O(N) space for the stack."
+
+twist:
+  lc: 2751
+  title: Robot Collisions
+  why: >-
+    Robots have positions (unsorted), healths and directions, and when two collide the loser
+    is removed while the winner **loses 1 health** instead of staying unchanged. Sort robot
+    indices by position first, then run the same collapse stack of right-movers: an incoming
+    left-mover fights the top repeatedly, decrementing the winner's health each time. Finally
+    report surviving healths in the original input order, which means storing indices on the
+    stack rather than values.
+
+viz:
+  arrays: [asteroids]
+  stacks: [stack]
+  watch: [a, top, alive]

@@ -1,0 +1,20 @@
+# Python
+backend/.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Node
+node_modules/
+frontend/dist/
+
+# Local config and secrets
+.env
+backend/.env
+
+# Local database (your progress is mirrored to backend/backups/user_data.json)
+backend/*.db
+backend/*.db-*
+
+*.log
+.DS_Store

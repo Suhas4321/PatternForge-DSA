@@ -1,0 +1,332 @@
+slug: merge-two-sorted-lists
+lc: 21
+
+concept:
+  problem_it_solves: >-
+    "Given two queues that are each already in order, how do I produce one ordered queue?" The
+    smallest remaining item overall must be at the front of one of the two lists, so you never
+    need to look deeper than the two heads. The merge is just repeatedly taking the smaller
+    head, and a linked list lets you take it by relinking, without copying anything.
+  brute_force: >-
+    Pour every value from both lists into an array, sort it, and build a new list from it. This
+    throws away the fact that both inputs are already sorted, pays for a full sort anyway, and
+    allocates new nodes even though the problem asks you to splice the existing ones together.
+  brute_force_complexity: >-
+    O((N + M) log(N + M)) time, O(N + M) extra space — sorting work the sorted inputs already
+    did for you, plus a copy of every node.
+  key_insight: >-
+    Only two nodes are ever candidates for the next position: the head of list1 and the head
+    of list2. Compare them, attach the smaller one to the tail of the result, and advance that
+    list. A dummy node in front of the result means "attach to the tail" works the same way for
+    the very first node as for every other one, so there is no "is the result empty?" branch.
+    When one list runs out, the other's remainder is already sorted and linked: attach it with
+    a single assignment.
+  real_world: >-
+    This is the merge step of merge sort, and the standard way to sort linked lists. LSM-tree
+    databases (RocksDB, Cassandra, LevelDB) compact by merging sorted runs, search engines like
+    Elasticsearch intersect and merge sorted posting lists, and database sort-merge joins and
+    external sorting all repeat "take the smaller head" over sorted streams.
+
+statement:
+  clean: |
+    You are given the heads of two **sorted linked lists** `list1` and `list2`.
+
+    Merge the two lists into **one sorted list**. The list should be made by
+    **splicing together the nodes** of the first two lists.
+
+    Return the head of the merged linked list.
+  oa_story: |
+    **TrainTrack Labs — OA Round 1**
+
+    TrainTrack Labs builds the live arrival board for Bengaluru's suburban rail corridors. Two
+    sensor gateways, one at KSR Bengaluru and one at Yesvantpur, each publish a feed of train
+    events. Every event record stores its minute offset from midnight relative to a reference
+    (it can be negative for trains running early) and a reference to the next event in that
+    gateway's feed. Each feed is already in non-decreasing order of offset.
+
+    The board needs a single feed in non-decreasing order. Memory on the edge device is
+    limited, so you may not copy events: relink the existing records from both feeds into one
+    ordered feed and return its first record. Either feed may be empty, and each holds at most
+    50 events.
+  trigger_keywords: ["sorted linked lists", "one sorted list", "splicing together the nodes"]
+  examples:
+    - input: "list1 = [1,2,4], list2 = [1,3,4]"
+      output: "[1,1,2,3,4,4]"
+      explanation: "Repeatedly take the smaller of the two heads: 1, 1, 2, 3, 4, then attach the leftover 4."
+    - input: "list1 = [], list2 = []"
+      output: "[]"
+    - input: "list1 = [], list2 = [0]"
+      output: "[0]"
+      explanation: "One list is empty from the start, so the answer is just the other list."
+  constraints:
+    - "The number of nodes in both lists is in the range [0, 50]."
+    - "-100 <= Node.val <= 100"
+    - "Both list1 and list2 are sorted in non-decreasing order."
+
+constraint_quiz:
+  prompt: >-
+    Both lists are already sorted, with N and M nodes. What is the best time complexity for
+    merging them?
+  options:
+    - "O((N + M) log(N + M)) — collect and sort"
+    - "O(N · M) — insert each node of list2 into list1 by scanning"
+    - "O(N + M) — one pass taking the smaller head"
+    - "O(log(N + M)) — binary search for where list2 fits into list1"
+  answer: 2
+  explanation: >-
+    Sorting ignores the order you were given and pays an extra log factor. Inserting each
+    list2 node by scanning list1 from the start re-reads list1 up to M times. Binary search
+    needs random access, which a linked list doesn't have (reaching the middle already costs
+    O(N) steps), and on interleaved input like [1,3,5] and [2,4,6] every node needs its own
+    new link anyway. One comparison of the two heads per attached node gives O(N + M) in the
+    worst case, and that's optimal.
+
+pattern_quiz:
+  prompt: >-
+    You must combine two sorted linked lists into one sorted list by relinking their nodes.
+    Which technique fits best?
+  options:
+    - "Dummy head plus a tail pointer, always attaching the smaller head"
+    - "Reverse both lists, then merge from the largest values"
+    - "Fast and slow pointers to find the middle of each list"
+    - "Push all nodes into a hash map keyed by value"
+  answer: 0
+  explanation: >-
+    "Merge sorted lists" is the two-head merge trigger, and building a new linked list one node
+    at a time is the dummy-head trigger. The dummy gives the first attached node somewhere to
+    hang, and `tail` lets each attach run in O(1). Reversing adds work for no gain, middles are
+    for splitting, not merging, and a hash map loses the ordering you need.
+
+function:
+  name: mergeTwoLists
+  params: [{name: list1, type: ListNode}, {name: list2, type: ListNode}]
+  returns: ListNode
+
+starter_code: |
+  class Solution:
+      def mergeTwoLists(self, list1: Optional[ListNode], list2: Optional[ListNode]) -> Optional[ListNode]:
+          pass
+
+tests:
+  - {args: [[1, 2, 4], [1, 3, 4]], expected: [1, 1, 2, 3, 4, 4]}
+  - {args: [[], []], expected: [], note: both lists empty}
+  - {args: [[], [0]], expected: [0], note: first list empty}
+  - {args: [[2], []], expected: [2], note: second list empty}
+  - {args: [[1, 2, 3], [4, 5, 6]], expected: [1, 2, 3, 4, 5, 6], note: "no interleaving: all of list2 is leftover"}
+  - {args: [[5], [1, 2, 3]], expected: [1, 2, 3, 5], note: "list2 runs out first: attach list1's leftover"}
+  - {args: [[-10, -3, 0, 7], [-5, -3, 8, 9, 12]], expected: [-10, -5, -3, -3, 0, 7, 8, 9, 12], note: "negatives, a tie, and a long leftover"}
+  - {args: [[1, 1, 1], [1, 1]], expected: [1, 1, 1, 1, 1], note: all values equal}
+visualize_test: 0
+
+drills:
+  - title: Build a list with a dummy and a tail
+    skill: setup
+    goal: Create a dummy node and append nodes through a tail pointer, returning dummy.next.
+    instructions: |
+      Build a linked list containing `values` in order and return its head (`None` for an
+      empty array).
+
+      Without a dummy you need an `if head is None` branch for the first node. With
+      `dummy = ListNode()` and `tail = dummy`, every node is attached the same way:
+      `tail.next = node; tail = tail.next`. The real head is `dummy.next`. This is exactly how
+      the merged list is built.
+    function:
+      name: buildList
+      params: [{name: values}]
+      returns: ListNode
+    starter_code: |
+      class Solution:
+          def buildList(self, values: List[int]) -> Optional[ListNode]:
+              pass
+    tests:
+      - {args: [[1, 2, 3]], expected: [1, 2, 3]}
+      - {args: [[]], expected: [], note: "dummy.next is still None"}
+      - {args: [[7]], expected: [7]}
+      - {args: [[-1, 0, -1]], expected: [-1, 0, -1]}
+    solution: |
+      class Solution:
+          def buildList(self, values: List[int]) -> Optional[ListNode]:
+              dummy = ListNode()
+              tail = dummy
+              for v in values:
+                  tail.next = ListNode(v)
+                  tail = tail.next
+              return dummy.next
+    hint: "Always attach to `tail.next`, then move `tail` onto the node you just attached."
+
+  - title: Take the smaller head
+    skill: core
+    goal: Write the compare, attach, advance loop that runs while both lists still have nodes.
+    instructions: |
+      Merge the two sorted lists **only while both are non-empty**: compare the heads, attach
+      the smaller one (on a tie, take `list1`), advance that list and the tail. Stop as soon
+      as either list runs out and return the merged part, **without** attaching the leftover.
+
+      For `[1,2,3]` and `[4,5]` that returns `[1,2,3]`: list1 ran out, and the 4 and 5 were
+      never compared. Notice that the result ends cleanly: the last node you took was the last
+      node of the list that ran out, so its `next` is already `None`. This drill isolates the
+      loop; the real solution adds one line after it for the leftovers.
+    function:
+      name: mergeWhileBoth
+      params: [{name: list1, type: ListNode}, {name: list2, type: ListNode}]
+      returns: ListNode
+    starter_code: |
+      class Solution:
+          def mergeWhileBoth(self, list1: Optional[ListNode], list2: Optional[ListNode]) -> Optional[ListNode]:
+              pass
+    tests:
+      - {args: [[1, 2, 4], [1, 3, 4]], expected: [1, 1, 2, 3, 4], note: "list1 runs out; list2's last 4 is never taken"}
+      - {args: [[1, 2, 3], [4, 5]], expected: [1, 2, 3]}
+      - {args: [[5], [1, 2, 6]], expected: [1, 2, 5]}
+      - {args: [[], [1]], expected: [], note: "one list empty: the loop never runs"}
+    solution: |
+      class Solution:
+          def mergeWhileBoth(self, list1: Optional[ListNode], list2: Optional[ListNode]) -> Optional[ListNode]:
+              dummy = ListNode()
+              tail = dummy
+              while list1 and list2:
+                  if list1.val <= list2.val:
+                      tail.next, list1 = list1, list1.next
+                  else:
+                      tail.next, list2 = list2, list2.next
+                  tail = tail.next
+              return dummy.next
+    hint: "The loop condition is `while list1 and list2`; inside, advance only the list you took from."
+
+  - title: Attach a whole chain in one move
+    skill: edge
+    goal: Join a remaining chain with a single pointer assignment, using a dummy so an empty first list needs no special case.
+    instructions: |
+      Return `list1` followed by all of `list2` (concatenation, not a merge). Either list may
+      be empty.
+
+      This is the leftover step of the merge. The remaining nodes are already linked to each
+      other, so you never loop over them: one assignment `tail.next = list2` attaches all of
+      them. Put a dummy in front of `list1` so that walking to its last node also works when
+      `list1` is empty: the "last node" is then the dummy itself.
+    function:
+      name: concatenate
+      params: [{name: list1, type: ListNode}, {name: list2, type: ListNode}]
+      returns: ListNode
+    starter_code: |
+      class Solution:
+          def concatenate(self, list1: Optional[ListNode], list2: Optional[ListNode]) -> Optional[ListNode]:
+              pass
+    tests:
+      - {args: [[1, 2], [3, 4]], expected: [1, 2, 3, 4]}
+      - {args: [[], [3, 4]], expected: [3, 4], note: "list1 empty: the dummy is the last node"}
+      - {args: [[1, 2], []], expected: [1, 2], note: attaching None changes nothing}
+      - {args: [[], []], expected: []}
+      - {args: [[9], [1, 5, 7]], expected: [9, 1, 5, 7], note: "concatenation keeps order, even if unsorted"}
+    solution: |
+      class Solution:
+          def concatenate(self, list1: Optional[ListNode], list2: Optional[ListNode]) -> Optional[ListNode]:
+              dummy = ListNode(0, list1)
+              tail = dummy
+              while tail.next:
+                  tail = tail.next
+              tail.next = list2  # one assignment attaches the entire chain
+              return dummy.next
+    hint: "Walk `tail` while `tail.next` exists, starting from a dummy whose next is list1."
+
+hints:
+  - >-
+    Of all the nodes not yet placed, which two are the only possible candidates for the next
+    position in the merged list? Why can't any node deeper inside a list come next?
+  - >-
+    Keep a `tail` pointing at the last node of the merged list. Each step: compare the two
+    heads, hang the smaller one on `tail.next`, advance that list and `tail`. When one list is
+    empty, what is true about the other list's remaining nodes?
+  - |
+    dummy = new node, tail = dummy
+    while list1 and list2 both non-empty:
+        if list1.val <= list2.val: tail.next = list1, advance list1
+        else:                      tail.next = list2, advance list2
+        tail = tail.next
+    tail.next = whichever list is non-empty
+    return dummy.next
+
+solution:
+  code: |
+    class Solution:
+        def mergeTwoLists(self, list1: Optional[ListNode], list2: Optional[ListNode]) -> Optional[ListNode]:
+            dummy = ListNode()  # placeholder in front of the result
+            tail = dummy  # last node of the merged list so far
+            while list1 and list2:
+                if list1.val <= list2.val:
+                    tail.next = list1
+                    list1 = list1.next
+                else:
+                    tail.next = list2
+                    list2 = list2.next
+                tail = tail.next
+            # one list is exhausted; the other's rest is already sorted and linked
+            tail.next = list1 if list1 else list2
+            return dummy.next
+  explanation: |
+    Both lists are sorted, so the smallest node not yet placed is always one of the two heads.
+    Each iteration compares them, attaches the smaller one after `tail`, and advances that list.
+    No node is copied: we only rewrite `next` pointers, which is what "splicing" means.
+
+    The **dummy node** removes the special case for the first node. Without it you would have
+    to decide the head before the loop (and handle either list being empty). With it, the first
+    attach is `dummy.next = ...` just like every later attach, and the answer is `dummy.next`,
+    which is also correct (`None`) when both lists are empty.
+
+    When the loop ends, at least one list is empty. The other one's remaining nodes are already
+    sorted and already linked together, and all of them are at least as large as everything
+    placed so far, so a single `tail.next = list1 if list1 else list2` finishes the job. There
+    is no need for a second loop.
+
+    Using `<=` takes from `list1` on ties. Either choice produces the same values, but `<=`
+    makes the merge stable, which is what merge sort relies on.
+  time: O(N + M) — at most N + M − 1 loop iterations with one comparison each; the leftover is attached in O(1)
+  space: O(1) — only the dummy node and a few pointers; the result reuses the input nodes
+  brute_force_code: |
+    class Solution:
+        def mergeTwoLists(self, list1: Optional[ListNode], list2: Optional[ListNode]) -> Optional[ListNode]:
+            values = []
+            for node in (list1, list2):
+                while node:
+                    values.append(node.val)
+                    node = node.next
+            values.sort()
+            dummy = ListNode()
+            tail = dummy
+            for v in values:
+                tail.next = ListNode(v)
+                tail = tail.next
+            return dummy.next
+
+pitch_script: |
+  **(Clarify)** "Both lists are sorted in non-decreasing order, either can be empty, and I
+  should reuse the existing nodes rather than create new ones. I return the head of the merged
+  list, right?"
+
+  **(Brute force)** "I could collect all the values, sort them, and build a fresh list. That's
+  O((N + M) log(N + M)) and uses extra space, and it ignores the fact that both inputs are
+  already sorted."
+
+  **(Trigger)** "Because both lists are sorted, the next node of the answer is always one of
+  the two current heads. That's the classic merge step, and since I'm building a list node by
+  node, I'll use a dummy head so the first node isn't a special case."
+
+  **(Optimal)** "I create a dummy and a tail pointer at it. While both lists have nodes, I
+  attach the smaller head to tail.next, advance that list, and move tail forward. When one
+  list runs out, the other's remainder is already sorted and linked, so I attach it in one
+  assignment. The answer is dummy.next, which also covers both lists being empty."
+
+  **(Complexity)** "Each loop iteration places one node, so it's at most N + M iterations:
+  O(N + M) time, and O(1) extra space since I only relink existing nodes."
+
+twist:
+  lc: 23
+  title: Merge k Sorted Lists
+  why: >-
+    Now there are k lists, so "compare the two heads" becomes "find the smallest of k heads".
+    Keep the same dummy and tail, but put the k heads into a min-heap of (value, index, node):
+    pop the smallest, attach it, and push its next node if it has one. That gives
+    O(N log k) for N total nodes. Alternatively, merge the lists in pairs, halving the number
+    of lists each round, which reuses this exact function and is also O(N log k).
+
+viz: {}

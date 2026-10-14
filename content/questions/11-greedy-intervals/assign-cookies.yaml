@@ -1,0 +1,317 @@
+slug: assign-cookies
+lc: 455
+
+concept:
+  problem_it_solves: >-
+    "How do I match two lists so the most pairs are satisfied, when each item can be used at
+    most once?" Trying every assignment blows up exponentially. Sorting both lists makes the
+    right match obvious: the smallest thing that still works goes to the easiest customer,
+    and you never have to look back.
+  brute_force: >-
+    Try every way of handing out cookies: for each child, either skip them or give them any
+    unused cookie that is big enough, and keep the best count. It wastes work because it
+    keeps exploring assignments that hand a big cookie to an easy child, which can never beat
+    handing that child a smaller one.
+  brute_force_complexity: >-
+    Exponential time (on the order of (M + 1)^N assignments to explore), O(N + M) recursion
+    and bookkeeping space. Even 20 children and 20 cookies is far beyond any time limit, and N
+    and M go up to 3 × 10⁴.
+  key_insight: >-
+    Sort both lists, then walk them with two pointers. Give the least greedy unfed child the
+    smallest cookie that satisfies them. A cookie too small for the least greedy child is too
+    small for everyone, so throw it away. The proof is an exchange argument: if some optimal
+    plan feeds that child a bigger cookie, swap in the smaller one. The child is still happy,
+    and the bigger cookie is now free for someone else, so the count never drops.
+  real_world: >-
+    Cloud schedulers (Kubernetes bin-packing, AWS spot fleets) place each workload on the
+    smallest machine that fits, so big machines stay free for big jobs. Food-delivery and
+    ride-hailing dispatch (Swiggy, Ola) use the same "smallest sufficient resource" rule when
+    matching riders or cabs of different capacities to orders.
+
+statement:
+  clean: |
+    You are a parent who wants to give your children cookies, but each child can get
+    **at most one cookie**.
+
+    Child `i` has a **greed factor** `g[i]`: the minimum cookie size that will make them
+    content. Cookie `j` has a size `s[j]`. If `s[j] >= g[i]`, you can assign cookie `j` to
+    child `i` and child `i` will be content.
+
+    Return the **maximum number of** content children.
+  oa_story: |
+    **CampusCart — OA Round 1**
+
+    CampusCart delivers snacks and stationery to college hostels around Electronic City and
+    Bommanahalli. During exam week the ops team runs a promo: each student on the waitlist
+    gets at most one free voucher, and a student only redeems a voucher whose value is at
+    least the minimum value they told CampusCart they'd bother with (otherwise they ignore
+    it).
+
+    You are given the list of minimum values students will accept, and the list of voucher
+    values left in the promo budget, both in no particular order. Each voucher can go to only
+    one student. Return the largest number of students who can be made happy. The waitlist
+    and voucher pool can each hold 30,000 entries, and the job runs on every app refresh, so
+    it must be fast.
+  trigger_keywords: ["at most one cookie", "greed factor", "maximum number of"]
+  examples:
+    - input: "g = [1,2,3], s = [1,1]"
+      output: "1"
+      explanation: "Both cookies have size 1, so only the child with greed 1 can be content."
+    - input: "g = [1,2], s = [1,2,3]"
+      output: "2"
+      explanation: "Give size 1 to greed 1 and size 2 to greed 2. The size-3 cookie is left over."
+  constraints:
+    - "1 <= g.length <= 3 * 10^4"
+    - "0 <= s.length <= 3 * 10^4"
+    - "1 <= g[i], s[j] <= 2^31 - 1"
+
+constraint_quiz:
+  prompt: >-
+    There can be 3 × 10⁴ children and 3 × 10⁴ cookies. What time complexity should you aim
+    for?
+  options: ["Exponential (try all assignments)", "O(N · M)", "O(N log N + M log M)", "O(N + M)"]
+  answer: 2
+  explanation: >-
+    Trying all assignments is exponential and hopeless. O(N · M) (for each child, scan all
+    cookies for the best fit) is ~9 × 10⁸ steps, too slow. Sorting both lists costs
+    O(N log N + M log M) and the two-pointer match after that is linear, which is the target.
+    O(N + M) would need the lists already sorted (or a counting sort), and sizes go up to
+    2³¹ − 1, so counting sort is out.
+
+pattern_quiz:
+  prompt: >-
+    Match items from two lists, each used at most once, to maximise how many "size ≥ need"
+    pairs you form. Which pattern fits?
+  options:
+    - "Dynamic programming over (child, cookie) pairs"
+    - "Sort both lists, then two pointers giving the smallest sufficient cookie"
+    - "Hash map from greed value to cookie"
+    - "Sliding window over the cookie sizes"
+  answer: 1
+  explanation: >-
+    "Maximum number of" pairs plus "each item used at most once" with a simple ≥ test is the
+    classic sort-and-match greedy trigger. Once both lists are sorted, the exchange argument
+    shows the smallest sufficient cookie is always a safe choice, so no DP is needed. A hash
+    map only finds exact matches, and there's no contiguous range to slide a window over.
+
+function:
+  name: findContentChildren
+  params: [{name: g}, {name: s}]
+
+starter_code: |
+  class Solution:
+      def findContentChildren(self, g: List[int], s: List[int]) -> int:
+          pass
+
+tests:
+  - {args: [[1, 2, 3], [1, 1]], expected: 1}
+  - {args: [[1, 2], [1, 2, 3]], expected: 2}
+  - {args: [[1, 2], [2, 1]], expected: 2, note: "unsorted cookies: giving the 2 to greed 1 would starve greed 2"}
+  - {args: [[1, 2, 3], []], expected: 0, note: no cookies at all}
+  - {args: [[5], [1, 2, 3]], expected: 0, note: every cookie too small}
+  - {args: [[10, 9, 8, 7], [5, 6, 7, 8]], expected: 2, note: both lists unsorted}
+  - {args: [[1, 1, 1], [1, 1, 1]], expected: 3, note: "duplicates; size equal to greed is enough"}
+  - {args: [[2, 3, 4], [3, 1, 2, 5]], expected: 3, note: smallest cookie must be skipped}
+  - {args: [[7, 8, 9, 10], [5, 6, 7, 8]], expected: 2, note: two small cookies are wasted}
+visualize_test: 7
+
+drills:
+  - title: Find the smallest sufficient cookie
+    skill: setup
+    goal: Pick the smallest value that is still large enough, which is the greedy choice for one child.
+    instructions: |
+      Given cookie sizes `s` (unsorted) and one child's greed `need`, return the **smallest**
+      cookie size that is `>= need`, or `-1` if no cookie is big enough.
+
+      This is the single decision the full algorithm makes over and over. A bigger cookie
+      would also satisfy this child, but it's wasted: someone greedier might have needed it.
+    function:
+      name: smallestSufficient
+      params: [{name: s}, {name: need}]
+    starter_code: |
+      class Solution:
+          def smallestSufficient(self, s: List[int], need: int) -> int:
+              pass
+    tests:
+      - {args: [[4, 1, 3, 2], 3], expected: 3}
+      - {args: [[1, 2], 5], expected: -1}
+      - {args: [[9, 7, 8], 1], expected: 7}
+      - {args: [[], 1], expected: -1}
+    solution: |
+      class Solution:
+          def smallestSufficient(self, s: List[int], need: int) -> int:
+              best = -1
+              for size in s:
+                  if size >= need and (best == -1 or size < best):
+                      best = size
+              return best
+    hint: "Track the best candidate so far; only accept sizes that are `>= need` and smaller than it."
+
+  - title: Two pointers over sorted lists
+    skill: core
+    goal: Move the cookie pointer every step and the child pointer only when a child is fed.
+    instructions: |
+      Both `g` and `s` are already **sorted** ascending. Return a list where position `i`
+      holds the index (in `s`) of the cookie child `i` receives, or `-1` if child `i` gets
+      nothing, using the greedy rule: the current cookie goes to the current least greedy
+      unfed child if it's big enough, otherwise it's discarded.
+
+      This is the heart of the solution. A cookie too small for the least greedy remaining
+      child is too small for every child after them too, so it can be thrown away forever.
+    function:
+      name: assignIndices
+      params: [{name: g}, {name: s}]
+    starter_code: |
+      class Solution:
+          def assignIndices(self, g: List[int], s: List[int]) -> List[int]:
+              pass
+    tests:
+      - {args: [[1, 2, 3], [1, 1]], expected: [0, -1, -1]}
+      - {args: [[1, 2], [1, 2, 3]], expected: [0, 1]}
+      - {args: [[2, 3, 4], [1, 2, 3, 5]], expected: [1, 2, 3]}
+      - {args: [[5], [1, 2]], expected: [-1]}
+    solution: |
+      class Solution:
+          def assignIndices(self, g: List[int], s: List[int]) -> List[int]:
+              result = [-1] * len(g)
+              child = 0
+              for j in range(len(s)):
+                  if child < len(g) and s[j] >= g[child]:
+                      result[child] = j
+                      child += 1
+              return result
+    hint: "Loop over cookies; `child` advances only inside the `if s[j] >= g[child]` branch."
+
+  - title: Who goes home hungry?
+    skill: edge
+    goal: Sort both inputs yourself and read the unfed children off the child pointer when cookies run out.
+    instructions: |
+      `g` and `s` are **unsorted**. Run the greedy match and return the greed values of the
+      children who get **no** cookie, in ascending order.
+
+      Two details people get wrong: forgetting to sort (the greedy is only safe on sorted
+      lists), and handling the end. When the cookies run out, every child from the child
+      pointer onward is unfed, including the case where `s` is empty and nobody is fed.
+    function:
+      name: unfedChildren
+      params: [{name: g}, {name: s}]
+    starter_code: |
+      class Solution:
+          def unfedChildren(self, g: List[int], s: List[int]) -> List[int]:
+              pass
+    tests:
+      - {args: [[3, 1, 2], [1, 1]], expected: [2, 3]}
+      - {args: [[2, 1], [3, 1, 2]], expected: []}
+      - {args: [[4, 2], []], expected: [2, 4], note: no cookies}
+      - {args: [[10, 9, 8, 7], [8, 7, 6, 5]], expected: [9, 10]}
+    solution: |
+      class Solution:
+          def unfedChildren(self, g: List[int], s: List[int]) -> List[int]:
+              g, s = sorted(g), sorted(s)
+              child = 0
+              for size in s:
+                  if child < len(g) and size >= g[child]:
+                      child += 1
+              return g[child:]
+    hint: "After the loop, `child` counts the fed children, so the unfed ones are exactly `g[child:]`."
+
+hints:
+  - >-
+    Think about the least greedy child. Which cookie should they get: the biggest one, or the
+    smallest one that still makes them happy? What do you lose with the other choice?
+  - >-
+    Sort both lists. Keep one pointer on the least greedy unfed child and walk through the
+    cookies from smallest. If the cookie satisfies that child, feed them and move both
+    pointers; if not, the cookie is useless to everyone, so move only the cookie pointer.
+  - |
+    sort g, sort s
+    child = 0
+    for each size in s (smallest first):
+        if child < len(g) and size >= g[child]:
+            child = child + 1
+    return child
+
+solution:
+  code: |
+    class Solution:
+        def findContentChildren(self, g: List[int], s: List[int]) -> int:
+            g.sort()
+            s.sort()
+            child = 0  # least greedy child not yet fed
+            for cookie in s:  # smallest cookie first
+                if child < len(g) and cookie >= g[child]:
+                    child += 1  # feed this child with the smallest sufficient cookie
+            return child
+  explanation: |
+    After sorting, walk the cookies from smallest to largest while `child` points at the
+    least greedy child who hasn't been fed. If the cookie is big enough, that child takes it
+    and `child` moves on. If it isn't, the cookie is too small for this child and, because
+    `g` is sorted, for every child after them too, so it's discarded.
+
+    **Why greedy is safe (exchange argument).** Take any optimal assignment. Suppose it feeds
+    the least greedy child with some cookie `B` instead of the smallest sufficient cookie
+    `A`. If `A` was unused, swap: give the child `A`. If `A` went to another child `X`, swap
+    `A` and `B` between them: the least greedy child is fine with `A`, and `X` needed at
+    most `A`, so `X` is fine with the larger `B`. The count is unchanged, so there's always
+    an optimal answer that makes our greedy first move, and the same argument repeats on
+    what's left.
+
+    `child` doubles as the answer: it counts exactly the children fed. Sizes equal to greed
+    count as content, hence `>=`, and an empty `s` just skips the loop and returns 0.
+  time: O(N log N + M log M) — the two sorts dominate; the matching pass is O(N + M)
+  space: O(1) extra beyond the in-place sorts (Python's Timsort may use up to O(N + M) scratch)
+  brute_force_code: |
+    class Solution:
+        def findContentChildren(self, g: List[int], s: List[int]) -> int:
+            used = [False] * len(s)
+
+            def best(i):
+                if i == len(g):
+                    return 0
+                result = best(i + 1)  # child i gets nothing
+                for j in range(len(s)):
+                    if not used[j] and s[j] >= g[i]:
+                        used[j] = True
+                        result = max(result, 1 + best(i + 1))
+                        used[j] = False
+                return result
+
+            return best(0)
+
+pitch_script: |
+  **(Clarify)** "Each child gets at most one cookie, each cookie goes to at most one child,
+  and a cookie works if its size is at least the greed factor, so equal is fine? The lists
+  aren't sorted, and I can reorder them?"
+
+  **(Brute force)** "The brute force tries every assignment with backtracking: for each
+  child, skip them or give them any unused cookie that fits. That's exponential, so it's
+  only useful as a correctness check."
+
+  **(Trigger)** "'Maximum number of' matches where each item is used once and the test is
+  just size ≥ need tells me to think greedy with sorting. The least greedy child is the
+  easiest to please, so I should please them with the smallest cookie that works and keep
+  the big cookies for greedier kids."
+
+  **(Optimal)** "I sort both arrays and walk the cookies from smallest, with a pointer on
+  the least greedy unfed child. If the cookie fits, that child is fed and the pointer moves.
+  If it doesn't fit, it can't fit anyone after them either, so I drop it. Why is this safe?
+  Exchange argument: in any optimal plan, if that child got a bigger cookie, I can swap in
+  the smallest sufficient one, and whoever had it can take the bigger one, so the count
+  never gets worse."
+
+  **(Complexity)** "Sorting is O(N log N + M log M) and the scan is O(N + M), so sorting
+  dominates. Extra space is O(1) apart from what the sort itself uses."
+
+twist:
+  lc: 2410
+  title: Maximum Matching of Players With Trainers
+  why: >-
+    Identical shape with new names: players have abilities, trainers have capacities, and each
+    trainer can train one player whose ability is at most its capacity. Sort both, walk two
+    pointers, give each player the smallest trainer that fits. If you can explain why the cookie
+    greedy is safe, the same exchange argument proves this one.
+
+viz:
+  arrays: [s, g]
+  pointers: ["child:g"]
+  watch: [cookie, child]

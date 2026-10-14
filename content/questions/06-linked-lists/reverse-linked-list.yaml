@@ -1,0 +1,318 @@
+slug: reverse-linked-list
+lc: 206
+
+concept:
+  problem_it_solves: >-
+    "How do I turn every arrow around when each node only knows the node after it?" A singly
+    linked list has no index and no way back, so the moment you overwrite a node's `next`, the
+    rest of the list is unreachable unless you saved it first. Reversal is the smallest problem
+    that forces you to do pointer bookkeeping in the right order.
+  brute_force: >-
+    Walk the list, copy every value into an array (or push every node onto a stack), then build
+    a brand-new list from the back of the array to the front. It works, but it stores a second
+    copy of the whole list and creates N new nodes, when every node you need already exists and
+    only its one `next` field is pointing the wrong way.
+  brute_force_complexity: >-
+    O(N) time, O(N) extra space — 5000 nodes means a 5000-entry array plus 5000 freshly
+    allocated nodes, all to change one field per node.
+  key_insight: >-
+    You don't need to move any nodes; you only need to flip each arrow. Split the list into two
+    parts: a reversed part (headed by `prev`) and a not-yet-reversed part (headed by `cur`).
+    Each step moves one node from the front of the second part to the front of the first. The
+    only danger is that `cur.next = prev` destroys your only link to the rest of the list, so
+    save it in `nxt` first. Save, rewire, advance, advance: four lines, O(1) space.
+  real_world: >-
+    Functional runtimes (Erlang, Haskell, Elixir) build lists by prepending, which produces them
+    backwards, and then reverse once at the end: Erlang's `lists:reverse` is a built-in for
+    exactly this. Git commits point to their parents, so showing history oldest-first
+    (`git log --reverse`) means reversing a parent chain. Undo/redo and browser back/forward
+    histories flip singly linked chains the same way.
+
+statement:
+  clean: |
+    Given the `head` of a **singly linked list**, **reverse the list**, and return the
+    **reversed list**.
+
+    **Follow up:** A linked list can be reversed either iteratively or recursively. Could you
+    implement both?
+  oa_story: |
+    **PlaylistPeacock — OA Round 1**
+
+    PlaylistPeacock is a music-streaming startup in Indiranagar. Every playlist is stored as a
+    chain of track records: each record holds a track ID and a reference to the record that
+    plays after it. The last record refers to nothing. A new "Rewind Mode" for late-night
+    commutes on the Purple Line plays the entire playlist from the last track to the first.
+
+    Storage is tight on the low-end phones PlaylistPeacock targets, so the team does not want a
+    second copy of the playlist. Given the first record of a playlist (possibly empty), relink
+    the existing records so the playlist plays in exactly the opposite order, and return the
+    record that now plays first. Playlists can have up to 5000 tracks.
+  trigger_keywords: ["singly linked list", "reverse the list", "reversed list"]
+  examples:
+    - input: "head = [1,2,3,4,5]"
+      output: "[5,4,3,2,1]"
+      explanation: "Every arrow is flipped: 1 now points to nothing, and 5 is the new head."
+    - input: "head = [1,2]"
+      output: "[2,1]"
+    - input: "head = []"
+      output: "[]"
+      explanation: "An empty list reversed is still empty, so the answer is None."
+  constraints:
+    - "The number of nodes in the list is in the range [0, 5000]."
+    - "-5000 <= Node.val <= 5000"
+
+constraint_quiz:
+  prompt: >-
+    The list has up to 5000 nodes, and the interviewer adds "do it without allocating new
+    nodes or an extra array". What should you aim for?
+  options:
+    - "O(N²) time, O(1) space — repeatedly walk to the tail and detach it"
+    - "O(N) time, O(N) space — copy values into an array and rebuild"
+    - "O(N) time, O(1) space — flip each next pointer in one pass"
+    - "O(log N) time — reverse halves recursively"
+  answer: 2
+  explanation: >-
+    Detaching the tail repeatedly re-walks the list each time, about 1.25 × 10⁷ steps for 5000
+    nodes, which is wasteful. The array rebuild is O(N) time but breaks the "no extra array"
+    rule. O(log N) is impossible: every one of the N next pointers has to change, so you must
+    touch every node. One pass with three pointers flips each arrow once: O(N) time, O(1) space.
+
+pattern_quiz:
+  prompt: >-
+    You must reverse a singly linked list in place, and each node only knows its successor.
+    Which approach fits?
+  options:
+    - "Two pointers from both ends, swapping values"
+    - "Iterative pointer reversal with prev / cur / nxt"
+    - "Fast and slow pointers"
+    - "Sort the nodes by their original position, descending"
+  answer: 1
+  explanation: >-
+    "Reverse" plus "in place" on a singly linked list is the pointer-reversal trigger. Two
+    pointers from both ends needs a way to walk backwards, which a singly linked list doesn't
+    have. Fast/slow pointers find middles and cycles, not reversals. Sorting is O(N log N) and
+    still needs somewhere to store the order. Flipping each `next` while remembering the rest
+    of the list is the direct answer.
+
+function:
+  name: reverseList
+  params: [{name: head, type: ListNode}]
+  returns: ListNode
+
+starter_code: |
+  class Solution:
+      def reverseList(self, head: Optional[ListNode]) -> Optional[ListNode]:
+          pass
+
+tests:
+  - {args: [[1, 2, 3, 4, 5]], expected: [5, 4, 3, 2, 1]}
+  - {args: [[1, 2]], expected: [2, 1], note: two nodes}
+  - {args: [[]], expected: [], note: "empty list: return None"}
+  - {args: [[7]], expected: [7], note: "single node: it is already its own reverse"}
+  - {args: [[1, 1, 2, 2]], expected: [2, 2, 1, 1], note: duplicate values}
+  - {args: [[-5000, 0, 5000]], expected: [5000, 0, -5000], note: extreme values}
+  - {args: [[3, 1, 4, 1, 5, 9, 2, 6]], expected: [6, 2, 9, 5, 1, 4, 1, 3]}
+visualize_test: 0
+
+drills:
+  - title: Walk the list without falling off
+    skill: setup
+    goal: Write the standard `cur = head; while cur:` traversal and collect each node's value.
+    instructions: |
+      Return a Python list of the values in the linked list, in order from head to tail. An
+      empty list (`head` is `None`) gives `[]`.
+
+      Every linked list solution starts with this loop. The condition is `while cur:`, not
+      `while cur.next:`: you want to process the last node too, and stop only once `cur` has
+      stepped past it onto `None`. The reversal uses exactly the same loop shape.
+    function:
+      name: listValues
+      params: [{name: head, type: ListNode}]
+    starter_code: |
+      class Solution:
+          def listValues(self, head: Optional[ListNode]) -> List[int]:
+              pass
+    tests:
+      - {args: [[1, 2, 3]], expected: [1, 2, 3]}
+      - {args: [[]], expected: [], note: "head is None"}
+      - {args: [[42]], expected: [42]}
+      - {args: [[5, -1, 5, 0]], expected: [5, -1, 5, 0]}
+    solution: |
+      class Solution:
+          def listValues(self, head: Optional[ListNode]) -> List[int]:
+              values = []
+              cur = head
+              while cur:
+                  values.append(cur.val)
+                  cur = cur.next
+              return values
+    hint: "Start with `cur = head`, and move with `cur = cur.next` at the end of each iteration."
+
+  - title: Save, rewire, advance
+    skill: core
+    goal: Run exactly k steps of the prev / cur / nxt rewiring loop and return the reversed part.
+    instructions: |
+      Run the reversal step exactly `k` times (`1 <= k <= length`) and return `prev`, the head
+      of the part you have reversed so far. For `[1,2,3,4,5]` and `k = 2` that's `[2,1]`: the
+      first two arrows are flipped, and node 1 now points to `None`.
+
+      Each step is four moves in a fixed order: save `nxt = cur.next`, flip `cur.next = prev`,
+      then move `prev` and `cur` forward by one. Swap the first two lines and you lose the rest
+      of the list on the very first step.
+    function:
+      name: reversedPrefix
+      params: [{name: head, type: ListNode}, {name: k}]
+      returns: ListNode
+    starter_code: |
+      class Solution:
+          def reversedPrefix(self, head: Optional[ListNode], k: int) -> Optional[ListNode]:
+              pass
+    tests:
+      - {args: [[1, 2, 3, 4, 5], 2], expected: [2, 1]}
+      - {args: [[1, 2, 3, 4, 5], 1], expected: [1], note: "after one step node 1 points to None"}
+      - {args: [[1, 2, 3], 3], expected: [3, 2, 1], note: "k = length: the whole list is reversed"}
+      - {args: [[9, 8, 7, 6], 3], expected: [7, 8, 9]}
+    solution: |
+      class Solution:
+          def reversedPrefix(self, head: Optional[ListNode], k: int) -> Optional[ListNode]:
+              prev, cur = None, head
+              for _ in range(k):
+                  nxt = cur.next
+                  cur.next = prev
+                  prev, cur = cur, nxt
+              return prev
+    hint: "The first line inside the loop must be `nxt = cur.next`, before anything is overwritten."
+
+  - title: The old head becomes the tail
+    skill: edge
+    goal: Reverse the first k nodes and reconnect the old head to the untouched remainder.
+    instructions: |
+      Reverse only the first `k` nodes (`1 <= k <= length`) and keep the rest of the list
+      attached after them. Return the new head. `[1,2,3,4,5]` with `k = 2` becomes
+      `[2,1,3,4,5]`.
+
+      After the loop, `prev` is the new head and `cur` is the first node you did **not**
+      reverse. The original `head` is now the last node of the reversed part, and it still
+      points to `None`, so you must hook it back up with `head.next = cur`. Forgetting that
+      reconnection is the classic bug in Reverse Linked List II and Reverse Nodes in k-Group.
+    function:
+      name: reverseFirstK
+      params: [{name: head, type: ListNode}, {name: k}]
+      returns: ListNode
+    starter_code: |
+      class Solution:
+          def reverseFirstK(self, head: Optional[ListNode], k: int) -> Optional[ListNode]:
+              pass
+    tests:
+      - {args: [[1, 2, 3, 4, 5], 2], expected: [2, 1, 3, 4, 5]}
+      - {args: [[1, 2, 3, 4, 5], 5], expected: [5, 4, 3, 2, 1], note: "k = length: cur ends at None"}
+      - {args: [[1, 2, 3], 1], expected: [1, 2, 3], note: "k = 1 changes nothing"}
+      - {args: [[4, 3, 2, 1, 0], 4], expected: [1, 2, 3, 4, 0]}
+      - {args: [[8], 1], expected: [8], note: single node}
+    solution: |
+      class Solution:
+          def reverseFirstK(self, head: Optional[ListNode], k: int) -> Optional[ListNode]:
+              prev, cur = None, head
+              for _ in range(k):
+                  nxt = cur.next
+                  cur.next = prev
+                  prev, cur = cur, nxt
+              head.next = cur  # old head is now the tail of the reversed part
+              return prev
+    hint: "Which node used to be first and is now last? Point it at `cur`."
+
+hints:
+  - >-
+    If you flip the arrow of the node you're standing on so it points backwards, how do you
+    get to the node that used to come after it?
+  - >-
+    Keep two lists in your head: the reversed part, headed by `prev` (starts as None), and the
+    rest, headed by `cur` (starts as head). Each step moves one node from the rest onto the
+    front of the reversed part. Save `cur.next` before you overwrite it.
+  - |
+    prev = none, cur = head
+    while cur is not none:
+        nxt = cur.next      (save the rest)
+        cur.next = prev     (flip the arrow)
+        prev = cur          (reversed part grows)
+        cur = nxt           (step into the saved rest)
+    return prev
+
+solution:
+  code: |
+    class Solution:
+        def reverseList(self, head: Optional[ListNode]) -> Optional[ListNode]:
+            prev = None  # head of the already-reversed part
+            cur = head  # first node that is not reversed yet
+            while cur:
+                nxt = cur.next  # save the rest before cutting the link
+                cur.next = prev  # flip this node's arrow backwards
+                prev = cur  # the reversed part now starts at cur
+                cur = nxt  # continue with the saved rest
+            return prev
+  explanation: |
+    At every moment the list is split in two: `prev` heads the nodes already reversed, and
+    `cur` heads the nodes still in their original order. Each iteration moves one node across.
+
+    The order of the four lines is the whole problem. `cur.next = prev` overwrites the only
+    reference to the rest of the list, so `nxt = cur.next` has to come first. After the flip,
+    `prev` moves to `cur` (the reversed part grew) and `cur` moves to `nxt` (the saved rest).
+
+    The loop ends when `cur` is `None`, which means every node has been moved, and `prev` is
+    sitting on the old tail, the new head. Return `prev`, not `cur` (which is `None`) and not
+    `head` (which is now the tail). An empty list never enters the loop and returns `None`,
+    and a single node just has its `next` set to `None` again, so neither needs a special case.
+
+    **Recursive version.** `reverseList(head.next)` reverses everything after `head` and returns
+    the new head; then `head.next.next = head` makes the old second node point back at `head`,
+    and `head.next = None` cuts the old forward link. It's elegant, but it uses O(N) call stack:
+    with 5000 nodes it passes Python's default recursion limit of 1000 and crashes with
+    `RecursionError`, so the iterative version is the one to write in an interview.
+  time: O(N) — each node is visited once and its next pointer is rewritten once
+  space: O(1) — three pointer variables, no matter how long the list is
+  brute_force_code: |
+    class Solution:
+        def reverseList(self, head: Optional[ListNode]) -> Optional[ListNode]:
+            values = []
+            while head:
+                values.append(head.val)
+                head = head.next
+            dummy = ListNode()
+            tail = dummy
+            for v in reversed(values):
+                tail.next = ListNode(v)
+                tail = tail.next
+            return dummy.next
+
+pitch_script: |
+  **(Clarify)** "It's a singly linked list, so each node only has a next pointer, and the
+  list can be empty. I should reverse it in place and return the new head, right?"
+
+  **(Brute force)** "The simplest approach is to copy the values into an array and build a new
+  list from the back. That's O(N) time but O(N) extra space, and it creates new nodes when all
+  I really need to change is one pointer per node."
+
+  **(Trigger)** "Reversing a linked list in place means flipping each next pointer. The catch
+  is that once I overwrite a node's next, I've lost the rest of the list, so I need a third
+  pointer to remember it."
+
+  **(Optimal)** "I'll keep prev, starting at None, and cur, starting at head. In each step I
+  save cur.next into nxt, point cur.next back at prev, then move prev to cur and cur to nxt.
+  When cur becomes None, prev is the old tail, which is the new head, so I return prev. Empty
+  and single-node lists work without special cases. There's also a recursive version, but it
+  uses O(N) stack, and 5000 nodes would exceed Python's recursion limit."
+
+  **(Complexity)** "One pass, so O(N) time, and O(1) extra space because I only use three
+  pointers."
+
+twist:
+  lc: 92
+  title: Reverse Linked List II
+  why: >-
+    Now you reverse only the nodes from position left to right and keep the rest in place. Use
+    a dummy node so that left = 1 isn't a special case, walk to the node just before position
+    left, run the same prev / cur / nxt loop exactly right − left + 1 times, and then make two
+    reconnections: the node before the segment points to `prev` (the segment's new head), and
+    the segment's old first node points to `cur` (the first node after the segment).
+
+viz: {}

@@ -1,0 +1,300 @@
+slug: kth-largest-element-in-an-array
+lc: 215
+
+concept:
+  problem_it_solves: >-
+    "What value sits at position k if this array were sorted from the top?" Sorting answers it,
+    but sorting also puts every other value in its exact place, which nobody asked for. You only
+    need to know which k values are the largest, and which of those is the weakest.
+  brute_force: >-
+    Sort the array in descending order and return index k − 1. It works and it's short, but it
+    fully orders all N values when only the boundary of the top k matters, and it is exactly what
+    the "without sorting" follow-up asks you to avoid. The truly naive version, removing the
+    maximum k times, re-scans the array k times.
+  brute_force_complexity: >-
+    O(N log N) time, O(N) space for the sorted copy — about 1.7 × 10⁶ comparisons at N = 10⁵. The
+    "remove the max k times" version is O(N·k), up to 10¹⁰ steps when k is close to N.
+  key_insight: >-
+    Walk the array once while keeping a min-heap of the k largest values seen so far. Push each
+    value; if the heap grows to k + 1, pop its minimum, because that value already has k values
+    above it and can never be the kth largest. After the scan the heap holds the k largest, and
+    the smallest of them, heap[0], is the answer. The heap never exceeds k + 1 values, so each
+    step is O(log k), not O(log N). Quickselect goes further: partition around a random pivot
+    like quicksort, but recurse into only the side that contains position k, for O(N) on
+    average.
+  real_world: >-
+    PostgreSQL executes ORDER BY … LIMIT k with a "top-N heapsort" (you can see it in EXPLAIN
+    ANALYZE) that keeps a bounded heap instead of sorting the whole table. Monitoring systems
+    compute p99 latency, which is a kth-largest query over a batch of samples, and NumPy's
+    np.partition and C++'s std::nth_element are the quickselect side of the same idea.
+
+statement:
+  clean: |
+    Given an integer array `nums` and an integer `k`, return the
+    **kth largest element in the array**.
+
+    Note that it is the kth largest element in the sorted order, not the kth distinct element.
+
+    Can you solve it **without sorting**?
+  oa_story: |
+    **SurgeSense Mobility — OA Round 2**
+
+    SurgeSense prices auto and cab rides across Bengaluru. Every few minutes, each zone reports a
+    demand score, and the pricing team triggers surge only for zones whose score is at or above
+    a threshold: the `k`-th highest score in the latest batch. Two zones with the same score
+    still count as two separate ranks.
+
+    Given the batch of demand scores `nums` and the rank `k`, return the threshold score. A
+    batch can contain up to 100,000 readings during Silk Board's evening peak, and the pricing
+    engine recomputes thresholds for many cities in a loop, so the reviewers will reject a
+    solution that simply orders the whole batch.
+  trigger_keywords: ["kth largest element in the array", "without sorting"]
+  examples:
+    - input: "nums = [3,2,1,5,6,4], k = 2"
+      output: "5"
+      explanation: "In descending order the array is [6,5,4,3,2,1], so the second largest is 5."
+    - input: "nums = [3,2,3,1,2,4,5,5,6], k = 4"
+      output: "4"
+      explanation: "Descending: [6,5,5,4,3,3,2,2,1]. Both 5s count, so the fourth largest is 4."
+  constraints:
+    - "1 <= k <= nums.length <= 10^5"
+    - "-10^4 <= nums[i] <= 10^4"
+
+constraint_quiz:
+  prompt: >-
+    N can be 10⁵, k can be anything from 1 to N, and the follow-up says "without sorting".
+    What should you aim for?
+  options: ["O(N²)", "O(N log N) — sort and index", "O(N log k) with a size-k heap, or O(N) average with quickselect", "O(log N)"]
+  answer: 2
+  explanation: >-
+    O(N²) (or O(N·k) by removing the maximum k times) reaches 10¹⁰ steps. Sorting in O(N log N)
+    passes but is exactly what the follow-up rules out, and it does more work than needed. A
+    size-k min-heap is O(N log k), which is never worse than sorting and much better when k is
+    small, and quickselect is O(N) on average. O(log N) is impossible because you must look at
+    every element at least once: any element you skip could be the answer.
+
+pattern_quiz:
+  prompt: You need the kth largest value of an unsorted array. Which pattern fits?
+  options:
+    - "Sort descending and return index k − 1"
+    - "A min-heap that keeps only the k largest values seen so far"
+    - "A max-heap that keeps only k values"
+    - "Two pointers from both ends"
+  answer: 1
+  explanation: >-
+    "Kth largest" is the size-k heap trigger, and the direction matters. To keep the k
+    *largest*, you must evict the *smallest*, so the smallest has to be at the root: a min-heap.
+    A size-k max-heap evicts the largest and ends up holding the k smallest, which answers "kth
+    smallest" instead. Sorting works but ignores the follow-up, and two pointers need sorted
+    data and a pairing condition that doesn't exist here.
+
+function:
+  name: findKthLargest
+  params: [{name: nums}, {name: k}]
+
+starter_code: |
+  class Solution:
+      def findKthLargest(self, nums: List[int], k: int) -> int:
+          pass
+
+tests:
+  - {args: [[3, 2, 1, 5, 6, 4], 2], expected: 5}
+  - {args: [[3, 2, 3, 1, 2, 4, 5, 5, 6], 4], expected: 4, note: duplicates each take a rank}
+  - {args: [[1], 1], expected: 1, note: single element}
+  - {args: [[7, 7, 7, 7], 2], expected: 7, note: all equal}
+  - {args: [[5, 2, 9, 1], 4], expected: 1, note: "k = n, so the answer is the minimum"}
+  - {args: [[5, 2, 9, 1], 1], expected: 9, note: "k = 1, so the answer is the maximum"}
+  - {args: [[-1, -3, -2, -5], 2], expected: -2, note: negatives}
+  - {args: [[2, 1], 2], expected: 1}
+  - {args: [[10000, -10000, 0, 10000, -10000], 3], expected: 0, note: extreme values with duplicates}
+visualize_test: 0
+
+drills:
+  - title: Heapify everything, pop k − 1 times
+    skill: setup
+    goal: Build a max-heap of the whole array in O(N) with heapify and negation, then pop down to the kth largest.
+    instructions: |
+      Solve the problem a second way: negate every value, `heapify` the list (O(N)), pop `k - 1`
+      times, and return the negated root.
+
+      This is the "heap of everything" approach, O(N + k log N). It's a good warm-up because it
+      shows the two heap facts you need: `heapify` builds a heap in linear time, and each pop
+      removes the current root, so after `k - 1` pops of a max-heap the root is the kth largest.
+      Its weakness is memory: it holds all N values, while the size-k heap holds only k.
+    function:
+      name: kthLargestHeapifyAll
+      params: [{name: nums}, {name: k}]
+    starter_code: |
+      class Solution:
+          def kthLargestHeapifyAll(self, nums: List[int], k: int) -> int:
+              pass
+    tests:
+      - {args: [[3, 2, 1, 5, 6, 4], 2], expected: 5}
+      - {args: [[1], 1], expected: 1, note: zero pops}
+      - {args: [[2, 2, 1], 2], expected: 2}
+      - {args: [[-5, -1, -3], 3], expected: -5}
+    solution: |
+      class Solution:
+          def kthLargestHeapifyAll(self, nums: List[int], k: int) -> int:
+              heap = [-x for x in nums]
+              heapq.heapify(heap)
+              for _ in range(k - 1):
+                  heapq.heappop(heap)
+              return -heap[0]
+    hint: "Pop `k - 1` times, not `k`: the kth largest is the root after those pops, so peek it."
+
+  - title: Only beat-the-root values get in
+    skill: core
+    goal: Seed a heap with the first k values, then replace the root only when a new value is larger than it.
+    instructions: |
+      Heapify the first `k` values. For every remaining value `x`, if `x > heap[0]`, replace
+      the root with `x` using `heapq.heapreplace(heap, x)` (pop the root and push `x` in one
+      sift). Return `heap[0]`.
+
+      This is the core decision of the size-k heap, written out explicitly: the root is the
+      weakest member of the top-k club, and a new value only deserves a place if it beats that
+      weakest member. Anything `<=` the root can be skipped without touching the heap.
+    function:
+      name: kthLargestReplace
+      params: [{name: nums}, {name: k}]
+    starter_code: |
+      class Solution:
+          def kthLargestReplace(self, nums: List[int], k: int) -> int:
+              pass
+    tests:
+      - {args: [[3, 2, 1, 5, 6, 4], 2], expected: 5}
+      - {args: [[3, 2, 3, 1, 2, 4, 5, 5, 6], 4], expected: 4}
+      - {args: [[1, 2, 3, 4, 5], 5], expected: 1, note: "k = n, so no value is left to compare"}
+      - {args: [[9, 9, 1, 9], 2], expected: 9, note: an equal value doesn't need to enter}
+    solution: |
+      class Solution:
+          def kthLargestReplace(self, nums: List[int], k: int) -> int:
+              heap = nums[:k]
+              heapq.heapify(heap)
+              for x in nums[k:]:
+                  if x > heap[0]:
+                      heapq.heapreplace(heap, x)
+              return heap[0]
+    hint: "`heapreplace` pops first and then pushes, so the heap size stays exactly k."
+
+  - title: Flip the direction for the kth smallest
+    skill: edge
+    goal: Keep the k smallest values with a size-k max-heap (negated), because the value to evict is now the largest.
+    instructions: |
+      Return the **kth smallest** element of `nums` (duplicates count separately) using a
+      size-k heap.
+
+      This is the direction mistake people make under pressure. The heap's root must be the
+      value you would evict. Keeping the k *largest* means evicting the smallest, so it's a
+      min-heap. Keeping the k *smallest* means evicting the largest, so it's a max-heap: push
+      `-x`, pop when the size passes k, and answer `-heap[0]`.
+    function:
+      name: kthSmallest
+      params: [{name: nums}, {name: k}]
+    starter_code: |
+      class Solution:
+          def kthSmallest(self, nums: List[int], k: int) -> int:
+              pass
+    tests:
+      - {args: [[3, 2, 1, 5, 6, 4], 2], expected: 2}
+      - {args: [[7, 7, 7, 1], 2], expected: 7, note: duplicates count separately}
+      - {args: [[5], 1], expected: 5}
+      - {args: [[-1, -3, -2, -5], 1], expected: -5}
+      - {args: [[4, 1, 3, 2], 4], expected: 4, note: "k = n gives the maximum"}
+    solution: |
+      class Solution:
+          def kthSmallest(self, nums: List[int], k: int) -> int:
+              heap = []
+              for x in nums:
+                  heapq.heappush(heap, -x)
+                  if len(heap) > k:
+                      heapq.heappop(heap)
+              return -heap[0]
+    hint: "Ask: which value should leave when the heap has k + 1 values? Put that one at the root."
+
+hints:
+  - >-
+    Once a value has k larger values ahead of it, can it ever be the answer? So how many values
+    do you really need to remember during one pass, and which of them is the kth largest?
+  - >-
+    Keep a min-heap of the k largest values seen so far. For each value, push it; if the heap
+    now holds k + 1 values, pop the smallest. After the pass, the root is the kth largest.
+  - |
+    heap = empty min-heap
+    for x in nums:
+        push x
+        if size(heap) > k: pop smallest
+    return heap root
+
+solution:
+  code: |
+    class Solution:
+        def findKthLargest(self, nums: List[int], k: int) -> int:
+            heap = []  # min-heap of the k largest values seen so far
+            for x in nums:
+                heapq.heappush(heap, x)
+                if len(heap) > k:
+                    heapq.heappop(heap)  # this value has k larger values: never the answer
+            return heap[0]  # the smallest of the k largest = the kth largest
+  explanation: |
+    The heap is a "top-k club" with the weakest member at the door (`heap[0]`). Every value
+    tries to join: it is pushed, and if the club now has k + 1 members, the weakest is thrown
+    out. A value that is thrown out has k values at least as large as it, so it can't be the kth
+    largest. After the pass the club is exactly the k largest values, and the answer is its
+    weakest member. Duplicates need no special handling: two 5s are two members.
+
+    The direction is the subtle decision. We keep the k *largest*, so we evict the *smallest*,
+    so the smallest must be at the root: a **min**-heap. (For the kth smallest you'd flip it to
+    a max-heap of negated values.)
+
+    **Quickselect, the average O(N) alternative.** Pick a random pivot and partition the array
+    into values greater than, equal to, and less than the pivot, like one step of quicksort.
+    If the "greater" part has at least k values, the answer is in it; if "greater" plus "equal"
+    reaches k, the pivot is the answer; otherwise recurse into the "less" part with k reduced.
+    You recurse into only one side, so the expected work is N + N/2 + N/4 + … = O(N), but an
+    unlucky pivot every time gives O(N²), which is why the pivot is random and why the
+    three-way split matters on inputs full of duplicates. Mention it in the interview; the heap
+    is the safer thing to write under time pressure. Because values here are bounded in
+    [−10⁴, 10⁴], a counting array of 20,001 buckets also works in O(N + 20,001).
+  time: O(N log k) — N pushes and at most N − k pops on a heap of at most k + 1 values
+  space: O(k) — the heap
+  brute_force_code: |
+    class Solution:
+        def findKthLargest(self, nums: List[int], k: int) -> int:
+            return sorted(nums, reverse=True)[k - 1]  # orders all N values just to read one
+
+pitch_script: |
+  **(Clarify)** "So the kth largest counting duplicates, not the kth distinct value, and k is
+  always between 1 and N. The array isn't sorted, and ideally I shouldn't sort it, right?"
+
+  **(Brute force)** "The baseline is to sort descending and return index k minus one. That's
+  O(N log N) time and O(N) space. It works, but it orders all N values when I only care about
+  the top k boundary."
+
+  **(Trigger)** "'Kth largest' tells me a size-k heap. A value that has k larger values ahead of
+  it can never be the answer, so I only need to remember the k largest so far, and the answer is
+  the smallest of those. Since I'm evicting the smallest, it's a min-heap."
+
+  **(Optimal)** "I scan once, pushing each value onto a min-heap, and whenever the heap has k
+  plus one values I pop the smallest. At the end the heap is exactly the k largest values, so
+  heap zero is the answer. If you'd like linear average time, quickselect partitions around a
+  random pivot and recurses into only the side that contains rank k, for O(N) expected but O(N²)
+  worst case."
+
+  **(Complexity)** "The heap version is O(N log k) time, because the heap never exceeds k plus
+  one values, and O(k) extra space. That's never worse than sorting and much better when k is
+  small."
+
+twist:
+  lc: 414
+  title: Third Maximum Number
+  why: >-
+    Now k is fixed at 3 but the rank is over *distinct* values, and if fewer than three distinct
+    values exist you return the maximum instead. The size-k min-heap still works, but you must
+    skip a value that is already in the heap (track the members in a set), and the final answer
+    depends on whether the heap ever filled up. Because k is just 3, three variables also solve
+    it in O(1) space.
+
+viz:
+  heaps: [heap]
+  watch: [x, k]

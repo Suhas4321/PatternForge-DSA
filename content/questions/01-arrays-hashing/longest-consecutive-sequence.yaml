@@ -1,0 +1,309 @@
+slug: longest-consecutive-sequence
+lc: 128
+
+concept:
+  problem_it_solves: >-
+    "How long is the longest unbroken run of values, ignoring the order they arrived in?"
+    Sorting answers it, but costs O(N log N). A hash set lets you ask "does x + 1 exist?" in
+    O(1), so you can walk each run directly without ever putting the array in order.
+  brute_force: >-
+    For every value x, keep checking whether x + 1, x + 2, ... exist by scanning the array,
+    and record the longest run. It wastes work twice over: each membership check is a full
+    O(N) scan, and every element in the middle of a run starts its own walk, re-counting a
+    tail that a smaller start already counted.
+  brute_force_complexity: >-
+    O(N³) time, O(1) space with list scans (O(N²) even with a set, if every element starts a
+    walk) — 10⁵ elements means far more than 10¹⁰ steps.
+  key_insight: >-
+    Only start counting at the beginning of a run. A value x is a run start exactly when
+    x − 1 is not in the set. Every run has one start, so every value is walked over at most
+    once in total, and the whole thing is O(N) even though there is a while loop inside the
+    for loop.
+  real_world: >-
+    Streak features (Duolingo, fitness apps, GitHub contribution graphs) compute the longest
+    run of consecutive active days from an unordered set of activity dates. Message brokers
+    such as Kafka consumers and TCP receivers do the same thing with sequence numbers to find
+    the longest contiguous block received so far, and gap detection in ID allocators uses the
+    "is x − 1 present?" check to find where ranges begin.
+
+statement:
+  clean: |
+    Given an **unsorted array** of integers `nums`, return the length of the
+    **longest consecutive elements sequence**: the largest set of values
+    `x, x + 1, x + 2, ...` that all appear in `nums`. The elements do not need to be
+    adjacent in the array, and duplicates count only once.
+
+    You must write an algorithm that runs in **O(n) time**.
+  oa_story: |
+    **FitMitra Health — OA Round 1**
+
+    FitMitra's Bengaluru growth team wants to reward users who show up day after day. Every
+    time a user's watch syncs, it uploads the day numbers on which a workout was logged.
+    Syncs from the phone, the watch and the gym kiosk at Koramangala all arrive at different
+    times, so the uploaded list is in no particular order and the same day can appear more
+    than once.
+
+    For the "Unbroken Streak" badge, the backend must report the length of the user's
+    longest streak: the most days in a row (day d, d + 1, d + 2, ...) on which at least one
+    workout was logged. An empty upload means a streak of 0. Some power users have 10⁵
+    entries, and the leaderboard refresh has a strict linear-time budget.
+  trigger_keywords: ["unsorted array", "longest consecutive elements sequence", "O(n) time"]
+  examples:
+    - input: "nums = [100,4,200,1,3,2]"
+      output: "4"
+      explanation: "The longest consecutive sequence is [1, 2, 3, 4], so its length is 4."
+    - input: "nums = [0,3,7,2,5,8,4,6,0,1]"
+      output: "9"
+      explanation: "0 through 8 are all present (0 appears twice but counts once)."
+    - input: "nums = [1,0,1,2]"
+      output: "3"
+  constraints:
+    - "0 <= nums.length <= 10^5"
+    - "-10^9 <= nums[i] <= 10^9"
+
+constraint_quiz:
+  prompt: >-
+    N can be 10⁵ and the statement explicitly demands O(n) time. What time complexity should
+    you aim for?
+  options: ["O(N²)", "O(N log N)", "O(N)", "O(log N)"]
+  answer: 2
+  explanation: >-
+    O(N²) is 10¹⁰ steps at N = 10⁵, far too slow. Sorting and then scanning for runs is
+    O(N log N): it would pass the time limit, but it violates the stated O(n) requirement and
+    an interviewer will push you past it. A hash set gives O(N). O(log N) is impossible
+    because every element must be read at least once.
+
+pattern_quiz:
+  prompt: >-
+    You need the longest run of consecutive values in an unsorted array, in O(n). Which
+    pattern fits?
+  options:
+    - "Sort, then scan adjacent elements"
+    - "Hash set + only start counting where x − 1 is missing"
+    - "Sliding window over the original array"
+    - "Two pointers from both ends"
+  answer: 1
+  explanation: >-
+    "Consecutive" here is about values, not positions, so sliding windows and two pointers
+    over the original order are meaningless. Sorting works but is O(N log N), ruled out by
+    "O(n) time". "Does the neighbouring value exist?" is a membership question, which is a
+    hash set; the sequence-start check (x − 1 absent) is what keeps it linear.
+
+function:
+  name: longestConsecutive
+  params: [{name: nums}]
+
+starter_code: |
+  class Solution:
+      def longestConsecutive(self, nums: List[int]) -> int:
+          pass
+
+tests:
+  - {args: [[100, 4, 200, 1, 3, 2]], expected: 4}
+  - {args: [[0, 3, 7, 2, 5, 8, 4, 6, 0, 1]], expected: 9, note: duplicate 0 counts once}
+  - {args: [[1, 0, 1, 2]], expected: 3}
+  - {args: [[]], expected: 0, note: empty input}
+  - {args: [[5]], expected: 1, note: single element}
+  - {args: [[7, 7, 7]], expected: 1, note: all duplicates form a run of 1}
+  - {args: [[-3, -1, -2, 0, 10]], expected: 4, note: "negatives: -3 to 0"}
+  - {args: [[10, 30, 20]], expected: 1, note: no two values are consecutive}
+  - {args: [[1000000000, -1000000000, 999999999]], expected: 2, note: extreme values}
+visualize_test: 0
+
+drills:
+  - title: Build the set, answer membership in O(1)
+    skill: setup
+    goal: Turn the array into a hash set once and answer many "is this value present?" questions.
+    instructions: |
+      Return a list of booleans: for each value in `queries`, `True` if it appears anywhere
+      in `nums`, otherwise `False`.
+
+      Build `set(nums)` once, before the loop. The whole Longest Consecutive Sequence
+      solution is a stream of "does x − 1 exist?" and "does y + 1 exist?" questions, and each
+      one must be O(1). Checking `q in nums` on the list would be an O(N) scan every time.
+    function:
+      name: presentValues
+      params: [{name: nums}, {name: queries}]
+    starter_code: |
+      class Solution:
+          def presentValues(self, nums: List[int], queries: List[int]) -> List[bool]:
+              pass
+    tests:
+      - {args: [[100, 4, 200, 1], [4, 5, 100]], expected: [true, false, true]}
+      - {args: [[], [0]], expected: [false]}
+      - {args: [[-2, -2, 3], [-2, 2, 3]], expected: [true, false, true]}
+    solution: |
+      class Solution:
+          def presentValues(self, nums: List[int], queries: List[int]) -> List[bool]:
+              num_set = set(nums)
+              out = []
+              for q in queries:
+                  out.append(q in num_set)
+              return out
+    hint: "Create `num_set = set(nums)` outside the loop, then test `q in num_set`."
+
+  - title: Spot where a run begins
+    skill: core
+    goal: Detect sequence starts with the check "x − 1 is not in the set".
+    instructions: |
+      Return, in increasing order, every **distinct** value `x` in `nums` that starts a
+      consecutive run, i.e. `x - 1` does not appear in `nums`.
+
+      This check is what makes the full solution O(N). Only starts are allowed to walk
+      forward, and every run has exactly one start, so no value is walked over twice. Iterate
+      over the set, not the list, so a duplicated start is only reported once.
+    function:
+      name: sequenceStarts
+      params: [{name: nums}]
+    starter_code: |
+      class Solution:
+          def sequenceStarts(self, nums: List[int]) -> List[int]:
+              pass
+    tests:
+      - {args: [[100, 4, 200, 1, 3, 2]], expected: [1, 100, 200]}
+      - {args: [[5, 5, 6]], expected: [5]}
+      - {args: [[0, -1, 2]], expected: [-1, 2]}
+      - {args: [[]], expected: []}
+    solution: |
+      class Solution:
+          def sequenceStarts(self, nums: List[int]) -> List[int]:
+              num_set = set(nums)
+              starts = []
+              for x in num_set:
+                  if x - 1 not in num_set:
+                      starts.append(x)
+              return sorted(starts)
+    hint: "Loop over `set(nums)` and keep `x` only when `x - 1 not in num_set`."
+
+  - title: Walk forward and measure the run
+    skill: edge
+    goal: Walk y + 1 through the set from a given start and return the run length correctly.
+    instructions: |
+      Return the length of the consecutive run that begins at `start`: the count of values
+      `start, start + 1, start + 2, ...` that all appear in `nums`. If `start` itself is not
+      in `nums`, return `0`.
+
+      Two things go wrong here in interviews: off-by-one (a run from 1 to 4 has length
+      4 − 1 + 1 = 4, not 3) and duplicates (`[2, 2, 3]` from 2 is length 2, not 3). Walking
+      the set instead of counting list entries fixes the second automatically.
+    function:
+      name: runLength
+      params: [{name: nums}, {name: start}]
+    starter_code: |
+      class Solution:
+          def runLength(self, nums: List[int], start: int) -> int:
+              pass
+    tests:
+      - {args: [[100, 4, 200, 1, 3, 2], 1], expected: 4}
+      - {args: [[2, 2, 3], 2], expected: 2}
+      - {args: [[1, 2, 3], 7], expected: 0}
+      - {args: [[9], 9], expected: 1}
+      - {args: [[-1, 0, 1, 3], -1], expected: 3}
+    solution: |
+      class Solution:
+          def runLength(self, nums: List[int], start: int) -> int:
+              num_set = set(nums)
+              if start not in num_set:
+                  return 0
+              y = start
+              while y + 1 in num_set:
+                  y += 1
+              return y - start + 1
+    hint: "Move `y` forward while `y + 1` is in the set; the length is `y - start + 1`."
+
+hints:
+  - >-
+    The values 1, 2, 3, 4 are scattered all over the array. If you could ask "is x + 1
+    here?" instantly, could you walk a run without sorting? And which value of a run is the
+    only sensible place to start walking from?
+  - >-
+    Put everything in a set. For each distinct x, if x − 1 is in the set then x is in the
+    middle of some run, so skip it. Otherwise x is a start: walk y = x, x + 1, ... while the
+    next value exists, and update the best length with y − x + 1.
+  - |
+    num_set = set of nums
+    best = 0
+    for each x in num_set:
+        if x - 1 is not in num_set:        # x starts a run
+            y = x
+            while y + 1 is in num_set: y = y + 1
+            best = max(best, y - x + 1)
+    return best
+
+solution:
+  code: |
+    class Solution:
+        def longestConsecutive(self, nums: List[int]) -> int:
+            num_set = set(nums)
+            best = 0
+            for x in num_set:  # iterate the set so duplicates can't trigger extra walks
+                if x - 1 not in num_set:  # x is the start of a run
+                    y = x
+                    while y + 1 in num_set:
+                        y += 1
+                    best = max(best, y - x + 1)
+            return best
+  explanation: |
+    Put every value in a set. A value `x` is the **start** of a run exactly when `x - 1` is
+    missing. Only starts walk forward with `y + 1`, and the run length is `y - x + 1`. An
+    empty input never enters the loop, so it correctly returns 0.
+
+    **Why the nested while loop is still O(N) overall:** the `while` only runs from a start,
+    and every distinct value belongs to exactly one run with exactly one start. So across the
+    whole `for` loop, each value is stepped over by the `while` at most once. The outer loop
+    does N set lookups, the inner loop does at most N steps *in total* (amortised), so the
+    total is O(N), not O(N²).
+
+    The subtle decision is iterating over `num_set` rather than `nums`. With
+    `nums = [1, 1, 1, ..., 1, 2, 3, ..., k]`, looping over the list would launch the same
+    long walk from 1 once per duplicate, which is quadratic again. Looping over the set
+    launches it once.
+  time: O(N) — N average-O(1) set lookups, plus at most N total while-loop steps across all run starts
+  space: O(N) — the set holds every distinct value
+  brute_force_code: |
+    class Solution:
+        def longestConsecutive(self, nums: List[int]) -> int:
+            best = 0
+            for x in nums:
+                length = 1
+                while x + length in nums:  # O(N) list scan each time
+                    length += 1
+                best = max(best, length)
+            return best
+
+pitch_script: |
+  **(Clarify)** "So consecutive means consecutive values, not adjacent positions, duplicates
+  count once, an empty array gives 0, and I need O(n) time, correct?"
+
+  **(Brute force)** "The naive way is to start from every number and keep checking whether
+  the next value exists by scanning the array. That's O(N³), or O(N²) with a set, because
+  numbers in the middle of a run redo work. Sorting and scanning gets O(N log N), but the
+  problem asks for linear time."
+
+  **(Trigger)** "The question I keep asking is 'does x plus one exist?', which is pure
+  membership, so a hash set. The trick is to only start walking from the beginning of a
+  run, and x is a beginning exactly when x minus one is not in the set."
+
+  **(Optimal)** "I'll build a set, then loop over the set. If x minus one is present I skip
+  x. Otherwise I walk forward while y plus one is in the set and update the best with y
+  minus x plus one. I loop over the set rather than the list so duplicates of a start don't
+  trigger the same walk again."
+
+  **(Complexity)** "It looks nested, but each value is walked over at most once in total,
+  because every run has exactly one start. So it's O(N) time on average, and O(N) space for
+  the set."
+
+twist:
+  lc: 2501
+  title: Longest Square Streak in an Array
+  why: >-
+    The "next" value is now x² instead of x + 1, and the streak must have at least 2
+    elements (otherwise return −1). The same set-and-walk template works: put values in a
+    set and walk x → x² while the square exists. Because squares grow so fast, a streak is
+    at most about 5 long under the constraints, so you can even skip the start check and
+    still be linear.
+
+viz:
+  arrays: [nums]
+  maps: [num_set]
+  watch: [x, y, best]

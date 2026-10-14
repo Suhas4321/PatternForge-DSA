@@ -1,0 +1,313 @@
+slug: group-anagrams
+lc: 49
+
+concept:
+  problem_it_solves: >-
+    "Which of these items are secretly the same thing?" Two words are anagrams when they use the
+    same letters the same number of times, just in a different order. If you can turn every word
+    into a canonical key that ignores order, "are these the same?" becomes "do they have the same
+    key?", and a hash map from key → list of words groups everything in one pass.
+  brute_force: >-
+    For every word, walk through the groups built so far and test it against each group's first
+    word (sort both and compare, or compare letter counts). Every new word gets re-compared
+    against groups it was already compared with for earlier words, and nothing you learn about
+    a word is remembered for the next one.
+  brute_force_complexity: >-
+    O(N² · K) time in the worst case (every word in its own group) when each comparison counts
+    letters, O(N² · K log K) if you sort both words each time; O(N · K) space for the output —
+    10⁴ words of length 100 means ~10¹⁰ character operations.
+  key_insight: >-
+    Stop comparing words with each other. Compare each word with a fixed fingerprint instead:
+    its 26 letter counts (or its letters sorted). Anagrams produce identical fingerprints and
+    non-anagrams never do, so the fingerprint can be a dictionary key, and grouping becomes
+    "append the word to the list at its key".
+  real_world: >-
+    Search engines and e-commerce catalogues (Flipkart, Amazon) normalise queries and product
+    titles into canonical keys so that equivalent strings land in the same bucket. Deduplication
+    pipelines, SQL GROUP BY on a computed column, and MapReduce's shuffle phase all do exactly
+    this: compute a key, then group by it in a hash table.
+
+statement:
+  clean: |
+    Given an array of strings `strs`, **group the anagrams** together. You can return the
+    answer in **any order**.
+
+    An **anagram** is a word formed by **rearranging the letters** of another word, using all
+    of the original letters exactly once. For example, `"eat"`, `"tea"` and `"ate"` are all
+    anagrams of each other.
+  oa_story: |
+    **NammaBazaar Search — OA Round 1**
+
+    NammaBazaar's search team in HSR Layout is cleaning up the seller-uploaded tag dictionary.
+    Sellers in a hurry often type product tags with the letters jumbled, so the same tag shows
+    up as `"tea"`, `"eat"` and `"ate"`. Before the nightly spell-correction job runs, the team
+    wants every set of tags that use exactly the same letters, each letter the same number of
+    times, clustered together so one canonical spelling can be chosen per cluster.
+
+    You are given the list of tags `strs` (lowercase English letters, possibly empty). Return a
+    list of clusters, where each cluster is a list of the tags that can be turned into one
+    another just by reordering their letters. Every tag must appear in exactly one cluster,
+    duplicates included. The order of the clusters, and of the tags inside a cluster, does not
+    matter.
+  trigger_keywords: ["group the anagrams", "any order", "rearranging the letters"]
+  examples:
+    - input: 'strs = ["eat","tea","tan","ate","nat","bat"]'
+      output: '[["bat"],["nat","tan"],["ate","eat","tea"]]'
+      explanation: >-
+        "eat", "tea" and "ate" all have one a, one e and one t. "tan" and "nat" share one a, one
+        n and one t. "bat" has no partner, so it is a group of its own.
+    - input: 'strs = [""]'
+      output: '[[""]]'
+      explanation: "The empty string is a valid word: it forms a single group."
+    - input: 'strs = ["a"]'
+      output: '[["a"]]'
+  constraints:
+    - "1 <= strs.length <= 10^4"
+    - "0 <= strs[i].length <= 100"
+    - "strs[i] consists of lowercase English letters."
+
+constraint_quiz:
+  prompt: >-
+    There can be N = 10⁴ words, each up to K = 100 letters long. What time complexity should
+    you aim for?
+  options:
+    - "O(N² · K) — compare every pair of words"
+    - "O(N · K) — look at each character a constant number of times"
+    - "O(N log N) — sort the list of words"
+    - "O(N) — independent of word length"
+  answer: 1
+  explanation: >-
+    O(N² · K) is ~10¹⁰ operations, far too slow. Sorting the list of words alphabetically does
+    not put anagrams next to each other ("ate" and "tea" end up far apart), so O(N log N) on its
+    own doesn't solve anything, and every string comparison costs O(K) anyway. O(N) is
+    impossible because the input itself has up to N · K characters and you must read them all.
+    Counting letters per word gives O(N · K); sorting each word as the key gives
+    O(N · K log K), which is also fine at K = 100.
+
+pattern_quiz:
+  prompt: >-
+    You must put words that are rearrangements of each other into the same bucket, in any
+    order. Which pattern fits?
+  options:
+    - "Sort the array and use two pointers"
+    - "Hash map from a canonical key → list of words"
+    - "Sliding window over each string"
+    - "Union-Find, merging every anagram pair"
+  answer: 1
+  explanation: >-
+    "Group" plus "anagrams" is the canonical-key trigger: an anagram is defined by its letter
+    multiset, so compute that multiset as a hashable key and group in a dictionary. Two pointers
+    and sliding windows answer questions about positions or ranges, not about equivalence
+    classes. Union-Find would work, but finding which pairs to union is the O(N²) brute force
+    again; a key gives you the equivalence class directly.
+
+function:
+  name: groupAnagrams
+  params: [{name: strs}]
+  compare: unordered_nested
+
+starter_code: |
+  class Solution:
+      def groupAnagrams(self, strs: List[str]) -> List[List[str]]:
+          pass
+
+tests:
+  - {args: [["eat", "tea", "tan", "ate", "nat", "bat"]], expected: [["bat"], ["nat", "tan"], ["ate", "eat", "tea"]]}
+  - {args: [[""]], expected: [[""]], note: "empty string is a word with an all-zero key"}
+  - {args: [["a"]], expected: [["a"]], note: single word}
+  - {args: [["", ""]], expected: [["", ""]], note: "two empty strings are anagrams of each other"}
+  - {args: [["aab", "abb", "bab", "baa"]], expected: [["aab", "baa"], ["abb", "bab"]], note: "same set of letters, different counts: a set-based key would wrongly merge these"}
+  - {args: [["eat", "eat", "tea"]], expected: [["eat", "eat", "tea"]], note: "duplicates stay, each copy is kept"}
+  - {args: [["ab", "ba", "abc", "a", "cba"]], expected: [["ab", "ba"], ["abc", "cba"], ["a"]], note: different lengths never match}
+  - {args: [["abc", "def", "ghi"]], expected: [["abc"], ["def"], ["ghi"]], note: no anagrams at all}
+visualize_test: 0
+
+drills:
+  - title: Fingerprint one word
+    skill: setup
+    goal: Turn a word into its 26-slot letter-count array, the canonical key that ignores order.
+    instructions: |
+      Return a list of 26 integers where position `0` is the number of `'a'`s in `word`,
+      position `1` the number of `'b'`s, and so on up to `'z'`.
+
+      This is the whole trick of Group Anagrams: two words are anagrams exactly when these
+      arrays are equal. Use `ord(ch) - ord('a')` to turn a letter into its slot. (In the full
+      solution you'll wrap the list in `tuple(...)`, because lists can't be dictionary keys.)
+    function:
+      name: letterCounts
+      params: [{name: word}]
+    starter_code: |
+      class Solution:
+          def letterCounts(self, word: str) -> List[int]:
+              pass
+    tests:
+      - {args: ["eat"], expected: [1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0]}
+      - {args: [""], expected: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]}
+      - {args: ["zza"], expected: [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 2]}
+      - {args: ["bab"], expected: [1, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]}
+    solution: |
+      class Solution:
+          def letterCounts(self, word: str) -> List[int]:
+              count = [0] * 26
+              for ch in word:
+                  count[ord(ch) - ord('a')] += 1
+              return count
+    hint: "Start from `[0] * 26` and increment `count[ord(ch) - ord('a')]` for each character."
+
+  - title: Bucket items by a key
+    skill: core
+    goal: Group items into a dictionary of lists keyed by a computed key, then return the lists.
+    instructions: |
+      Group `words` by their **sorted letters**: `"".join(sorted(w))` is the key, and every word
+      with the same key goes into the same list. Return the groups as a list of lists (any order).
+
+      This is the grouping half of Group Anagrams with the simpler sorted-string key. The move to
+      master is "compute key, then `groups[key].append(item)`". A `defaultdict(list)` saves you
+      the "is this key new?" check. Return `list(groups.values())`, never the dict itself.
+    function:
+      name: groupBySortedKey
+      params: [{name: words}]
+      compare: unordered_nested
+    starter_code: |
+      class Solution:
+          def groupBySortedKey(self, words: List[str]) -> List[List[str]]:
+              pass
+    tests:
+      - {args: [["eat", "tea", "tan", "ate", "nat", "bat"]], expected: [["eat", "tea", "ate"], ["tan", "nat"], ["bat"]]}
+      - {args: [["abc"]], expected: [["abc"]]}
+      - {args: [["ab", "ba", "ab"]], expected: [["ab", "ba", "ab"]]}
+      - {args: [["x", "y", "x"]], expected: [["x", "x"], ["y"]]}
+    solution: |
+      class Solution:
+          def groupBySortedKey(self, words: List[str]) -> List[List[str]]:
+              groups = defaultdict(list)
+              for w in words:
+                  groups["".join(sorted(w))].append(w)
+              return list(groups.values())
+    hint: "`groups = defaultdict(list)`, then one line per word: `groups[key].append(w)`."
+
+  - title: A key must capture counts, not just letters
+    skill: edge
+    goal: Decide whether two words share a canonical key, handling empty strings and repeated letters.
+    instructions: |
+      Return `True` if `a` and `b` would land in the **same anagram group**, otherwise `False`.
+
+      The classic wrong key is `set(word)`: it says `"aab"` and `"abb"` match because both use
+      the letters {a, b}, but one has two a's and the other has two b's. Your key must count
+      every letter. Also make sure two empty strings match each other (both keys are all zeros)
+      and that an empty string never matches a non-empty one.
+    function:
+      name: sameGroup
+      params: [{name: a}, {name: b}]
+    starter_code: |
+      class Solution:
+          def sameGroup(self, a: str, b: str) -> bool:
+              pass
+    tests:
+      - {args: ["listen", "silent"], expected: true}
+      - {args: ["aab", "abb"], expected: false}
+      - {args: ["", ""], expected: true}
+      - {args: ["a", ""], expected: false}
+      - {args: ["abc", "abcc"], expected: false}
+    solution: |
+      class Solution:
+          def sameGroup(self, a: str, b: str) -> bool:
+              def key(s):
+                  count = [0] * 26
+                  for ch in s:
+                      count[ord(ch) - ord('a')] += 1
+                  return tuple(count)
+              return key(a) == key(b)
+    hint: "Build the 26-count fingerprint for both words and compare them; never use `set(word)`."
+
+hints:
+  - >-
+    Comparing every word with every other word is slow. What could you compute from a single
+    word, on its own, that is identical for all of its anagrams and different for everything
+    else?
+  - >-
+    Give each word a canonical key: its 26 letter counts as a tuple (or its letters sorted).
+    Keep a dictionary from key → list of words. For each word, compute the key and append the
+    word to that key's list. The groups are the dictionary's values.
+  - |
+    groups = empty map from key -> list
+    for each word s in strs:
+        count = 26 zeros
+        for each char ch in s: count[ch - 'a'] += 1
+        append s to groups[tuple(count)]
+    return all the lists in groups
+
+solution:
+  code: |
+    class Solution:
+        def groupAnagrams(self, strs: List[str]) -> List[List[str]]:
+            groups = defaultdict(list)  # letter-count key -> words with that key
+            for s in strs:
+                count = [0] * 26
+                for ch in s:
+                    count[ord(ch) - ord('a')] += 1
+                key = tuple(count)  # lists aren't hashable, tuples are
+                groups[key].append(s)
+            return list(groups.values())
+  explanation: |
+    Two words are anagrams exactly when they contain each letter the same number of times. So
+    for each word we build its 26 letter counts and use that as the dictionary key: anagrams
+    collide on purpose, non-anagrams never do. Appending every word to the list at its key
+    builds all the groups in one pass, and the answer is simply the dictionary's values.
+
+    Two details matter. The key must be a `tuple`, because a list is mutable and can't be
+    hashed. And the key must hold **counts**, not just which letters appear: `"aab"` and
+    `"abb"` have the same set of letters but are not anagrams. Empty strings need no special
+    case: they all get the all-zero key and end up in one group together. Sorting each word
+    (`"".join(sorted(s))`) is an equally correct key that is shorter to write, at
+    O(K log K) per word instead of O(K).
+  time: O(N · K) — N words, O(K) to count each word's letters, plus O(26) to build and hash the key
+  space: O(N · K) — the dictionary stores every word once, plus one 26-slot key per group
+  brute_force_code: |
+    class Solution:
+        def groupAnagrams(self, strs: List[str]) -> List[List[str]]:
+            groups = []
+            for s in strs:
+                for g in groups:
+                    if sorted(g[0]) == sorted(s):
+                        g.append(s)
+                        break
+                else:
+                    groups.append([s])
+            return groups
+
+pitch_script: |
+  **(Clarify)** "Just to confirm: only lowercase English letters, empty strings are allowed,
+  duplicate words should each appear in the output, and the order of groups and of words
+  inside a group doesn't matter?"
+
+  **(Brute force)** "The naive way is to take each word and compare it against the first
+  word of every group I've built so far, sorting both to check. In the worst case every word
+  is its own group, so that's O(N²) comparisons of O(K log K) each. With 10⁴ words that's
+  far too slow."
+
+  **(Trigger)** "The word 'group' plus the fact that anagrams are defined by their letter
+  counts tells me I want a canonical key. If every anagram maps to the same key, grouping is
+  just a hash map from key to list of words, and I never compare two words directly."
+
+  **(Optimal)** "For each word I'll count its 26 letters, convert the counts to a tuple so it's
+  hashable, and append the word to the list at that key in a defaultdict. At the end I return
+  the dictionary's values. Counts rather than a set of letters keeps 'aab' and 'abb' apart,
+  and empty strings naturally share the all-zero key."
+
+  **(Complexity)** "That's O(N · K) time, where K is the maximum word length, and O(N · K)
+  space for the map. Sorting each word as the key is simpler to write and costs
+  O(N · K log K), which is also fine for K up to 100."
+
+twist:
+  lc: 2273
+  title: Find Resultant Array After Removing Anagrams
+  why: >-
+    Same canonical key (sorted letters or a 26-count tuple), but you only compare each word with
+    the last word you kept, not with every group. The hash map shrinks to a single 'previous key'
+    variable, which shows that the key, not the map, is the real idea.
+
+viz:
+  arrays: [strs]
+  maps: [groups]
+  watch: [s, key, count]

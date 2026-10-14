@@ -1,0 +1,321 @@
+slug: valid-parentheses
+lc: 20
+
+concept:
+  problem_it_solves: >-
+    "Does every closing thing match the most recent thing that is still open?" Nested
+    structures close in the reverse order they opened, so the only opener a closer may ever
+    match is the newest unclosed one. A stack keeps exactly that newest-unclosed opener on top,
+    so each check is O(1).
+  brute_force: >-
+    Repeatedly delete every adjacent matched pair ("()", "[]", "{}") from the string until
+    nothing changes; the string is valid if it ends up empty. Each pass rescans and rebuilds
+    the whole string just to peel off the innermost layer, so a deeply nested input like
+    "((((…))))" needs N/2 passes.
+  brute_force_complexity: O(N²) time, O(N) space — 10⁴ characters means up to ~5 × 10⁷ character copies.
+  key_insight: >-
+    You never need to look back past the newest unclosed opener. When a closer arrives, it
+    must match the opener on top of the stack, or the string is broken right there. Push
+    openers, and for each closer check-and-pop the top. Valid means no closer ever failed
+    *and* the stack is empty at the end.
+  real_world: >-
+    Every JSON, XML and HTML parser keeps a stack of open tags or braces and errors out the
+    moment a closer doesn't match the top. Code editors like VS Code use the same stack to
+    highlight matching brackets, and linters use it to report "unclosed {" at the exact line.
+
+statement:
+  clean: |
+    Given a string `s` containing just the characters `'('`, `')'`, `'{'`, `'}'`, `'['` and
+    `']'`, determine if the input string is valid.
+
+    An input string is valid if:
+
+    1. Open brackets must be closed by the **same type** of brackets.
+    2. Open brackets must be closed in the **correct order**.
+    3. **Every close bracket has a corresponding open bracket** of the same type.
+  oa_story: |
+    **PinCodePost Logistics — OA Round 1**
+
+    PinCodePost's sorting hub in Hoskote packs parcels inside crates, crates inside cages,
+    and sometimes cages inside crates again. Every time a handler starts filling a container
+    the scanner logs an "open" code for that container type, and when they seal it the scanner
+    logs a "seal" code: `(` and `)` for pouches, `[` and `]` for crates, `{` and `}` for cages.
+    A container can only be sealed after everything placed inside it has been sealed.
+
+    Given one handler's scanner log for a shift as a string, return `true` if the log is
+    consistent: every seal code seals a container of the same type, containers are sealed in
+    an order that is physically possible, and nothing is sealed that was never opened or left
+    open at the end. Logs can be up to 10,000 codes long.
+  trigger_keywords: ["same type", "correct order", "every close bracket has a corresponding open bracket"]
+  examples:
+    - input: "s = \"()\""
+      output: "true"
+    - input: "s = \"()[]{}\""
+      output: "true"
+      explanation: "Each opener is closed immediately by its own type."
+    - input: "s = \"([)]\""
+      output: "false"
+      explanation: "The ')' arrives while '[' is the most recent open bracket, so the order is wrong even though the counts balance."
+  constraints:
+    - "1 <= s.length <= 10^4"
+    - "s consists of parentheses only '()[]{}'"
+
+constraint_quiz:
+  prompt: With a string of up to 10⁴ characters, what time complexity should you aim for?
+  options: ["O(N²)", "O(N log N)", "O(N)", "O(1)"]
+  answer: 2
+  explanation: >-
+    O(N²) (the "delete matched pairs until nothing changes" approach) is ~5 × 10⁷ character
+    operations on deeply nested input: it might squeak through but it is the answer an
+    interviewer pushes back on. O(N log N) implies sorting, and sorting destroys the order
+    that decides validity. O(1) is impossible because you must read every character. One
+    left-to-right pass with a stack is O(N).
+
+pattern_quiz:
+  prompt: >-
+    Open brackets must be closed by the same type and in the correct order. Which pattern
+    fits?
+  options:
+    - "Count each bracket type and check the counts are equal"
+    - "Stack of unclosed openers; each closer must match the top"
+    - "Two pointers from both ends, matching outer pairs inward"
+    - "Hash set of the brackets seen so far"
+  answer: 1
+  explanation: >-
+    "Correct order" for nested pairs is the matching-stack trigger: the last opener is the
+    first one that must close (LIFO). Counting fails on "([)]", where every count balances
+    but the order is wrong. Two pointers fail on "()[]", where the outer characters '(' and
+    ']' don't pair. A set forgets order entirely.
+
+function:
+  name: isValid
+  params: [{name: s}]
+
+starter_code: |
+  class Solution:
+      def isValid(self, s: str) -> bool:
+          pass
+
+tests:
+  - {args: ["()"], expected: true}
+  - {args: ["()[]{}"], expected: true}
+  - {args: ["(]"], expected: false}
+  - {args: ["([)]"], expected: false, note: "counts balance, but ')' closes while '[' is on top"}
+  - {args: ["{[()()]}"], expected: true, note: nested and side-by-side pairs}
+  - {args: ["]"], expected: false, note: "closing bracket first: the stack is empty when it arrives"}
+  - {args: ["(("], expected: false, note: "no closer ever fails, but openers are left over"}
+  - {args: ["(()"], expected: false, note: odd length can never be valid}
+  - {args: ["([]){}[({})]"], expected: true}
+visualize_test: 4
+
+drills:
+  - title: Push on open, pop on close
+    skill: setup
+    goal: Write the stack loop that pushes openers and pops on closers, and read the depth off the stack size.
+    instructions: |
+      `s` is a **valid** expression containing digits, operators and only round brackets.
+      Return its maximum nesting depth: the largest number of brackets open at the same time.
+
+      Push on `'('`, pop on `')'`, ignore everything else, and track the largest stack size
+      you ever see. This is the skeleton of the full problem: the stack always holds exactly
+      the brackets that are open right now.
+    function:
+      name: maxDepth
+      params: [{name: s}]
+    starter_code: |
+      class Solution:
+          def maxDepth(self, s: str) -> int:
+              pass
+    tests:
+      - {args: ["(1+(2*3)+((8)/4))+1"], expected: 3}
+      - {args: ["(1)+((2))+(((3)))"], expected: 3}
+      - {args: ["1+2"], expected: 0, note: no brackets at all}
+      - {args: ["()"], expected: 1}
+    solution: |
+      class Solution:
+          def maxDepth(self, s: str) -> int:
+              stack = []
+              best = 0
+              for ch in s:
+                  if ch == "(":
+                      stack.append(ch)
+                      best = max(best, len(stack))
+                  elif ch == ")":
+                      stack.pop()
+              return best
+    hint: "Update `best` right after a push: that's the only moment the depth can grow."
+
+  - title: The closer must match the top
+    skill: core
+    goal: Use a closing→opening map to check each closer against the top of the stack.
+    instructions: |
+      `s` contains only `()[]{}`. Return the **index of the first closing bracket that
+      fails**: either the stack is empty when it arrives, or the opener on top is a
+      different type. Return `-1` if no closer fails (leftover openers are not this drill's
+      concern).
+
+      This is the heart of the full problem. A map like `{')': '(', ']': '[', '}': '{'}` turns
+      "does this closer match?" into a single lookup, and checking `not stack` first stops you
+      from popping an empty list.
+    function:
+      name: firstBadIndex
+      params: [{name: s}]
+    starter_code: |
+      class Solution:
+          def firstBadIndex(self, s: str) -> int:
+              pass
+    tests:
+      - {args: ["([)]"], expected: 2}
+      - {args: ["()[]{}"], expected: -1}
+      - {args: ["]"], expected: 0, note: empty stack}
+      - {args: ["{[]}}"], expected: 4}
+      - {args: ["(("], expected: -1, note: leftovers don't count here}
+    solution: |
+      class Solution:
+          def firstBadIndex(self, s: str) -> int:
+              pairs = {")": "(", "]": "[", "}": "{"}
+              stack = []
+              for i, ch in enumerate(s):
+                  if ch in pairs:
+                      if not stack or stack[-1] != pairs[ch]:
+                          return i
+                      stack.pop()
+                  else:
+                      stack.append(ch)
+              return -1
+    hint: "Key the map by the closer, so `pairs[ch]` is the opener that must be on top."
+
+  - title: What's left on the stack is unclosed
+    skill: edge
+    goal: Treat an empty-stack closer safely and read the leftover openers at the end.
+    instructions: |
+      `s` contains only `'('` and `')'`. Return the **indices of the opening brackets that
+      are never closed**, in increasing order. A stray `')'` that arrives when nothing is open
+      should simply be skipped.
+
+      The two classic bugs in Valid Parentheses live here: popping when the stack is empty
+      (crash, or a wrong answer for `"]"`), and returning `true` while openers are still on
+      the stack (wrong answer for `"(("`). Pushing **indices** instead of characters also
+      tells you exactly *which* brackets were left open.
+    function:
+      name: unclosedOpeners
+      params: [{name: s}]
+    starter_code: |
+      class Solution:
+          def unclosedOpeners(self, s: str) -> List[int]:
+              pass
+    tests:
+      - {args: ["(()"], expected: [0]}
+      - {args: ["())("], expected: [3], note: the stray ')' is skipped}
+      - {args: ["))"], expected: []}
+      - {args: ["((()"], expected: [0, 1]}
+      - {args: ["()"], expected: []}
+    solution: |
+      class Solution:
+          def unclosedOpeners(self, s: str) -> List[int]:
+              stack = []
+              for i, ch in enumerate(s):
+                  if ch == "(":
+                      stack.append(i)
+                  elif stack:
+                      stack.pop()
+              return stack
+    hint: "Only pop when the stack is non-empty; whatever remains at the end is your answer."
+
+hints:
+  - >-
+    When a closing bracket arrives, which opening bracket is it allowed to close? Does it
+    ever make sense for it to close anything other than the most recent one still open?
+  - >-
+    Push every opener. For each closer: if the stack is empty or its top is not the matching
+    opener, the string is invalid; otherwise pop. At the end the string is valid only if the
+    stack is empty.
+  - |
+    if length is odd: return false
+    pairs = map closer -> opener
+    stack = empty
+    for each ch in s:
+        if ch is a closer:
+            if stack empty or top != pairs[ch]: return false
+            pop
+        else:
+            push ch
+    return stack is empty
+
+solution:
+  code: |
+    class Solution:
+        def isValid(self, s: str) -> bool:
+            if len(s) % 2 == 1:
+                return False  # pairs can't cover an odd number of characters
+            pairs = {")": "(", "]": "[", "}": "{"}
+            stack = []  # openers still waiting to be closed; newest on top
+            for i, ch in enumerate(s):
+                if ch in pairs:
+                    # a closer must match the newest unclosed opener
+                    if not stack or stack[-1] != pairs[ch]:
+                        return False
+                    stack.pop()
+                else:
+                    stack.append(ch)
+            return not stack  # leftover openers mean something was never closed
+  explanation: |
+    Brackets nest, so they close in reverse order of opening: the opener a closer must match
+    is always the most recent one still open. The stack keeps those unclosed openers with the
+    newest on top.
+
+    For each closer there are exactly two ways to fail: nothing is open (`not stack`, e.g.
+    `"]"`), or the top is a different type (`"(]"`, `"([)]"`). Check `not stack` **before**
+    reading `stack[-1]`, or an early closer crashes the code. If the closer matches, pop: that
+    pair is done and the opener below becomes the newest unclosed one.
+
+    Surviving the loop is not enough. `"(("` never has a failing closer, but both openers are
+    still waiting, so the answer is `not stack`. The odd-length check is just a free early
+    exit; the stack logic would reject those strings anyway.
+  time: O(N) — one pass, O(1) push / pop / map lookup per character
+  space: O(N) — the stack holds up to N openers (e.g. "((((((")
+  brute_force_code: |
+    class Solution:
+        def isValid(self, s: str) -> bool:
+            prev = None
+            while s != prev:
+                prev = s
+                s = s.replace("()", "").replace("[]", "").replace("{}", "")
+            return s == ""
+
+pitch_script: |
+  **(Clarify)** "So the string only has the six bracket characters, and it's valid if every
+  closer matches the same type, closes in the right order, and nothing is left open. An odd
+  length is automatically invalid, right?"
+
+  **(Brute force)** "The naive way is to keep deleting adjacent matched pairs like '()' until
+  nothing changes and check whether the string is empty. On deeply nested input that's N/2
+  passes over the string, so O(N²)."
+
+  **(Trigger)** "'Closed in the correct order' is the signal. Nested brackets close in reverse
+  order of opening, last-in first-out, so a stack of the open brackets is the natural fit:
+  the only opener a closer can match is the one on top."
+
+  **(Optimal)** "I keep a map from each closer to its opener. I scan once: push openers; for a
+  closer, if the stack is empty or the top isn't its opener, I return false, otherwise I pop.
+  At the end I return whether the stack is empty, because leftover openers were never
+  closed."
+
+  **(Complexity)** "One pass with O(1) work per character, so O(N) time, and O(N) space for
+  the stack when everything is an opener."
+
+twist:
+  lc: 921
+  title: Minimum Add to Make Parentheses Valid
+  why: >-
+    Now you don't stop at the first failure; you count how many brackets you'd have to add.
+    Same matching stack: a closer that finds an empty stack needs one added opener, and every
+    opener left on the stack at the end needs one added closer. With a single bracket type the
+    stack collapses to a counter of unclosed openers.
+
+viz:
+  arrays: [s]
+  pointers: [i]
+  stacks: [stack]
+  maps: [pairs]
+  watch: [ch]

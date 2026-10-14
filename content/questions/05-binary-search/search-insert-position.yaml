@@ -1,0 +1,324 @@
+slug: search-insert-position
+lc: 35
+
+concept:
+  problem_it_solves: >-
+    "Where does this value belong in a sorted list?" That is the same as asking for the
+    first position whose value is at least target, which is called the lower bound. The
+    yes/no question "is nums[i] >= target?" is no, no, no, then yes, yes, yes along a sorted
+    array, and binary search can find the spot where it flips in O(log N).
+  brute_force: >-
+    Walk from the left and return the first index whose value is >= target, or len(nums)
+    if you fall off the end. Like any linear scan on sorted data, it reads every "no" one at
+    a time, although each one says the same thing about all the values before it.
+  brute_force_complexity: O(N) time, O(1) space — 10⁴ elements means up to 10⁴ comparisons instead of 14.
+  key_insight: >-
+    Stop looking for target and look for the boundary. The answer is the first index where
+    nums[i] >= target, and it can be any index from 0 to len(nums), so the search range is
+    [0, len(nums)]. If nums[mid] < target, mid is a "no" and the answer is to its right:
+    lo = mid + 1. Otherwise mid is a "yes" and might be the answer itself, so keep it:
+    hi = mid. When lo == hi there is one candidate left, and it is the answer.
+  real_world: >-
+    Python's bisect.bisect_left and C++'s std::lower_bound are this exact function, used to
+    keep lists sorted on insert. Time-series databases such as Prometheus find the first
+    sample at or after a query's start timestamp this way, and RocksDB searches each SSTable's
+    index block for the first entry whose key is >= the key being looked up.
+
+statement:
+  clean: |
+    Given a **sorted array of distinct integers** and a target value, return the index if
+    the target is found. If not, return the **index where it would be** if it were inserted
+    in order.
+
+    You must write an algorithm with O(log n) runtime complexity.
+  oa_story: |
+    **PustakPoint — OA Round 1**
+
+    PustakPoint runs a second-hand bookshop chain out of Jayanagar and Malleshwaram. Each
+    shelf holds books ordered by catalogue number, smallest on the left, and no two books
+    share a number. When a new arrival comes in, the shelf assistant's handheld scanner tells
+    them which slot to use.
+
+    Given the catalogue numbers on a shelf, from left to right, and the catalogue number of
+    the arriving book, return the slot (0-indexed) where the book already sits if a copy with
+    that number is on the shelf, and otherwise the slot where it must be slid in so the shelf
+    stays in order. A number larger than everything goes after the last book. Shelves can hold
+    10,000 books and the scanner may only check a few of them per lookup.
+  trigger_keywords: ["sorted array of distinct integers", "index where it would be", "O(log n) runtime complexity"]
+  examples:
+    - input: "nums = [1,3,5,6], target = 5"
+      output: "2"
+      explanation: "5 is found at index 2."
+    - input: "nums = [1,3,5,6], target = 2"
+      output: "1"
+      explanation: "2 belongs between 1 and 3, at index 1."
+    - input: "nums = [1,3,5,6], target = 7"
+      output: "4"
+      explanation: "7 is larger than everything, so it goes at the end: index len(nums) = 4."
+  constraints:
+    - "1 <= nums.length <= 10^4"
+    - "-10^4 <= nums[i] <= 10^4"
+    - "nums contains distinct values sorted in ascending order."
+    - "-10^4 <= target <= 10^4"
+
+constraint_quiz:
+  prompt: >-
+    N is at most 10⁴ and the statement asks for O(log n). What complexity should you aim
+    for?
+  options: ["O(N)", "O(log N)", "O(N log N)", "O(√N)"]
+  answer: 1
+  explanation: >-
+    O(N) is the linear scan; it would be fast enough at 10⁴, but the statement forbids it.
+    O(N log N) is the cost of sorting, which you don't need since the input is already
+    sorted. O(√N) comes from jump search (skip ahead √N at a time, then scan back): it beats
+    a scan but still isn't logarithmic. Halving the range each step gives O(log N), about 14
+    probes.
+
+pattern_quiz:
+  prompt: >-
+    You must return the index of target if present, otherwise the index where it would be
+    inserted. Which framing makes the code simplest?
+  options:
+    - "Exact binary search that returns -1 on a miss, then special-case the miss"
+    - "Lower bound: the first index i with nums[i] >= target, or len(nums) if none"
+    - "Linear scan from the left until nums[i] >= target"
+    - "Upper bound: the first index i with nums[i] > target"
+  answer: 1
+  explanation: >-
+    "Found" and "insert here" are the same answer: the first index whose value is >= target,
+    so one lower-bound search covers both, including len(nums) when target is the largest.
+    The exact search throws away where it stopped unless you reason about the final lo
+    separately. The scan is O(N). Upper bound is one too far whenever target is present: for
+    [1,3,5,6] and 5 it returns 3, not 2.
+
+function:
+  name: searchInsert
+  params: [{name: nums}, {name: target}]
+
+starter_code: |
+  class Solution:
+      def searchInsert(self, nums: List[int], target: int) -> int:
+          pass
+
+tests:
+  - {args: [[1, 3, 5, 6], 5], expected: 2}
+  - {args: [[1, 3, 5, 6], 2], expected: 1}
+  - {args: [[1, 3, 5, 6], 7], expected: 4, note: "larger than everything: answer is len(nums), so hi must start there"}
+  - {args: [[1, 3, 5, 6], 0], expected: 0, note: smaller than everything}
+  - {args: [[1], 1], expected: 0, note: "single element, found"}
+  - {args: [[1], 2], expected: 1, note: "single element, insert after it"}
+  - {args: [[1, 3], 3], expected: 1, note: target at the last index}
+  - {args: [[-10, -3, 0, 5, 9, 14, 20], 1], expected: 3, note: negatives with a gap in the middle}
+visualize_test: 7
+
+drills:
+  - title: Find where a yes/no list flips
+    skill: setup
+    goal: Set up the lower-bound template, with hi = len(flags), lo < hi and hi = mid, on a monotonic boolean list.
+    instructions: |
+      `flags` is all `False` followed by all `True` (either part may be empty). Return the
+      index of the **first `True`**, or `len(flags)` if there is none, in O(log N).
+
+      This is lower bound stripped to its skeleton. The answer can be any index from `0` to
+      `len(flags)`, so the range starts as `lo, hi = 0, len(flags)`. The invariant is "the
+      answer is always inside [lo, hi]". A `True` at mid might be the first one, so keep it
+      (`hi = mid`); a `False` can't be, so skip it (`lo = mid + 1`). Stop when `lo == hi`.
+    function:
+      name: firstTrue
+      params: [{name: flags}]
+    starter_code: |
+      class Solution:
+          def firstTrue(self, flags: List[bool]) -> int:
+              pass
+    tests:
+      - {args: [[false, false, true, true]], expected: 2}
+      - {args: [[true, true, true]], expected: 0}
+      - {args: [[false, false, false]], expected: 3, note: no True at all}
+      - {args: [[]], expected: 0}
+      - {args: [[false, true]], expected: 1}
+    solution: |
+      class Solution:
+          def firstTrue(self, flags: List[bool]) -> int:
+              lo, hi = 0, len(flags)  # answer is in [lo, hi]; len(flags) means "none"
+              while lo < hi:
+                  mid = lo + (hi - lo) // 2
+                  if flags[mid]:
+                      hi = mid  # mid could be the first True: keep it
+                  else:
+                      lo = mid + 1
+              return lo
+    hint: "Start with `hi = len(flags)`, loop `while lo < hi`, and on `True` do `hi = mid` (not `mid - 1`)."
+
+  - title: The insert position counts the smaller values
+    skill: core
+    goal: Apply the lower-bound condition nums[mid] < target to real values, letting equality move left.
+    instructions: |
+      `nums` is sorted but may contain **duplicates**. Return how many elements are
+      **strictly less than** `target`, in O(log N).
+
+      That count is exactly the lower bound: if `k` values are smaller, they occupy indices
+      `0..k-1`, so index `k` is the first value `>= target`. The trap is equality: when
+      `nums[mid] == target`, mid is *not* smaller, so it belongs to the "yes" side and you
+      must keep searching left with `hi = mid`, not stop or move right.
+    function:
+      name: countLess
+      params: [{name: nums}, {name: target}]
+    starter_code: |
+      class Solution:
+          def countLess(self, nums: List[int], target: int) -> int:
+              pass
+    tests:
+      - {args: [[1, 2, 2, 2, 3], 2], expected: 1}
+      - {args: [[4, 4, 4], 4], expected: 0, note: equal values are not smaller}
+      - {args: [[1, 3, 5, 6], 7], expected: 4}
+      - {args: [[-5, -5, 0, 8], -1], expected: 2}
+      - {args: [[], 3], expected: 0}
+    solution: |
+      class Solution:
+          def countLess(self, nums: List[int], target: int) -> int:
+              lo, hi = 0, len(nums)
+              while lo < hi:
+                  mid = lo + (hi - lo) // 2
+                  if nums[mid] < target:
+                      lo = mid + 1  # mid is smaller, and so is everything before it
+                  else:
+                      hi = mid
+              return lo
+    hint: "Only `nums[mid] < target` moves `lo` right; everything else, equality included, does `hi = mid`."
+
+  - title: Insert without breaking the order
+    skill: edge
+    goal: Use the lower-bound index as a slot, including the empty list and the slot after the last element.
+    instructions: |
+      Return a **new list** equal to `nums` with `target` inserted so it stays sorted. If
+      equal values exist, insert before them (lower bound).
+
+      The edge cases decide whether your bounds are right: inserting into an empty list, and
+      inserting a value larger than everything. Both work only if the search range is
+      `[0, len(nums)]`; with `hi = len(nums) - 1` the last slot can never be chosen.
+    function:
+      name: insertSorted
+      params: [{name: nums}, {name: target}]
+    starter_code: |
+      class Solution:
+          def insertSorted(self, nums: List[int], target: int) -> List[int]:
+              pass
+    tests:
+      - {args: [[1, 3, 5, 6], 2], expected: [1, 2, 3, 5, 6]}
+      - {args: [[1, 3, 5, 6], 9], expected: [1, 3, 5, 6, 9], note: goes after the last element}
+      - {args: [[], 4], expected: [4], note: empty list}
+      - {args: [[2, 2], 2], expected: [2, 2, 2]}
+      - {args: [[5], 1], expected: [1, 5]}
+    solution: |
+      class Solution:
+          def insertSorted(self, nums: List[int], target: int) -> List[int]:
+              lo, hi = 0, len(nums)
+              while lo < hi:
+                  mid = lo + (hi - lo) // 2
+                  if nums[mid] < target:
+                      lo = mid + 1
+                  else:
+                      hi = mid
+              return nums[:lo] + [target] + nums[lo:]
+    hint: "Find the lower bound `lo`, then splice: `nums[:lo] + [target] + nums[lo:]`."
+
+hints:
+  - >-
+    Walk along the array asking "is nums[i] >= target?". What does the sequence of answers
+    look like, and which position in that sequence is the answer, whether or not target is
+    present?
+  - >-
+    The answer can be anything from 0 to len(nums), so search the range [0, len(nums)]. At
+    mid: if nums[mid] < target, mid can't be the answer, so lo = mid + 1. Otherwise mid
+    might be the answer, so hi = mid (don't skip it). Loop while lo < hi; when they meet,
+    that index is the answer.
+  - |
+    lo = 0, hi = len(nums)          # len(nums) is a legal answer
+    while lo < hi:
+        mid = lo + (hi - lo) // 2
+        if nums[mid] < target: lo = mid + 1     # mid is a "no"
+        else:                  hi = mid         # mid is a "yes": keep it
+    return lo                       # lo == hi, the first "yes"
+
+solution:
+  code: |
+    class Solution:
+        def searchInsert(self, nums: List[int], target: int) -> int:
+            lo, hi = 0, len(nums)  # invariant: the answer is in [lo, hi]; len(nums) is a legal answer
+            while lo < hi:  # more than one candidate left
+                mid = lo + (hi - lo) // 2  # always < hi, so nums[mid] is a real element
+                if nums[mid] < target:
+                    lo = mid + 1  # mid is too small to be the answer
+                else:
+                    hi = mid  # nums[mid] >= target: mid may be the answer, keep it
+            return lo  # lo == hi: the first index with nums[i] >= target
+  explanation: |
+    Both outcomes, "found at i" and "would be inserted at i", are the same index: the first
+    `i` with `nums[i] >= target`. So this is a **lower bound** search, and you never test
+    for equality at all.
+
+    The invariant is *the answer is always inside `[lo, hi]`*. It starts as `[0, len(nums)]`
+    because the answer can be `len(nums)` (target larger than everything): starting with
+    `hi = len(nums) - 1` is the classic bug that fails `[1,3,5,6]` with target 7. If
+    `nums[mid] < target`, mid and everything before it are too small, so `lo = mid + 1`. If
+    `nums[mid] >= target`, mid itself might be the first such index, so it must stay in the
+    range: `hi = mid`, not `mid - 1`.
+
+    The loop is `while lo < hi`, not `<=`: it stops when exactly one candidate is left, and
+    the invariant says that candidate is the answer. It always terminates, because
+    `mid = lo + (hi - lo) // 2` rounds down and is therefore strictly less than `hi`, so
+    `hi = mid` shrinks the range, and `lo = mid + 1` obviously does too. The same rounding
+    means `mid` never equals `len(nums)`, so `nums[mid]` never goes out of bounds.
+
+    This is the template for every "first position where something becomes true" problem in
+    this world. The classic `lo <= hi` search would also work here, since its final `lo` is
+    the insertion point, but you'd have to remember that fact separately.
+  time: O(log N) — the range [0, N] halves every iteration, about ⌈log₂(N + 1)⌉ probes
+  space: O(1) — three integer indices
+  brute_force_code: |
+    class Solution:
+        def searchInsert(self, nums: List[int], target: int) -> int:
+            for i, x in enumerate(nums):
+                if x >= target:
+                    return i
+            return len(nums)
+
+pitch_script: |
+  **(Clarify)** "Values are distinct and sorted ascending. If target is present I return its
+  index, otherwise the position where inserting it keeps the array sorted, and that can be
+  len(nums) if it's bigger than everything. O(log n) is required."
+
+  **(Brute force)** "A scan for the first element that's at least target works in O(N) time
+  and O(1) space, returning len(nums) if I fall off the end. But it ignores that the array is
+  sorted."
+
+  **(Trigger)** "Both cases are really the same question: the first index where nums[i] is
+  greater than or equal to target. That condition is false, then true, along a sorted array,
+  so it's a lower-bound binary search."
+
+  **(Optimal)** "I search the range zero to len(nums), inclusive of len(nums) since that's a
+  valid answer, keeping the invariant that the answer lies between lo and hi. While lo is
+  less than hi I take mid; if nums[mid] is less than target, mid can't be the answer and I
+  set lo to mid plus one, otherwise mid might be the answer so I set hi to mid. When lo meets
+  hi, that's the answer. Mid rounds down, so it's always below hi, which means the loop
+  always shrinks and never reads past the end."
+
+  **(Complexity)** "O(log N) time, about 14 probes for 10⁴ elements, and O(1) space."
+
+twist:
+  lc: 69
+  title: Sqrt(x)
+  why: >-
+    There's no array: you search the integers themselves for the answer, and the yes/no
+    question is "is k * k > x?", which flips once from false to true. Run the same
+    lower-bound template over lo, hi = 0, x + 1 (for x = 1 the first k is 2, so x + 1 must
+    be a legal answer, just like len(nums) here) to find the first k whose square exceeds x,
+    then answer k − 1,
+    because the problem wants the last k that still fits. The final "minus one" is the twist;
+    it is the same answer-extraction step as finding a last position.
+
+viz:
+  arrays: [nums]
+  pointers: [lo, hi, mid]
+  window: [lo, hi]
+  watch: [target]

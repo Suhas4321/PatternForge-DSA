@@ -1,0 +1,329 @@
+slug: minimum-number-of-arrows-to-burst-balloons
+lc: 452
+
+concept:
+  problem_it_solves: >-
+    "What is the fewest points that hit every range?" Each arrow is a single point, and it
+    covers every range that contains it. Choosing those points greedily, always as far right as
+    the earliest-ending unhit range allows, gives the minimum in one pass after sorting by end.
+  brute_force: >-
+    Only interval endpoints are worth trying as arrow positions, so try every set of 1, 2, 3, …
+    endpoints and stop at the first set that hits every balloon. It re-checks the same balloons
+    against huge numbers of near-identical arrow sets, and the number of sets grows
+    exponentially.
+  brute_force_complexity: >-
+    Exponential: 2N candidate points give up to 2²ᴺ = 4ᴺ sets, and checking a set of up to N
+    arrows against N balloons is O(N²), so O(4ᴺ · N²) time, O(N) space — hopeless beyond a dozen
+    or so balloons, and N here is 10⁵.
+  key_insight: >-
+    Look at the balloon that ends first. Some arrow has to hit it, at a point no further right
+    than its end. Sliding that arrow right to exactly its end never loses a balloon: every
+    balloon it was hitting starts before the arrow and, because this balloon ends first, ends at
+    or after the new spot. So shoot at the end of the earliest-ending balloon, skip every balloon
+    that starts at or before that point, and repeat with the next unburst one. Sort by end.
+  real_world: >-
+    Android's AlarmManager batches inexact alarms: each alarm has a window it may fire in, and
+    the OS picks as few wake-up moments as possible that fall inside every window, saving
+    battery. Batch-job schedulers consolidate cron jobs with flexible windows the same way, and
+    city planners use it to place the fewest checkpoints or sensors that cover every stretch of
+    road.
+
+statement:
+  clean: |
+    Some spherical balloons are taped to a flat wall. The balloons are given as a 2D array
+    `points` where `points[i] = [x_start, x_end]` is the horizontal diameter of a balloon.
+
+    An arrow shot straight up from position `x` bursts every balloon with
+    `x_start <= x <= x_end`, so balloons that only touch at a point are burst by the same arrow.
+    There is no limit to the number of arrows, and an arrow keeps travelling after bursting a
+    balloon.
+
+    Return the **minimum number of arrows** that must be shot to **burst all balloons**.
+  oa_story: |
+    **TirthaTravels — OA Round 1**
+
+    TirthaTravels runs overnight pilgrimage buses from Bengaluru to Tirupati along the highway.
+    Every pilgrim group has told the ops desk the stretch of highway it can walk to, as
+    `[from, to]` in metres measured from the Hoskote toll plaza (negative values are on the city
+    side of the plaza). A group can be picked up at any single stop inside its stretch,
+    including the two ends, and the bus has room for everyone.
+
+    The ops desk wants the bus to make as few stops as possible while still picking up every
+    group. Two groups whose stretches meet exactly at one point can both be picked up by a
+    single stop there. Given the stretches of up to 100,000 groups, return the minimum number of
+    stops.
+  trigger_keywords: ["minimum number of arrows", "burst all balloons", "x_start <= x <= x_end"]
+  examples:
+    - input: "points = [[10,16],[2,8],[1,6],[7,12]]"
+      output: "2"
+      explanation: "An arrow at x = 6 bursts [2,8] and [1,6]; an arrow at x = 12 bursts [10,16] and [7,12]."
+    - input: "points = [[1,2],[3,4],[5,6],[7,8]]"
+      output: "4"
+      explanation: "No two balloons share a point, so each needs its own arrow."
+    - input: "points = [[1,2],[2,3],[3,4],[4,5]]"
+      output: "2"
+      explanation: "An arrow at x = 2 bursts [1,2] and [2,3]; an arrow at x = 4 bursts [3,4] and [4,5]."
+  constraints:
+    - "1 <= points.length <= 10^5"
+    - "points[i].length == 2"
+    - "-2^31 <= x_start < x_end <= 2^31 - 1"
+
+constraint_quiz:
+  prompt: With up to 10⁵ balloons, what time complexity do you need?
+  options: ["O(2ᴺ)", "O(N²)", "O(N log N)", "O(N)"]
+  answer: 2
+  explanation: >-
+    Trying sets of arrow positions is exponential. Checking each balloon against every other
+    (for example, re-scanning all balloons for each arrow) is O(N²), about 10¹⁰ steps. Sorting by
+    end costs O(N log N) and the greedy pass is O(N), so O(N log N) is the target. O(N) is out
+    because the input is unsorted and the greedy needs end order.
+
+pattern_quiz:
+  prompt: >-
+    You must place the fewest points so that every interval contains at least one of them.
+    Which approach is correct?
+  options:
+    - "Merge overlapping intervals and count the merged blocks"
+    - "Sweep line: count the maximum number of intervals overlapping at any point"
+    - "Sort by end; shoot at the end of the first unburst balloon, skip all it hits"
+    - "Sort by start; shoot at the end of the first balloon, skip all that start before it"
+  answer: 2
+  explanation: >-
+    "Minimum number of points to stab every interval" is the sort-by-end greedy: the end of the
+    earliest-ending balloon is the furthest-right spot that still hits it, so it hits as much as
+    possible. Merging fails on [[1,2],[2,3],[3,4]]: one block, but it needs 2 arrows. The maximum
+    overlap answers a different question (how many rooms or platforms you need): for
+    [[1,2],[3,4]] it is 1, yet you need 2 arrows. Sorting by start fails on [[1,10],[2,3],[4,5]]:
+    an arrow at 10 misses [2,3] and [4,5] even though they start before 10.
+
+function:
+  name: findMinArrowShots
+  params: [{name: points}]
+
+starter_code: |
+  class Solution:
+      def findMinArrowShots(self, points: List[List[int]]) -> int:
+          pass
+
+tests:
+  - {args: [[[10, 16], [2, 8], [1, 6], [7, 12]]], expected: 2}
+  - {args: [[[1, 2], [3, 4], [5, 6], [7, 8]]], expected: 4, note: all disjoint}
+  - {args: [[[1, 2], [2, 3], [3, 4], [4, 5]]], expected: 2, note: "touching balloons share an arrow (unlike #435)"}
+  - {args: [[[1, 2]]], expected: 1, note: single balloon}
+  - {args: [[[-2147483648, 2147483647]]], expected: 1, note: extreme coordinates}
+  - {args: [[[1, 10], [2, 3], [4, 5], [6, 7]]], expected: 3, note: "sort-by-start with an arrow at 10 wrongly answers 1"}
+  - {args: [[[3, 9], [7, 12], [3, 8], [6, 8], [9, 10], [2, 9], [0, 9], [3, 9], [0, 6], [2, 8]]], expected: 2}
+  - {args: [[[1, 5], [1, 5], [1, 5]]], expected: 1, note: duplicates}
+  - {args: [[[-5, -3], [-3, 0], [1, 2]]], expected: 2, note: negatives that touch}
+visualize_test: 0
+
+drills:
+  - title: Where do the arrows land?
+    skill: setup
+    goal: Sort by end and record an arrow at the end of every balloon the previous arrow missed.
+    instructions: |
+      Return the x-positions of the arrows the greedy shoots, in order: sort by end, and
+      whenever a balloon starts after the last arrow (or there is no arrow yet), shoot a new
+      arrow at that balloon's end.
+
+      Seeing the positions makes the rule concrete: every arrow lands on some balloon's right
+      edge, the furthest-right spot that still hits the earliest-ending unburst balloon.
+    function:
+      name: arrowPositions
+      params: [{name: points}]
+    starter_code: |
+      class Solution:
+          def arrowPositions(self, points: List[List[int]]) -> List[int]:
+              pass
+    tests:
+      - {args: [[[10, 16], [2, 8], [1, 6], [7, 12]]], expected: [6, 12]}
+      - {args: [[[1, 2], [3, 4], [5, 6], [7, 8]]], expected: [2, 4, 6, 8]}
+      - {args: [[[1, 2], [2, 3], [3, 4], [4, 5]]], expected: [2, 4]}
+      - {args: [[[1, 10], [2, 3], [4, 5], [6, 7]]], expected: [3, 5, 7], note: "[1,10] is hit by the arrow at 3"}
+    solution: |
+      class Solution:
+          def arrowPositions(self, points: List[List[int]]) -> List[int]:
+              positions = []
+              for start, end in sorted(points, key=lambda p: p[1]):
+                  if not positions or start > positions[-1]:  # last arrow misses this one
+                      positions.append(end)
+              return positions
+    hint: "A balloon is missed by the last arrow only if `start > positions[-1]`."
+
+  - title: Shrink the shared window
+    skill: core
+    goal: In start order, keep the right edge of the region one arrow can still hit, shrinking it with min().
+    instructions: |
+      Return the minimum number of arrows, but this time **sort by start**. Keep `shared_end`,
+      the furthest-right point where one arrow still hits every balloon in the current group.
+      A balloon that starts after `shared_end` needs a new arrow. Otherwise it joins the group,
+      and the shared region can only get narrower: `shared_end = min(shared_end, end)`.
+
+      Without the `min`, `[[1,10],[2,3],[4,5],[6,7]]` keeps `shared_end = 10` and answers 1. This
+      is exactly why the main solution sorts by end: end order makes the first balloon's end
+      already the minimum, so no shrinking is needed.
+    function:
+      name: arrowsByStart
+      params: [{name: points}]
+    starter_code: |
+      class Solution:
+          def arrowsByStart(self, points: List[List[int]]) -> int:
+              pass
+    tests:
+      - {args: [[[1, 10], [2, 3], [4, 5], [6, 7]]], expected: 3, note: "without min() you get 1"}
+      - {args: [[[10, 16], [2, 8], [1, 6], [7, 12]]], expected: 2}
+      - {args: [[[1, 2], [2, 3], [3, 4], [4, 5]]], expected: 2}
+      - {args: [[[5, 9]]], expected: 1}
+    solution: |
+      class Solution:
+          def arrowsByStart(self, points: List[List[int]]) -> int:
+              points = sorted(points, key=lambda p: p[0])
+              arrows = 1
+              shared_end = points[0][1]  # one arrow must land at or before this
+              for start, end in points[1:]:
+                  if start > shared_end:
+                      arrows += 1
+                      shared_end = end
+                  else:
+                      shared_end = min(shared_end, end)
+              return arrows
+    hint: "A balloon joining the group can only narrow the shared region: take the `min` of the ends."
+
+  - title: Touching counts here
+    skill: edge
+    goal: Use the inclusive comparison that makes touching balloons burstable by one arrow.
+    instructions: |
+      Return `True` if a **single** arrow can burst every balloon in `points`.
+
+      One point lies inside every range exactly when the latest start is at or before the
+      earliest end. The comparison must be `<=`: balloons `[1,2]` and `[2,3]` share x = 2, so one
+      arrow bursts both. This is the opposite of Non-overlapping Intervals (#435), where
+      `[1,2]` and `[2,3]` do not clash; mixing up the two rules is the classic bug.
+    function:
+      name: oneArrowEnough
+      params: [{name: points}]
+    starter_code: |
+      class Solution:
+          def oneArrowEnough(self, points: List[List[int]]) -> bool:
+              pass
+    tests:
+      - {args: [[[1, 2], [2, 3]]], expected: true, note: touching}
+      - {args: [[[1, 2], [3, 4]]], expected: false}
+      - {args: [[[1, 10], [2, 3], [2, 5]]], expected: true}
+      - {args: [[[-2147483648, 2147483647], [0, 0]]], expected: true, note: extremes}
+      - {args: [[[1, 5], [6, 9], [2, 7]]], expected: false}
+    solution: |
+      class Solution:
+          def oneArrowEnough(self, points: List[List[int]]) -> bool:
+              latest_start = max(s for s, _ in points)
+              earliest_end = min(e for _, e in points)
+              return latest_start <= earliest_end  # sharing one point is enough
+    hint: "Compare the largest start with the smallest end, inclusively."
+
+hints:
+  - >-
+    Think about the balloon that ends first. Some arrow has to hit it. What is the furthest-right
+    spot that arrow could be, and why would further right always be at least as good?
+  - >-
+    Sort by end. Shoot the first arrow at the first balloon's end. Walk on: a balloon that starts
+    at or before the arrow's x is already burst; one that starts after it needs a new arrow at its
+    own end.
+  - |
+    sort points by end
+    arrows = 1, arrow_x = end of first balloon
+    for each next [start, end]:
+        if start > arrow_x:
+            arrows = arrows + 1
+            arrow_x = end
+        (else: start <= arrow_x <= end, already burst)
+    return arrows
+
+solution:
+  code: |
+    class Solution:
+        def findMinArrowShots(self, points: List[List[int]]) -> int:
+            points.sort(key=lambda p: p[1])  # sort by END: earliest-ending balloon first
+            arrows = 1
+            arrow_x = points[0][1]  # shoot at the right edge of the first balloon
+            for i in range(1, len(points)):
+                start, end = points[i]
+                if start > arrow_x:  # this balloon is entirely right of the last arrow
+                    arrows += 1
+                    arrow_x = end
+                # else start <= arrow_x <= end: the last arrow already bursts it (touching included)
+            return arrows
+  explanation: |
+    **Why sort by end?** The earliest-ending balloon must be hit by some arrow placed at or before
+    its end. Moving that arrow right to exactly its end never loses a balloon: anything it hit
+    starts before the arrow, and ends at or after the earliest end. So the end of the
+    earliest-ending unburst balloon is always a safe, maximal spot. After shooting there, every
+    balloon that starts at or before `arrow_x` is burst; because we are in end order, those
+    balloons also end at or after `arrow_x`, so `start <= arrow_x` is the whole test.
+
+    Sorting by start breaks this. With `[[1,10],[2,3],[4,5],[6,7]]` the first balloon by start
+    ends at 10, but an arrow at 10 misses `[2,3]`; you would have to keep shrinking the target
+    with `min()`. End order gives you the minimum end for free.
+
+    **The touching rule is the key edge case.** The test is `start > arrow_x` for a *new* arrow,
+    so a balloon starting exactly at `arrow_x` is burst by the existing one: `[1,2]` and `[2,3]`
+    need one arrow. In Non-overlapping Intervals (#435) the same pair does not clash. Same
+    greedy, opposite tie rule; read the problem statement for it every time.
+
+    This is not the same as the railway-station **Minimum Platforms** problem that Indian
+    interviews love. Platforms asks for the maximum number of trains present at once (a sweep
+    over sorted arrivals and departures), while arrows asks for the fewest points that hit every
+    interval. `[[1,2],[3,4]]` needs one platform but two arrows.
+  time: O(N log N) — the sort dominates; the greedy pass is O(N)
+  space: O(1) extra besides the sort (Python's in-place sort can use up to O(N))
+  brute_force_code: |
+    from itertools import combinations
+
+    class Solution:
+        def findMinArrowShots(self, points: List[List[int]]) -> int:
+            candidates = sorted({x for p in points for x in p})  # arrows only need endpoints
+            for k in range(1, len(points) + 1):
+                for shots in combinations(candidates, k):
+                    if all(any(s <= x <= e for x in shots) for s, e in points):
+                        return k
+            return len(points)
+
+pitch_script: |
+  **(Clarify)** "An arrow at x bursts a balloon when x is between its start and end inclusive, so
+  two balloons that touch at one point can be burst by one arrow? And coordinates can go down to
+  minus two to the thirty-one, so I should be careful with sentinels and overflow?"
+
+  **(Brute force)** "An optimal arrow can always sit on some endpoint, so brute force tries sets
+  of endpoints of increasing size until one hits everything. That's exponential."
+
+  **(Trigger)** "Minimum number of points that stab every interval is a sort-by-end greedy. The
+  balloon that ends first must be hit somewhere at or before its end, and pushing the arrow right
+  to its exact end can only hit more balloons, never fewer, because every other balloon ends at
+  or after that point."
+
+  **(Optimal)** "I sort by end and shoot the first arrow at the first balloon's end. Then I walk
+  the rest: if a balloon starts at or before the arrow's position, it's already burst; if it
+  starts after, I shoot a new arrow at its end. Touching counts as burst, which is the opposite of
+  the non-overlapping intervals rule, so I use strictly greater for a new arrow."
+
+  **(Complexity)** "O(N log N) for the sort and O(N) for the pass, O(1) extra space. In Java I'd
+  use Integer.compare in the comparator instead of subtracting, because a[1] minus b[1] overflows
+  at these bounds."
+
+twist:
+  lc: 1094
+  title: Car Pooling
+  why: >-
+    This is the free LeetCode problem closest to the railway "Minimum Platforms" question:
+    instead of placing the fewest points, you count how many intervals overlap at the same moment.
+    Each trip adds passengers at its pickup and removes them at its drop-off, so you sweep over
+    the events in location order (or use a difference array, since locations are at most 1000)
+    and check that the running load never exceeds capacity. The sort key changes from interval
+    ends to event positions, and the tie rule matters again: drop-offs at a location happen before
+    pickups there. Minimum Platforms is the same sweep with weight 1 per train, where you return
+    the maximum running count (and usually process an arrival before a departure at the same
+    minute, since both trains need a platform).
+
+viz:
+  arrays: [points]
+  pointers: [i]
+  watch: [arrow_x, arrows, start, end]

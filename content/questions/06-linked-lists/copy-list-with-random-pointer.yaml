@@ -1,0 +1,383 @@
+slug: copy-list-with-random-pointer
+lc: 138
+
+concept:
+  problem_it_solves: >-
+    "When I copy a node, what should its pointers point to?" Copying `val` is easy; the hard
+    part is that `random` can point anywhere, including to nodes you haven't copied yet. A
+    map from every original node to its copy answers "where is the copy of *that* node?" in
+    O(1), so every pointer in the original can be translated into the matching pointer in
+    the copy.
+  brute_force: >-
+    Copy the values and `next` pointers first. Then, for each node, find its random target's
+    position by walking from the head until you reach that exact node, and walk the same
+    number of steps in the copy to find the matching new node. Every random pointer costs a
+    fresh walk, re-discovering positions you already walked past for the previous node.
+  brute_force_complexity: O(N²) time, O(1) extra space — 1000 nodes means up to ~10⁶ hops; a 10⁵-node list would need ~10¹⁰.
+  key_insight: >-
+    Separate creating nodes from wiring them. Pass 1 creates a copy of every node and records
+    `old → new` in a dictionary keyed by the node object itself (not its value, because
+    values repeat). Once every copy exists, pass 2 is pure translation:
+    `new.next = map[old.next]` and `new.random = map[old.random]`. Forward random pointers
+    stop being a problem because nothing is wired until every target already exists. Seed the
+    map with `None → None` and null pointers translate with no special case.
+  real_world: >-
+    Every deep-copy routine with shared references works this way: Python's copy.deepcopy keeps
+    a `memo` dict from id(original) to copy, and serialisers (pickle, Java serialization,
+    Protocol Buffers with references) keep the same object → id table so shared objects and
+    cycles are written once. Copy-on-write snapshots in databases and editors remap internal
+    pointers to the new versions the same way.
+
+statement:
+  clean: |
+    A linked list of length `n` is given such that each node contains an additional
+    **random pointer**, which could point to any node in the list, or `null`.
+
+    Construct a **deep copy** of the list. The deep copy should consist of exactly `n`
+    brand new nodes, where each new node has its value set to the value of its corresponding
+    original node. Both the `next` and `random` pointer of the new nodes should point to new
+    nodes in the copied list such that the pointers in the original list and copied list
+    represent the same list state. **None of the pointers in the new list should point to
+    nodes in the original list.**
+
+    For example, if there are two nodes `X` and `Y` in the original list, where
+    `X.random --> Y`, then for the corresponding two nodes `x` and `y` in the copied list,
+    `x.random --> y`.
+
+    Return the head of the copied linked list.
+
+    The list is represented in the input/output as a list of `n` nodes. Each node is
+    represented as a pair of `[val, random_index]` where `val` is `Node.val` and
+    `random_index` is the index of the node (0 to n-1) that the random pointer points to, or
+    `null` if it does not point to any node. Your code is only given the `head` of the
+    original linked list.
+  oa_story: |
+    **DocuDhan Fintech — OA Round 2**
+
+    DocuDhan stores a small business's ledger as a chain of entries, each entry linking to the
+    entry recorded after it. Many entries also carry a "settles" link to some other entry in
+    the same ledger (a refund settling a sale, a credit note settling an invoice), and that
+    link can point earlier or later in the chain, or nowhere. Two entries can easily have the
+    same amount, so amounts can't be used to tell entries apart.
+
+    Before a GST audit, the compliance team in Indiranagar wants a sandbox ledger: a full,
+    independent duplicate that auditors can edit freely. Every duplicated entry must carry the
+    same amount, and both its "next" and "settles" links must lead to the matching duplicated
+    entries, never back into the live ledger. Given the first entry of the live ledger, build
+    the duplicate and return its first entry.
+  trigger_keywords: ["random pointer", "deep copy", "brand new nodes"]
+  examples:
+    - input: "head = [[7,null],[13,0],[11,4],[10,2],[1,0]]"
+      output: "[[7,null],[13,0],[11,4],[10,2],[1,0]]"
+      explanation: "Node 11's random points forward to node 1 (index 4), which doesn't exist in the copy yet when you first reach 11."
+    - input: "head = [[1,1],[2,1]]"
+      output: "[[1,1],[2,1]]"
+      explanation: "Both randoms point at the second node, including the second node's own random."
+    - input: "head = [[3,null],[3,0],[3,null]]"
+      output: "[[3,null],[3,0],[3,null]]"
+      explanation: "All values are 3, so a value → node map would mix the nodes up."
+  constraints:
+    - "0 <= n <= 1000"
+    - "-10^4 <= Node.val <= 10^4"
+    - "Node.random is null or is pointing to some node in the linked list."
+
+constraint_quiz:
+  prompt: >-
+    n is at most 1000, but the interviewer wants the solution you'd ship for a million-node
+    list. What should you aim for?
+  options: ["O(N²) time, O(1) extra space", "O(N log N) time", "O(N) time, O(N) extra space for a map", "O(log N) time"]
+  answer: 2
+  explanation: >-
+    Walking from the head to locate every random target is O(N²): fine for 1000 nodes, but a
+    million nodes means ~10¹² hops. Nothing here is sorted or ordered, so O(N log N) has no
+    source. O(log N) is impossible because you must create all N new nodes. Two linear passes
+    with an old → new dictionary give O(N) time and O(N) space (an interleaving trick can
+    even remove the map, for O(1) extra space).
+
+pattern_quiz:
+  prompt: >-
+    You must deep-copy a structure where any node can point to any other node, including
+    ones you haven't copied yet. Which pattern fits?
+  options:
+    - "Dictionary from value → new node"
+    - "Dictionary from original node → its copy, filled in a first pass, used to wire pointers in a second pass"
+    - "Copy next pointers and set random = the original node's random"
+    - "Recursively copy next, and copy random when you reach it"
+  answer: 1
+  explanation: >-
+    Values repeat, so value → node collapses distinct nodes. Reusing the original's random
+    pointer leaves the copy pointing into the original list, which the problem forbids. Naive
+    recursion that copies random "when you reach it" creates the same node twice unless it
+    also keeps a map. The trigger "deep copy" + "pointers to arbitrary nodes" means: keep an
+    identity map from old node to new node, so every pointer can be translated.
+
+function:
+  name: copyRandomList
+  params: [{name: head, type: RandomListNode}]
+  returns: RandomListNode
+
+starter_code: |
+  """
+  # Definition for a Node.
+  class Node:
+      def __init__(self, x: int, next: 'Node' = None, random: 'Node' = None):
+          self.val = int(x)
+          self.next = next
+          self.random = random
+  """
+
+  class Solution:
+      def copyRandomList(self, head: 'Optional[Node]') -> 'Optional[Node]':
+          pass
+
+tests:
+  - {args: [[[7, null], [13, 0], [11, 4], [10, 2], [1, 0]]], expected: [[7, null], [13, 0], [11, 4], [10, 2], [1, 0]]}
+  - {args: [[[1, 1], [2, 1]]], expected: [[1, 1], [2, 1]], note: a node whose random points to itself}
+  - {args: [[[3, null], [3, 0], [3, null]]], expected: [[3, null], [3, 0], [3, null]], note: "equal values: map by node, not by value"}
+  - {args: [[]], expected: [], note: "empty list: return None"}
+  - {args: [[[5, 0]]], expected: [[5, 0]], note: single node pointing to itself}
+  - {args: [[[1, null], [2, null], [3, null]]], expected: [[1, null], [2, null], [3, null]], note: no random pointers at all}
+  - {args: [[[1, 3], [2, 3], [3, 3], [4, 3]]], expected: [[1, 3], [2, 3], [3, 3], [4, 3]], note: every random points forward to the last node}
+  - {args: [[[-10000, 1], [10000, 0]]], expected: [[-10000, 1], [10000, 0]], note: "extreme values, randoms crossing each other"}
+visualize_test: 0
+
+drills:
+  - title: Nodes are keys, not values
+    skill: setup
+    goal: Build a dictionary keyed by node objects and use it to translate a pointer into a position.
+    instructions: |
+      Return a list with one entry per node: the **index** of the node its `random` points to,
+      or `null` (`None`) if it points nowhere.
+
+      Walk the list once to build `index_of[node] = position`, then walk again and look up
+      `index_of[node.random]`. The key is the node *object*, not its value: in
+      `[[3,null],[3,0],[3,null]]` all three values are 3, but they are three different keys.
+      This identity map is exactly the old → new map of the full problem, with positions
+      instead of copies.
+    function:
+      name: randomIndices
+      params: [{name: head, type: RandomListNode}]
+    starter_code: |
+      class Solution:
+          def randomIndices(self, head: 'Optional[Node]') -> List[Optional[int]]:
+              pass
+    tests:
+      - {args: [[[7, null], [13, 0], [11, 4], [10, 2], [1, 0]]], expected: [null, 0, 4, 2, 0]}
+      - {args: [[[3, null], [3, 0], [3, null]]], expected: [null, 0, null], note: equal values are still different keys}
+      - {args: [[[1, 1], [2, 1]]], expected: [1, 1]}
+      - {args: [[]], expected: []}
+    solution: |
+      class Solution:
+          def randomIndices(self, head: 'Optional[Node]') -> List[Optional[int]]:
+              index_of = {None: None}  # node object -> position
+              cur, i = head, 0
+              while cur:
+                  index_of[cur] = i
+                  cur, i = cur.next, i + 1
+              out, cur = [], head
+              while cur:
+                  out.append(index_of[cur.random])
+                  cur = cur.next
+              return out
+    hint: "Seeding the dict with `{None: None}` lets `index_of[cur.random]` handle a null random with no `if`."
+
+  - title: Create first, wire second
+    skill: core
+    goal: Clone a list in two passes, translating every pointer through an old → new map.
+    instructions: |
+      Make a copy of a plain singly linked list using the same two-pass shape as the full
+      problem. Pass 1: create `ListNode(cur.val)` for every node and store
+      `old_to_new[cur] = copy`. Pass 2: set `old_to_new[cur].next = old_to_new[cur.next]`.
+      Return `old_to_new[head]`.
+
+      For a plain list you could copy in one pass, but the two-pass habit is what makes the
+      random pointer easy: in pass 2 every target already has a copy, so wiring is just a
+      dictionary lookup, whether the pointer goes forward, backward, or to `None`.
+    function:
+      name: cloneByMap
+      params: [{name: head, type: ListNode}]
+      returns: ListNode
+    starter_code: |
+      class Solution:
+          def cloneByMap(self, head: Optional[ListNode]) -> Optional[ListNode]:
+              pass
+    tests:
+      - {args: [[1, 2, 3]], expected: [1, 2, 3]}
+      - {args: [[4, 4]], expected: [4, 4], note: duplicate values}
+      - {args: [[9]], expected: [9]}
+      - {args: [[]], expected: [], note: "empty list: old_to_new[None] is None"}
+    solution: |
+      class Solution:
+          def cloneByMap(self, head: Optional[ListNode]) -> Optional[ListNode]:
+              old_to_new = {None: None}
+              cur = head
+              while cur:  # pass 1: create
+                  old_to_new[cur] = ListNode(cur.val)
+                  cur = cur.next
+              cur = head
+              while cur:  # pass 2: wire
+                  old_to_new[cur].next = old_to_new[cur.next]
+                  cur = cur.next
+              return old_to_new[head]
+    hint: "Without `None: None` in the map, the last node's `old_to_new[cur.next]` raises a KeyError."
+
+  - title: Unweave the O(1)-space copy
+    skill: edge
+    goal: Split an interleaved list A → A' → B → B' … back into the original and the copy.
+    instructions: |
+      The O(1)-space follow-up inserts each copy right after its original
+      (`A → A' → B → B' → …`), sets `A'.random = A.random.next`, and finally splits the two
+      lists apart. This drill is that final split: given an interleaved list (originals at
+      even positions, copies at odd positions), restore both lists and return
+      `[original_values, copy_values]`.
+
+      The edge case people get wrong is the last pair: the final copy's `next` must become
+      `None`, not `copy.next.next` (which doesn't exist). Restore the original's `next` too;
+      leaving the caller's list damaged is a bug interviewers look for.
+    function:
+      name: unweave
+      params: [{name: head, type: ListNode}]
+    starter_code: |
+      class Solution:
+          def unweave(self, head: Optional[ListNode]) -> List[List[int]]:
+              pass
+    tests:
+      - {args: [[1, 10, 2, 20, 3, 30]], expected: [[1, 2, 3], [10, 20, 30]]}
+      - {args: [[7, 70]], expected: [[7], [70]], note: "one pair: the copy's next must become None"}
+      - {args: [[5, 5, 5, 5]], expected: [[5, 5], [5, 5]]}
+      - {args: [[]], expected: [[], []], note: empty list}
+    solution: |
+      class Solution:
+          def unweave(self, head: Optional[ListNode]) -> List[List[int]]:
+              copy_head = head.next if head else None
+              cur = head
+              while cur:
+                  clone = cur.next
+                  cur.next = clone.next  # restore the original
+                  clone.next = clone.next.next if clone.next else None
+                  cur = cur.next
+              return [list_values(head), list_values(copy_head)]
+
+
+      def list_values(node):
+          out = []
+          while node:
+              out.append(node.val)
+              node = node.next
+          return out
+    hint: "Save `copy_head = head.next` before the loop; after splitting, you can't find it any more."
+
+hints:
+  - >-
+    Copying a node's value is easy. When you copy node X, where should the copy's random
+    point, and how would you find "the copy of X.random" instantly, even if it hasn't been
+    reached yet?
+  - >-
+    Do it in two passes. First create a copy of every node and remember original → copy in a
+    dictionary keyed by the node itself. Then walk again and set each copy's next and random
+    by looking up the originals' next and random in that dictionary.
+  - |
+    old_to_new = {None: None}
+    for each node cur in the list:   old_to_new[cur] = new Node(cur.val)
+    for each node cur in the list:
+        old_to_new[cur].next   = old_to_new[cur.next]
+        old_to_new[cur].random = old_to_new[cur.random]
+    return old_to_new[head]
+
+solution:
+  code: |
+    class Solution:
+        def copyRandomList(self, head: 'Optional[Node]') -> 'Optional[Node]':
+            old_to_new = {None: None}  # original node -> its copy; None maps to None
+
+            # pass 1: create a copy of every node (values only)
+            cur = head
+            while cur:
+                old_to_new[cur] = Node(cur.val)
+                cur = cur.next
+
+            # pass 2: every copy exists now, so wiring is pure translation
+            cur = head
+            while cur:
+                clone = old_to_new[cur]
+                clone.next = old_to_new[cur.next]
+                clone.random = old_to_new[cur.random]
+                cur = cur.next
+
+            return old_to_new[head]
+  explanation: |
+    The only hard question is "what should the copy's pointer point to?", and the answer is
+    always "the copy of whatever the original points to". The `old_to_new` dictionary answers
+    that in O(1).
+
+    Splitting the work into two passes is the subtle decision. If you tried to wire `random`
+    during the first walk, a pointer to a later node (like 11 → 1 in the example) would have
+    no copy to point to yet. After pass 1 every copy exists, so pass 2 never has to ask
+    whether a target is ready. Keys are node objects (Python hashes them by identity), which
+    is why equal values like `[3, 3, 3]` don't collide. Seeding the map with `None: None`
+    means a null `next` or `random`, and an empty list, need no special case.
+
+    **O(1)-space follow-up.** Interleave copies into the original (`A → A' → B → B'`), so the
+    copy of any node X is simply `X.next`. Then `A'.random = A.random.next` (when `A.random`
+    exists), and a final pass splits the lists apart and restores the original. Same idea,
+    with the list itself acting as the map.
+  time: O(N) — two passes, O(1) average per dictionary lookup
+  space: O(N) — the map holds one entry per node (the N new nodes are the required output)
+  brute_force_code: |
+    class Solution:
+        def copyRandomList(self, head: 'Optional[Node]') -> 'Optional[Node]':
+            # copy values and next pointers
+            dummy = Node(0)
+            tail, cur = dummy, head
+            while cur:
+                tail.next = Node(cur.val)
+                tail, cur = tail.next, cur.next
+            # for each random, find its position by identity, then walk the copy that far
+            cur, clone = head, dummy.next
+            while cur:
+                if cur.random:
+                    steps, probe = 0, head
+                    while probe is not cur.random:
+                        probe = probe.next
+                        steps += 1
+                    target = dummy.next
+                    for _ in range(steps):
+                        target = target.next
+                    clone.random = target
+                cur, clone = cur.next, clone.next
+            return dummy.next
+
+pitch_script: |
+  **(Clarify)** "So I need N brand-new nodes with the same values, and both next and random in
+  the copy must point to copied nodes, never the originals. Random can be null or point to any
+  node, even itself, and values can repeat, right? And an empty list returns None."
+
+  **(Brute force)** "I could copy the next chain first, then for each random pointer walk from
+  the head to find the target's position and walk the copy the same number of steps. That's
+  O(N²) because every random pointer costs a walk."
+
+  **(Trigger)** "Deep copy with arbitrary pointers is really one question asked N times: where
+  is the copy of this node? That's a lookup, so I'll keep a dictionary from original node to
+  its copy, keyed by the node object, since values can repeat."
+
+  **(Optimal)** "First pass: create a copy of every node and store original to copy. Second
+  pass: every copy exists now, so for each node I set copy.next to map of cur.next and
+  copy.random to map of cur.random. I seed the map with None to None so null pointers and the
+  empty list need no special case. I return map of head."
+
+  **(Complexity)** "Two passes, so O(N) time, and O(N) extra space for the map. If memory is
+  tight, I can interleave each copy right after its original, so the copy of X is X.next,
+  set the randoms through that, and then split the two lists, which is O(1) extra space."
+
+twist:
+  lc: 133
+  title: Clone Graph
+  why: >-
+    Same old → new map, but now the structure is a graph: there's no `next` chain to walk, so
+    you discover nodes with DFS or BFS, and cycles mean you'll reach the same node again. The
+    map does double duty as the visited set: create the copy and store it in the map *before*
+    visiting the neighbours, so when a cycle leads back to a node, you find its copy instead
+    of recursing forever.
+
+viz:
+  maps: [old_to_new]

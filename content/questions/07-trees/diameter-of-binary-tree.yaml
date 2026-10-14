@@ -1,0 +1,337 @@
+slug: diameter-of-binary-tree
+lc: 543
+
+concept:
+  problem_it_solves: >-
+    "What is the longest path between any two nodes?" Any path in a tree climbs up to one
+    highest node (its turning point) and then goes down the other side, so the question becomes
+    "for each node, how long is the longest path that turns here?". That needs the heights of
+    both children, which is exactly what a height DFS already computes.
+  brute_force: >-
+    For every node, call a separate height() function on its left and right child to measure
+    the longest path that turns at that node, and keep the maximum. Each height() call re-walks
+    the whole subtree from scratch, so a node deep in the tree gets measured again by every one
+    of its ancestors, even though its height never changes.
+  brute_force_complexity: >-
+    O(N²) time in the worst case, O(H) space — a skewed 10⁴-node tree re-walks about
+    10⁴ · 10⁴ / 2 = 5 × 10⁷ nodes. (On a balanced tree it's O(N log N).)
+  key_insight: >-
+    One DFS can do two jobs if you separate what a call *returns* from what it *records*. Each
+    call returns its height to the parent, because a parent can only extend a path down *one*
+    arm. While it has both arm lengths in hand, it records left + right (the longest path
+    turning at this node) in a variable outside the recursion. The answer is the best value
+    recorded anywhere, which is why the diameter doesn't have to pass through the root.
+  real_world: >-
+    Network engineers compute the diameter of a tree-shaped topology (a spanning tree of
+    switches, a CDN distribution tree) to bound the worst-case hop count, and therefore
+    latency, between any two nodes. The same "longest path through any node" computation finds
+    the critical path in build-dependency and job-scheduling trees, and placing a server at the
+    middle of the diameter minimises its worst-case distance to every node.
+
+statement:
+  clean: |
+    Given the `root` of a binary tree, return the length of the **diameter** of the tree.
+
+    The diameter of a binary tree is the length of the **longest path between any two nodes**
+    in a tree. This path **may or may not pass through the root**.
+
+    The length of a path between two nodes is represented by the **number of edges** between
+    them.
+  oa_story: |
+    **ShakhaBank — OA Round 1**
+
+    ShakhaBank runs its Karnataka branch network as a hierarchy: the head office in MG Road
+    oversees regional hubs, and every office supervises at most two offices directly below it.
+    Cash, cheque bundles and audit files move by courier along these supervision links only,
+    one hop per link, up or down the hierarchy.
+
+    The risk team is designing a 24-hour delivery SLA and needs the worst case: the largest
+    number of courier hops between *any* two offices in the network. The longest route might go
+    through the head office, or it might stay entirely inside one region. Write a function that
+    takes the network, starting from the head office, and returns that number of hops. The
+    network has between 1 and 10,000 offices.
+  trigger_keywords: ["diameter", "longest path between any two nodes", "may or may not pass through the root"]
+  examples:
+    - input: "root = [1,2,3,4,5]"
+      output: "3"
+      explanation: "The path 4 → 2 → 1 → 3 (or 5 → 2 → 1 → 3) has 3 edges."
+    - input: "root = [1,2]"
+      output: "1"
+  constraints:
+    - "The number of nodes in the tree is in the range [1, 10^4]."
+    - "-100 <= Node.val <= 100"
+
+constraint_quiz:
+  prompt: >-
+    The tree has up to 10⁴ nodes and can be skewed. What time complexity should you aim for?
+  options:
+    - "O(N²) — measure both heights from scratch at every node"
+    - "O(N log N) — fine because trees are logarithmic"
+    - "O(N) — one DFS that returns heights and tracks the best path"
+    - "O(H) — just follow the deepest branch"
+  answer: 2
+  explanation: >-
+    Re-measuring heights at every node is O(N²) on a skewed tree: about 5 × 10⁷ node visits,
+    slow in Python and wasteful. O(N log N) assumes a balanced tree, which isn't promised.
+    O(H) skips most nodes, but the longest path can live in any part of the tree. A single
+    post-order DFS computes each node's height once and uses it right away: O(N).
+
+pattern_quiz:
+  prompt: >-
+    The longest path can turn at any node, and at each node you need both children's heights.
+    Which approach fits?
+  options:
+    - "DFS that returns height and updates best = max(best, left + right) at every node"
+    - "Return height(root.left) + height(root.right)"
+    - "BFS from the root to find the deepest level, then double it"
+    - "Find the longest root-to-leaf path"
+  answer: 0
+  explanation: >-
+    "May or may not pass through the root" is the trigger for return-height-track-global: every
+    node is a candidate turning point, so each call measures the path through itself and
+    records the best, while still returning a single arm (its height) to its parent. Using only
+    the root's two heights misses paths inside one subtree. Doubling the depth assumes a
+    symmetric tree, and a root-to-leaf path only uses one arm.
+
+function:
+  name: diameterOfBinaryTree
+  params: [{name: root, type: TreeNode}]
+
+starter_code: |
+  class Solution:
+      def diameterOfBinaryTree(self, root: Optional[TreeNode]) -> int:
+          pass
+
+tests:
+  - {args: [[1, 2, 3, 4, 5]], expected: 3}
+  - {args: [[1, 2]], expected: 1}
+  - {args: [[1]], expected: 0, note: "single node: no edges"}
+  - {args: [[1, 2, null, 3, 4, 5, null, null, 6, 7, null, null, 8]], expected: 6, note: "the longest path stays in the left subtree and never touches the root"}
+  - {args: [[1, 2, null, 3, null, 4, null, 5]], expected: 4, note: "skewed chain: the path runs from the root to the leaf"}
+  - {args: [[1, 2, 3, 4, 5, 6, 7]], expected: 4, note: perfect tree}
+  - {args: [[4, -7, -3, null, null, -9, -3, 9, -7, -4, null, 6, null, -6, -6, null, null, 0, 6, 5, null, 9, null, null, -1, -4, null, null, null, -2]], expected: 8, note: "larger tree: the best path (8) turns at -9 inside the right subtree; through the root gives only 7"}
+visualize_test: 0
+
+drills:
+  - title: The path through the root only
+    skill: setup
+    goal: Compute both arm heights of a node and add them to get the edges of the path that turns there.
+    instructions: |
+      Return the number of edges on the longest path that **passes through the root**:
+      height of the left subtree + height of the right subtree, where height counts nodes and
+      an empty subtree has height 0.
+
+      Notice why adding heights counts *edges*: the left arm contributes one edge per node in
+      it (the edge from the root down to the left child, and so on), and so does the right.
+      This is the number every node computes for itself in the full solution. On the third test
+      it gives 4, while the real diameter is 6: that's why the root alone isn't enough.
+    function:
+      name: pathThroughRoot
+      params: [{name: root, type: TreeNode}]
+    starter_code: |
+      class Solution:
+          def pathThroughRoot(self, root: Optional[TreeNode]) -> int:
+              pass
+    tests:
+      - {args: [[1, 2, 3, 4, 5]], expected: 3}
+      - {args: [[1]], expected: 0}
+      - {args: [[1, 2, null, 3, 4, 5, null, null, 6, 7, null, null, 8]], expected: 4, note: "the real diameter is 6 and doesn't use the root"}
+      - {args: [[1, null, 2, null, 3]], expected: 2}
+    solution: |
+      class Solution:
+          def pathThroughRoot(self, root: Optional[TreeNode]) -> int:
+              def height(node):
+                  if node is None:
+                      return 0
+                  return 1 + max(height(node.left), height(node.right))
+
+              return height(root.left) + height(root.right)
+    hint: "Write a small height() helper and call it on the two children, not on the root."
+
+  - title: Return one thing, record another
+    skill: core
+    goal: Return a node's height to the parent while recording a different per-node fact in a variable outside the recursion.
+    instructions: |
+      Return the **number of nodes whose left subtree is strictly taller than their right
+      subtree**. Do it in one pass: a helper returns each subtree's height, and as a side
+      effect increments a counter defined outside it (use `nonlocal`).
+
+      This is the exact shape of the diameter solution: the parent needs your *height*, but the
+      answer needs *something else* about you, computed from the same two heights. Return what
+      the parent needs; record what the answer needs.
+    function:
+      name: countLeftHeavy
+      params: [{name: root, type: TreeNode}]
+    starter_code: |
+      class Solution:
+          def countLeftHeavy(self, root: Optional[TreeNode]) -> int:
+              pass
+    tests:
+      - {args: [[1, 2, 3, 4, 5]], expected: 1, note: "only the root: left height 2, right height 1"}
+      - {args: [[1, 2, null, 3]], expected: 2, note: both upper nodes lean left}
+      - {args: [[1, null, 2, null, 3]], expected: 0}
+      - {args: [[1]], expected: 0}
+      - {args: [[1, 2, 3, 4, null, 5, null, 6]], expected: 4, note: "every non-leaf leans left"}
+    solution: |
+      class Solution:
+          def countLeftHeavy(self, root: Optional[TreeNode]) -> int:
+              count = 0
+
+              def height(node):
+                  nonlocal count
+                  if node is None:
+                      return 0
+                  left, right = height(node.left), height(node.right)
+                  if left > right:
+                      count += 1
+                  return 1 + max(left, right)
+
+              height(root)
+              return count
+    hint: "Declare `nonlocal count` inside the helper, or Python treats `count += 1` as a new local."
+
+  - title: Edges, not nodes
+    skill: edge
+    goal: Use the edge-counting height convention (None = -1) and see how it shifts every formula by one.
+    instructions: |
+      Return the height of the tree measured in **edges**: the number of edges on the longest
+      path from the root down to a leaf. A single node has edge-height 0, and use `-1` for an
+      empty tree.
+
+      Diameter is measured in edges, and off-by-one errors are the most common bug. There are
+      two consistent conventions: count nodes (None = 0, then the path through a node is
+      `left + right`), or count edges (None = -1, then it's `left + right + 2`, one extra edge
+      down to each child). Pick one and stick to it; mixing them gives answers off by one or
+      two.
+    function:
+      name: edgeHeight
+      params: [{name: root, type: TreeNode}]
+    starter_code: |
+      class Solution:
+          def edgeHeight(self, root: Optional[TreeNode]) -> int:
+              pass
+    tests:
+      - {args: [[1]], expected: 0, note: "a single node has no edges below it"}
+      - {args: [[1, 2]], expected: 1}
+      - {args: [[1, 2, 3, 4, 5]], expected: 2}
+      - {args: [[]], expected: -1, note: "empty tree: -1, so a leaf gets 1 + max(-1, -1) = 0"}
+    solution: |
+      class Solution:
+          def edgeHeight(self, root: Optional[TreeNode]) -> int:
+              if root is None:
+                  return -1
+              return 1 + max(self.edgeHeight(root.left), self.edgeHeight(root.right))
+    hint: "Only the base case changes: what must None return so that a leaf comes out as 0?"
+
+hints:
+  - >-
+    Every path has one highest node where it turns. If you stood at that node and knew how tall
+    its left and right subtrees were, how long would the path be? Could that node be somewhere
+    other than the root?
+  - >-
+    Let each call return its height (in nodes, None = 0), because a parent can only continue a
+    path down one arm. Before returning, compute left + right, the edges of the longest path
+    turning here, and keep the maximum in a variable outside the recursion.
+  - |
+    best = 0
+    height(node):
+        if node is empty: return 0
+        left  = height(node.left)
+        right = height(node.right)
+        best  = larger of (best, left + right)
+        return 1 + larger of (left, right)
+    height(root); return best
+
+solution:
+  code: |
+    class Solution:
+        def diameterOfBinaryTree(self, root: Optional[TreeNode]) -> int:
+            best = 0  # longest path (in edges) seen at any turning point so far
+
+            def height(node):
+                nonlocal best
+                if node is None:
+                    return 0
+                left = height(node.left)
+                right = height(node.right)
+                # the longest path turning at this node uses both arms: left + right edges
+                best = max(best, left + right)
+                # the parent can only extend ONE arm, so it gets the taller one plus this node
+                return 1 + max(left, right)
+
+            height(root)
+            return best
+  explanation: |
+    **What does each call return to its parent?** Its height (number of nodes on the longest
+    downward path). Not the diameter: a parent can't use a path that bends inside its child,
+    because a path can't fork. It can only extend one straight arm down, and the height is the
+    longest such arm.
+
+    **What does each call record?** The longest path that *turns* at this node goes down the
+    left arm and down the right arm. Heights count nodes, and each node in an arm adds one edge
+    to the path (counting the edge that connects it upward), so that path has `left + right`
+    edges. We keep the best value over all nodes in `best`.
+
+    **Why not just the root?** In the test `[1,2,null,3,4,5,null,null,6,7,null,null,8]`, the
+    root has an empty right side. The longest path is 7 → 5 → 3 → 2 → 4 → 6 → 8 (6 edges), which
+    turns at node 2 and never touches the root. `height(root.left) + height(root.right)` gives
+    only 4. Recording at every node is what catches it; watch `best` jump when the visualizer
+    returns from node 2.
+
+    **Base case and units.** None returns 0, so a leaf returns 1 and contributes `0 + 0 = 0`
+    edges as a turning point, which is right: a single node is a path of length 0.
+
+    **Alternatives.** Instead of `nonlocal`, you can store the best in `self.best`, or return a
+    pair `(height, best_inside)` from each call. Iteratively, a post-order traversal with an
+    explicit stack and a dict of computed heights does the same work without recursion.
+  time: O(N) — each node's height is computed exactly once and used immediately
+  space: O(H) — the recursion stack; O(log N) for a balanced tree, O(N) for a skewed one
+  brute_force_code: |
+    class Solution:
+        def diameterOfBinaryTree(self, root: Optional[TreeNode]) -> int:
+            def height(node):  # re-walks the whole subtree every time it is called
+                if node is None:
+                    return 0
+                return 1 + max(height(node.left), height(node.right))
+
+            def best(node):
+                if node is None:
+                    return 0
+                through_here = height(node.left) + height(node.right)
+                return max(through_here, best(node.left), best(node.right))
+
+            return best(root)
+
+pitch_script: |
+  **(Clarify)** "Length is in edges, so a single node has diameter 0. And the path can be
+  between any two nodes, it doesn't have to go through the root, right?"
+
+  **(Brute force)** "Every path has a highest node where it turns. So for each node, I could
+  compute the heights of its two children from scratch and add them, and take the max. But
+  recomputing heights at every node is O(N squared) on a skewed tree."
+
+  **(Trigger)** "The heights I need are exactly what a height DFS computes bottom-up anyway. So
+  I'll compute height once per node and, at the same time, record the best left plus right.
+  It's the 'return one thing, track a global' pattern."
+
+  **(Optimal)** "My helper returns the height of a subtree, zero for null. At each node I get
+  the left and right heights, update best with left plus right, which is the path turning at
+  this node in edges, and return one plus the max to the parent, since the parent can only
+  extend one arm. After the DFS, best is the answer."
+
+  **(Complexity)** "One visit per node, so O(N) time, and O(H) space for the recursion: log N
+  balanced, N skewed."
+
+twist:
+  lc: 124
+  title: Binary Tree Maximum Path Sum
+  why: >-
+    Same skeleton, but you maximise the sum of node values instead of the number of edges, and
+    values can be negative. Each call returns the best *single-arm* sum starting at this node,
+    node.val + max(left, right, 0), and records node.val + max(left, 0) + max(right, 0) as the
+    best path turning here. Two changes from diameter: clamp negative arms to 0 (you'd rather
+    not extend into them), and start the global at -infinity rather than 0, because a path must
+    contain at least one node even if every value is negative.
+
+viz:
+  watch: [best, left, right]

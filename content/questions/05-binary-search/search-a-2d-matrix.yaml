@@ -1,0 +1,334 @@
+slug: search-a-2d-matrix
+lc: 74
+
+concept:
+  problem_it_solves: >-
+    "Is this value in a grid that is sorted row after row?" When every row is sorted and each
+    row starts above where the previous one ended, reading the grid left to right, top to
+    bottom gives one long sorted list. Binary search doesn't need that list to exist in
+    memory; it only needs to be able to read "the k-th element" in O(1).
+  brute_force: >-
+    Check every cell, or binary search each row separately. The full scan ignores all the
+    ordering. Searching row by row uses the ordering inside a row but not the ordering
+    between rows, so it still visits every row even though one comparison with a row's
+    first and last values could rule it out.
+  brute_force_complexity: O(m·n) time, O(1) space — a 100 × 100 grid means 10⁴ reads; row-by-row search is O(m log n), about 700.
+  key_insight: >-
+    Pretend the matrix is a single sorted array of length m·n and binary search the flat
+    index k. To read element k, convert it back: row = k // n, col = k % n, where n is the
+    number of columns, because each row holds n consecutive elements. The search itself is
+    the classic exact binary search from lesson one, unchanged.
+  real_world: >-
+    This is how memory works. A C array or a NumPy matrix is stored row-major as one flat
+    block, and np.unravel_index does exactly this divmod. Paged storage uses the same
+    arithmetic: record k lives on page k // page_size at offset k % page_size, which is how
+    databases and file systems find the k-th fixed-size record without scanning.
+
+statement:
+  clean: |
+    You are given an `m x n` integer matrix `matrix` with the following two properties:
+
+    - Each row is **sorted in non-decreasing order**.
+    - The first integer of each row is **greater than the last integer of the previous row**.
+
+    Given an integer `target`, return `true` if `target` is in `matrix` or `false`
+    otherwise.
+
+    You must write a solution in O(log(m * n)) time complexity.
+  oa_story: |
+    **RangoliRetail — OA Round 2**
+
+    RangoliRetail's warehouse in Hoskote stores every SKU in a wall of bins. Each rack is a
+    row of bins with SKU codes rising from left to right, and the racks were filled in order,
+    so the first bin of every rack holds a higher code than the last bin of the rack above it.
+    The racks all have the same number of bins.
+
+    A picker robot gets the wall layout as a list of racks (each a list of SKU codes) and a
+    SKU code from an incoming order, and must report whether that SKU is stocked anywhere on
+    the wall. Every bin the robot reads costs a camera scan and the wall can have 100 racks
+    of 100 bins, so checking racks one by one is far too slow. The robot should answer with
+    only a dozen or so scans.
+  trigger_keywords:
+    - "sorted in non-decreasing order"
+    - "greater than the last integer of the previous row"
+    - "O(log(m * n)) time complexity"
+  examples:
+    - input: "matrix = [[1,3,5,7],[10,11,16,20],[23,30,34,60]], target = 3"
+      output: "true"
+      explanation: "Read row by row, the matrix is the sorted list 1,3,5,7,10,…,60, and 3 is in it at flat index 1 = (row 0, col 1)."
+    - input: "matrix = [[1,3,5,7],[10,11,16,20],[23,30,34,60]], target = 13"
+      output: "false"
+      explanation: "13 would sit between 11 and 16, but no cell holds it."
+  constraints:
+    - "m == matrix.length"
+    - "n == matrix[i].length"
+    - "1 <= m, n <= 100"
+    - "-10^4 <= matrix[i][j], target <= 10^4"
+
+constraint_quiz:
+  prompt: >-
+    m and n are each at most 100 and the statement demands O(log(m · n)). Which approach
+    meets that exactly?
+  options:
+    - "O(m · n): scan every cell"
+    - "O(m + n): staircase walk from the top-right corner"
+    - "O(m log n): binary search inside every row"
+    - "O(log(m · n)): one binary search over all m · n cells"
+  answer: 3
+  explanation: >-
+    Scanning every cell is 10⁴ reads and ignores all the ordering. The staircase walk is
+    correct (it's the right tool when only rows and columns are sorted) but takes up to
+    m + n = 200 steps, not log. Searching every row uses only the within-row order, about
+    100 × 7 = 700 reads. Because rows also follow each other in order, the whole grid is one
+    sorted sequence of 10⁴ values, and one binary search needs about 14 reads.
+
+pattern_quiz:
+  prompt: >-
+    Rows are sorted and each row starts above the previous row's last value. Which pattern
+    fits best?
+  options:
+    - "Binary search each row independently"
+    - "Treat the grid as one sorted array of length m · n and binary search the flat index"
+    - "Staircase search from the top-right corner"
+    - "BFS from the top-left cell toward larger values"
+  answer: 1
+  explanation: >-
+    The phrase "first integer of each row is greater than the last integer of the previous
+    row" is the signal: it glues the rows into one sorted sequence, so the problem is plain
+    binary search with an index translation, row = k // n and col = k % n. Per-row search
+    wastes that guarantee, the staircase is O(m + n) and is meant for grids where only
+    columns are also sorted, and BFS is O(m · n).
+
+function:
+  name: searchMatrix
+  params: [{name: matrix}, {name: target}]
+
+starter_code: |
+  class Solution:
+      def searchMatrix(self, matrix: List[List[int]], target: int) -> bool:
+          pass
+
+tests:
+  - {args: [[[1, 3, 5, 7], [10, 11, 16, 20], [23, 30, 34, 60]], 3], expected: true}
+  - {args: [[[1, 3, 5, 7], [10, 11, 16, 20], [23, 30, 34, 60]], 13], expected: false}
+  - {args: [[[1]], 1], expected: true, note: "1 x 1 matrix, found"}
+  - {args: [[[1]], 2], expected: false, note: "1 x 1 matrix, absent"}
+  - {args: [[[1, 3]], 3], expected: true, note: single row (m = 1)}
+  - {args: [[[1], [3], [5]], 5], expected: true, note: "single column (n = 1): row = k, col = 0"}
+  - {args: [[[1, 3, 5, 7], [10, 11, 16, 20], [23, 30, 34, 60]], 60], expected: true, note: bottom-right corner (flat index m·n − 1)}
+  - {args: [[[1, 3, 5, 7], [10, 11, 16, 20], [23, 30, 34, 60]], 0], expected: false, note: smaller than everything}
+  - {args: [[[1, 3, 5, 7], [10, 11, 16, 20], [23, 30, 34, 60]], 21], expected: false, note: falls in the gap between two rows}
+visualize_test: 0
+
+drills:
+  - title: Turn a flat index into a cell
+    skill: setup
+    goal: Convert flat row-major indices to (row, col) with divmod by the number of columns.
+    instructions: |
+      A matrix has `n` columns. For each flat index `k` in `indices`, return `[row, col]`
+      where the k-th element (counting left to right, top to bottom) lives.
+
+      This is the only new piece compared with ordinary binary search. Each row holds `n`
+      elements, so `k // n` full rows come before element `k` and `k % n` is how far into its
+      row it is. Divide by the **column count** `n`, not the row count `m`: on a square
+      matrix both work, which is why the bug hides until a non-square test.
+    function:
+      name: flatToCell
+      params: [{name: n}, {name: indices}]
+    starter_code: |
+      class Solution:
+          def flatToCell(self, n: int, indices: List[int]) -> List[List[int]]:
+              pass
+    tests:
+      - {args: [4, [0, 5, 11]], expected: [[0, 0], [1, 1], [2, 3]]}
+      - {args: [3, [2, 3]], expected: [[0, 2], [1, 0]], note: wraps to the next row}
+      - {args: [1, [0, 2]], expected: [[0, 0], [2, 0]], note: one column}
+      - {args: [5, []], expected: []}
+    solution: |
+      class Solution:
+          def flatToCell(self, n: int, indices: List[int]) -> List[List[int]]:
+              cells = []
+              for k in indices:
+                  cells.append([k // n, k % n])  # n columns per row
+              return cells
+    hint: "`row = k // n`, `col = k % n`, where `n` is the number of columns."
+
+  - title: Binary search over a virtual array
+    skill: core
+    goal: Run the classic lo <= hi search over 0..m·n − 1, reading each probe through the index translation.
+    instructions: |
+      Return `[row, col]` of `target` in the matrix (same two properties as the main
+      problem, all values distinct), or `[-1, -1]` if it is absent.
+
+      Nothing is flattened: no new list is built, which would cost O(m · n). The search range
+      is the flat indices `0 .. m * n - 1`, and each probe converts `mid` to a cell before
+      reading it. The loop, the comparison and the `mid ± 1` moves are exactly lesson one's.
+    function:
+      name: locate
+      params: [{name: matrix}, {name: target}]
+    starter_code: |
+      class Solution:
+          def locate(self, matrix: List[List[int]], target: int) -> List[int]:
+              pass
+    tests:
+      - {args: [[[1, 3, 5, 7], [10, 11, 16, 20], [23, 30, 34, 60]], 16], expected: [1, 2]}
+      - {args: [[[1, 3, 5, 7], [10, 11, 16, 20], [23, 30, 34, 60]], 13], expected: [-1, -1]}
+      - {args: [[[1, 2, 3, 4, 5]], 5], expected: [0, 4]}
+      - {args: [[[1], [3], [5]], 3], expected: [1, 0]}
+    solution: |
+      class Solution:
+          def locate(self, matrix: List[List[int]], target: int) -> List[int]:
+              n = len(matrix[0])
+              lo, hi = 0, len(matrix) * n - 1
+              while lo <= hi:
+                  mid = lo + (hi - lo) // 2
+                  r, c = mid // n, mid % n
+                  if matrix[r][c] == target:
+                      return [r, c]
+                  if matrix[r][c] < target:
+                      lo = mid + 1
+                  else:
+                      hi = mid - 1
+              return [-1, -1]
+    hint: "`hi` starts at `m * n - 1`; inside the loop read `matrix[mid // n][mid % n]`."
+
+  - title: Which row could hold it?
+    skill: edge
+    goal: Find the last row whose first value is <= target with the lower-bound template, handling the "before row 0" case.
+    instructions: |
+      Return the index of the **only row that could contain `target`**: the last row whose
+      first element is `<= target`. Return `-1` if `target` is smaller than `matrix[0][0]`.
+
+      This is the other classic approach (find the row, then search inside it), and it's
+      where off-by-ones live. Use the lower-bound template to find the **first** row whose
+      first element is `> target`; the row you want is the one just before it, so subtract 1.
+      That subtraction gives `-1` naturally when target is below everything, and the last row
+      when target is above everything.
+    function:
+      name: findRow
+      params: [{name: matrix}, {name: target}]
+    starter_code: |
+      class Solution:
+          def findRow(self, matrix: List[List[int]], target: int) -> int:
+              pass
+    tests:
+      - {args: [[[1, 3, 5, 7], [10, 11, 16, 20], [23, 30, 34, 60]], 13], expected: 1}
+      - {args: [[[1, 3, 5, 7], [10, 11, 16, 20], [23, 30, 34, 60]], 0], expected: -1, note: before the first row}
+      - {args: [[[1, 3, 5, 7], [10, 11, 16, 20], [23, 30, 34, 60]], 100], expected: 2, note: past everything is still the last row}
+      - {args: [[[1, 3, 5, 7], [10, 11, 16, 20], [23, 30, 34, 60]], 23], expected: 2, note: equal to a row's first value}
+      - {args: [[[5, 6]], 5], expected: 0}
+    solution: |
+      class Solution:
+          def findRow(self, matrix: List[List[int]], target: int) -> int:
+              lo, hi = 0, len(matrix)  # first row whose start is > target
+              while lo < hi:
+                  mid = lo + (hi - lo) // 2
+                  if matrix[mid][0] <= target:
+                      lo = mid + 1
+                  else:
+                      hi = mid
+              return lo - 1  # the row just before it
+    hint: "Lower bound on `matrix[mid][0] > target` over `[0, len(matrix)]`, then return `lo - 1`."
+
+hints:
+  - >-
+    Write the matrix out row after row as one list. Given the two properties, what do you
+    notice about that list, and what algorithm does it invite?
+  - >-
+    Binary search the flat positions 0 to m·n − 1 with the usual lo <= hi loop. The only
+    extra step: to read flat position mid, find its row and column. How many elements does
+    each row hold?
+  - |
+    m = rows, n = columns
+    lo = 0, hi = m * n - 1
+    while lo <= hi:
+        mid = lo + (hi - lo) // 2
+        value = matrix[mid // n][mid % n]
+        if value == target: return true
+        if value < target: lo = mid + 1
+        else:              hi = mid - 1
+    return false
+
+solution:
+  code: |
+    class Solution:
+        def searchMatrix(self, matrix: List[List[int]], target: int) -> bool:
+            m, n = len(matrix), len(matrix[0])
+            lo, hi = 0, m * n - 1  # flat indices; invariant: target, if present, is in [lo, hi]
+            while lo <= hi:
+                mid = lo + (hi - lo) // 2
+                row, col = mid // n, mid % n  # n columns per row
+                value = matrix[row][col]
+                if value == target:
+                    return True
+                if value < target:
+                    lo = mid + 1
+                else:
+                    hi = mid - 1
+            return False
+  explanation: |
+    The two properties together mean that reading the matrix row by row gives one sorted
+    sequence of `m * n` values. So this is lesson one's exact binary search, with the same
+    invariant (*if target exists, its flat index is in `[lo, hi]`*), the same `lo <= hi`
+    loop and the same `mid ± 1` moves.
+
+    The only new part is reading a flat index. Row-major order puts `n` elements in each
+    row, so flat index `mid` is in row `mid // n` at column `mid % n`. Dividing by `m`
+    instead of `n` is the classic bug: it passes square tests and breaks on `[[1, 3]]` or
+    `[[1], [3], [5]]`.
+
+    We never build the flattened list; that copy alone would cost O(m · n) and destroy the
+    point. The flat array is virtual: it exists only through the index arithmetic, and each
+    probe costs O(1).
+
+    The second property is essential. Without it, row-major order isn't sorted (see the
+    twist), and this method silently returns wrong answers.
+  time: O(log(m · n)) — one binary search over m · n virtual positions, about 14 probes for 100 × 100
+  space: O(1) — a few integer indices, no flattened copy
+  brute_force_code: |
+    class Solution:
+        def searchMatrix(self, matrix: List[List[int]], target: int) -> bool:
+            for row in matrix:
+                for value in row:
+                    if value == target:
+                        return True
+            return False
+
+pitch_script: |
+  **(Clarify)** "So rows are sorted, every row starts above where the previous row ended, all
+  rows have the same length, and I return a boolean. The target is log of m times n, and m
+  and n are at least one, so I don't need an empty-matrix check, but I can add one."
+
+  **(Brute force)** "Scanning every cell is O(m·n). Binary searching each row is O(m log n),
+  better, but it ignores the fact that rows are ordered relative to each other."
+
+  **(Trigger)** "The second property means that if I read the matrix row by row, I get one
+  sorted list of m times n values. So I can binary search it as if it were a flat array,
+  without actually building it."
+
+  **(Optimal)** "I binary search the flat indices from zero to m·n minus one with the
+  standard lo less-than-or-equal hi loop. For each mid, the row is mid divided by n, the
+  number of columns, and the column is mid mod n. Then it's the usual comparison: equal
+  returns true, smaller moves lo to mid plus one, larger moves hi to mid minus one. If the
+  range empties, it's not there."
+
+  **(Complexity)** "O(log(m·n)) time, about 14 probes on a 100 by 100 grid, and O(1) space
+  since I never materialise the flat array."
+
+twist:
+  lc: 240
+  title: Search a 2D Matrix II
+  why: >-
+    Now rows are sorted and columns are sorted, but a row no longer starts above the previous
+    row's end, so row-major order is not sorted and the flatten trick breaks: in
+    [[1,4],[2,5]] the flat order is 1,4,2,5. Use a staircase walk instead. Start at the
+    top-right cell, the largest in its row and the smallest in its column. If it is bigger
+    than target, its whole column below is bigger too, so move left; if smaller, its whole
+    row to the left is smaller, so move down. Each step discards a row or a column:
+    O(m + n).
+
+viz:
+  arrays: [matrix]
+  pointers: [row]
+  window: [row, row]
+  watch: [lo, hi, mid, col, value, target]

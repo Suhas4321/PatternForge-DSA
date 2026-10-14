@@ -1,0 +1,334 @@
+slug: house-robber
+lc: 198
+
+concept:
+  problem_it_solves: >-
+    "Pick a subset of items to maximise the total, when picking one item forbids picking its
+    neighbour." Every item is a yes/no decision, and the decisions interact, so you can't
+    judge an item on its own. The fix is to make one decision at a time, from left to right,
+    and remember only the best total achievable so far for each prefix.
+  brute_force: >-
+    Try every subset of houses, skip the ones that contain two neighbours, and keep the best
+    sum. Or recurse: best(i) = max(best(i − 1), best(i − 2) + nums[i − 1]). Either way you
+    keep re-solving the same prefixes: "what's the best I can do with the first 3 houses?" is
+    answered again inside every branch that reaches it.
+  brute_force_complexity: >-
+    O(2ⁿ · N) time for subset enumeration (O(φⁿ) for the plain recursion), O(N) space —
+    100 houses means about 10³⁰ subsets.
+  key_insight: >-
+    Look at the LAST house of the prefix and make one decision about it: take it or skip it.
+    If you skip house i − 1, the best total is whatever the first i − 1 houses give you. If
+    you take it, you can't take house i − 2, so you get nums[i − 1] plus the best of the first
+    i − 2 houses. dp[i] = max(dp[i − 1], dp[i − 2] + nums[i − 1]). You never need to know
+    *which* houses the earlier plan used, only its best total: that's the information DP
+    throws away to become linear. This take-or-skip shape is the most common DP in interviews.
+  real_world: >-
+    Ad-slot and notification schedulers use take-or-skip DP when adjacent slots conflict
+    (don't show two ads back to back, don't send two pushes within an hour), maximising total
+    value under the spacing rule. Weighted interval scheduling (choosing non-overlapping
+    bookings or jobs with the most revenue) is the same recurrence with "the previous
+    compatible job" instead of "two houses back".
+
+statement:
+  clean: |
+    You are a professional robber planning to rob houses along a street. Each house has a
+    certain amount of money stashed. The only constraint stopping you from robbing each of
+    them is that **adjacent houses** have security systems connected, and it will
+    automatically contact the police if two adjacent houses were broken into on the same
+    night.
+
+    Given an integer array `nums` representing the amount of money of each house, return the
+    **maximum amount of money** you can rob tonight **without alerting the police**.
+  oa_story: |
+    **GullyGuard Security — OA Round 1**
+
+    GullyGuard installs smart CCTV cameras along residential lanes in Indiranagar and
+    BTM Layout. For a launch offer, the sales team can install a free premium camera on some
+    houses in a lane, and house `i` has agreed to pay a monthly subscription of `nums[i]`
+    rupees if it gets one. The catch: neighbouring houses share a compound wall, and two
+    premium cameras on adjacent houses interfere with each other's wireless link, so no two
+    neighbouring houses can both be chosen.
+
+    Houses are listed in the order they stand along the lane (at most 100 per lane, each
+    subscription at most 400 rupees). Return the largest total monthly subscription GullyGuard
+    can earn from one lane while respecting the interference rule.
+  trigger_keywords: ["adjacent houses", "maximum amount of money"]
+  examples:
+    - input: "nums = [1,2,3,1]"
+      output: "4"
+      explanation: "Rob house 0 (1) and house 2 (3): 1 + 3 = 4."
+    - input: "nums = [2,7,9,3,1]"
+      output: "12"
+      explanation: "Rob houses 0, 2 and 4: 2 + 9 + 1 = 12."
+  constraints:
+    - "1 <= nums.length <= 100"
+    - "0 <= nums[i] <= 400"
+
+constraint_quiz:
+  prompt: With up to 100 houses, what time complexity should you aim for?
+  options:
+    - "O(2ⁿ) — try every subset of houses"
+    - "O(N) — one take-or-skip decision per house"
+    - "O(N²) — for each house, scan every earlier non-adjacent house"
+    - "O(N log N) — sort by money and greedily take the richest"
+  answer: 1
+  explanation: >-
+    2¹⁰⁰ subsets is about 10³⁰, which is hopeless. O(N) is the natural target: each dp cell
+    needs only the two cells before it. O(N²) would pass for 100 houses, but scanning all
+    earlier houses is unnecessary because dp[i − 2] already holds the best of all of them.
+    Sorting is not just slower but wrong: on [3, 4, 3] the greedy takes 4, while the answer is
+    3 + 3 = 6.
+
+pattern_quiz:
+  prompt: >-
+    You choose a subset of houses to maximise money, and choosing a house forbids its
+    neighbours. Which approach is correct?
+  options:
+    - "Greedy: repeatedly take the richest house that is still allowed"
+    - "Compare the sum of even-indexed houses with the sum of odd-indexed houses"
+    - "DP: at each house, take it (and skip its neighbour) or skip it"
+    - "Sliding window of size 2 with the maximum sum"
+  answer: 2
+  explanation: >-
+    Greedy fails on [3, 4, 3]: it grabs 4 and blocks both 3s (6 is the answer). Alternating
+    fails on [2, 1, 1, 2]: both even and odd sums are 3, but taking houses 0 and 3 gives 4;
+    the best plan may skip two houses in a row. A window of size 2 doesn't model choosing many
+    houses. "Maximum total" plus "can't pick adjacent" is the take-or-skip DP trigger.
+
+function:
+  name: rob
+  params: [{name: nums}]
+
+starter_code: |
+  class Solution:
+      def rob(self, nums: List[int]) -> int:
+          pass
+
+tests:
+  - {args: [[1, 2, 3, 1]], expected: 4}
+  - {args: [[2, 7, 9, 3, 1]], expected: 12}
+  - {args: [[5]], expected: 5, note: "one house: take it"}
+  - {args: [[2, 1]], expected: 2, note: "two houses are neighbours: take the richer one"}
+  - {args: [[2, 1, 1, 2]], expected: 4, note: "skip two in a row: alternating picks only give 3"}
+  - {args: [[0, 0, 0]], expected: 0, note: "nothing worth taking"}
+  - {args: [[4, 1, 2, 7, 5, 3, 1]], expected: 14, note: "4 + 7 + 3"}
+  - {args: [[400, 400, 400, 400, 400]], expected: 1200, note: "all equal: take houses 0, 2 and 4"}
+  - {args: [[100, 1, 1, 100]], expected: 200, note: "first and last both taken (allowed here, not in House Robber II)"}
+visualize_test: 1
+
+drills:
+  - title: An n + 1 table with an empty prefix
+    skill: setup
+    goal: Index dp by prefix length so dp[0] is "no houses" and dp[i] reads nums[i − 1].
+    instructions: |
+      Return the full table `dp` of length `len(nums) + 1`, where `dp[i]` is the most money
+      you can take from the **first `i` houses** (`nums[0..i-1]`).
+
+      Why `n + 1` cells? `dp[0]` = "no houses yet" = 0 is a real, useful state: it lets
+      `dp[2] = max(dp[1], dp[0] + nums[1])` work with no special case. The price is the
+      index shift: `dp[i]` is about house `i - 1`, so the money you add is `nums[i - 1]`, not
+      `nums[i]`. Getting this shift right is the most common bug in prefix-indexed DP.
+    function:
+      name: robTable
+      params: [{name: nums}]
+    starter_code: |
+      class Solution:
+          def robTable(self, nums: List[int]) -> List[int]:
+              pass
+    tests:
+      - {args: [[1, 2, 3, 1]], expected: [0, 1, 2, 4, 4]}
+      - {args: [[2, 7, 9, 3, 1]], expected: [0, 2, 7, 11, 11, 12]}
+      - {args: [[5]], expected: [0, 5], note: "one house: only the base cases"}
+      - {args: [[2, 1, 1, 2]], expected: [0, 2, 2, 3, 4]}
+    solution: |
+      class Solution:
+          def robTable(self, nums: List[int]) -> List[int]:
+              n = len(nums)
+              dp = [0] * (n + 1)
+              dp[1] = nums[0]
+              for i in range(2, n + 1):
+                  dp[i] = max(dp[i - 1], dp[i - 2] + nums[i - 1])
+              return dp
+    hint: "`dp[0] = 0` and `dp[1] = nums[0]` are the base cases; the loop starts at `i = 2`."
+
+  - title: Track take and skip separately
+    skill: core
+    goal: Carry two states, "best if I took the last house" and "best if I skipped it", through one pass.
+    instructions: |
+      Walk the houses once and keep two numbers: `take` = the best total if the **current**
+      house is robbed, and `skip` = the best total if it is not. Return `[take, skip]` after
+      the last house.
+
+      This makes the take-or-skip choice explicit. Taking the current house is only allowed
+      if the previous one was skipped: `take = skip_before + x`. Skipping it allows either
+      state before: `skip = max(take_before, skip_before)`. The answer to House Robber is
+      `max(take, skip)`. Two-state thinking like this is exactly what you'll need for House
+      Robber III on a tree and for the stock-with-cooldown problems.
+    function:
+      name: robTakeSkip
+      params: [{name: nums}]
+    starter_code: |
+      class Solution:
+          def robTakeSkip(self, nums: List[int]) -> List[int]:
+              pass
+    tests:
+      - {args: [[1, 2, 3, 1]], expected: [3, 4]}
+      - {args: [[2, 7, 9, 3, 1]], expected: [12, 11]}
+      - {args: [[5]], expected: [5, 0]}
+      - {args: [[2, 1, 1, 2]], expected: [4, 3]}
+      - {args: [[3, 8, 4]], expected: [7, 8], note: "the best plan skips the last house"}
+    solution: |
+      class Solution:
+          def robTakeSkip(self, nums: List[int]) -> List[int]:
+              take, skip = 0, 0
+              for x in nums:
+                  take, skip = skip + x, max(take, skip)
+              return [take, skip]
+    hint: "Update both at once with tuple assignment, so the new `take` uses the old `skip`."
+
+  - title: Which houses did you rob?
+    skill: edge
+    goal: Walk the filled table backwards to recover the chosen houses, not just the total.
+    instructions: |
+      You're given `nums` and its filled table `dp` (as built in the setup drill). Return the
+      **indices of the robbed houses** in increasing order. Every test has exactly one best
+      plan.
+
+      Start at `i = n` and walk back. If `dp[i] == dp[i - 1]`, house `i - 1` was skipped, so
+      step to `i - 1`. Otherwise house `i - 1` was taken, which also rules out house `i - 2`,
+      so record it and jump to `i - 2`. Interviewers love "now print the actual houses" as a
+      follow-up, and it only works because the table, unlike the rolling variables, still
+      holds every intermediate answer.
+    function:
+      name: robbedHouses
+      params: [{name: nums}, {name: dp}]
+    starter_code: |
+      class Solution:
+          def robbedHouses(self, nums: List[int], dp: List[int]) -> List[int]:
+              pass
+    tests:
+      - {args: [[2, 7, 9, 3, 1], [0, 2, 7, 11, 11, 12]], expected: [0, 2, 4]}
+      - {args: [[1, 2, 3, 1], [0, 1, 2, 4, 4]], expected: [0, 2], note: "the last house is skipped"}
+      - {args: [[2, 1, 1, 2], [0, 2, 2, 3, 4]], expected: [0, 3]}
+      - {args: [[5], [0, 5]], expected: [0]}
+      - {args: [[3, 8, 4], [0, 3, 8, 8]], expected: [1]}
+    solution: |
+      class Solution:
+          def robbedHouses(self, nums: List[int], dp: List[int]) -> List[int]:
+              picked = []
+              i = len(nums)
+              while i > 0:
+                  if dp[i] == dp[i - 1]:
+                      i -= 1  # house i - 1 was skipped
+                  else:
+                      picked.append(i - 1)
+                      i -= 2  # taken, so its left neighbour was skipped
+              return picked[::-1]
+    hint: "If the best total didn't change when house i − 1 was added, that house wasn't used."
+
+hints:
+  - >-
+    Look only at the last house. In the best plan it is either robbed or not. In each case,
+    what problem on fewer houses is left over?
+  - >-
+    Let dp[i] be the most money from the first i houses (dp has n + 1 cells, dp[0] = 0). Skip
+    house i − 1: dp[i − 1]. Take it: nums[i − 1] + dp[i − 2], because its neighbour must be
+    skipped. dp[i] = max of the two, with dp[1] = nums[0].
+  - |
+    dp = list of n + 1 zeros
+    dp[1] = nums[0]
+    for i from 2 to n:
+        dp[i] = max(dp[i - 1],                  (skip house i - 1)
+                    dp[i - 2] + nums[i - 1])    (take it)
+    return dp[n]
+
+solution:
+  code: |
+    class Solution:
+        def rob(self, nums: List[int]) -> int:
+            n = len(nums)
+            # dp[i] = most money from the first i houses (nums[0..i-1]); dp[0] = no houses = 0
+            dp = [0] * (n + 1)
+            dp[1] = nums[0]
+            for i in range(2, n + 1):
+                # house i - 1 is the last one: skip it, or take it and skip its neighbour
+                dp[i] = max(dp[i - 1], dp[i - 2] + nums[i - 1])
+            return dp[n]
+  explanation: |
+    The recipe, one more time:
+
+    1. **State.** `dp[i]` = the most money you can take from the **first `i` houses**,
+       `nums[0..i-1]`. Indexing by prefix length (so the table has `n + 1` cells) gives a real
+       "no houses" state `dp[0] = 0`, and the recurrence then works from `i = 2` with no `if`
+       for the first houses. The cost is an index shift: `dp[i]` decides about house
+       `nums[i - 1]`.
+    2. **Recurrence: take or skip the last house.** Either house `i - 1` is skipped, and the
+       best is `dp[i - 1]`, or it is taken, so house `i - 2` must be skipped and the best is
+       `dp[i - 2] + nums[i - 1]`. Take the max. You don't need to know which houses the
+       smaller plans used; `dp[i - 2]` is a valid plan for houses that can't touch house
+       `i - 1`, and that's all that matters.
+    3. **Base cases.** `dp[0] = 0` (nothing to rob) and `dp[1] = nums[0]` (one house: take
+       it).
+    4. **Fill order.** Left to right, `i = 2 .. n`; each cell reads the two before it.
+    5. **Answer.** `dp[n]`, the best over all houses.
+
+    Why `max(dp[i - 1], ...)` and not "skip means `dp[i - 2]`"? Because skipping house
+    `i - 1` leaves house `i - 2` free to be taken or not, and `dp[i - 1]` already includes both
+    possibilities. That is also why the best plan can skip two houses in a row, as in
+    `[2, 1, 1, 2]`, which a simple even/odd alternation misses.
+
+    **Recursion → memo → table.** `best(i) = max(best(i - 1), best(i - 2) + nums[i - 1])` as a
+    recursion is exponential; with `@lru_cache` it becomes O(N); the table is that memo
+    filled bottom-up. **O(1) space:** only two previous cells are read, so
+    `prev2, prev1 = prev1, max(prev1, prev2 + x)` for each house `x` gives the same answer.
+  time: O(N) — one max() per house
+  space: O(N) — the dp table (O(1) with two rolling variables)
+  brute_force_code: |
+    class Solution:
+        def rob(self, nums: List[int]) -> int:
+            def best(i):
+                # most money from the first i houses, recomputed every time it's asked
+                if i <= 0:
+                    return 0
+                return max(best(i - 1), best(i - 2) + nums[i - 1])
+
+            return best(len(nums))
+
+pitch_script: |
+  **(Clarify)** "So I can't rob two adjacent houses, the houses are in a line, amounts are
+  non-negative, and I return the maximum total, not which houses. There's at least one
+  house. Correct?"
+
+  **(Brute force)** "I could try every subset of houses and discard those with neighbours,
+  which is 2 to the n, so about 10 to the 30 for 100 houses. Greedy doesn't work either:
+  on 3, 4, 3 grabbing the 4 blocks both 3s."
+
+  **(Trigger)** "Maximise a total where each item is a yes-or-no choice and choosing one
+  forbids its neighbour: that's the take-or-skip DP. I'll define dp of i as the most money
+  from the first i houses, with dp of 0 equal to 0 for no houses."
+
+  **(Optimal)** "For the last house in the prefix, either I skip it, and I get dp of i minus
+  1, or I take it, get nums of i minus 1, and add dp of i minus 2 because its neighbour is
+  off-limits. dp of i is the max of those. Base cases are dp of 0 equals 0 and dp of 1 equals
+  nums of 0. I fill left to right and return dp of n. Using n plus 1 cells avoids special-
+  casing the first two houses."
+
+  **(Complexity)** "O(N) time, O(N) space for the table. Only the last two values are used, so
+  I can keep two variables and get O(1) space. If you want the actual houses, I'd keep the
+  table and walk it backwards."
+
+twist:
+  lc: 740
+  title: Delete and Earn
+  why: >-
+    Picking a value v earns v points for every copy of v but deletes all v − 1 and v + 1. So
+    group by value: points[v] = v × count(v), laid out on a line of values 0..max(nums). Now
+    "taking v forbids v − 1 and v + 1" is exactly "robbing house v forbids its neighbours",
+    and you run the same take-or-skip DP over points. The hard part is spotting the
+    reduction; the recurrence doesn't change.
+
+viz:
+  table: dp
+  col_labels: nums
+  label_offset: 1
+  watch: [i, n]

@@ -1,0 +1,356 @@
+slug: palindrome-partitioning
+lc: 131
+
+concept:
+  problem_it_solves: >-
+    "In how many ways can I cut this sequence into pieces where every piece passes a test, and
+    what are they?" Every cut position is a yes/no decision, so the answers live in a tree of
+    choices. Partition backtracking walks that tree one piece at a time and abandons a branch
+    the moment a piece fails the test, instead of building whole cuttings and checking them
+    afterwards.
+  brute_force: >-
+    A string of length N has N − 1 gaps, and each gap is either cut or not, so there are
+    2^(N−1) cuttings. Generate every one, then check whether all its pieces are palindromes.
+    Most of that work is wasted: if the first piece "ab" isn't a palindrome, every one of the
+    2^(N−3) cuttings that start with "ab" is still generated and rejected one by one.
+  brute_force_complexity: >-
+    O(N · 2^N) time, O(N) space besides the output — N = 16 means 32,768 cuttings, each
+    checked in O(N), and nearly all of the rejected ones are pure waste.
+  key_insight: >-
+    Don't decide cuts, decide pieces. Standing at index start, the only question is "where
+    does the next piece end?". Try every end from start to N − 1; if s[start..end] is a
+    palindrome, choose it, recurse from end + 1, then un-choose. When start reaches N, the
+    pieces in path cover the whole string, so path is a complete answer. A failing piece kills
+    its entire subtree at once, which is exactly the pruning the brute force lacks. The
+    palindrome checks can be made O(1) with a precomputed table pal[i][j] =
+    (s[i] == s[j] and (j − i < 2 or pal[i + 1][j − 1])).
+  real_world: >-
+    Word segmentation in search engines and Indian-language keyboards (splitting
+    "bengalurutraffic" into dictionary words) is the same "where does the next piece end?"
+    backtracking, with "is a dictionary word" instead of "is a palindrome". Tokenisers for NLP
+    models and parsers that split a stream into valid tokens explore the same choice tree,
+    usually memoised.
+
+statement:
+  clean: |
+    Given a string `s`, **partition** `s` such that
+    **every substring of the partition is a palindrome**. Return **all possible** palindrome
+    partitionings of `s`.
+
+    A palindrome reads the same forward and backward. A partition splits `s` into contiguous,
+    non-empty substrings that, read in order, give back `s`. Return the partitions in any
+    order; the substrings inside each partition must stay in their original order.
+  oa_story: |
+    **PalindromePost — OA Round 1**
+
+    PalindromePost is a Bengaluru social app famous for its "mirror stickers": a caption is
+    chopped into consecutive chunks and each chunk becomes a sticker that looks identical
+    when you flip it left to right, letter for letter. A user in Indiranagar types a
+    lowercase caption `s`, and the sticker designer wants to show every way the whole caption
+    can be chopped so that every single chunk is a mirror chunk.
+
+    Chunks must be non-empty, must not overlap, and must cover the caption from start to end
+    in order (a sticker set is read left to right, so the order of chunks inside one set
+    matters). Return every valid sticker set; the sets themselves can be listed in any order.
+    Captions are at most 16 characters long.
+  trigger_keywords: ["partition", "every substring of the partition is a palindrome", "all possible"]
+  examples:
+    - input: "s = \"aab\""
+      output: "[[\"a\",\"a\",\"b\"],[\"aa\",\"b\"]]"
+      explanation: "\"aab\" itself is not a palindrome, and neither is \"ab\", so only these two cuttings work."
+    - input: "s = \"a\""
+      output: "[[\"a\"]]"
+  constraints:
+    - "1 <= s.length <= 16"
+    - "s contains only lowercase English letters."
+
+constraint_quiz:
+  prompt: >-
+    s has at most 16 characters and you must return every palindrome partition. What
+    complexity is acceptable?
+  options:
+    - "O(N) — one pass is enough"
+    - "O(N²) — it's a palindrome DP problem"
+    - "O(N · 2^N) — exponential, because the output itself can be that big"
+    - "O(N!) — try every ordering of the characters"
+  answer: 2
+  explanation: >-
+    For "aaaa...a" every one of the 2^(N−1) cuttings is valid, so just writing the output
+    takes O(N · 2^N); no O(N) or O(N²) algorithm can list it (an O(N²) DP can only *count* or
+    find the minimum cut). N ≤ 16 is the tell that exponential is fine: 16 · 2^16 ≈ 10^6.
+    O(N!) is both wrong (pieces keep their order, nothing is permuted) and far too large:
+    16! ≈ 2 × 10^13.
+
+pattern_quiz:
+  prompt: >-
+    You must return all ways to split a string into contiguous pieces where each piece
+    satisfies a check. Which pattern fits?
+  options:
+    - "Sliding window that grows while the window is a palindrome"
+    - "Expand around centre to find the longest palindrome"
+    - "Partition backtracking: choose where the next piece ends, recurse on the rest"
+    - "Subsets backtracking: include or exclude each character"
+  answer: 2
+  explanation: >-
+    "Partition … all possible" is the partition-backtracking trigger: each recursion level
+    picks the end of the next piece and continues from the following index. A sliding window
+    or expand-around-centre finds one best palindrome, not every complete cutting.
+    Include/exclude on characters would produce subsequences, which break contiguity; the
+    pieces must stay contiguous and cover the whole string.
+
+function:
+  name: partition
+  params: [{name: s}]
+  compare: unordered
+
+starter_code: |
+  class Solution:
+      def partition(self, s: str) -> List[List[str]]:
+          pass
+
+tests:
+  - {args: ["aab"], expected: [["a", "a", "b"], ["aa", "b"]]}
+  - {args: ["a"], expected: [["a"]], note: single character}
+  - {args: ["ab"], expected: [["a", "b"]], note: "no palindrome longer than 1: only single letters"}
+  - {args: ["aaa"], expected: [["a", "a", "a"], ["a", "aa"], ["aa", "a"], ["aaa"]], note: "all same: every one of the 2^(N-1) cuttings is valid"}
+  - {args: ["abba"], expected: [["a", "b", "b", "a"], ["a", "bb", "a"], ["abba"]], note: even-length palindromes}
+  - {args: ["efe"], expected: [["e", "f", "e"], ["efe"]], note: "odd-length palindrome; \"ef\" and \"fe\" fail"}
+  - {args: ["abc"], expected: [["a", "b", "c"]]}
+  - {args: ["racecar"], expected: [["r", "a", "c", "e", "c", "a", "r"], ["r", "a", "cec", "a", "r"], ["r", "aceca", "r"], ["racecar"]], note: nested palindromes}
+  - {args: ["aabb"], expected: [["a", "a", "b", "b"], ["a", "a", "bb"], ["aa", "b", "b"], ["aa", "bb"]]}
+visualize_test: 0
+
+drills:
+  - title: Check a slice without slicing
+    skill: setup
+    goal: Test whether s[l..r] (inclusive) is a palindrome with two pointers moving inward.
+    instructions: |
+      Return `True` if the substring of `s` from index `l` to index `r` **inclusive** is a
+      palindrome.
+
+      Use two pointers that move toward each other and stop at the first mismatch, instead of
+      building `s[l:r + 1]` and reversing it. In the full problem this check runs for every
+      candidate piece, so it should work on indices and give up early. Note the inclusive
+      `r`: the recursion talks about "the piece from start to end", and off-by-one here
+      silently drops the last letter.
+    function:
+      name: isPal
+      params: [{name: s}, {name: l}, {name: r}]
+    starter_code: |
+      class Solution:
+          def isPal(self, s: str, l: int, r: int) -> bool:
+              pass
+    tests:
+      - {args: ["aab", 0, 1], expected: true}
+      - {args: ["aab", 0, 2], expected: false}
+      - {args: ["racecar", 0, 6], expected: true}
+      - {args: ["abca", 1, 2], expected: false}
+      - {args: ["x", 0, 0], expected: true, note: a single letter is always a palindrome}
+    solution: |
+      class Solution:
+          def isPal(self, s: str, l: int, r: int) -> bool:
+              while l < r:
+                  if s[l] != s[r]:
+                      return False
+                  l += 1
+                  r -= 1
+              return True
+    hint: "`while l < r`: compare `s[l]` and `s[r]`, then move both pointers inward."
+
+  - title: Choose where the next piece ends
+    skill: core
+    goal: Write the partition-backtracking skeleton that tries every end index for the next piece.
+    instructions: |
+      Return **every** way to cut `s` into contiguous non-empty pieces, with no palindrome
+      condition at all. Any order of the cuttings is fine.
+
+      This is the skeleton of the real solution: `dfs(start)` loops `end` from `start` to
+      `len(s) - 1`, chooses the piece `s[start:end + 1]`, recurses from `end + 1`, and pops.
+      When `start == len(s)` the pieces cover the whole string, so record a copy of `path`.
+      For a string of length N you should get 2^(N−1) cuttings; the real problem only adds
+      one `if` before choosing a piece.
+    function:
+      name: allPartitions
+      params: [{name: s}]
+      compare: unordered
+    starter_code: |
+      class Solution:
+          def allPartitions(self, s: str) -> List[List[str]]:
+              pass
+    tests:
+      - {args: ["ab"], expected: [["a", "b"], ["ab"]]}
+      - {args: ["abc"], expected: [["a", "b", "c"], ["a", "bc"], ["ab", "c"], ["abc"]]}
+      - {args: ["a"], expected: [["a"]]}
+      - {args: ["aaa"], expected: [["a", "a", "a"], ["a", "aa"], ["aa", "a"], ["aaa"]], note: equal pieces in different positions are different cuttings}
+    solution: |
+      class Solution:
+          def allPartitions(self, s: str) -> List[List[str]]:
+              res, path = [], []
+
+              def dfs(start):
+                  if start == len(s):
+                      res.append(path[:])
+                      return
+                  for end in range(start, len(s)):
+                      path.append(s[start:end + 1])
+                      dfs(end + 1)
+                      path.pop()
+
+              dfs(0)
+              return res
+    hint: "The base case is `start == len(s)`, not `end == len(s) - 1`; the piece is `s[start:end + 1]`."
+
+  - title: Precompute every palindrome check
+    skill: edge
+    goal: Fill the pal[i][j] table in the right order so every substring check becomes O(1).
+    instructions: |
+      Return an `n x n` table where `pal[i][j]` is `True` exactly when `s[i..j]` (inclusive)
+      is a palindrome; entries with `j < i` stay `False`.
+
+      The recurrence is `pal[i][j] = s[i] == s[j] and (j - i < 2 or pal[i + 1][j - 1])`. Two
+      details decide correctness. The `j - i < 2` guard covers lengths 1 and 2, where there
+      is no inner substring (and `pal[i + 1][j - 1]` would read below the diagonal). And
+      `pal[i][j]` needs `pal[i + 1][...]`, the row *below*, so `i` must run from `n - 1` down
+      to 0. Filling top-down reads rows that haven't been computed yet. With this table the
+      backtracking checks `pal[start][end]` in O(1).
+    function:
+      name: palTable
+      params: [{name: s}]
+    starter_code: |
+      class Solution:
+          def palTable(self, s: str) -> List[List[bool]]:
+              pass
+    tests:
+      - {args: ["aab"], expected: [[true, true, false], [false, true, false], [false, false, true]]}
+      - {args: ["aba"], expected: [[true, false, true], [false, true, false], [false, false, true]], note: "pal[0][2] depends on pal[1][1]"}
+      - {args: ["abba"], expected: [[true, false, false, true], [false, true, true, false], [false, false, true, false], [false, false, false, true]], note: "length 2 uses the j - i < 2 guard"}
+      - {args: ["a"], expected: [[true]]}
+    solution: |
+      class Solution:
+          def palTable(self, s: str) -> List[List[bool]]:
+              n = len(s)
+              pal = [[False] * n for _ in range(n)]
+              for i in range(n - 1, -1, -1):
+                  for j in range(i, n):
+                      pal[i][j] = s[i] == s[j] and (j - i < 2 or pal[i + 1][j - 1])
+              return pal
+    hint: "Loop `i` backwards (`range(n - 1, -1, -1)`) and `j` forwards from `i`."
+
+hints:
+  - >-
+    Forget cuts for a moment. If you're standing at index start, what is the only decision you
+    have to make before you can recurse on the rest of the string? How many options does it
+    have, and which of them are allowed?
+  - >-
+    dfs(start): if start == len(s), path holds a full partition, so record a copy. Otherwise,
+    for every end from start to len(s) − 1, if s[start..end] is a palindrome, push that piece,
+    recurse with dfs(end + 1), then pop it.
+  - |
+    dfs(start):
+        if start == len(s): record copy of path; return
+        for end from start to len(s) - 1:
+            if s[start..end] is a palindrome:
+                push s[start..end]; dfs(end + 1); pop
+    dfs(0)
+
+solution:
+  code: |
+    class Solution:
+        def partition(self, s: str) -> List[List[str]]:
+            res, path = [], []
+
+            def is_pal(l, r):  # is s[l..r] (inclusive) a palindrome?
+                while l < r:
+                    if s[l] != s[r]:
+                        return False
+                    l += 1
+                    r -= 1
+                return True
+
+            def dfs(start):
+                if start == len(s):
+                    res.append(path[:])  # the pieces cover all of s
+                    return
+                for end in range(start, len(s)):  # choose where the next piece ends
+                    if is_pal(start, end):
+                        path.append(s[start:end + 1])  # choose
+                        dfs(end + 1)  # explore the rest of the string
+                        path.pop()  # un-choose
+
+            dfs(0)
+            return res
+  explanation: |
+    This is **partition backtracking**: the state is just `start`, the index where the next
+    piece begins. The loop decides the piece's end, so the branches at each level are the
+    pieces `s[start..start]`, `s[start..start+1]`, …, `s[start..n-1]`. Only palindromic pieces
+    are chosen, which prunes a whole subtree the moment a piece fails: for "aab", the branch
+    starting with "aab" is never explored, and neither is anything starting "ab".
+
+    The base case is `start == len(s)`: every character has been placed in some piece, so
+    `path` is a complete partition. Recording `path[:]` (a copy) matters because `path` is
+    popped back to empty by the end. The pieces in `path` are always in left-to-right order,
+    which is why the compare mode only ignores the order of the partitions, not the order
+    inside one.
+
+    **Optimisation:** the same substring is checked many times across branches. Precompute
+    `pal[i][j] = s[i] == s[j] and (j - i < 2 or pal[i + 1][j - 1])`, filling `i` from
+    `n - 1` down, in O(N²) time and space; then each check in the loop is a table lookup. It
+    doesn't change the exponential bound (the output dominates) but removes the repeated
+    two-pointer scans.
+  time: >-
+    O(N · 2^N) — "aaa…a" has 2^(N−1) partitions and each is copied in O(N); a two-pointer
+    check costs O(N), or O(1) with the precomputed pal table
+  space: O(N) — recursion depth and path, excluding the output (O(N²) more with the pal table)
+  brute_force_code: |
+    class Solution:
+        def partition(self, s: str) -> List[List[str]]:
+            n = len(s)
+            res = []
+            for mask in range(1 << (n - 1)):  # bit g set = cut after index g
+                pieces, begin = [], 0
+                for g in range(n - 1):
+                    if mask >> g & 1:
+                        pieces.append(s[begin:g + 1])
+                        begin = g + 1
+                pieces.append(s[begin:])
+                if all(p == p[::-1] for p in pieces):
+                    res.append(pieces)
+            return res
+
+pitch_script: |
+  **(Clarify)** "I need every way to cut s into contiguous pieces where each piece is a
+  palindrome, and the pieces stay in their original order inside each answer. The answers
+  themselves can come in any order. Length is at most 16, lowercase only?"
+
+  **(Brute force)** "There are N − 1 gaps, each cut or not, so 2^(N−1) cuttings. I could
+  generate them all and filter, which is O(N · 2^N), but it keeps generating cuttings whose
+  first piece already failed."
+
+  **(Trigger)** "'Partition' plus 'all possible' is partition backtracking. Since N is tiny
+  and the output can be exponential, the goal isn't polynomial time, it's not wasting work
+  on dead branches."
+
+  **(Optimal)** "I write dfs(start). If start equals the length, the path is a complete
+  partition and I save a copy. Otherwise I try every end from start onward; if s[start..end]
+  is a palindrome, I push it, recurse from end + 1, and pop it. A failing piece prunes its
+  whole subtree. If the interviewer wants faster checks, I precompute a pal[i][j] table
+  bottom-up so each check is O(1)."
+
+  **(Complexity)** "Worst case is a string of one repeated letter, where all 2^(N−1)
+  cuttings are valid, so O(N · 2^N) time because each answer is copied in O(N). Extra space
+  is O(N) for recursion and the path, or O(N²) if I add the table."
+
+twist:
+  lc: 132
+  title: Palindrome Partitioning II
+  why: >-
+    Now you only need the minimum number of cuts, not the partitions, and s can be 2000 long,
+    so enumerating 2^N cuttings is out. Keep the same "where does the next piece end?" idea,
+    but turn it into DP: cuts[i] = min over j ≤ i with pal[j][i] of cuts[j − 1] + 1 (0 when
+    pal[0][i]). The pal table from this lesson's optimisation becomes mandatory, and the whole
+    thing runs in O(N²).
+
+viz:
+  arrays: [s, path]
+  pointers: [start, end, l, r]
+  watch: [res]
