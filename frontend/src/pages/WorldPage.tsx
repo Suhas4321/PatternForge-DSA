@@ -1,7 +1,7 @@
 import { ArrowLeft, BookMarked, CalendarClock, Check, Crown, Lock, Swords } from 'lucide-react'
 import { motion, useReducedMotion, useScroll, useSpring, useTransform } from 'motion/react'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { api } from '../api/client'
 import type { QuestionSummary, World } from '../api/types'
 import {
@@ -20,11 +20,13 @@ import { questUrl, stagesDone } from '../lib/journey'
 
 export default function WorldPage() {
   const { id } = useParams()
-  const [world, setWorld] = useState<World | null>(null)
+  // The constellation passes the world along so the zoom transition reveals the real page at once.
+  const passed = (useLocation().state as { world?: World } | null)?.world
+  const [world, setWorld] = useState<World | null>(passed && String(passed.id) === id ? passed : null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    setWorld(null)
+    setWorld((w) => (w && String(w.id) === id ? w : null))
     api
       .worlds()
       .then((ws) => {

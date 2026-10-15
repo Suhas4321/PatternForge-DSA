@@ -1,6 +1,6 @@
 import { CalendarClock, Crown, Lock, Sparkles } from 'lucide-react'
 import { motion, useReducedMotion } from 'motion/react'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import type { ReviewQueue, World } from '../api/types'
@@ -8,6 +8,7 @@ import { BorderBeam, MagicCard, NumberTicker, Stage } from '../components/effect
 import { Button, DifficultyBadge, ErrorNote, LeetCodeLink, ProgressRing, RUST_META, Spinner, formatRelative } from '../components/ui'
 import { currentQuest, EDGES, isRusting, questUrl, rankFor, TIERS, worldState, type WorldState } from '../lib/journey'
 import { useConnectors } from '../lib/useConnectors'
+import { zoomNavigate } from '../lib/zoomTransition'
 
 export default function Dashboard() {
   const [worlds, setWorlds] = useState<World[] | null>(null)
@@ -188,6 +189,27 @@ function Constellation({ worlds }: { worlds: World[] }) {
   const byId = new Map(worlds.map((w) => [w.id, w]))
   const states = new Map(worlds.map((w) => [w.id, worldState(w, worlds, questWorld)]))
   const { containerRef, register, paths, size } = useConnectors<number>(EDGES, [worlds])
+  const navigate = useNavigate()
+  const [launching, setLaunching] = useState<number | null>(null)
+  const timer = useRef<number | undefined>(undefined)
+  useEffect(() => () => window.clearTimeout(timer.current), [])
+
+  /** Click on a world: beams race into it, the node pulses, then the world zooms open from it. */
+  const launch = (id: number, el: HTMLElement) => {
+    if (launching !== null) return
+    setLaunching(id)
+    const hasBeams = EDGES.some(([, c]) => c === id)
+    timer.current = window.setTimeout(
+      () => {
+        const r = el.getBoundingClientRect()
+        zoomNavigate(() => navigate(`/world/${id}`, { state: { world: byId.get(id) } }), {
+          x: r.left + r.width / 2,
+          y: r.top + r.height / 2,
+        })
+      },
+      reduceMotion ? 0 : hasBeams ? 480 : 260,
+    )
+  }
 
   return (
     <Stage className="p-6 sm:p-8 md:p-10">
@@ -235,6 +257,19 @@ function Constellation({ worlds }: { worlds: World[] }) {
                     transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut', repeatDelay: 0.4 }}
                   />
                 )}
+                {launching === p.to && !reduceMotion && (
+                  <motion.path
+                    d={p.d}
+                    fill="none"
+                    stroke="#E0FBFF"
+                    strokeWidth={3.5}
+                    strokeLinecap="round"
+                    style={{ filter: 'drop-shadow(0 0 8px #22D3EE) drop-shadow(0 0 3px #FFFFFF)' }}
+                    initial={{ pathLength: 0, opacity: 1 }}
+                    animate={{ pathLength: 1 }}
+                    transition={{ duration: 0.45, ease: [0.65, 0, 0.35, 1] }}
+                  />
+                )}
               </g>
             )
           })}
@@ -250,6 +285,8 @@ function Constellation({ worlds }: { worlds: World[] }) {
                   state={states.get(id)!}
                   hasQuest={questWorld === id}
                   final={id === 12}
+                  launching={launching === id}
+                  onLaunch={(el) => launch(id, el)}
                   nodeRef={register(id)}
                 />
               ))}
@@ -277,11 +314,13 @@ const NODE_FRAME: Record<WorldState, { box: string; bg: string }> = {
   fog: { box: 'border-[#2E3446] hover:border-cyan-400/60', bg: '#181B24' },
 }
 
-function WorldNode({ world: w, state, hasQuest, final, nodeRef }: {
+function WorldNode({ world: w, state, hasQuest, final, launching, onLaunch, nodeRef }: {
   world: World
   state: WorldState
   hasQuest: boolean
   final: boolean
+  launching: boolean
+  onLaunch: (el: HTMLElement) => void
   nodeRef: (el: HTMLElement | null) => void
 }) {
   const rusting = isRusting(w)
@@ -293,7 +332,15 @@ function WorldNode({ world: w, state, hasQuest, final, nodeRef }: {
     <Link
       ref={nodeRef}
       to={`/world/${w.id}`}
-      className={`group block w-[15rem] rounded-2xl transition-transform duration-200 hover:-translate-y-1 ${hasQuest ? 'quest-pulse' : ''}`}
+      onClick={(e) => {
+        // keep ctrl/cmd/middle-click "open in new tab" working
+        if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return
+        e.preventDefault()
+        onLaunch(e.currentTarget)
+      }}
+      className={`group block w-[15rem] rounded-2xl transition-[transform,box-shadow] duration-300 hover:-translate-y-1 ${hasQuest && !launching ? 'quest-pulse' : ''} ${
+        launching ? 'scale-[1.06] shadow-[0_0_0_2px_#22D3EE,0_0_40px_4px_rgb(34_211_238/0.55)]' : ''
+      }`}
     >
       <MagicCard
         className={`flex items-center gap-3 rounded-2xl border p-3 transition-colors ${frame.box} ${final && state !== 'mastered' ? 'border-amber-400/50' : ''}`}
