@@ -13,7 +13,8 @@ A personal DSA trainer built to stop memorising solutions. Every question goes t
 115 questions across 12 worlds, easy to hard, each linked to LeetCode. The Journey page maps the worlds
 as a constellation; each world is a trail of trials ending in a World Boss. The **Grimoire** compiles a
 printable 10-minute revision sheet per world from your own pitches and working code, and the
-**Playground** traces any solution you paste. See [docs/SPEC.md](docs/SPEC.md) and
+**Playground** traces any solution you paste, and the **Pattern Finder** walks you from a problem's input
+and ask to the right pattern. The dashboard tracks your streak, daily goal and activity heatmap. See [docs/SPEC.md](docs/SPEC.md) and
 [BUILD_TRACKER.md](BUILD_TRACKER.md).
 
 ## Run it
@@ -69,7 +70,7 @@ design rules are in [frontend/DESIGN_REFERENCES.md](frontend/DESIGN_REFERENCES.m
 
 ## Keyboard
 
-`Ctrl+Enter` runs code, `Alt+1`–`Alt+4` switch between unlocked stages, `←`/`→` step through a trace and
+`Ctrl+K` (or `/`) opens search for any question, `#number`, pattern or world. `Ctrl+Enter` runs code, `Alt+1`–`Alt+4` switch between unlocked stages, `←`/`→` step through a trace and
 `Space` plays or pauses it.
 
 ## Adding lessons

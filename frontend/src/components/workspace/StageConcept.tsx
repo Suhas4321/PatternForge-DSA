@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { api } from '../../api/client'
 import type { Progress, QuestionContent } from '../../api/types'
 import { Button, Markdown, Panel } from '../ui'
@@ -70,7 +71,12 @@ export default function StageConcept({ slug, content, progress, onProgress, onPa
             <Quiz quiz={content.constraint_quiz} solved={progress.quiz_passed} onSolved={() => setConstraintOk(true)} />
           </div>
           <div className={constraintOk ? '' : 'pointer-events-none opacity-35'} aria-disabled={!constraintOk}>
-            <h4 className="mb-2 text-sm text-muted">2. Which pattern fits?</h4>
+            <h4 className="mb-2 flex items-baseline justify-between gap-3 text-sm text-muted">
+              2. Which pattern fits?
+              <Link to="/finder" className="text-xs text-indigo hover:underline">
+                Not sure? Use the Pattern Finder
+              </Link>
+            </h4>
             <Quiz quiz={content.pattern_quiz} solved={progress.quiz_passed} onSolved={() => setPatternOk(true)} />
           </div>
         </div>

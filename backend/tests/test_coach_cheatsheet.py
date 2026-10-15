@@ -54,3 +54,9 @@ def test_cheatsheet_lists_patterns_and_solved_pitches(client):
     solved = {s["slug"]: s for s in sheet["solved"]}
     assert "two-sum" in solved and solved["two-sum"]["code_source"] == "passing_submission"
     assert client.get("/api/worlds/99/cheatsheet").status_code == 404
+
+
+def test_activity_feed_lists_runs(client):
+    events = client.get("/api/activity").json()["events"]
+    assert events and all(e["t"].endswith("Z") and e["kind"] in ("solve", "drill") for e in events)
+    assert any(e["kind"] == "solve" and e["passed"] and e["slug"] == "two-sum" for e in events)

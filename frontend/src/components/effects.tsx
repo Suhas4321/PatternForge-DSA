@@ -130,6 +130,13 @@ export function ThemeToggle() {
   const reduce = useReducedMotion()
   const next: Theme = theme === 'studio-contrast' ? 'carbon-dark' : 'studio-contrast'
 
+  // the command palette asks for a switch through this event
+  useEffect(() => {
+    const onToggle = () => ref.current?.click()
+    window.addEventListener('pf-toggle-theme', onToggle)
+    return () => window.removeEventListener('pf-toggle-theme', onToggle)
+  }, [])
+
   const toggle = () => {
     const doc = document as Document & { startViewTransition?: (cb: () => void) => { ready: Promise<void> } }
     if (!doc.startViewTransition || reduce || !ref.current) {

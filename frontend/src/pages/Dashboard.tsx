@@ -4,8 +4,9 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import type { ReviewQueue, World } from '../api/types'
+import PracticeCard from '../components/PracticeCard'
 import { BorderBeam, MagicCard, NumberTicker, Stage } from '../components/effects'
-import { Button, DifficultyBadge, ErrorNote, LeetCodeLink, ProgressRing, RUST_META, Spinner, formatRelative } from '../components/ui'
+import { Button, DifficultyBadge, ErrorNote, LeetCodeLink, ProgressRing, RUST_META, Skeleton, formatRelative } from '../components/ui'
 import { currentQuest, EDGES, isRusting, questUrl, rankFor, TIERS, worldState, type WorldState } from '../lib/journey'
 import { useConnectors } from '../lib/useConnectors'
 import { zoomNavigate } from '../lib/zoomTransition'
@@ -25,11 +26,23 @@ export default function Dashboard() {
   }, [])
 
   if (error) return <div className="mx-auto max-w-6xl p-8"><ErrorNote message={error} /></div>
-  if (!worlds || !review) return <div className="p-8"><Spinner /></div>
+  if (!worlds || !review)
+    return (
+      <div className="mx-auto flex max-w-6xl flex-col gap-8 px-4 py-6 sm:px-6" role="status" aria-label="Loading your journey">
+        <div className="grid gap-5 lg:grid-cols-[1.45fr_1fr_1fr]">
+          <Skeleton className="h-52 rounded-3xl" />
+          <Skeleton className="h-52 rounded-3xl" />
+          <Skeleton className="h-52 rounded-3xl" />
+        </div>
+        <Skeleton className="h-[188px] rounded-3xl" />
+        <div className="stage h-[560px] rounded-3xl" />
+      </div>
+    )
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-8 px-4 py-6 sm:px-6">
       <CommandHud worlds={worlds} review={review} />
+      <PracticeCard />
       <Constellation worlds={worlds} />
     </div>
   )

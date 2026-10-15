@@ -5,7 +5,7 @@ import { api } from '../api/client'
 import type { QuestionSummary, World } from '../api/types'
 import MountainTrail from '../components/MountainTrail'
 import { Stage } from '../components/effects'
-import { Button, ErrorNote, ProgressRing, RustBadge, Spinner } from '../components/ui'
+import { Button, ErrorNote, ProgressRing, RustBadge, Skeleton } from '../components/ui'
 import { useGrimoire } from '../lib/grimoire'
 import { questUrl } from '../lib/journey'
 
@@ -29,7 +29,13 @@ export default function WorldPage() {
   }, [id])
 
   if (error) return <div className="mx-auto max-w-5xl p-8"><ErrorNote message={error} /></div>
-  if (!world) return <div className="p-8"><Spinner /></div>
+  if (!world)
+    return (
+      <div className="mx-auto flex max-w-5xl flex-col gap-6 px-4 py-6 sm:px-6" role="status" aria-label="Loading the world">
+        <Skeleton className="h-60 rounded-3xl" />
+        <div className="stage h-[900px] rounded-3xl" />
+      </div>
+    )
   return <WorldTrail world={world} />
 }
 

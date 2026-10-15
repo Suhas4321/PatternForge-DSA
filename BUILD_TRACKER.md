@@ -61,3 +61,9 @@ content is validated by `scripts/validate_content.py` (reference solutions must 
 - [x] Dashboard: 3 bento cards (border beam, number ticker, circular progress) + carbon constellation stage
 - [x] World page: carbon trail with tracing-beam spine, shine-border World Boss
 - [x] Question page and Playground: ivory reading cards, carbon visualizer and editor stages, solid stage pill
+
+## Milestone 14 — Research-driven product upgrades
+- [x] Practice card: day streak with a weekly streak freeze, daily goal (1 solve or 3 drills), 20-week heatmap (`/api/activity`)
+- [x] Pattern Finder (`/finder`): decision tree from input shape → ask → constraint to one of 20 patterns, with template and lessons
+- [x] Command palette (Ctrl+K or `/`): search 115 questions by title, #number or pattern, worlds and actions
+- [x] Loading skeletons, 404 page, Pattern Finder link beside the Stage 1 pattern quiz

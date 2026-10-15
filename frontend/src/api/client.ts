@@ -1,4 +1,4 @@
-import type { CheatSheet, CoachReply, CoachStatus, Pitch, Progress, QuestionDetail, ReviewQueue, RunResult, World } from './types'
+import type { ActivityEvent, CheatSheet, CoachReply, CoachStatus, Pitch, Progress, QuestionDetail, ReviewQueue, RunResult, World } from './types'
 
 export class ApiError extends Error {
   status: number
@@ -54,6 +54,7 @@ export const api = {
   backupStatus: () =>
     request<{ path: string; exists: boolean; modified_at: string | null; size_bytes: number }>('/api/backup/status'),
   backupDump: () => request<{ path: string }>('/api/backup/dump', { method: 'POST' }),
+  activity: () => request<{ events: ActivityEvent[] }>('/api/activity'),
   cheatsheet: (worldId: number) => request<CheatSheet>(`/api/worlds/${worldId}/cheatsheet`),
   coachStatus: () => request<CoachStatus>('/api/coach/status'),
   askCoach: (slug: string, body: { mode: 'hint' | 'pitch'; code: string; pitch?: Pitch }) =>

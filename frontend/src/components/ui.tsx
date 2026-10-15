@@ -189,6 +189,11 @@ export function ConfidenceStars({ value }: { value: number | null }) {
   )
 }
 
+/** Placeholder block shown while content loads (keeps the layout from jumping). */
+export function Skeleton({ className = '' }: { className?: string }) {
+  return <div aria-hidden="true" className={`animate-pulse rounded-2xl bg-chalk/[0.06] ${className}`} />
+}
+
 export function Spinner({ label = 'Loading' }: { label?: string }) {
   return (
     <div className="flex items-center gap-2 text-sm text-muted" role="status">

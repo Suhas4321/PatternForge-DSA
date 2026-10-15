@@ -292,3 +292,10 @@ export interface CheatSheet {
     space: string
   }[]
 }
+
+export interface ActivityEvent {
+  t: string
+  kind: 'solve' | 'drill'
+  passed: boolean
+  slug: string
+}

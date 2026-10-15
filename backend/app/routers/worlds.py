@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
@@ -128,3 +130,21 @@ def world_cheatsheet(world_id: int, session: Session = Depends(get_session)):
 @router.get("/coach/status")
 def coach_status():
     return ai_coach.status()
+
+
+@router.get("/activity")
+def activity(days: int = 371, session: Session = Depends(get_session)):
+    """Every code run in the last `days` days (UTC timestamps), for streaks and the heatmap.
+    The client buckets them by its own local date."""
+    since = utcnow() - timedelta(days=days)
+    rows = session.execute(
+        select(Submission.created_at, Submission.target, Submission.passed, Submission.question_slug)
+        .where(Submission.created_at >= since)
+        .order_by(Submission.created_at)
+    ).all()
+    return {
+        "events": [
+            {"t": t.isoformat() + "Z", "kind": "solve" if target == "main" else "drill", "passed": passed, "slug": slug}
+            for t, target, passed, slug in rows
+        ]
+    }

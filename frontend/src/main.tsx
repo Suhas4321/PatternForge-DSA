@@ -13,6 +13,8 @@ import { createBrowserRouter, RouterProvider } from 'react-router-dom'
 import App from './App'
 import Dashboard from './pages/Dashboard'
 import WorldPage from './pages/WorldPage'
+import PatternFinder from './pages/PatternFinder'
+import NotFound from './pages/NotFound'
 import { Spinner } from './components/ui'
 
 // The editor pages pull in Monaco (several MB); load them only when visited.
@@ -31,6 +33,8 @@ const router = createBrowserRouter([
       { path: 'world/:id', element: <WorldPage /> },
       { path: 'q/:slug', element: withSpinner(<QuestionPage />) },
       { path: 'playground', element: withSpinner(<Playground />) },
+      { path: 'finder', element: <PatternFinder /> },
+      { path: '*', element: <NotFound /> },
     ],
   },
 ])
