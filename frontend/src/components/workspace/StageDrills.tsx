@@ -32,7 +32,7 @@ export default function StageDrills({ question, progress, onProgress, onContinue
               key={d.title}
               onClick={() => setActive(i)}
               className={`liquid-glass flex items-center gap-2 rounded-xl px-3 py-2 text-left text-sm transition-colors ${
-                active === i ? 'border-cyan/50 bg-cyan/[0.08]' : 'hover:border-white/25'
+                active === i ? 'border-cyan/50 bg-cyan/[0.08]' : 'hover:border-chalk/25'
               }`}
             >
               {passed ? (
@@ -113,7 +113,7 @@ function DrillWorkspace({
 
   return (
     <div className="grid gap-4 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
-      <div className="flex flex-col gap-4 rounded-xl border border-line bg-panel p-4">
+      <div className="card flex flex-col gap-4 rounded-2xl p-4">
         <div>
           <h3 className="font-plate text-lg font-semibold text-chalk">{drill.title}</h3>
           <p className="mt-1 text-sm text-forge">{drill.goal}</p>
@@ -154,7 +154,7 @@ function DrillWorkspace({
       </div>
 
       <div className="flex flex-col gap-3">
-        <div className="h-72 overflow-hidden rounded-xl border border-line">
+        <div className="stage h-72 overflow-hidden rounded-3xl">
           <CodeEditor value={code} onChange={setCode} errorLine={errorLine} onRun={run} />
         </div>
         <div className="flex items-center gap-2">

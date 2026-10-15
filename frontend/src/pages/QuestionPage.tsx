@@ -150,12 +150,12 @@ export default function QuestionPage() {
           </Link>
           <nav className="flex items-center gap-1">
             {question.prev_slug && (
-              <Link to={`/q/${question.prev_slug}`} className="rounded-lg p-1 text-muted hover:bg-white/[0.06] hover:text-chalk" aria-label="Previous question">
+              <Link to={`/q/${question.prev_slug}`} className="rounded-lg p-1 text-muted hover:bg-chalk/[0.06] hover:text-chalk" aria-label="Previous question">
                 <ChevronLeft size={18} />
               </Link>
             )}
             {question.next_slug && (
-              <Link to={`/q/${question.next_slug}`} className="rounded-lg p-1 text-muted hover:bg-white/[0.06] hover:text-chalk" aria-label="Next question">
+              <Link to={`/q/${question.next_slug}`} className="rounded-lg p-1 text-muted hover:bg-chalk/[0.06] hover:text-chalk" aria-label="Next question">
                 <ChevronRight size={18} />
               </Link>
             )}
@@ -181,7 +181,7 @@ export default function QuestionPage() {
       )}
 
       {!content ? (
-        <div className="max-w-2xl rounded-xl border border-line bg-panel p-6">
+        <div className="card max-w-2xl rounded-2xl p-6">
           <h2 className="mb-2 text-lg font-semibold">This question's lesson isn't written yet</h2>
           <p className="text-sm text-muted">
             It's on the roadmap (patterns: {question.patterns.join(', ')}). You can still solve it on LeetCode now.

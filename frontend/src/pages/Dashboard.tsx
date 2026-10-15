@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import type { ReviewQueue, World } from '../api/types'
+import { BorderBeam, MagicCard, NumberTicker, Stage } from '../components/effects'
 import { Button, DifficultyBadge, ErrorNote, LeetCodeLink, ProgressRing, RUST_META, Spinner, formatRelative } from '../components/ui'
 import { currentQuest, EDGES, isRusting, questUrl, rankFor, TIERS, worldState, type WorldState } from '../lib/journey'
 import { useConnectors } from '../lib/useConnectors'
@@ -34,7 +35,7 @@ export default function Dashboard() {
 }
 
 // ------------------------------------------------------------------------------------------
-// Command HUD: current quest, mastery, rust radar
+// Hero bento: current quest, mastery, rust radar
 // ------------------------------------------------------------------------------------------
 
 function CommandHud({ worlds, review }: { worlds: World[]; review: ReviewQueue }) {
@@ -44,16 +45,17 @@ function CommandHud({ worlds, review }: { worlds: World[]; review: ReviewQueue }
   const solved = all.filter((q) => q.progress.solved).length
   const pct = Math.round((solved / all.length) * 100)
   const rank = rankFor(solved)
-
-  const questLabel = quest?.reason === 'review' ? 'Blind re-solve due' : quest?.reason === 'continue' ? 'Pick up where you left off' : 'Current quest'
+  const questLabel =
+    quest?.reason === 'review' ? 'Blind re-solve due' : quest?.reason === 'continue' ? 'Pick up where you left off' : 'Current quest'
 
   return (
-    <section className="liquid-glass grid gap-px overflow-hidden rounded-3xl lg:grid-cols-[1.35fr_1fr_1fr]">
+    <section className="grid gap-5 lg:grid-cols-[1.45fr_1fr_1fr]">
       {/* Current quest */}
-      <div className="flex flex-col gap-3 p-6">
+      <div className="card relative flex flex-col gap-3 rounded-3xl p-6">
+        <BorderBeam />
         {quest ? (
           <>
-            <p className={`flex items-center gap-1.5 text-sm ${quest.reason === 'review' ? 'text-amber' : 'text-cyan'}`}>
+            <p className={`flex items-center gap-1.5 text-sm font-medium ${quest.reason === 'review' ? 'text-amber' : 'text-indigo'}`}>
               {quest.reason === 'review' ? <CalendarClock size={15} /> : <Sparkles size={15} />}
               {questLabel}
             </p>
@@ -65,13 +67,13 @@ function CommandHud({ worlds, review }: { worlds: World[]; review: ReviewQueue }
                 World {quest.question.world_id}: {worlds[quest.question.world_id - 1].name}
               </span>
             </div>
-            <Button className="mt-2 self-start px-5 py-2.5 text-base" onClick={() => navigate(questUrl(quest.question))}>
+            <Button className="mt-auto self-start px-6 py-2.5 text-base" onClick={() => navigate(questUrl(quest.question))}>
               Continue Journey →
             </Button>
           </>
         ) : (
           <>
-            <p className="text-sm text-emerald-hi">Every lesson solved</p>
+            <p className="text-sm font-medium text-emerald">Every lesson solved</p>
             <h1 className="font-plate text-3xl font-semibold">The whole constellation is forged</h1>
             <p className="text-muted">Keep the rust off with your scheduled blind re-solves.</p>
           </>
@@ -79,34 +81,32 @@ function CommandHud({ worlds, review }: { worlds: World[]; review: ReviewQueue }
       </div>
 
       {/* Mastery */}
-      <div className="flex flex-col justify-center gap-3 border-white/[0.06] p-6 lg:border-l">
-        <div>
-          <div className="font-plate text-4xl font-semibold">
-            {solved}
+      <div className="card flex items-center gap-5 rounded-3xl p-6">
+        <ProgressRing value={solved} total={all.length} size={104} stroke={8} color="var(--color-indigo)">
+          <span className="text-center leading-tight">
+            <span className="block font-plate text-2xl font-semibold text-chalk">
+              <NumberTicker value={pct} />%
+            </span>
+          </span>
+        </ProgressRing>
+        <div className="min-w-0">
+          <div className="font-plate text-4xl font-semibold text-chalk">
+            <NumberTicker value={solved} />
             <span className="text-xl text-faint"> / {all.length}</span>
           </div>
-          <p className="text-sm text-muted">Patterns forged, {pct}%</p>
-        </div>
-        <div className="h-2 overflow-hidden rounded-full bg-white/[0.06]">
-          <motion.div
-            className="h-full rounded-full bg-[linear-gradient(90deg,var(--color-cyan),var(--color-indigo))] shadow-[0_0_12px_rgb(0_240_255/0.5)]"
-            initial={{ width: 0 }}
-            animate={{ width: `${Math.max(pct, solved ? 2 : 0)}%` }}
-            transition={{ duration: 1, ease: 'easeOut' }}
-          />
-        </div>
-        <div className="flex items-center gap-2 text-sm">
-          <Crown size={15} className="text-gold" />
-          <span className="font-semibold text-chalk">{rank.title}</span>
+          <p className="text-sm text-muted">Patterns forged</p>
+          <div className="mt-3 flex items-center gap-1.5 text-sm">
+            <Crown size={15} className="shrink-0 text-gold" />
+            <span className="font-semibold text-chalk">{rank.title}</span>
+          </div>
           {rank.next && (
-            <span className="text-faint">
+            <p className="text-xs text-muted">
               {rank.next.min - solved} more to {rank.next.title}
-            </span>
+            </p>
           )}
         </div>
       </div>
 
-      {/* Rust radar */}
       <RustRadar worlds={worlds} review={review} />
     </section>
   )
@@ -118,25 +118,24 @@ function RustRadar({ worlds, review }: { worlds: World[]; review: ReviewQueue })
   const freshness = practiced.length ? Math.round((fresh / practiced.length) * 100) : 100
   const oxidising = review.rusting_worlds.length
   const next = review.due[0] ?? review.upcoming[0]
-  const color = freshness >= 80 ? 'var(--color-emerald-hi)' : freshness >= 50 ? 'var(--color-amber)' : 'var(--color-crimson)'
-  // semicircle gauge
+  const color = freshness >= 80 ? 'var(--color-emerald)' : freshness >= 50 ? 'var(--color-amber)' : 'var(--color-crimson)'
   const r = 42
   const arc = Math.PI * r
   return (
-    <div className="flex flex-col gap-2 border-white/[0.06] p-6 lg:border-l">
+    <div className="card flex flex-col gap-2 rounded-3xl p-6">
       <h2 className="text-sm font-semibold text-chalk">Rust radar</h2>
       <div className="flex items-center gap-4">
-        <svg width="104" height="60" viewBox="0 0 104 60" aria-hidden="true">
-          <path d={`M 10 52 A ${r} ${r} 0 0 1 94 52`} fill="none" stroke="rgb(255 255 255 / 0.08)" strokeWidth="7" strokeLinecap="round" />
+        <svg width="104" height="60" viewBox="0 0 104 60" aria-hidden="true" className="shrink-0">
+          <path d={`M 10 52 A ${r} ${r} 0 0 1 94 52`} fill="none" stroke="var(--color-line)" strokeWidth="8" strokeLinecap="round" />
           <path
             d={`M 10 52 A ${r} ${r} 0 0 1 94 52`}
             fill="none"
             stroke={color}
-            strokeWidth="7"
+            strokeWidth="8"
             strokeLinecap="round"
             strokeDasharray={arc}
             strokeDashoffset={arc * (1 - freshness / 100)}
-            style={{ filter: `drop-shadow(0 0 5px ${color})`, transition: 'stroke-dashoffset 1s ease' }}
+            style={{ transition: 'stroke-dashoffset 1s ease' }}
           />
           <text x="52" y="50" textAnchor="middle" className="fill-chalk font-plate text-[17px] font-semibold">
             {freshness}%
@@ -151,13 +150,13 @@ function RustRadar({ worlds, review }: { worlds: World[]; review: ReviewQueue })
           </div>
         </div>
       </div>
-      <p className="text-xs text-muted">
+      <p className="text-xs leading-relaxed text-muted">
         {next ? (
           <>
-            Next blind re-solve: <span className="text-chalk">{next.title}</span>, {formatRelative(next.next_review_at)}
+            Next blind re-solve: <span className="font-medium text-chalk">{next.title}</span>, {formatRelative(next.next_review_at)}
           </>
         ) : (
-          'When you rate a solved question, its blind re-solve is scheduled in 3, 7 or 21 days. Worlds go dusty at 5 days, rusting at 10 and rusted at 21.'
+          'Rate a solved question and its blind re-solve is scheduled in 3, 7 or 21 days. Worlds go dusty at 5 days, rusting at 10, rusted at 21.'
         )}
       </p>
     </div>
@@ -165,7 +164,7 @@ function RustRadar({ worlds, review }: { worlds: World[]; review: ReviewQueue })
 }
 
 // ------------------------------------------------------------------------------------------
-// Constellation skill tree
+// Constellation: pitch-carbon planetarium stage
 // ------------------------------------------------------------------------------------------
 
 const STATE_LABEL: Record<WorldState, string> = {
@@ -173,6 +172,13 @@ const STATE_LABEL: Record<WorldState, string> = {
   active: 'In progress',
   open: 'Next up',
   fog: 'Unexplored',
+}
+
+const STATE_COLOR: Record<WorldState, string> = {
+  mastered: '#34D399',
+  active: '#22D3EE',
+  open: '#A5B4FC',
+  fog: '#94A3B8',
 }
 
 function Constellation({ worlds }: { worlds: World[] }) {
@@ -184,48 +190,49 @@ function Constellation({ worlds }: { worlds: World[] }) {
   const { containerRef, register, paths, size } = useConnectors<number>(EDGES, [worlds])
 
   return (
-    <section>
-      <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
-        <h2 className="font-plate text-xl font-semibold text-chalk">The constellation</h2>
+    <Stage className="p-6 sm:p-8 md:p-10">
+      <div className="mb-8 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h2 className="font-plate text-2xl font-semibold text-chalk">The constellation</h2>
+          <p className="text-sm text-muted">Twelve worlds, foundation to final citadel. Every world is open; the beams show the suggested route.</p>
+        </div>
         <div className="flex flex-wrap gap-4 text-xs text-muted">
-          <Legend color="var(--color-emerald-hi)" label="Mastered" />
-          <Legend color="var(--color-cyan)" label="In progress" />
-          <Legend color="rgb(255 255 255 / 0.4)" label="Next up" />
-          <Legend color="var(--color-fog)" label="Unexplored" />
-          <Legend color="var(--color-amber)" label="Rusting" />
+          {(['mastered', 'active', 'open', 'fog'] as WorldState[]).map((st) => (
+            <Legend key={st} color={STATE_COLOR[st]} label={STATE_LABEL[st]} />
+          ))}
+          <Legend color="#F59E0B" label="Rusting" />
         </div>
       </div>
 
       <div ref={containerRef} className="relative">
         <svg className="pointer-events-none absolute inset-0" width={size.w} height={size.h} aria-hidden="true">
           <defs>
-            <linearGradient id="beam" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#00F0FF" />
-              <stop offset="100%" stopColor="#6366F1" />
-            </linearGradient>
-            <linearGradient id="forged" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#34D399" />
-              <stop offset="100%" stopColor="#10B981" />
+            <linearGradient id="beam-active" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stopColor="#22D3EE" stopOpacity="0" />
+              <stop offset="50%" stopColor="#22D3EE" />
+              <stop offset="100%" stopColor="#818CF8" />
             </linearGradient>
           </defs>
           {paths.map((p) => {
             const parent = states.get(p.from)
             const lit = parent === 'mastered' || parent === 'active'
+            const tone = parent === 'mastered' ? '#34D399' : '#22D3EE'
             return (
               <g key={`${p.from}-${p.to}`}>
-                <path d={p.d} fill="none" stroke={lit ? 'rgb(255 255 255 / 0.12)' : 'rgb(255 255 255 / 0.07)'} strokeWidth={lit ? 2 : 1.5} strokeDasharray={lit ? undefined : '3 6'} />
-                {lit && (
+                <path d={p.d} fill="none" stroke={lit ? `${tone}66` : '#333B52'} strokeWidth={2} />
+                {lit && !reduceMotion && (
                   <motion.path
                     d={p.d}
+                    pathLength={1}
                     fill="none"
-                    stroke={parent === 'mastered' ? 'url(#forged)' : 'url(#beam)'}
-                    strokeWidth={2}
+                    stroke={tone}
+                    strokeWidth={3}
                     strokeLinecap="round"
-                    strokeDasharray="10 16"
-                    style={{ filter: `drop-shadow(0 0 4px ${parent === 'mastered' ? '#34D399' : '#00F0FF'})` }}
-                    initial={{ strokeDashoffset: 0 }}
-                    animate={reduceMotion ? undefined : { strokeDashoffset: -52 }}
-                    transition={{ duration: 1.6, repeat: Infinity, ease: 'linear' }}
+                    strokeDasharray="0.18 0.82"
+                    style={{ filter: `drop-shadow(0 0 6px ${tone})` }}
+                    initial={{ strokeDashoffset: 0.18 }}
+                    animate={{ strokeDashoffset: -1 }}
+                    transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut', repeatDelay: 0.4 }}
                   />
                 )}
               </g>
@@ -250,17 +257,24 @@ function Constellation({ worlds }: { worlds: World[] }) {
           ))}
         </ol>
       </div>
-    </section>
+    </Stage>
   )
 }
 
 function Legend({ color, label }: { color: string; label: string }) {
   return (
     <span className="flex items-center gap-1.5">
-      <span className="h-2 w-2 rounded-full" style={{ background: color }} />
+      <span className="h-2 w-2 rounded-full" style={{ background: color, boxShadow: `0 0 6px ${color}` }} />
       {label}
     </span>
   )
+}
+
+const NODE_FRAME: Record<WorldState, { box: string; bg: string }> = {
+  mastered: { box: 'border-emerald-400/70 shadow-[0_0_28px_-6px_rgb(16_185_129/0.6)]', bg: '#0F1E1A' },
+  active: { box: 'border-cyan-400 shadow-[0_0_30px_-6px_rgb(34_211_238/0.55)]', bg: '#131824' },
+  open: { box: 'border-[#3D4560] hover:border-cyan-400/60', bg: '#181B24' },
+  fog: { box: 'border-[#2E3446] hover:border-cyan-400/60', bg: '#181B24' },
 }
 
 function WorldNode({ world: w, state, hasQuest, final, nodeRef }: {
@@ -271,51 +285,66 @@ function WorldNode({ world: w, state, hasQuest, final, nodeRef }: {
   nodeRef: (el: HTMLElement | null) => void
 }) {
   const rusting = isRusting(w)
-  const rustColor = w.rust === 'rusted' ? 'var(--color-crimson)' : 'var(--color-amber)'
-  const ring =
-    state === 'mastered' ? 'var(--color-emerald-hi)' : state === 'active' ? 'var(--color-cyan)' : state === 'open' ? 'rgb(255 255 255 / 0.5)' : 'var(--color-fog)'
-  const frame =
-    state === 'mastered'
-      ? 'border-emerald-hi/40 shadow-[inset_0_1px_0_0_rgb(52_211_153/0.45),0_0_28px_-6px_rgb(16_185_129/0.55)]'
-      : state === 'active'
-        ? 'border-cyan/40'
-        : final
-          ? 'border-gold/30'
-          : ''
+  const rustColor = w.rust === 'rusted' ? '#FB7185' : '#F59E0B'
+  const color = STATE_COLOR[state]
+  const frame = NODE_FRAME[state]
 
   return (
     <Link
       ref={nodeRef}
       to={`/world/${w.id}`}
-      className={`liquid-glass group relative flex w-[15rem] items-center gap-3 rounded-2xl p-3 transition-transform duration-200 hover:-translate-y-0.5 ${frame} ${
-        hasQuest ? 'quest-pulse' : ''
-      } ${state === 'fog' ? 'opacity-50 saturate-50 hover:opacity-80' : ''}`}
-      style={rusting ? { boxShadow: `inset 0 1px 0 0 rgb(255 255 255 / 0.22), 0 0 26px -4px ${rustColor}` } : undefined}
+      className={`group block w-[15rem] rounded-2xl transition-transform duration-200 hover:-translate-y-1 ${hasQuest ? 'quest-pulse' : ''}`}
     >
-      <ProgressRing value={w.solved} total={w.total} size={46} color={ring}>
-        <span className="font-plate text-sm font-semibold text-chalk">{w.id}</span>
-      </ProgressRing>
-      <div className="min-w-0">
-        <div className="flex items-center gap-1 text-2xs text-faint">
-          {final ? 'Final citadel' : `World ${w.id}`}
-          {state === 'fog' && <Lock size={10} />}
-        </div>
-        <div className="line-clamp-2 font-plate text-[15px] leading-tight font-semibold text-chalk">{w.name.replace(/ — .*/, '')}</div>
-        <div className="mt-0.5 flex items-center gap-2 text-2xs">
-          <span style={{ color: ring === 'var(--color-fog)' ? 'var(--color-faint)' : ring }}>{STATE_LABEL[state]}</span>
-          <span className="text-faint">
-            {w.solved}/{w.total}
-          </span>
-          {rusting && (
-            <span className="flex items-center gap-1" style={{ color: rustColor }} title={w.rust ? RUST_META[w.rust].hint : 'Reviews due'}>
-              <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true">
-                <path d="M5 0 L4 3 L6 4.5 L3.5 7 L5 10" fill="none" stroke="currentColor" strokeWidth="1.2" />
-              </svg>
-              {w.due > 0 ? `${w.due} due` : 'rusting'}
+      <MagicCard
+        className={`flex items-center gap-3 rounded-2xl border p-3 transition-colors ${frame.box} ${final && state !== 'mastered' ? 'border-amber-400/50' : ''}`}
+        style={{ backgroundColor: frame.bg, ...(rusting ? { boxShadow: `0 0 26px -4px ${rustColor}` } : {}) }}
+        spotlight={state === 'active' ? 'rgb(34 211 238 / 0.16)' : 'rgb(129 140 248 / 0.12)'}
+      >
+        {state === 'active' && (
+          <span
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0"
+            style={{ background: 'radial-gradient(120px circle at 20% 0%, rgb(34 211 238 / 0.18), transparent 70%)' }}
+          />
+        )}
+        <span className="relative">
+          <ProgressRing value={w.solved} total={w.total} size={46} color={color}>
+            <span className="font-plate text-sm font-semibold text-[#F1F5F9]">{w.id}</span>
+          </ProgressRing>
+        </span>
+        <div className="relative min-w-0">
+          <div className="flex items-center gap-1.5 text-2xs text-[#94A3B8]">
+            {final ? 'Final citadel' : `World ${w.id}`}
+            {state === 'fog' && (
+              <span className="inline-flex items-center gap-0.5 rounded-full border border-[#2E3446] bg-[#0B0C10] px-1.5 text-[10px] text-[#94A3B8]">
+                <Lock size={9} /> unexplored
+              </span>
+            )}
+          </div>
+          <div className="line-clamp-2 font-plate text-[15px] leading-tight font-semibold text-[#F1F5F9]">{w.name.replace(/ — .*/, '')}</div>
+          <div className="mt-1 flex items-center gap-2 text-2xs">
+            {state !== 'fog' && (
+              <span
+                className="rounded-full px-1.5 py-px font-medium"
+                style={{ color, background: `${color}1f`, boxShadow: state === 'active' ? `0 0 10px -2px ${color}` : undefined }}
+              >
+                {STATE_LABEL[state]}
+              </span>
+            )}
+            <span className="text-[#94A3B8]">
+              {w.solved}/{w.total} solved
             </span>
-          )}
+            {rusting && (
+              <span className="flex items-center gap-1" style={{ color: rustColor }} title={w.rust ? RUST_META[w.rust].hint : 'Reviews due'}>
+                <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true">
+                  <path d="M5 0 L4 3 L6 4.5 L3.5 7 L5 10" fill="none" stroke="currentColor" strokeWidth="1.2" />
+                </svg>
+                {w.due > 0 ? `${w.due} due` : 'rusting'}
+              </span>
+            )}
+          </div>
         </div>
-      </div>
+      </MagicCard>
     </Link>
   )
 }

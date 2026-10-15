@@ -47,14 +47,14 @@ export default function BackupMenu() {
     <div className="relative" ref={ref}>
       <button
         onClick={() => setOpen(!open)}
-        className="flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-sm text-muted hover:bg-white/[0.05] hover:text-chalk"
+        className="flex items-center gap-2 rounded-full px-2.5 py-1.5 text-sm text-muted hover:bg-chalk/[0.05] hover:text-chalk"
         aria-expanded={open}
         aria-label="Backup"
       >
         <HardDriveDownload size={16} /> <span className="hidden sm:inline">Backup</span>
       </button>
       {open && (
-        <div className="absolute right-0 z-20 mt-3 w-80 rounded-xl border border-line bg-panel p-4 shadow-2xl shadow-black/60">
+        <div className="absolute right-0 z-20 mt-3 w-80 card rounded-2xl p-4 shadow-2xl">
           <p className="text-sm text-chalk">Your progress is saved to a file after every change.</p>
           {status && (
             <p className="mt-2 font-mono text-xs break-all whitespace-pre-line text-muted">

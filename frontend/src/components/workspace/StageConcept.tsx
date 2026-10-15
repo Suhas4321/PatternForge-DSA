@@ -47,8 +47,8 @@ export default function StageConcept({ slug, content, progress, onProgress, onPa
                 <p className="mt-1 font-mono text-xs text-oxide">{c.brute_force_complexity}</p>
               </dd>
             </div>
-            <div className="rounded-md border-l-2 border-forge bg-forge/5 py-2 pr-2 pl-3">
-              <dt className="mb-1 font-semibold text-forge">The key insight</dt>
+            <div className="rounded-r-xl border-l-4 border-emerald bg-emerald/[0.07] py-3 pr-3 pl-4">
+              <dt className="mb-1 font-semibold text-emerald">The key insight</dt>
               <dd className="text-chalk">
                 <Markdown>{c.key_insight}</Markdown>
               </dd>

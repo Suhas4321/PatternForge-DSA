@@ -61,6 +61,12 @@ GEMINI_API_KEY=<key from aistudio.google.com>
 The coach reads your current code and the first failing test, and is instructed never to hand over a
 full solution.
 
+## Themes
+
+The sun/moon button in the top bar switches between **studio contrast** (warm stone and ivory, the
+default) and **carbon dark**. Maps, visualizers and editors stay on pitch-carbon stages in both. The
+design rules are in [frontend/DESIGN_REFERENCES.md](frontend/DESIGN_REFERENCES.md).
+
 ## Keyboard
 
 `Ctrl+Enter` runs code, `Alt+1`–`Alt+4` switch between unlocked stages, `←`/`→` step through a trace and

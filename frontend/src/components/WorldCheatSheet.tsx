@@ -84,7 +84,7 @@ export default function WorldCheatSheet({ worldId, onWorldChange, onClose }: Pro
               <select
                 value={worldId ?? 1}
                 onChange={(e) => onWorldChange(Number(e.target.value))}
-                className="ml-2 rounded-lg border border-white/[0.12] bg-white/[0.04] px-2 py-1 text-sm text-chalk"
+                className="ml-2 rounded-lg border border-chalk/[0.12] bg-chalk/[0.04] px-2 py-1 text-sm text-chalk"
                 aria-label="World"
               >
                 {WORLD_NAMES.map((n, i) => (

@@ -53,3 +53,11 @@ content is validated by `scripts/validate_content.py` (reference solutions must 
 - [x] Ascension capsule (fluid active pill, unlock pulse, "Advance to Stage" button, Alt+1–4)
 - [x] Victory modal with confetti ("Pattern Forged!", gold World Boss variant)
 - [x] Responsive down to mobile, reduced motion respected
+
+## Milestone 13 — 3-zone contrast system
+- [x] `frontend/DESIGN_REFERENCES.md`: palette, zones, component references, rules
+- [x] Token system: stone page / ivory cards / pitch-carbon `.stage`, accent tokens tuned per zone
+- [x] Theme polarity toggle (`studio-contrast` default, `carbon-dark`), persisted, circular reveal, no flash
+- [x] Dashboard: 3 bento cards (border beam, number ticker, circular progress) + carbon constellation stage
+- [x] World page: carbon trail with tracing-beam spine, shine-border World Boss
+- [x] Question page and Playground: ivory reading cards, carbon visualizer and editor stages, solid stage pill

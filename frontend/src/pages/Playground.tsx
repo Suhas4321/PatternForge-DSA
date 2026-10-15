@@ -304,7 +304,7 @@ export default function Playground() {
       </header>
 
       <div className="grid gap-4 xl:grid-cols-2">
-        <section className="flex min-h-[30rem] flex-col rounded-lg border border-line bg-panel">
+        <section className="stage flex min-h-[30rem] flex-col overflow-hidden rounded-3xl">
           <header className="flex items-center justify-between gap-3 border-b border-line px-4 py-2">
             <h3 className="text-sm font-semibold">Visualizer</h3>
             <select
@@ -343,7 +343,7 @@ export default function Playground() {
         </section>
 
         <section className="flex flex-col gap-3">
-          <div className="h-[22rem] overflow-hidden rounded-lg border border-line">
+          <div className="stage h-[22rem] overflow-hidden rounded-3xl">
             <CodeEditor value={code} onChange={setCode} traceLine={step && step.event !== 'call' ? step.line : null} onRun={run} />
           </div>
           <label className="flex flex-col gap-1 text-sm text-muted">
@@ -385,7 +385,7 @@ export default function Playground() {
           </div>
           {error && <ErrorNote message={error} />}
           {output && (
-            <div className="rounded-md border border-line bg-panel p-3 font-mono text-xs">
+            <div className="card rounded-xl p-3 font-mono text-xs">
               {output.error ? (
                 <span className="text-oxide">
                   {output.error.type}

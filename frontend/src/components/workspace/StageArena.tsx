@@ -123,7 +123,7 @@ export default function StageArena({ question, progress, blind, onProgress, onCo
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         {/* Visualizer */}
-        <section className="flex min-h-[28rem] flex-col rounded-xl border border-line bg-panel">
+        <section className="stage flex min-h-[28rem] flex-col overflow-hidden rounded-3xl">
           <header className="flex items-center justify-between border-b border-line px-4 py-2.5">
             <h3 className="text-sm font-semibold">Visualizer</h3>
             {trace && !result?.custom && (
@@ -169,7 +169,7 @@ export default function StageArena({ question, progress, blind, onProgress, onCo
 
         {/* Editor */}
         <section className="flex flex-col gap-3">
-          <div className="h-[28rem] overflow-hidden rounded-xl border border-line">
+          <div className="stage h-[28rem] overflow-hidden rounded-3xl">
             <CodeEditor
               value={code}
               onChange={setCode}
@@ -208,7 +208,7 @@ export default function StageArena({ question, progress, blind, onProgress, onCo
       </div>
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
-        <section className="rounded-xl border border-line bg-panel p-4">
+        <section className="card rounded-2xl p-4">
           {error && <ErrorNote message={error} />}
           {result ? (
             <>
@@ -232,7 +232,7 @@ export default function StageArena({ question, progress, blind, onProgress, onCo
         </section>
 
         {!blind && (
-          <section className="rounded-xl border border-line bg-panel p-4">
+          <section className="card rounded-2xl p-4">
             <div className="mb-3 flex items-center justify-between">
               <h3 className="text-sm font-semibold">Socratic hints</h3>
               <span className="text-xs text-muted">{hintsShown} of 3 used</span>

@@ -20,14 +20,14 @@ interface Props {
 /** Floating liquid-glass capsule: [1. Decode Story] ──► [2. Forge Parts] ──► … */
 export default function AscensionBar({ stages, current, onSelect, justUnlocked }: Props) {
   return (
-    <nav aria-label="Stages" className="liquid-glass inline-flex max-w-full items-center gap-0 overflow-x-auto rounded-full p-1.5">
+    <nav aria-label="Stages" className="liquid-glass inline-flex max-w-full items-center gap-0 overflow-x-auto rounded-full p-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       {stages.map((s, i) => {
         const active = s.id === current
         return (
           <div key={s.id} className="flex shrink-0 items-center">
             {i > 0 && (
               <span className="relative mx-1 h-px w-6 sm:w-10" aria-hidden="true">
-                <span className={`absolute inset-0 ${s.unlocked ? 'bg-[linear-gradient(90deg,#00F0FF,#6366F1)]' : 'bg-white/10'}`} />
+                <span className={`absolute inset-0 ${s.unlocked ? 'bg-indigo' : 'bg-line-strong'}`} />
                 {justUnlocked === s.id && (
                   <motion.span
                     className="absolute inset-y-[-3px] left-0 w-full rounded-full bg-cyan/70 blur-[3px]"
@@ -36,7 +36,7 @@ export default function AscensionBar({ stages, current, onSelect, justUnlocked }
                     transition={{ duration: 1.4, repeat: 2 }}
                   />
                 )}
-                <span className={`absolute top-1/2 -right-1 -translate-y-1/2 text-[9px] ${s.unlocked ? 'text-indigo' : 'text-white/15'}`}>▶</span>
+                <span className={`absolute top-1/2 -right-1 -translate-y-1/2 text-[9px] ${s.unlocked ? 'text-indigo' : 'text-line-strong'}`}>▶</span>
               </span>
             )}
             <button
@@ -51,13 +51,13 @@ export default function AscensionBar({ stages, current, onSelect, justUnlocked }
               {active && (
                 <motion.span
                   layoutId="stage-pill"
-                  className="absolute inset-0 rounded-full border border-cyan/40 bg-[linear-gradient(135deg,rgb(0_240_255/0.22),rgb(99_102_241/0.28))] shadow-[inset_0_1px_0_0_rgb(255_255_255/0.35),0_0_18px_-4px_rgb(0_240_255/0.5)]"
+                  className="absolute inset-0 rounded-full bg-action shadow-[0_6px_16px_-6px_rgb(79_70_229/0.7)]"
                   transition={{ type: 'spring', stiffness: 420, damping: 34 }}
                 />
               )}
               <span
                 className={`relative flex h-5 w-5 items-center justify-center rounded-full text-2xs font-semibold ${
-                  s.done ? 'bg-emerald/30 text-emerald-hi' : active ? 'bg-white/15' : 'bg-white/[0.06]'
+                  s.done ? (active ? 'bg-white/25 text-white' : 'bg-emerald/15 text-emerald') : active ? 'bg-white/20' : 'bg-chalk/[0.07]'
                 }`}
               >
                 {s.done ? <Check size={11} /> : s.unlocked ? s.id : <Lock size={10} />}

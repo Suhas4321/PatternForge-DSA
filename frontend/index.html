@@ -5,6 +5,15 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>PatternForge DSA</title>
+    <script>
+      // Apply the saved theme before first paint (no flash). Default: studio-contrast.
+      try {
+        var t = localStorage.getItem('pf-theme')
+        document.documentElement.dataset.theme = t === 'carbon-dark' ? 'carbon-dark' : 'studio-contrast'
+      } catch (e) {
+        document.documentElement.dataset.theme = 'studio-contrast'
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>

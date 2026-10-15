@@ -42,7 +42,7 @@ export function LeetCodeLink({ lc, url, showLabel = false }: { lc: number; url: 
       href={url}
       target="_blank"
       rel="noreferrer"
-      className="inline-flex items-center gap-1.5 rounded-md px-1.5 py-0.5 font-mono text-sm text-chalk hover:bg-white/[0.06]"
+      className="inline-flex items-center gap-1.5 rounded-md px-1.5 py-0.5 font-mono text-sm text-chalk hover:bg-chalk/[0.06]"
       title={`Open #${lc} on LeetCode`}
       onClick={(e) => e.stopPropagation()}
     >
@@ -79,7 +79,7 @@ export function RustBadge({ rust }: { rust: Rust }) {
 /** Solid surface for reading and coding: never glass, so text stays crisp. */
 export function Panel({ title, children, className = '', aside }: { title?: ReactNode; children: ReactNode; className?: string; aside?: ReactNode }) {
   return (
-    <section className={`rounded-xl border border-line bg-panel ${className}`}>
+    <section className={`card rounded-2xl ${className}`}>
       {title && (
         <header className="flex items-center justify-between gap-3 border-b border-line px-4 py-2.5">
           <h3 className="text-sm font-semibold text-chalk">{title}</h3>
@@ -93,26 +93,20 @@ export function Panel({ title, children, className = '', aside }: { title?: Reac
 
 /** Floating liquid-glass container (navigation, journey nodes, capsules). */
 export function GlassCard({ children, className = '' }: { children: ReactNode; className?: string }) {
-  return <div className={`liquid-glass rounded-2xl ${className}`}>{children}</div>
+  return <div className={`card rounded-2xl ${className}`}>{children}</div>
 }
 
 type ButtonVariant = 'primary' | 'emerald' | 'glass' | 'outline' | 'ghost'
 
 const BUTTON_STYLES: Record<ButtonVariant, string> = {
-  // Translucent cyan → indigo glass with a bright specular top edge
+  // Solid, high-contrast pills with a hover lift (same in every zone)
   primary:
-    'text-white font-semibold border border-cyan/40 bg-[linear-gradient(135deg,rgb(0_240_255/0.28),rgb(99_102_241/0.32))] ' +
-    'shadow-[inset_0_1px_0_0_rgb(255_255_255/0.35),0_8px_24px_-10px_rgb(0_240_255/0.5)] ' +
-    'hover:shadow-[inset_0_1px_0_0_rgb(255_255_255/0.4),0_0_22px_-2px_rgb(0_240_255/0.45)] hover:border-cyan/60',
+    'bg-action text-white font-semibold shadow-[0_6px_16px_-6px_rgb(79_70_229/0.6)] hover:bg-action-hi hover:-translate-y-px hover:shadow-[0_10px_22px_-8px_rgb(79_70_229/0.7)]',
   emerald:
-    'text-white font-semibold border border-emerald-hi/40 bg-[linear-gradient(135deg,rgb(16_185_129/0.32),rgb(52_211_153/0.18))] ' +
-    'shadow-[inset_0_1px_0_0_rgb(255_255_255/0.35),0_8px_24px_-10px_rgb(16_185_129/0.5)] ' +
-    'hover:shadow-[inset_0_1px_0_0_rgb(255_255_255/0.4),0_0_22px_-2px_rgb(52_211_153/0.45)]',
-  glass:
-    'text-chalk border border-white/[0.12] bg-white/[0.04] hover:bg-white/[0.08] shadow-[inset_0_1px_0_0_rgb(255_255_255/0.16)]',
-  outline:
-    'text-chalk border border-white/[0.12] bg-white/[0.04] hover:bg-white/[0.08] shadow-[inset_0_1px_0_0_rgb(255_255_255/0.16)]',
-  ghost: 'text-muted hover:text-chalk hover:bg-white/[0.05]',
+    'bg-success text-white font-semibold shadow-[0_6px_16px_-6px_rgb(5_150_105/0.55)] hover:bg-emerald hover:-translate-y-px',
+  glass: 'text-chalk border border-line-strong bg-panel hover:bg-panel-2 hover:border-chalk/25',
+  outline: 'text-chalk border border-line-strong bg-panel hover:bg-panel-2 hover:border-chalk/25',
+  ghost: 'text-muted hover:text-chalk hover:bg-chalk/[0.05]',
 }
 
 export function Button({
@@ -123,7 +117,7 @@ export function Button({
 }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: ButtonVariant }) {
   return (
     <button
-      className={`inline-flex items-center justify-center gap-2 rounded-lg px-3.5 py-2 text-sm backdrop-blur-md transition-[background-color,box-shadow,border-color,transform] duration-200 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 disabled:active:scale-100 ${BUTTON_STYLES[variant]} ${className}`}
+      className={`inline-flex items-center justify-center gap-2 rounded-full px-4 py-2 text-sm transition-[background-color,box-shadow,border-color,transform] duration-200 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 disabled:active:scale-100 ${BUTTON_STYLES[variant]} ${className}`}
       {...props}
     >
       {children}
@@ -159,7 +153,7 @@ export function ProgressRing({ value, total, size = 44, stroke = 3.5, color = 'v
   return (
     <span className="relative inline-flex shrink-0 items-center justify-center" style={{ width: size, height: size }}>
       <svg width={size} height={size} className="-rotate-90">
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgb(255 255 255 / 0.08)" strokeWidth={stroke} />
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="color-mix(in srgb, var(--color-chalk) 8%, transparent)" strokeWidth={stroke} />
         <circle
           cx={size / 2}
           cy={size / 2}
@@ -187,7 +181,7 @@ export function ConfidenceStars({ value }: { value: number | null }) {
         <svg key={i} width="11" height="11" viewBox="0 0 24 24" aria-hidden="true">
           <path
             d="M12 2.5l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.4l-5.9 3.1 1.2-6.5L2.5 9.4l6.6-.9z"
-            fill={i <= value ? 'var(--color-gold)' : 'rgb(255 255 255 / 0.12)'}
+            fill={i <= value ? 'var(--color-gold)' : 'color-mix(in srgb, var(--color-chalk) 12%, transparent)'}
           />
         </svg>
       ))}

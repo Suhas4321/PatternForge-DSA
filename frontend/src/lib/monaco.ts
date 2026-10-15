@@ -20,11 +20,11 @@ monaco.editor.defineTheme('forge', {
     { token: 'number', foreground: 'C084FC' },
   ],
   colors: {
-    'editor.background': '#0A0C13',
+    'editor.background': '#0B0C10',
     'editor.lineHighlightBackground': '#10131E',
     'editorLineNumber.foreground': '#3B4256',
     'editorLineNumber.activeForeground': '#A3AAC2',
-    'editorGutter.background': '#0A0C13',
+    'editorGutter.background': '#0B0C10',
     'editor.selectionBackground': '#1E2A4A',
     'editorIndentGuide.background1': '#161A28',
   },
