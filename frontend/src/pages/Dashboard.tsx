@@ -88,7 +88,7 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="relative min-h-screen w-full flex flex-col pb-20">
+    <div className="relative min-h-screen w-full flex flex-col pb-20 bg-void text-chalk">
       {/* 3. Fixed Single Galaxy Sky for the entire page */}
       <div className="fixed inset-0 pointer-events-none z-0">
         <Sky variant="galaxy" accent={activeCitadel.themeColor} />

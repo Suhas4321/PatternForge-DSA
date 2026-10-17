@@ -107,6 +107,49 @@
   --accent-ai-resume:      #38BDF8;
   --peak-accent:           var(--accent-dsa, #6EE7B7);
 
+  /* Tailwind Color Mappings for Carbon Dark (Default) */
+  --color-surface-0: #090A0F;
+  --color-surface-1: #101218;
+  --color-surface-2: #181B22;
+  --color-surface-3: #212631;
+
+  --color-void: #090A0F;
+  --color-panel: #101218;
+  --color-panel-2: #181B22;
+  --color-panel-3: #212631;
+  --color-ink: #090A0F;
+  --color-line: rgba(255, 255, 255, 0.08);
+  --color-line-strong: rgba(255, 255, 255, 0.16);
+  --color-fog: #212631;
+
+  --color-text-1: #F8FAFC;
+  --color-text-2: #94A3B8;
+  --color-text-3: #64748B;
+  --color-chalk: #F8FAFC;
+  --color-muted: #94A3B8;
+  --color-faint: #64748B;
+  --color-code: #F8FAFC;
+  --color-reward: #F5C451;
+
+  --color-cyan: #38BDF8;
+  --color-indigo: #38BDF8;
+  --color-forge: #6EE7B7;
+  --color-emerald: #10B981;
+  --color-emerald-hi: #6EE7B7;
+  --color-verdigris: #6EE7B7;
+  --color-amber: #F2B866;
+  --color-ochre: #F2B866;
+  --color-rust: #FB923C;
+  --color-crimson: #FB7185;
+  --color-oxide: #FB7185;
+  --color-sky: #38BDF8;
+  --color-orchid: #94A3B8;
+  --color-gold: #F5C451;
+
+  --color-action: var(--peak-accent, #6EE7B7);
+  --color-action-hi: color-mix(in srgb, var(--peak-accent, #6EE7B7) 88%, white);
+  --color-success: #10B981;
+
   /* Card elevation: lighter surface + 1px hairline border, subtle clean elevation without heavy blur */
   --page-dot: #181B22;
   --card-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.5), 0 1px 2px -1px rgba(0, 0, 0, 0.5);
@@ -116,7 +159,8 @@
   --stage-glow: inset 0 2px 14px -4px rgba(0, 0, 0, 0.8);
 }
 
-html[data-theme='paper'] {
+html[data-theme='paper'],
+html[data-theme='studio-contrast'] {
   color-scheme: light;
 
   /* Surfaces */
@@ -235,18 +279,29 @@ html[data-theme='paper'] {
 @layer base {
   html {
     color-scheme: dark;
+    background-color: #090A0F;
+    color: #F8FAFC;
   }
-  html[data-theme='paper'] {
+  html[data-theme='paper'],
+  html[data-theme='studio-contrast'] {
     color-scheme: light;
+    background-color: #F3F2EC;
+    color: #141413;
   }
   body {
     @apply text-chalk font-sans antialiased;
-    background-color: var(--color-void);
+    background-color: var(--color-void, #090A0F);
+    color: var(--color-chalk, #F8FAFC);
     background-image: radial-gradient(var(--page-dot) 1.2px, transparent 1.2px);
     background-size: 22px 22px;
     background-attachment: fixed;
     font-size: var(--text-body);    /* 17px */
     line-height: var(--lh-body);   /* 1.6  */
+    min-height: 100vh;
+  }
+  #root {
+    background-color: transparent;
+    min-height: 100vh;
   }
   :focus-visible {
     outline: 2px solid var(--peak-accent, var(--accent-dsa, #6EE7B7));

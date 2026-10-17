@@ -203,7 +203,7 @@ function TopBar() {
 export default function App() {
   return (
     <GrimoireProvider>
-      <div className="min-h-screen">
+      <div className="min-h-screen bg-void text-chalk">
         <TopBar />
         <CommandPalette />
         <main>

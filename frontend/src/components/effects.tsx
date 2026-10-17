@@ -134,11 +134,12 @@ const STORAGE_KEY = 'pf-theme'
 
 export function useTheme(): [Theme, (t: Theme) => void] {
   const [theme, setThemeState] = useState<Theme>(() => {
-    const stored = typeof localStorage !== 'undefined' ? (localStorage.getItem(STORAGE_KEY) as Theme | null) : null
-    if (stored === 'paper') return 'paper'
-    return (typeof document !== 'undefined' && (document.documentElement.dataset.theme as Theme) === 'paper')
-      ? 'paper'
-      : 'carbon-dark'
+    const stored = typeof localStorage !== 'undefined' ? (localStorage.getItem(STORAGE_KEY) as string | null) : null
+    if (stored === 'paper' || stored === 'studio-contrast') return 'paper'
+    if (stored === 'carbon-dark') return 'carbon-dark'
+    const docTheme = typeof document !== 'undefined' ? document.documentElement.dataset.theme : null
+    if (docTheme === 'paper' || docTheme === 'studio-contrast') return 'paper'
+    return 'carbon-dark'
   })
 
   useEffect(() => {
@@ -147,14 +148,16 @@ export function useTheme(): [Theme, (t: Theme) => void] {
       if (custom.detail) {
         setThemeState(custom.detail)
       } else {
-        const current = (document.documentElement.dataset.theme as Theme) === 'paper' ? 'paper' : 'carbon-dark'
+        const docTheme = (document.documentElement.dataset.theme as string)
+        const current = (docTheme === 'paper' || docTheme === 'studio-contrast') ? 'paper' : 'carbon-dark'
         setThemeState(current)
       }
     }
     window.addEventListener('pf-theme-changed', handler)
 
     const observer = new MutationObserver(() => {
-      const current = (document.documentElement.dataset.theme as Theme) === 'paper' ? 'paper' : 'carbon-dark'
+      const docTheme = (document.documentElement.dataset.theme as string)
+      const current = (docTheme === 'paper' || docTheme === 'studio-contrast') ? 'paper' : 'carbon-dark'
       setThemeState(current)
     })
     observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] })
