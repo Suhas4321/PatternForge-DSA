@@ -9,7 +9,7 @@ import DailyQuestCard from '../components/DailyQuestCard'
 import PracticeCard from '../components/PracticeCard'
 import Sky from '../components/Sky'
 import WorldPreviewPopover from '../components/WorldPreviewPopover'
-import { BorderBeam, MagicCard, NumberTicker, ShineBorder } from '../components/effects'
+import { BorderBeam, MagicCard, NumberTicker, ShineBorder, useTheme } from '../components/effects'
 import { Button, DifficultyBadge, ErrorNote, LeetCodeLink, ProgressRing, Skeleton, formatRelative } from '../components/ui'
 import { CITADELS, getCitadel, type Citadel } from '../lib/citadels'
 import { currentQuest, isRusting, questUrl, rankFor, worldState, type WorldState } from '../lib/journey'
@@ -88,9 +88,15 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="relative min-h-screen w-full flex flex-col pb-20 bg-void text-chalk">
+    <div
+      className="relative min-h-screen w-full flex flex-col pb-20 bg-void text-chalk"
+      style={{ backgroundColor: 'var(--color-void, #090A0F)' }}
+    >
       {/* 3. Fixed Single Galaxy Sky for the entire page */}
-      <div className="fixed inset-0 pointer-events-none z-0">
+      <div
+        className="fixed inset-0 pointer-events-none z-0"
+        style={{ backgroundColor: 'var(--color-void, #090A0F)' }}
+      >
         <Sky variant="galaxy" accent={activeCitadel.themeColor} />
       </div>
 
@@ -414,6 +420,8 @@ const STATE_COLOR: Record<WorldState, string> = {
 }
 
 function Constellation({ worlds, citadel }: { worlds: World[]; citadel: Citadel }) {
+  const [theme] = useTheme()
+  const isPaper = theme === 'paper'
   const reduceMotion = useReducedMotion()
   const quest = currentQuest(worlds)
   const questWorld = quest?.question.world_id ?? null
@@ -479,7 +487,7 @@ function Constellation({ worlds, citadel }: { worlds: World[]; citadel: Citadel 
       {/* Full-bleed Constellation Stage Canvas: Height driven by tiers, no inner scroll */}
       <div className="relative w-full" style={{ height: `${mapHeight}px` }}>
         <div ref={containerRef} className="relative w-full h-full flex flex-col justify-around py-3">
-          {/* SVG Connector Paths: lit paths are static glow (single continuous animation is on the active node) */}
+          {/* SVG Connector Paths: lit paths are static glow; unlit paths are crisp and clearly visible in dark mode */}
           <svg className="pointer-events-none absolute inset-0 z-0" width={size.w} height={size.h} aria-hidden="true">
             {paths.map((p) => {
               const parent = states.get(p.from)
@@ -487,27 +495,38 @@ function Constellation({ worlds, citadel }: { worlds: World[]; citadel: Citadel 
               const childWorld = byId.get(p.to)
               const isLiveEdge = parentWorld?.status !== 'coming_soon' && childWorld?.status !== 'coming_soon'
               const lit = (parent === 'mastered' || parent === 'active') && isLiveEdge
-              const tone = parent === 'mastered' ? 'var(--color-emerald-hi)' : 'var(--color-cyan)'
+              const tone = parent === 'mastered' ? 'var(--color-emerald-hi, #10B981)' : 'var(--color-cyan, #38BDF8)'
 
               return (
                 <g key={`${p.from}-${p.to}`}>
+                  {/* Subtle laser halo behind all lines for depth and ambient lighting */}
                   <path
                     d={p.d}
                     fill="none"
-                    stroke={lit ? tone : 'var(--color-line-strong)'}
-                    strokeOpacity={lit ? 0.95 : isLiveEdge ? 0.75 : 0.45}
-                    strokeWidth={lit ? 2.5 : 2}
-                    strokeDasharray={isLiveEdge ? undefined : '5 4'}
-                    style={lit ? { filter: `drop-shadow(0 0 6px ${tone})` } : undefined}
+                    stroke={lit ? tone : isPaper ? 'rgba(14, 116, 144, 0.18)' : 'rgba(56, 189, 248, 0.22)'}
+                    strokeOpacity={lit ? 0.45 : 0.3}
+                    strokeWidth={lit ? 7 : 5}
+                    strokeLinecap="round"
+                  />
+                  {/* Core connector line: glowing solid for lit edges; crisp, high-contrast dashed for unlit edges */}
+                  <path
+                    d={p.d}
+                    fill="none"
+                    stroke={lit ? tone : isPaper ? 'rgba(68, 64, 60, 0.65)' : 'rgba(148, 163, 184, 0.75)'}
+                    strokeOpacity={lit ? 1 : isLiveEdge ? 0.95 : 0.5}
+                    strokeWidth={lit ? 3 : 2.2}
+                    strokeDasharray={lit ? undefined : isLiveEdge ? '6 5' : '4 4'}
+                    strokeLinecap="round"
+                    style={lit ? { filter: `drop-shadow(0 0 8px ${tone})` } : undefined}
                   />
                   {launching === p.to && !reduceMotion && (
                     <motion.path
                       d={p.d}
                       fill="none"
-                      stroke="var(--color-cyan)"
+                      stroke="var(--color-cyan, #38BDF8)"
                       strokeWidth={3.5}
                       strokeLinecap="round"
-                      style={{ filter: 'drop-shadow(0 0 8px var(--color-cyan))' }}
+                      style={{ filter: 'drop-shadow(0 0 10px var(--color-cyan, #38BDF8))' }}
                       initial={{ pathLength: 0, opacity: 1 }}
                       animate={{ pathLength: 1 }}
                       transition={{ duration: 0.45, ease: [0.65, 0, 0.35, 1] }}

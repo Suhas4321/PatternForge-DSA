@@ -111,7 +111,7 @@ export default function Sky({
     <div
       aria-hidden="true"
       className={`pointer-events-none absolute inset-0 overflow-hidden select-none rounded-[inherit] ${className}`}
-      style={{ zIndex: 0 }}
+      style={{ zIndex: 0, backgroundColor: isPaper ? '#F3F2EC' : '#090A0F' }}
     >
       {/* 1. Base Static Gradient Glow (rendered in all modes for instant, zero-jank background) */}
       <div
