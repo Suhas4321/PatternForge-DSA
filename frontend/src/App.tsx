@@ -180,6 +180,16 @@ function TopBar() {
             </button>
             <ThemeToggle />
             <MoreMenu onOpenGrimoire={() => openGrimoire(worldMatch ? Number(worldMatch[1]) : undefined)} />
+            <Link
+              to="/stats"
+              aria-label="View profile stats"
+              title="Suhas · Engineer Profile"
+              className="size-8 rounded-full bg-gradient-to-br from-violet-400 to-cyan-400 p-[2px] transition-transform hover:scale-105 active:scale-95"
+            >
+              <div className="grid size-full place-items-center rounded-full bg-panel text-[11px] font-bold text-chalk">
+                SD
+              </div>
+            </Link>
           </div>
         </div>
 

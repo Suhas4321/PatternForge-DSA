@@ -1,4 +1,4 @@
-import { CalendarClock, Check, ChevronDown, Compass, Crown, Lock, Sparkles } from 'lucide-react'
+import { CalendarClock, Check, ChevronDown, Compass, Crown, Flame, Lock, Sparkles } from 'lucide-react'
 import { motion, useReducedMotion } from 'motion/react'
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
@@ -99,6 +99,28 @@ export default function Dashboard() {
 
       {/* Top Cards Section: Aligned to .shell */}
       <div className="shell relative z-10 flex flex-col gap-6 pt-6 w-full">
+        {/* Morning Greeting & Streak Shield (inspired by v0) */}
+        <section className="flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <p className="font-mono mb-1 text-[10px] uppercase tracking-[.24em] text-muted">
+              {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
+            </p>
+            <h1 className="text-3xl font-bold tracking-[-.04em] sm:text-4xl text-chalk">
+              Good morning, Suhas.
+            </h1>
+            <p className="mt-1 text-sm text-muted">
+              Your next breakthrough is one focused session away.
+            </p>
+          </div>
+          <div className="flex items-center gap-2 rounded-full border border-amber/30 bg-amber/10 px-3.5 py-1.5 text-xs font-semibold text-amber">
+            <Flame size={14} className="fill-amber/40" />
+            <span>Streak Shield active</span>
+            <span className="ml-1 rounded-full bg-panel px-2 py-0.5 text-[10px] font-mono text-chalk border border-line">
+              +1 freeze
+            </span>
+          </div>
+        </section>
+
         {/* 1. Dashboard Header: Slim ~120px Row */}
         <CommandHud worlds={displayWorlds} review={review} citadel={activeCitadel} />
 

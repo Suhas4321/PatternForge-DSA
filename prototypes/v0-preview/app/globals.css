@@ -1,0 +1,9 @@
+@import 'tailwindcss';
+
+:root { --stone:#f3f2ec; --ink:#141413; --muted:#77766f; --line:#e2e0d6; --carbon:#0b0c10; --cyan:#06b6d4; --emerald:#10b981; --amber:#f59e0b; --violet:#8b5cf6; }
+* { box-sizing:border-box; }
+body { margin:0; background:var(--stone); color:var(--ink); font-family:Arial, Helvetica, sans-serif; }
+button { font:inherit; cursor:pointer; }
+.mono { font-family:ui-monospace, SFMono-Regular, Menlo, monospace; }
+.dot-grid { background-image:radial-gradient(rgba(255,255,255,.1) 1px, transparent 1px); background-size:18px 18px; }
+.shell-grid { background-image:radial-gradient(rgba(20,20,19,.09) 1px, transparent 1px); background-size:24px 24px; }
