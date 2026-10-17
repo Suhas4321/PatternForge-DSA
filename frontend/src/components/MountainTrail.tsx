@@ -4,7 +4,7 @@ import { useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import type { QuestionSummary, World } from '../api/types'
 import { questUrl, stagesDone } from '../lib/journey'
-import { ShineBorder } from './effects'
+import { ShineBorder, useTheme } from './effects'
 import { Button, ConfidenceStars, DifficultyBadge, LeetCodeLink } from './ui'
 
 const SUMMIT_SPACE = 130
@@ -302,6 +302,8 @@ function TrailPaths({
   width: number
   height: number
 }) {
+  const [theme] = useTheme()
+  const isPaper = theme === 'paper'
   if (pts.length <= 1) return null
   const segs = smoothSegments(pts)
   const full = trailPart(pts, segs, 0, pts.length - 1)
@@ -309,36 +311,40 @@ function TrailPaths({
   const from = Math.max(0, lastSolved)
   const ahead = trailPart(pts, segs, from, active)
 
+  const unclimbedStroke = isPaper ? 'rgba(68, 64, 60, 0.65)' : 'rgba(148, 163, 184, 0.75)'
+  const ambientHaloStroke = isPaper ? 'rgba(14, 116, 144, 0.18)' : 'rgba(56, 189, 248, 0.22)'
+
   return (
     <svg aria-hidden="true" className="pointer-events-none absolute inset-0 z-0" width={width} height={height}>
-      {/* Dirt trail */}
-      <path d={full} fill="none" stroke="var(--color-line-strong)" strokeOpacity={0.35} strokeWidth={8} strokeLinecap="round" />
-      <path d={full} fill="none" stroke="var(--color-line)" strokeWidth={2.5} strokeDasharray="3 8" strokeLinecap="round" />
+      {/* Base ambient halo for trail */}
+      <path d={full} fill="none" stroke={ambientHaloStroke} strokeWidth={6} strokeLinecap="round" />
+      {/* Crisp unclimbed route */}
+      <path d={full} fill="none" stroke={unclimbedStroke} strokeWidth={2.2} strokeDasharray="5 6" strokeLinecap="round" />
       {/* Climbed route */}
       {climbed && (
         <path
           d={climbed}
           fill="none"
-          stroke="var(--color-emerald-hi)"
+          stroke="var(--color-emerald-hi, #10B981)"
           strokeWidth={3}
           strokeLinecap="round"
-          style={{ filter: 'drop-shadow(0 0 6px var(--color-emerald))' }}
+          style={{ filter: 'drop-shadow(0 0 6px var(--color-emerald, #10B981))' }}
         />
       )}
       {/* Active leg to current trial */}
       {ahead && (
         <>
-          <path d={ahead} fill="none" stroke="var(--color-cyan)" strokeOpacity={0.35} strokeWidth={3} strokeLinecap="round" />
+          <path d={ahead} fill="none" stroke="var(--color-cyan, #38BDF8)" strokeOpacity={0.35} strokeWidth={3} strokeLinecap="round" />
           {!reduce && (
             <motion.path
               d={ahead}
               pathLength={1}
               fill="none"
-              stroke="var(--color-cyan)"
+              stroke="var(--color-cyan, #38BDF8)"
               strokeWidth={3.5}
               strokeLinecap="round"
               strokeDasharray="0.25 0.75"
-              style={{ filter: 'drop-shadow(0 0 6px var(--color-cyan))' }}
+              style={{ filter: 'drop-shadow(0 0 6px var(--color-cyan, #38BDF8))' }}
               initial={{ strokeDashoffset: 0.25 }}
               animate={{ strokeDashoffset: -1 }}
               transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut', repeatDelay: 0.3 }}
