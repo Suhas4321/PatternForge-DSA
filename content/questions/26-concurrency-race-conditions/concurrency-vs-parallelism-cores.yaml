@@ -1,0 +1,283 @@
+slug: concurrency-vs-parallelism-cores
+lc: 9413
+citadel_id: os_concurrency
+brick_layer: 2
+runner_type: python_practical
+concept:
+  problem_it_solves: What is the concrete difference in execution latency between running tasks concurrently on 1 CPU core
+    versus in parallel across N CPU cores? Concurrency on 1 core serializes CPU execution while adding context-switch penalties.
+    Parallelism across multiple physical cores executes tasks simultaneously, bounded by the longest task duration and load
+    balancing.
+  brute_force: Assuming adding 4 cores automatically makes any program 4x faster without accounting for task granularity or
+    context-switch overhead.
+  brute_force_complexity: Flawed mental model ignoring Amdahl's law and scheduling costs.
+  key_insight: Simulating task scheduling on 1 core (sum of durations plus context switches) versus N cores (greedy priority
+    queue scheduling) computes the true speedup factor.
+  real_world: Kubernetes pod CPU limit sizing, threadpool sizing for background video transcoders, and Celery worker allocation.
+statement:
+  clean: "Implement an execution time model to compare concurrency vs parallelism across CPU cores:\n`model_execution_time(tasks:\
+    \ list[dict], cores: int, context_switch_ms: int) -> dict`.\n\nEach task has `{\"id\": str, \"duration_ms\": int}`.\n\n\
+    Rules:\n1. If `tasks` is empty, return:\n   `{\"single_core_time_ms\": 0, \"multi_core_time_ms\": 0, \"speedup\": 1.0,\
+    \ \"is_parallel_faster\": False}`.\n2. Single-Core Time (Concurrency on 1 core):\n   - All tasks run serially on 1 core:\
+    \ sum of all `duration_ms`.\n   - Each task transition after the first incurs `context_switch_ms` overhead: `(len(tasks)\
+    \ - 1) * context_switch_ms`.\n   - `single_core_time_ms = sum(durations) + (len(tasks) - 1) * context_switch_ms`.\n3.\
+    \ Multi-Core Time (Parallelism across `cores` cores):\n   - Schedule tasks greedily across `cores` cores using a min-heap\
+    \ tracking each core's finish time.\n   - For a core running its $k$-th task ($k > 1$), add `context_switch_ms` before\
+    \ running that task.\n   - `multi_core_time_ms` is the maximum completion time among all cores.\n4. Calculate:\n   - `speedup\
+    \ = round(single_core_time_ms / multi_core_time_ms, 2)` (or `1.0` if multi-core time is 0).\n   - `is_parallel_faster\
+    \ = multi_core_time_ms < single_core_time_ms`.\n\nReturn the results dictionary."
+  oa_story: '**RideMitra Dispatch Optimization — Core Allocation Benchmark**
+
+
+    During peak Bengaluru traffic hours, RideMitra dispatches route calculation jobs. The DevOps team debated whether upgrading
+    microservice worker instances from 1 vCPU to 4 vCPU justifies the cloud cost.
+
+
+    Implement this concurrency vs parallelism execution time model to calculate the empirical speedup and scheduling overhead
+    across varying task workloads.'
+  trigger_keywords:
+  - concurrency vs parallelism
+  - execution time model
+  - single_core_time_ms
+  examples:
+  - input: 'tasks = [{"id": "1", "duration_ms": 100}, {"id": "2", "duration_ms": 100}, {"id": "3", "duration_ms": 100}, {"id":
+      "4", "duration_ms": 100}], cores = 4, context_switch_ms = 10'
+    output: '{"single_core_time_ms": 430, "multi_core_time_ms": 100, "speedup": 4.3, "is_parallel_faster": True}'
+    explanation: Single core takes 400 + 3*10 = 430ms. 4 cores run tasks in parallel with 0 switches on distinct cores, taking
+      100ms. Speedup is 4.3x.
+  constraints:
+  - 0 <= len(tasks) <= 500
+  - 1 <= cores <= 64
+  - 0 <= context_switch_ms <= 100
+constraint_quiz:
+  prompt: Why can speedup exceed the number of cores (e.g. 4.3x on 4 cores) in this model?
+  options:
+  - Because parallel execution avoids the context switch overhead that penalizes single-core task switching
+  - Because multi-core CPUs overclock automatically
+  - Because Python doubles bytecode interpretation speed on 4 cores
+  - Because memory caches double in bandwidth
+  answer: 0
+  explanation: Single-core execution suffers context-switch penalties between every task, whereas distributing tasks evenly
+    across available cores eliminates those switches.
+pattern_quiz:
+  prompt: What data structure greedily schedules tasks to the earliest available CPU core in O(log C) time per task?
+  options:
+  - Min-Heap priority queue storing (finish_time, task_count, core_id)
+  - Hash map without ordering
+  - Doubly-linked list without pointers
+  - Fixed circular array with linear scanning
+  answer: 0
+  explanation: A min-heap always pops the core with the earliest availability in O(log C) time.
+function:
+  name: model_execution_time
+  params:
+  - name: tasks
+  - name: cores
+  - name: context_switch_ms
+  returns: any
+  compare: exact
+starter_code: "class Solution:\n    def model_execution_time(self, tasks: list[dict], cores: int, context_switch_ms: int)\
+  \ -> dict:\n        pass\n"
+tests:
+- args:
+  - - id: '1'
+      duration_ms: 100
+    - id: '2'
+      duration_ms: 100
+    - id: '3'
+      duration_ms: 100
+    - id: '4'
+      duration_ms: 100
+  - 4
+  - 10
+  expected:
+    single_core_time_ms: 430
+    multi_core_time_ms: 100
+    speedup: 4.3
+    is_parallel_faster: true
+  note: 4 tasks across 4 cores
+- args:
+  - - id: '1'
+      duration_ms: 50
+    - id: '2'
+      duration_ms: 50
+  - 1
+  - 5
+  expected:
+    single_core_time_ms: 105
+    multi_core_time_ms: 105
+    speedup: 1.0
+    is_parallel_faster: false
+  note: 1 core equivalent execution
+- args:
+  - []
+  - 4
+  - 10
+  expected:
+    single_core_time_ms: 0
+    multi_core_time_ms: 0
+    speedup: 1.0
+    is_parallel_faster: false
+  note: Empty tasks list
+- args:
+  - - id: '1'
+      duration_ms: 200
+    - id: '2'
+      duration_ms: 100
+    - id: '3'
+      duration_ms: 300
+  - 2
+  - 20
+  expected:
+    single_core_time_ms: 640
+    multi_core_time_ms: 420
+    speedup: 1.52
+    is_parallel_faster: true
+  note: Heterogeneous durations on 2 cores
+visualize_test: 0
+drills:
+- skill: setup
+  title: Calculate single core time
+  goal: Compute sum of durations plus context switch penalties.
+  instructions: Return sum of durations plus `(len(durations) - 1) * switch_ms` if durations not empty, else 0.
+  function:
+    name: drill_single_core
+    params:
+    - name: durations
+    - name: switch_ms
+  starter_code: "class Solution:\n    def drill_single_core(self, durations: list[int], switch_ms: int) -> int:\n        pass\n"
+  tests:
+  - args:
+    - - 100
+      - 200
+    - 10
+    expected: 310
+  - args:
+    - - 50
+    - 10
+    expected: 50
+  - args:
+    - []
+    - 10
+    expected: 0
+  solution: "class Solution:\n    def drill_single_core(self, durations: list[int], switch_ms: int) -> int:\n        if not\
+    \ durations:\n            return 0\n        return sum(durations) + (len(durations) - 1) * switch_ms\n"
+  hint: Sum the durations and add `(len - 1) * switch_ms`.
+- skill: core
+  title: Min-heap core scheduling
+  goal: Assign task to core with smallest current finish time.
+  instructions: Pop earliest core from heap, add task duration and switch penalty (if task count > 0), push back.
+  function:
+    name: drill_assign_task
+    params:
+    - name: current_time
+    - name: count
+    - name: duration
+    - name: switch_ms
+  starter_code: "class Solution:\n    def drill_assign_task(self, current_time: int, count: int, duration: int, switch_ms:\
+    \ int) -> list:\n        pass\n"
+  tests:
+  - args:
+    - 0
+    - 0
+    - 100
+    - 10
+    expected:
+    - 100
+    - 1
+  - args:
+    - 100
+    - 1
+    - 100
+    - 10
+    expected:
+    - 210
+    - 2
+  solution: "class Solution:\n    def drill_assign_task(self, current_time: int, count: int, duration: int, switch_ms: int)\
+    \ -> list:\n        extra = switch_ms if count > 0 else 0\n        return [current_time + extra + duration, count + 1]\n"
+  hint: Add extra switch penalty only when count > 0.
+- skill: edge
+  title: Compute speedup factor
+  goal: Calculate speedup rounded to 2 decimal places.
+  instructions: Return `round(t1 / t2, 2)` if t2 > 0 else 1.0.
+  function:
+    name: drill_speedup
+    params:
+    - name: t1
+    - name: t2
+  starter_code: "class Solution:\n    def drill_speedup(self, t1: int, t2: int) -> float:\n        pass\n"
+  tests:
+  - args:
+    - 430
+    - 100
+    expected: 4.3
+  - args:
+    - 100
+    - 100
+    expected: 1.0
+  solution: "class Solution:\n    def drill_speedup(self, t1: int, t2: int) -> float:\n        return round(t1 / t2, 2) if\
+    \ t2 > 0 else 1.0\n"
+  hint: Divide t1 by t2 and round to 2 decimals.
+hints:
+- Handle empty tasks list first.
+- Use `heapq` with tuples `(current_time, task_count, core_id)` initialized to 0 for all cores.
+- '| # Pseudocode Blueprint
+
+  | if not tasks: return 0, 0, 1.0, False
+
+  | single_time = sum(durations) + (N - 1) * switch_ms
+
+  | pq = [(0, 0, core_id) for core_id in range(cores)]
+
+  | for task in tasks:
+
+  |     t, count, cid = heappop(pq)
+
+  |     new_t = t + (switch_ms if count > 0 else 0) + task.duration
+
+  |     heappush(pq, (new_t, count + 1, cid))
+
+  | multi_time = max(item[0] for item in pq)
+
+  | return single_time, multi_time, speedup'
+solution:
+  code: "import heapq\n\nclass Solution:\n    def model_execution_time(self, tasks: list[dict], cores: int, context_switch_ms:\
+    \ int) -> dict:\n        if not tasks:\n            return {\n                \"single_core_time_ms\": 0,\n          \
+    \      \"multi_core_time_ms\": 0,\n                \"speedup\": 1.0,\n                \"is_parallel_faster\": False,\n\
+    \            }\n\n        total_duration = sum(t[\"duration_ms\"] for t in tasks)\n        single_core_time = total_duration\
+    \ + (len(tasks) - 1) * context_switch_ms\n\n        pq = [(0, 0, i) for i in range(cores)]\n        for t in tasks:\n\
+    \            curr_t, count, core_id = heapq.heappop(pq)\n            extra_switch = context_switch_ms if count > 0 else\
+    \ 0\n            new_t = curr_t + extra_switch + t[\"duration_ms\"]\n            heapq.heappush(pq, (new_t, count + 1,\
+    \ core_id))\n\n        multi_core_time = max(item[0] for item in pq)\n        speedup = round(single_core_time / multi_core_time,\
+    \ 2) if multi_core_time > 0 else 1.0\n\n        return {\n            \"single_core_time_ms\": single_core_time,\n   \
+    \         \"multi_core_time_ms\": multi_core_time,\n            \"speedup\": speedup,\n            \"is_parallel_faster\"\
+    : multi_core_time < single_core_time,\n        }\n"
+  explanation: On a single core, all tasks are serialized and suffer context-switch latency between every switch. On multiple
+    cores, tasks are dispatched greedily to the earliest available core using a min-heap, enabling genuine parallel execution
+    and reducing wall-clock runtime.
+  time: O(N log C) where N is task count and C is number of cores
+  space: O(C) for the min-heap priority queue
+pitch_script: '**(Clarify)** "We need to model the wall-clock execution time of a task list on 1 core versus N cores, incorporating
+  context switch penalties."
+
+
+  **(Brute force)** "Assuming an ideal linear speedup (T_single / N) ignores task imbalances and scheduling overheads."
+
+
+  **(Trigger)** "Distributing tasks across multiple worker cores signals a greedy min-heap priority queue scheduler."
+
+
+  **(Optimal)** "Single core execution is the sum of task durations plus context switches. For multi-core scheduling, a min-heap
+  tracks the earliest free core, assigning the next task and adding context-switch overhead only if that core already ran
+  a task. The final time is the maximum core completion time."
+
+
+  **(Complexity)** "Takes O(N log C) time and O(C) space for C cores." '
+twist:
+  lc: 9406
+  title: Thread vs Process Context Switch Overhead Model
+  why: Context switching between threads shares address space, while switching between processes requires expensive TLB and
+    page-table flushes.
+viz:
+  title: Concurrency vs Parallelism Timeline
+  type: concurrency_timeline

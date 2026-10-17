@@ -1,0 +1,289 @@
+slug: pandas-relational-merges
+lc: 9234
+citadel_id: python_data
+brick_layer: 4
+runner_type: python_practical
+
+concept:
+  problem_it_solves: >-
+    "How do we correlate incident alerts with user accounts across multiple normalized datasets without exporting everything to SQL?"
+    Production data is normalized across entity boundaries (users, test runs, incident alerts).
+    Pandas `pd.merge()` provides relational join semantics (`inner`, `left`, `right`, `outer`), matching foreign keys in C-speed hash joins.
+  brute_force: >-
+    Writing nested loops in Python: looping through incidents, scanning test runs to match `run_id`,
+    and scanning users to match `user_id`.
+  brute_force_complexity: O(I * R * U) polynomial runtime — completely unscalable beyond a few hundred records.
+  key_insight: >-
+    `pd.merge(left, right, on='key', how='inner')` builds an in-memory hash table of the join key,
+    executing relational joins in linear O(N + M) time. Chaining two merges connects `incidents -> test_runs -> users`
+    in two quick hash-join passes.
+  real_world: >-
+    Post-incident customer blast radius analysis, customer billing audits, and joining clickstream sessions with user CRM records.
+
+statement:
+  clean: |
+    Implement a multi-table relational join pipeline using relational merge:
+    `find_affected_customers(users: list[dict], test_runs: list[dict], incidents: list[dict]) -> list[dict]`.
+    
+    Given three relational datasets:
+    1. `users`: list of user records `{"user_id": int, "name": str, "email": str}`.
+    2. `test_runs`: list of device test runs `{"run_id": int, "user_id": int, "device": str}`.
+    3. `incidents`: list of platform alerts `{"run_id": int, "severity": str, "description": str}`.
+    
+    Processing steps:
+    1. If any of the three input lists is empty, return `[]`.
+    2. Load each dataset into a `pandas.DataFrame`.
+    3. Perform an inner join between `test_runs` and `incidents` on `run_id`.
+    4. Perform an inner join between the resulting DataFrame and `users` on `user_id`.
+    5. Filter the joined rows to keep only those with `severity == "P1"`.
+    6. Select the customer columns `["user_id", "name", "email"]`.
+    7. Deduplicate so each unique `user_id` appears at most once in the output.
+    8. Sort the resulting customer list by `user_id` in ascending order.
+    9. Return the result as a list of dictionaries via `.to_dict(orient='records')`.
+  oa_story: |
+    **Drizz Operations Center — P1 Customer Blast Radius**
+    
+    During an automated device farm outage, multiple physical device nodes went offline simultaneously.
+    Platform monitoring logged incident alerts tied to specific `run_id` execution handles.
+    The customer support team urgently needed to know which client accounts had their test suites disrupted by P1 failures.
+    
+    Implement a relational join pipeline in Pandas that links incident telemetry back to account owners for notification.
+  trigger_keywords: ["relational merge", "find_affected_customers", "users"]
+  examples:
+    - input: "users = [{'user_id': 1, 'name': 'Acme', 'email': 'a@acme.com'}], test_runs = [{'run_id': 10, 'user_id': 1, 'device': 'Pixel'}], incidents = [{'run_id': 10, 'severity': 'P1', 'description': 'OOM'}]"
+      output: "[{'user_id': 1, 'name': 'Acme', 'email': 'a@acme.com'}]"
+      explanation: "Run 10 had a P1 incident and belongs to user 1 (Acme)."
+  constraints:
+    - "users, test_runs, and incidents contain between 0 and 10,000 items each"
+    - "severity is a string (e.g. 'P1', 'P2', 'P3')"
+
+constraint_quiz:
+  prompt: >-
+    What is the time complexity of a hash join between two DataFrames of size N and M on a common key in Pandas?
+  options:
+    - "O(N * M)"
+    - "O(N + M) average time"
+    - "O(log(N + M))"
+    - "O(1)"
+  answer: 1
+  explanation: >-
+    Pandas builds an in-memory hash table of the join keys from the smaller table and probes it with the larger table in O(N + M) time.
+
+pattern_quiz:
+  prompt: Which join type in `pd.merge()` discards rows that do not have matching keys in both tables?
+  options:
+    - "how='inner'"
+    - "how='left'"
+    - "how='right'"
+    - "how='outer'"
+  answer: 0
+  explanation: >-
+    An inner join (`how='inner'`, the default in `pd.merge`) preserves only records with matching keys in both DataFrames.
+
+function:
+  name: find_affected_customers
+  params:
+    - {name: users}
+    - {name: test_runs}
+    - {name: incidents}
+
+starter_code: |
+  class Solution:
+      def find_affected_customers(self, users: list[dict], test_runs: list[dict], incidents: list[dict]) -> list[dict]:
+          pass
+
+tests:
+  - args:
+      - [
+          {"user_id": 1, "name": "Acme Corp", "email": "dev@acme.com"},
+          {"user_id": 2, "name": "Beta Labs", "email": "ops@beta.com"},
+          {"user_id": 3, "name": "Gamma Dev", "email": "eng@gamma.com"}
+        ]
+      - [
+          {"run_id": 101, "user_id": 1, "device": "Pixel 8"},
+          {"run_id": 102, "user_id": 2, "device": "Galaxy S23"},
+          {"run_id": 103, "user_id": 1, "device": "iPhone 15"},
+          {"run_id": 104, "user_id": 3, "device": "Pixel 7"}
+        ]
+      - [
+          {"run_id": 101, "severity": "P1", "description": "Kernel Panic"},
+          {"run_id": 102, "severity": "P3", "description": "Minor lag"},
+          {"run_id": 103, "severity": "P1", "description": "Network timeout"}
+        ]
+    expected:
+      - {"user_id": 1, "name": "Acme Corp", "email": "dev@acme.com"}
+  - args:
+      - []
+      - [{"run_id": 1, "user_id": 1, "device": "X"}]
+      - [{"run_id": 1, "severity": "P1", "description": "Err"}]
+    expected: []
+  - args:
+      - [
+          {"user_id": 10, "name": "User Ten", "email": "ten@co.com"},
+          {"user_id": 20, "name": "User Twenty", "email": "twenty@co.com"}
+        ]
+      - [
+          {"run_id": 501, "user_id": 20, "device": "Pixel 8"},
+          {"run_id": 502, "user_id": 10, "device": "S23"}
+        ]
+      - [
+          {"run_id": 501, "severity": "P1", "description": "Down"},
+          {"run_id": 502, "severity": "P1", "description": "Down"}
+        ]
+    expected:
+      - {"user_id": 10, "name": "User Ten", "email": "ten@co.com"}
+      - {"user_id": 20, "name": "User Twenty", "email": "twenty@co.com"}
+  - args:
+      - [{"user_id": 1, "name": "Solo", "email": "solo@co.com"}]
+      - [{"run_id": 1, "user_id": 1, "device": "D"}]
+      - [{"run_id": 1, "severity": "P2", "description": "Non-critical"}]
+    expected: []
+
+visualize_test: 0
+
+drills:
+  - title: Simple two-table inner merge
+    skill: setup
+    goal: Merge two DataFrames on a single shared key.
+    instructions: |
+      Merge `left` and `right` on `"id"` using an inner join and return records.
+    function:
+      name: merge_on_id
+      params: [{name: left}, {name: right}]
+    starter_code: |
+      class Solution:
+          def merge_on_id(self, left: list[dict], right: list[dict]) -> list[dict]:
+              pass
+    tests:
+      - {args: [[{"id": 1, "a": "x"}], [{"id": 1, "b": "y"}]], expected: [{"id": 1, "a": "x", "b": "y"}]}
+      - {args: [[{"id": 1}], [{"id": 2}]], expected: []}
+    solution: |
+      import pandas as pd
+
+      class Solution:
+          def merge_on_id(self, left: list[dict], right: list[dict]) -> list[dict]:
+              if not left or not right:
+                  return []
+              df_l = pd.DataFrame(left)
+              df_r = pd.DataFrame(right)
+              merged = pd.merge(df_l, df_r, on="id", how="inner")
+              return merged.to_dict(orient="records")
+    hint: "Use `pd.merge(df_l, df_r, on='id', how='inner')`."
+
+  - title: Filter merged records by condition
+    skill: core
+    goal: Slice rows based on column value after join.
+    instructions: |
+      Given records with `severity`, return only rows where `severity == 'P1'`.
+    function:
+      name: filter_p1
+      params: [{name: records}]
+    starter_code: |
+      class Solution:
+          def filter_p1(self, records: list[dict]) -> list[dict]:
+              pass
+    tests:
+      - {args: [[{"id": 1, "severity": "P1"}, {"id": 2, "severity": "P2"}]], expected: [{"id": 1, "severity": "P1"}]}
+      - {args: [[]], expected: []}
+    solution: |
+      import pandas as pd
+
+      class Solution:
+          def filter_p1(self, records: list[dict]) -> list[dict]:
+              if not records:
+                  return []
+              df = pd.DataFrame(records)
+              return df.loc[df["severity"] == "P1"].to_dict(orient="records")
+    hint: "Use `df.loc[df['severity'] == 'P1']`."
+
+  - title: Deduplicate on key and sort
+    skill: edge
+    goal: Drop duplicate user records and sort by ID.
+    instructions: |
+      Drop duplicate `user_id`s and sort by `user_id` ascending.
+    function:
+      name: dedupe_and_sort
+      params: [{name: users}]
+    starter_code: |
+      class Solution:
+          def dedupe_and_sort(self, users: list[dict]) -> list[dict]:
+              pass
+    tests:
+      - {args: [[{"user_id": 5}, {"user_id": 2}, {"user_id": 5}]], expected: [{"user_id": 2}, {"user_id": 5}]}
+      - {args: [[]], expected: []}
+    solution: |
+      import pandas as pd
+
+      class Solution:
+          def dedupe_and_sort(self, users: list[dict]) -> list[dict]:
+              if not users:
+                  return []
+              df = pd.DataFrame(users)
+              deduped = df.drop_duplicates(subset=["user_id"]).sort_values(by="user_id", ascending=True)
+              return deduped.to_dict(orient="records")
+    hint: "Use `.drop_duplicates(subset=['user_id']).sort_values(by='user_id')`."
+
+hints:
+  - "Check if any of `users`, `test_runs`, or `incidents` is empty; if so, return `[]`."
+  - "Merge `test_runs` and `incidents` on `run_id`, then merge with `users` on `user_id`."
+  - "Filter where `severity == 'P1'`, select columns `['user_id', 'name', 'email']`, deduplicate on `user_id`, and sort."
+
+solution:
+  code: |
+    import pandas as pd
+
+    class Solution:
+        def find_affected_customers(self, users: list[dict], test_runs: list[dict], incidents: list[dict]) -> list[dict]:
+            if not users or not test_runs or not incidents:
+                return []
+
+            df_users = pd.DataFrame(users)
+            df_runs = pd.DataFrame(test_runs)
+            df_incidents = pd.DataFrame(incidents)
+
+            # Step 1: Join runs and incidents on run_id
+            runs_incidents = pd.merge(df_runs, df_incidents, on="run_id", how="inner")
+
+            # Step 2: Join with users on user_id
+            full_df = pd.merge(runs_incidents, df_users, on="user_id", how="inner")
+
+            # Step 3: Filter for P1 incidents
+            p1_df = full_df.loc[full_df["severity"] == "P1"]
+
+            if p1_df.empty:
+                return []
+
+            # Step 4: Extract columns, deduplicate, and sort
+            client_cols = ["user_id", "name", "email"]
+            result_df = p1_df[client_cols].drop_duplicates(subset=["user_id"]).sort_values(by="user_id", ascending=True)
+
+            return result_df.to_dict(orient="records")
+  explanation: |
+    We perform relational hash joins using `pd.merge(..., how='inner')`.
+    First, `runs_incidents` correlates each test run with its recorded incident alerts.
+    Next, joining with `df_users` maps the incident back to the owning customer.
+    
+    Filtering by `severity == 'P1'` isolates critical failures.
+    Finally, `.drop_duplicates(subset=['user_id'])` collapses multiple failed runs by the same customer
+    into a single notification record, and `sort_values` provides ordered output.
+  time: O(U + R + I) hash join complexity
+  space: O(U + R + I) for DataFrames
+
+pitch_script: |
+  **(Clarify)** "We need to identify all distinct customer accounts affected by P1 incidents by joining users, test runs, and incidents tables."
+
+  **(Basement Insight)** "Nested loop joins in procedural Python scale in O(N * M) polynomial time. `pd.merge` uses vectorized hash joins in compiled C, executing in linear O(N + M) time by hashing the join keys."
+
+  **(Solution)** "We load the three datasets into DataFrames. We inner-join `test_runs` with `incidents` on `run_id`, then join the result with `users` on `user_id`. We filter rows where `severity == 'P1'`, project `[user_id, name, email]`, deduplicate on `user_id`, and sort."
+
+  **(Complexity)** "Executes in O(U + R + I) time across all records with O(U + R + I) space."
+
+twist:
+  lc: 9235
+  title: Left Join with isna() to Find Unaffected Customers
+  why: >-
+    To find customers with ZERO incidents, use how='left' and filter where incident columns are null:
+    df_merged.loc[df_merged['incident_id'].isna()].
+
+viz:
+  title: "Pandas Relational Hash Join"

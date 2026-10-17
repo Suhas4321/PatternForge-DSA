@@ -24,42 +24,72 @@ sys.path.insert(0, str(ROOT / "backend"))
 from pydantic import ValidationError  # noqa: E402
 
 from app.content_schema import QuestionContent  # noqa: E402
-from app.runner.python_runner import run_python  # noqa: E402
+from app.runner.dispatcher import dispatch_run  # noqa: E402
 from app.services.content_loader import content_path, load_curriculum, read_question_content  # noqa: E402
 
 
-def check_solution(label: str, code: str, function: dict, tests: list[dict]) -> list[str]:
-    result = run_python(code, function, tests)
+def check_solution(runner_type: str, content_dict: dict, label: str, code: str, function: dict, tests: list[dict], reference_code: str = "") -> list[str]:
+    result = dispatch_run(
+        runner_type=runner_type,
+        code=code,
+        content=content_dict,
+        spec=function,
+        tests=tests,
+        reference_code=reference_code or code,
+        visualize=False,
+    )
     if result.get("compile_error"):
         return [f"{label}: compile error {result['compile_error']}"]
+    if result.get("fatal_error"):
+        return [f"{label}: fatal error {result['fatal_error']}"]
     problems = []
     for r in result["results"]:
         if not r["passed"]:
-            detail = r["error"] or {"expected": r["expected"], "actual": r["actual"]}
+            detail = r.get("error") or {"expected": r.get("expected"), "actual": r.get("actual")}
             problems.append(f"{label}: test {r['index']} failed: {detail}")
     return problems
 
 
 def validate(content: QuestionContent) -> tuple[list[str], list[str]]:
     errors, warnings = [], []
+    runner_type = content.runner_type or "python_trace"
+    content_dict = content.model_dump()
     fn = content.function.model_dump()
     tests = [t.model_dump() for t in content.tests]
 
-    errors += check_solution("solution", content.solution.code, fn, tests)
+    errors += check_solution(runner_type, content_dict, "solution", content.solution.code, fn, tests, reference_code=content.solution.code)
     if content.solution.brute_force_code:
-        errors += check_solution("brute_force", content.solution.brute_force_code, fn, tests)
+        errors += check_solution(runner_type, content_dict, "brute_force", content.solution.brute_force_code, fn, tests, reference_code=content.solution.code)
 
-    starter = run_python(content.starter_code, fn, tests[:1])
-    if starter.get("compile_error"):
-        errors.append(f"starter_code does not compile: {starter['compile_error']}")
+    if content.starter_code:
+        starter = dispatch_run(
+            runner_type=runner_type,
+            code=content.starter_code,
+            content=content_dict,
+            spec=fn,
+            tests=tests[:1],
+            reference_code=content.solution.code,
+            visualize=False,
+        )
+        if starter.get("compile_error"):
+            errors.append(f"starter_code does not compile: {starter['compile_error']}")
 
     for i, drill in enumerate(content.drills):
         d_fn = drill.function.model_dump()
         d_tests = [t.model_dump() for t in drill.tests]
-        errors += check_solution(f"drill {i} solution", drill.solution, d_fn, d_tests)
-        d_starter = run_python(drill.starter_code, d_fn, d_tests[:1])
-        if d_starter.get("compile_error"):
-            errors.append(f"drill {i} starter_code does not compile: {d_starter['compile_error']}")
+        errors += check_solution(runner_type, content_dict, f"drill {i} solution", drill.solution, d_fn, d_tests, reference_code=drill.solution)
+        if drill.starter_code:
+            d_starter = dispatch_run(
+                runner_type=runner_type,
+                code=drill.starter_code,
+                content=content_dict,
+                spec=d_fn,
+                tests=d_tests[:1],
+                reference_code=drill.solution,
+                visualize=False,
+            )
+            if d_starter.get("compile_error"):
+                errors.append(f"drill {i} starter_code does not compile: {d_starter['compile_error']}")
 
     clean = content.statement.clean.lower()
     for kw in content.statement.trigger_keywords:

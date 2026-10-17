@@ -1,0 +1,271 @@
+slug: bounded-semaphore-simulator
+lc: 9421
+citadel_id: os_concurrency
+brick_layer: 2
+runner_type: python_practical
+concept:
+  problem_it_solves: How do distributed pools prevent runaway resource consumption without dropping connections? A counting
+    semaphore maintains a pool of permits. When permits reach zero, callers wait in a queue until a permit is released. A
+    *bounded* semaphore prevents bugs where calling release() excessively inflates the permit count beyond initial capacity.
+  brute_force: Spawning unbounded threads or connections, causing socket exhaustion and database OOM crashes.
+  brute_force_complexity: O(1) allocation that crashes servers under sudden traffic spikes.
+  key_insight: A bounded semaphore simulation maintains `available_permits <= capacity`, a FIFO queue of waiting threads,
+    and counts overflow errors when release exceeds capacity.
+  real_world: PostgreSQL connection pooling in PgBouncer, rate limiters, and threadpool worker dispatchers.
+statement:
+  clean: "Implement a bounded semaphore simulation for resource permit management:\n`simulate_bounded_semaphore(capacity:\
+    \ int, operations: list[list[str]]) -> dict`.\n\nEach operation is a list `[thread_id, action]` where `action` is either\
+    \ `\"ACQUIRE\"` or `\"RELEASE\"`.\n\nRules:\n1. `available_permits` is initially `capacity`.\n2. `granted` is a list of\
+    \ thread IDs currently holding permits.\n3. `waiting` is a FIFO queue of thread IDs waiting for permits.\n4. When `action\
+    \ == \"ACQUIRE\"`:\n   - If `available_permits > 0`: decrement `available_permits`, append `thread_id` to `granted`.\n\
+    \   - If `available_permits == 0`: append `thread_id` to `waiting`.\n5. When `action == \"RELEASE\"`:\n   - If `available_permits\
+    \ >= capacity` and `len(waiting) == 0`: increment `overflow_errors` (cannot release beyond capacity).\n   - Otherwise:\n\
+    \     - If `thread_id in granted`: remove `thread_id` from `granted`.\n     - If `waiting` is not empty: pop the first\
+    \ thread from `waiting` and append to `granted`.\n     - If `waiting` is empty: increment `available_permits`.\n\nReturn\
+    \ a dictionary containing:\n- `\"available_permits\"`: `int`\n- `\"granted\"`: `list[str]`\n- `\"waiting\"`: `list[str]`\n\
+    - `\"overflow_errors\"`: `int`"
+  oa_story: '**BharatPay Database Connection Pool — Permit Leak Post-Mortem**
+
+
+    During UPI festive payments, BharatPay''s payment gateway experienced microservice latency spikes. An engineer discovered
+    that buggy error-recovery code was calling `semaphore.release()` in a finally block even when the connection was never
+    acquired, leaking permits.
+
+
+    Implement this bounded semaphore simulator to enforce permit bounds and catch release overflow bugs in connection pools.'
+  trigger_keywords:
+  - bounded semaphore simulation
+  - permit management
+  - available_permits
+  examples:
+  - input: capacity = 2, operations = [["T1", "ACQUIRE"], ["T2", "ACQUIRE"], ["T3", "ACQUIRE"], ["T1", "RELEASE"]]
+    output: '{"available_permits": 0, "granted": ["T2", "T3"], "waiting": [], "overflow_errors": 0}'
+    explanation: T1 releases its permit, which is immediately handed over to waiting thread T3.
+  - input: capacity = 1, operations = [["T1", "RELEASE"]]
+    output: '{"available_permits": 1, "granted": [], "waiting": [], "overflow_errors": 1}'
+    explanation: Releasing when permits already equal capacity triggers an overflow error.
+  constraints:
+  - 1 <= capacity <= 100
+  - 0 <= len(operations) <= 500
+  - Actions are strictly 'ACQUIRE' or 'RELEASE'
+constraint_quiz:
+  prompt: What distinguishes a BoundedSemaphore from a standard Semaphore in Python?
+  options:
+  - BoundedSemaphore raises a ValueError if release() increments the permit counter above initial capacity
+  - BoundedSemaphore runs only on Linux operating systems
+  - BoundedSemaphore allocates memory in kernel space
+  - BoundedSemaphore can only hold 1 permit
+  answer: 0
+  explanation: A BoundedSemaphore checks that its value does not exceed its initial value upon release, guarding against accidental
+    permit leaks.
+pattern_quiz:
+  prompt: What data structure maintains fair, first-come-first-served (FCFS) permit assignment for blocked threads?
+  options:
+  - FIFO Queue (list with pop(0) or collections.deque)
+  - LIFO Stack
+  - Unordered set
+  - Max-heap ordered by thread name
+  answer: 0
+  explanation: A FIFO queue grants permits to threads in the exact order they attempted to acquire.
+function:
+  name: simulate_bounded_semaphore
+  params:
+  - name: capacity
+  - name: operations
+  returns: any
+  compare: exact
+starter_code: "class Solution:\n    def simulate_bounded_semaphore(self, capacity: int, operations: list[list[str]]) -> dict:\n\
+  \        pass\n"
+tests:
+- args:
+  - 2
+  - - - T1
+      - ACQUIRE
+    - - T2
+      - ACQUIRE
+    - - T3
+      - ACQUIRE
+    - - T1
+      - RELEASE
+  expected:
+    available_permits: 0
+    granted:
+    - T2
+    - T3
+    waiting: []
+    overflow_errors: 0
+  note: Permit handed directly to waiting thread
+- args:
+  - 1
+  - - - T1
+      - RELEASE
+  expected:
+    available_permits: 1
+    granted: []
+    waiting: []
+    overflow_errors: 1
+  note: Overflow on redundant release
+- args:
+  - 3
+  - - - T1
+      - ACQUIRE
+    - - T2
+      - ACQUIRE
+  expected:
+    available_permits: 1
+    granted:
+    - T1
+    - T2
+    waiting: []
+    overflow_errors: 0
+  note: Partial capacity acquired
+- args:
+  - 1
+  - []
+  expected:
+    available_permits: 1
+    granted: []
+    waiting: []
+    overflow_errors: 0
+  note: Empty operations
+visualize_test: 0
+drills:
+- skill: setup
+  title: Check permit availability
+  goal: Determine if acquire succeeds immediately.
+  instructions: Return `True` if `available > 0`, else `False`.
+  function:
+    name: drill_can_acquire
+    params:
+    - name: available
+  starter_code: "class Solution:\n    def drill_can_acquire(self, available: int) -> bool:\n        pass\n"
+  tests:
+  - args:
+    - 2
+    expected: true
+  - args:
+    - 0
+    expected: false
+  solution: "class Solution:\n    def drill_can_acquire(self, available: int) -> bool:\n        return available > 0\n"
+  hint: Return available > 0.
+- skill: core
+  title: Hand off permit to waiting queue
+  goal: Transfer permit from released thread to head of waiting queue.
+  instructions: Pop the first thread from `waiting` and append to `granted`. Return `[granted, waiting]`.
+  function:
+    name: drill_handoff
+    params:
+    - name: granted
+    - name: waiting
+  starter_code: "class Solution:\n    def drill_handoff(self, granted: list, waiting: list) -> list:\n        pass\n"
+  tests:
+  - args:
+    - - T1
+    - - T2
+      - T3
+    expected:
+    - - T1
+      - T2
+    - - T3
+  solution: "class Solution:\n    def drill_handoff(self, granted: list, waiting: list) -> list:\n        if waiting:\n  \
+    \          granted.append(waiting.pop(0))\n        return [granted, waiting]\n"
+  hint: Pop index 0 from waiting and append to granted.
+- skill: edge
+  title: Detect permit overflow
+  goal: Check if release exceeds capacity.
+  instructions: Return `True` if `available >= capacity and len(waiting) == 0`, else `False`.
+  function:
+    name: drill_is_overflow
+    params:
+    - name: available
+    - name: capacity
+    - name: waiting
+  starter_code: "class Solution:\n    def drill_is_overflow(self, available: int, capacity: int, waiting: list) -> bool:\n\
+    \        pass\n"
+  tests:
+  - args:
+    - 2
+    - 2
+    - []
+    expected: true
+  - args:
+    - 1
+    - 2
+    - []
+    expected: false
+  - args:
+    - 2
+    - 2
+    - - T1
+    expected: false
+  solution: "class Solution:\n    def drill_is_overflow(self, available: int, capacity: int, waiting: list) -> bool:\n   \
+    \     return available >= capacity and len(waiting) == 0\n"
+  hint: Check if available >= capacity when waiting is empty.
+hints:
+- Initialize `available = capacity`, `granted = []`, `waiting = []`, and `overflow_errors = 0`.
+- When releasing, if a thread is waiting, directly transfer the permit to it without incrementing `available`.
+- '| # Pseudocode Blueprint
+
+  | available = capacity, granted = [], waiting = []
+
+  | for t, op in operations:
+
+  |     if op == "ACQUIRE":
+
+  |         if available > 0: available -= 1; granted.append(t)
+
+  |         else: waiting.append(t)
+
+  |     elif op == "RELEASE":
+
+  |         if available >= capacity and not waiting: overflow += 1
+
+  |         else:
+
+  |             if t in granted: granted.remove(t)
+
+  |             if waiting: granted.append(waiting.pop(0))
+
+  |             else: available += 1'
+solution:
+  code: "class Solution:\n    def simulate_bounded_semaphore(self, capacity: int, operations: list[list[str]]) -> dict:\n\
+    \        available = capacity\n        granted = []\n        waiting = []\n        overflow_errors = 0\n\n        for\
+    \ thread_id, op in operations:\n            if op == \"ACQUIRE\":\n                if available > 0:\n               \
+    \     available -= 1\n                    granted.append(thread_id)\n                else:\n                    waiting.append(thread_id)\n\
+    \            elif op == \"RELEASE\":\n                if available >= capacity and not waiting:\n                    overflow_errors\
+    \ += 1\n                else:\n                    if thread_id in granted:\n                        granted.remove(thread_id)\n\
+    \                    if waiting:\n                        next_t = waiting.pop(0)\n                        granted.append(next_t)\n\
+    \                    else:\n                        available += 1\n\n        return {\n            \"available_permits\"\
+    : available,\n            \"granted\": granted,\n            \"waiting\": waiting,\n            \"overflow_errors\": overflow_errors,\n\
+    \        }\n"
+  explanation: A bounded semaphore guarantees that permits never exceed the initial capacity. When a thread releases a permit
+    while others are waiting in the queue, the permit is directly transferred to the next waiting thread, maintaining constant
+    permit volume.
+  time: O(N) where N is the number of operations
+  space: O(capacity + waiting_threads) for tracking permits and queue
+pitch_script: '**(Clarify)** "We need to simulate a bounded semaphore with capacity limits, tracking granted threads, a FIFO
+  waiting queue, and overflow errors."
+
+
+  **(Brute force)** "An unbounded semaphore increments its permit counter indefinitely on release(), hiding bugs where release
+  is invoked without a matching acquire."
+
+
+  **(Trigger)** "Tracking a fixed capacity of permits with blocked threads entering a waiting list indicates a bounded semaphore
+  simulator."
+
+
+  **(Optimal)** "We maintain available permits and a waiting queue. On ACQUIRE, we grant immediately if available > 0, else
+  queue. On RELEASE, if already at capacity with an empty queue, we record an overflow error. Otherwise, we pop from the waiting
+  queue to grant the next thread or restore the permit."
+
+
+  **(Complexity)** "Runs in O(N) time with O(C + W) space for granted and waiting queues." '
+twist:
+  lc: 9422
+  title: Resource Allocation Graph Deadlock Detection
+  why: When multiple threads hold some resources and wait for others held by peers, they can form a circular wait cycle causing
+    a permanent deadlock.
+viz:
+  title: Bounded Semaphore Timeline
+  type: concurrency_timeline

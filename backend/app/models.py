@@ -16,6 +16,8 @@ class World(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     slug: Mapped[str] = mapped_column(String(64), unique=True)
+    citadel_id: Mapped[str] = mapped_column(String(32), default="dsa")
+    status: Mapped[str] = mapped_column(String(32), default="live")
     name: Mapped[str] = mapped_column(String(128))
     tagline: Mapped[str] = mapped_column(Text, default="")
     core_idea: Mapped[str] = mapped_column(Text, default="")
@@ -35,6 +37,9 @@ class Question(Base):
     difficulty: Mapped[str] = mapped_column(String(16))
     world_id: Mapped[int] = mapped_column(ForeignKey("worlds.id"))
     position: Mapped[int] = mapped_column(Integer)
+    citadel_id: Mapped[str] = mapped_column(String(32), default="dsa")
+    brick_layer: Mapped[int] = mapped_column(Integer, default=1)
+    runner_type: Mapped[str] = mapped_column(String(32), default="python_trace")
     visualizer: Mapped[str] = mapped_column(String(32))
     patterns: Mapped[list] = mapped_column(JSON, default=list)
     # Deep content (statement, drills, tests, hints, ...). Null until the world is seeded.
@@ -56,6 +61,8 @@ class Progress(Base):
     attempts: Mapped[int] = mapped_column(Integer, default=0)
     hints_used: Mapped[int] = mapped_column(Integer, default=0)
     confidence: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    first_try_pass: Mapped[bool | None] = mapped_column(Boolean, nullable=True, default=None)
+    time_spent_seconds: Mapped[int | None] = mapped_column(Integer, nullable=True, default=None)
     review_count: Mapped[int] = mapped_column(Integer, default=0)
     last_practiced_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     next_review_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)

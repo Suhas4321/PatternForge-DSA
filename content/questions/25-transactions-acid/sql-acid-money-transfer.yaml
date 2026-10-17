@@ -1,0 +1,217 @@
+slug: sql-acid-money-transfer
+lc: 9321
+citadel_id: sql_dbms
+brick_layer: 4
+runner_type: sql_sqlite
+concept:
+  problem_it_solves: How do banking database systems guarantee that a money transfer between two accounts never debits the
+    sender without crediting the receiver? Under ACID Atomicity ('all-or-nothing'), a transaction must either complete all
+    operations or abort completely. If the sender's account has insufficient funds, the transaction rolls back, leaving all
+    balances unchanged.
+  brute_force: Executing two separate un-fenced UPDATE statements across network calls without transaction boundaries, risking
+    balance loss if the network crashes between queries.
+  brute_force_complexity: Severe data corruption and phantom money loss.
+  key_insight: 'A transaction evaluates preconditions atomically: if the sender balance check passes, both balances adjust;
+    otherwise, neither balance changes and the transaction reports a rollback.'
+  real_world: UPI peer-to-peer transfers, Stripe wallet payouts, and banking ledger debits.
+statement:
+  clean: "Write a SQL query to simulate an atomic money transfer transaction between accounts:\nTransfer `200` units from\
+    \ Account `1` (`Aarav`) to Account `2` (`Priya`).\n\nTable schema:\n```sql\nCREATE TABLE Accounts (\n    id INTEGER PRIMARY\
+    \ KEY,\n    owner TEXT,\n    balance INTEGER\n);\n```\n\nTransaction Rules:\n1. Verify whether Account `1` has at least\
+    \ `200` units: `(SELECT balance FROM Accounts WHERE id = 1) >= 200`.\n2. If sufficient funds exist, the transaction COMMITS:\n\
+    \   - Account `1` balance decreases by `200`.\n   - Account `2` balance increases by `200`.\n   - Status column is `'COMMITTED'`.\n\
+    3. If insufficient funds exist, the transaction ROLLS BACK:\n   - All account balances remain unchanged.\n   - Status\
+    \ column is `'ROLLEDBACK'`.\n\nReturn columns: `id`, `owner`, `balance`, `status` ordered by `id` ascending."
+  oa_story: '**PayLoop Core Banking Engine — Uncommitted Ledger Recovery**
+
+
+    During peak UPI transaction hours, network drops between PayLoop''s switch and partner bank servers severed connections
+    midway through wallet debits. Because legacy scripts lacked atomic rollback checks, sender balances were debited but receiver
+    accounts never received funds.
+
+
+    Implement this SQL transaction simulation to model how ACID atomicity enforces all-or-nothing balance transfers and preserves
+    ledger consistency.'
+  trigger_keywords:
+  - atomic money transfer transaction
+  - Accounts
+  - ROLLEDBACK
+  examples:
+  - input: 'Accounts: [(1, ''Aarav'', 1000), (2, ''Priya'', 500)], transfer 200 from 1 to 2'
+    output: '[(1, ''Aarav'', 800, ''COMMITTED''), (2, ''Priya'', 700, ''COMMITTED'')]'
+    explanation: 'Aarav has 1000 >= 200, so transfer commits: Aarav becomes 800, Priya becomes 700.'
+  constraints:
+  - Accounts table contains between 2 and 1000 rows
+  - balance >= 0
+constraint_quiz:
+  prompt: What does the 'A' (Atomicity) in ACID guarantee during a multi-row database transaction?
+  options:
+  - Either all SQL modifications in the transaction succeed and commit, or all are completely undone (rolled back)
+  - Transactions execute on only one CPU core
+  - Transactions run in zero nanoseconds
+  - Data is compressed using gzip
+  answer: 0
+  explanation: 'Atomicity ensures all-or-nothing execution: if any statement in the transaction fails or aborts, all prior
+    changes made within the transaction are rolled back.'
+pattern_quiz:
+  prompt: How does a SQL CASE statement simulate conditional transaction execution in a single query?
+  options:
+  - By checking the subquery predicate `(SELECT balance FROM Accounts WHERE id = 1) >= 200` inside the CASE expression
+  - By creating an asynchronous thread in SQLite
+  - By dropping the table on error
+  - By converting integer balances to floating-point numbers
+  answer: 0
+  explanation: Evaluating the sender balance check in the outer CASE branch determines whether to apply the balance shift
+    or keep the original balance untouched.
+schema_sql: "CREATE TABLE Accounts (\n    id INTEGER PRIMARY KEY,\n    owner TEXT,\n    balance INTEGER\n);"
+seed_sql: "INSERT INTO Accounts VALUES\n    (1, 'Aarav', 1000),\n    (2, 'Priya', 500),\n    (3, 'Vikram', 300);"
+function:
+  name: execute_sql
+  params: []
+  returns: any
+  compare: exact
+starter_code: "-- Write your SQL query below to simulate atomic transfer of 200 from id 1 to id 2\nSELECT\n    id,\n    owner,\n\
+  \    balance,\n    'COMMITTED' AS status\nFROM Accounts\nORDER BY id;\n"
+tests:
+- args: []
+  expected:
+  - - 1
+    - Aarav
+    - 800
+    - COMMITTED
+  - - 2
+    - Priya
+    - 700
+    - COMMITTED
+  - - 3
+    - Vikram
+    - 300
+    - COMMITTED
+  note: Successful transfer committed
+- args: []
+  expected: null
+  note: Reference verification
+- args: []
+  expected: null
+  note: Consistency check
+visualize_test: 0
+drills:
+- skill: setup
+  title: Check sender balance threshold
+  goal: Write scalar subquery checking if balance is >= 200.
+  instructions: Select `(SELECT balance FROM Accounts WHERE id = 1) >= 200 AS can_transfer;`.
+  function:
+    name: execute_sql
+    params: []
+  starter_code: 'SELECT (SELECT balance FROM Accounts WHERE id = 1) >= 200 AS can_transfer;
+
+    '
+  tests:
+  - args: []
+    expected:
+    - - 1
+  solution: 'SELECT (SELECT balance FROM Accounts WHERE id = 1) >= 200 AS can_transfer;
+
+    '
+  hint: Use a scalar subquery against Accounts.
+- skill: core
+  title: Apply conditional balance adjustment
+  goal: Adjust balance only if sender has sufficient funds.
+  instructions: Write CASE statement updating id 1 by -200 and id 2 by +200.
+  function:
+    name: execute_sql
+    params: []
+  starter_code: 'SELECT id, CASE WHEN id = 1 THEN balance - 200 WHEN id = 2 THEN balance + 200 ELSE balance END AS balance
+    FROM Accounts ORDER BY id;
+
+    '
+  tests:
+  - args: []
+    expected:
+    - - 1
+      - 800
+    - - 2
+      - 700
+    - - 3
+      - 300
+  solution: 'SELECT id, CASE WHEN id = 1 THEN balance - 200 WHEN id = 2 THEN balance + 200 ELSE balance END AS balance FROM
+    Accounts ORDER BY id;
+
+    '
+  hint: Use CASE WHEN id = 1 ... WHEN id = 2 ... ELSE balance END.
+- skill: edge
+  title: Set status flag
+  goal: Output COMMITTED or ROLLEDBACK based on check.
+  instructions: Return status string based on balance check.
+  function:
+    name: execute_sql
+    params: []
+  starter_code: 'SELECT CASE WHEN (SELECT balance FROM Accounts WHERE id = 1) >= 200 THEN ''COMMITTED'' ELSE ''ROLLEDBACK''
+    END AS status;
+
+    '
+  tests:
+  - args: []
+    expected:
+    - - COMMITTED
+  solution: 'SELECT CASE WHEN (SELECT balance FROM Accounts WHERE id = 1) >= 200 THEN ''COMMITTED'' ELSE ''ROLLEDBACK'' END
+    AS status;
+
+    '
+  hint: Return COMMITTED or ROLLEDBACK.
+hints:
+- Use `(SELECT balance FROM Accounts WHERE id = 1) >= 200` to test if Account 1 has sufficient funds.
+- In the `balance` expression, wrap the id checks inside a condition that tests the sender balance.
+- '| # Pseudocode Blueprint
+
+  | SELECT id, owner,
+
+  |   CASE WHEN sender_balance >= 200 THEN
+
+  |       CASE WHEN id = 1 THEN balance - 200
+
+  |            WHEN id = 2 THEN balance + 200
+
+  |            ELSE balance END
+
+  |   ELSE balance END AS balance,
+
+  |   CASE WHEN sender_balance >= 200 THEN ''COMMITTED'' ELSE ''ROLLEDBACK'' END AS status
+
+  | FROM Accounts ORDER BY id;'
+solution:
+  code: "SELECT\n    id,\n    owner,\n    CASE\n        WHEN (SELECT balance FROM Accounts WHERE id = 1) >= 200 THEN\n   \
+    \         CASE\n                WHEN id = 1 THEN balance - 200\n                WHEN id = 2 THEN balance + 200\n     \
+    \           ELSE balance\n            END\n        ELSE balance\n    END AS balance,\n    CASE\n        WHEN (SELECT balance\
+    \ FROM Accounts WHERE id = 1) >= 200 THEN 'COMMITTED'\n        ELSE 'ROLLEDBACK'\n    END AS status\nFROM Accounts\nORDER\
+    \ BY id;\n"
+  explanation: 'The query checks the precondition: Account 1 must have at least 200 units. If true, Account 1 is decremented
+    by 200 and Account 2 is incremented by 200, outputting ''COMMITTED''. If Account 1 has less than 200, balances remain
+    untouched and status reports ''ROLLEDBACK'', simulating atomic all-or-nothing execution.'
+  time: O(N) single scan of Accounts table
+  space: O(1) memory overhead
+pitch_script: '**(Clarify)** "We need to simulate an atomic bank transfer of 200 units from Account 1 to Account 2, committing
+  if the sender has sufficient funds, or rolling back without mutating balances if funds are insufficient."
+
+
+  **(Brute force)** "Executing separate UPDATE statements without an atomic check risks negative balances or orphaned debits
+  if a crash occurs between statements."
+
+
+  **(Trigger)** "Simulating all-or-nothing transfer preconditions with a status outcome signals ACID atomicity modeling."
+
+
+  **(Optimal)** "We evaluate `(SELECT balance FROM Accounts WHERE id = 1) >= 200`. In the balance column, if sufficient funds
+  exist, we subtract 200 from id 1 and add 200 to id 2. Otherwise, we leave the balance unchanged. The status column similarly
+  reports COMMITTED or ROLLEDBACK."
+
+
+  **(Complexity)** "Executes in O(N) time with O(1) space." '
+twist:
+  lc: 9322
+  title: Optimistic Locking & Lost Update Prevention
+  why: Once atomicity is guaranteed, concurrent transactions updating the same row require optimistic locking to prevent lost
+    updates.
+viz:
+  title: ACID Transaction State Pipeline
+  type: sql_pipeline

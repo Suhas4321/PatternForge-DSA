@@ -140,6 +140,13 @@ class QuestionContent(Strict):
     pitch_script: str  # markdown, what to say out loud in the interview
     twist: Twist
     viz: dict[str, Any] = Field(default_factory=dict)  # visualizer config hints
+    citadel_id: str | None = None
+    brick_layer: int | None = None
+    runner_type: str | None = None
+    schema_sql: str | None = None
+    seed_sql: str | None = None
+    concept_trace: dict[str, Any] | None = None
+    visual_demo: dict[str, Any] | None = None
 
     @model_validator(mode="after")
     def _visualize_test_in_range(self):

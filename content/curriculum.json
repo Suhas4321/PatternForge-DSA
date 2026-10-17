@@ -1,214 +1,3441 @@
 {
+  "citadels": [
+    {
+      "id": "dsa",
+      "numeral": "I",
+      "name": "DSA Pattern Forge",
+      "short_name": "DSA",
+      "accent": "var(--color-cyan)",
+      "tagline": "12 Worlds \u00b7 115 Core Patterns",
+      "description": "Master algorithm patterns from two pointers to dynamic programming with visual execution.",
+      "tiers": [
+        [
+          1
+        ],
+        [
+          2,
+          4
+        ],
+        [
+          3,
+          5,
+          6
+        ],
+        [
+          7,
+          11
+        ],
+        [
+          8,
+          9,
+          10
+        ],
+        [
+          12
+        ]
+      ],
+      "edges": [
+        [
+          1,
+          2
+        ],
+        [
+          1,
+          4
+        ],
+        [
+          2,
+          3
+        ],
+        [
+          2,
+          5
+        ],
+        [
+          4,
+          6
+        ],
+        [
+          6,
+          7
+        ],
+        [
+          5,
+          7
+        ],
+        [
+          3,
+          11
+        ],
+        [
+          5,
+          11
+        ],
+        [
+          7,
+          8
+        ],
+        [
+          7,
+          9
+        ],
+        [
+          7,
+          10
+        ],
+        [
+          11,
+          8
+        ],
+        [
+          9,
+          12
+        ],
+        [
+          10,
+          12
+        ]
+      ]
+    },
+    {
+      "id": "python_data",
+      "numeral": "II",
+      "name": "Practical Python, OOP & Pandas",
+      "short_name": "Python & Data",
+      "accent": "var(--color-emerald)",
+      "tagline": "Memory \u00b7 SOLID \u00b7 Parsing \u00b7 Pandas",
+      "description": "Python internals, OOP design patterns, XML LCA tree pruning, and practical Pandas pipelines.",
+      "tiers": [
+        [
+          13
+        ],
+        [
+          14,
+          15
+        ],
+        [
+          16
+        ]
+      ],
+      "edges": [
+        [
+          13,
+          14
+        ],
+        [
+          13,
+          15
+        ],
+        [
+          14,
+          16
+        ],
+        [
+          15,
+          16
+        ]
+      ]
+    },
+    {
+      "id": "sql_dbms",
+      "numeral": "III",
+      "name": "SQL Mastery & Database Internals",
+      "short_name": "SQL & DBMS",
+      "accent": "var(--color-indigo)",
+      "tagline": "8KB Pages \u00b7 B-Trees \u00b7 ACID \u00b7 20 Live Queries",
+      "description": "Relational storage engines, B-Tree index traversal, ACID anomalies, and live SQL execution.",
+      "tiers": [
+        [
+          17
+        ],
+        [
+          22,
+          23
+        ],
+        [
+          18,
+          24
+        ],
+        [
+          25
+        ]
+      ],
+      "edges": [
+        [
+          17,
+          22
+        ],
+        [
+          17,
+          23
+        ],
+        [
+          22,
+          18
+        ],
+        [
+          23,
+          18
+        ],
+        [
+          22,
+          24
+        ],
+        [
+          23,
+          24
+        ],
+        [
+          18,
+          25
+        ],
+        [
+          24,
+          25
+        ]
+      ]
+    },
+    {
+      "id": "os_concurrency",
+      "numeral": "IV",
+      "name": "OS, Concurrency, GIL & Async",
+      "short_name": "OS & Concurrency",
+      "accent": "var(--color-amber)",
+      "tagline": "Processes \u00b7 Threads \u00b7 GIL \u00b7 Asyncio",
+      "description": "CPU cores, thread contention under Python GIL, asyncio cooperative loops, and multi-core multiprocessing.",
+      "tiers": [
+        [
+          19
+        ],
+        [
+          26,
+          27
+        ],
+        [
+          28,
+          29
+        ],
+        [
+          30
+        ]
+      ],
+      "edges": [
+        [
+          19,
+          26
+        ],
+        [
+          19,
+          27
+        ],
+        [
+          26,
+          28
+        ],
+        [
+          27,
+          28
+        ],
+        [
+          26,
+          29
+        ],
+        [
+          27,
+          29
+        ],
+        [
+          28,
+          30
+        ],
+        [
+          29,
+          30
+        ]
+      ]
+    },
+    {
+      "id": "backend_apis",
+      "numeral": "V",
+      "name": "FastAPI, HTTP Lifecycle & Auth",
+      "short_name": "FastAPI & Backend",
+      "accent": "var(--color-crimson)",
+      "tagline": "HTTP Status Codes \u00b7 JWT \u00b7 Streaming \u00b7 Queues",
+      "description": "Complete HTTP 4xx/5xx diagnostics, JWT OAuth2 auth, Pydantic validation, and Redis/Celery job queues.",
+      "tiers": [
+        [
+          20
+        ],
+        [
+          31,
+          32
+        ],
+        [
+          33
+        ],
+        [
+          34
+        ]
+      ],
+      "edges": [
+        [
+          20,
+          31
+        ],
+        [
+          20,
+          32
+        ],
+        [
+          31,
+          33
+        ],
+        [
+          32,
+          33
+        ],
+        [
+          33,
+          34
+        ]
+      ]
+    },
+    {
+      "id": "ai_resume",
+      "numeral": "VI",
+      "name": "GenAI Systems & Resume Defense",
+      "short_name": "GenAI & Resume",
+      "accent": "var(--color-orchid)",
+      "tagline": "Embeddings \u00b7 RAG \u00b7 GEPA \u00b7 Resume Defense",
+      "description": "Production RAG, Vector DBs, genetic prompt optimization, and bullet-by-bullet live resume defense.",
+      "tiers": [
+        [
+          21
+        ],
+        [
+          35,
+          36
+        ],
+        [
+          37
+        ],
+        [
+          38
+        ]
+      ],
+      "edges": [
+        [
+          21,
+          35
+        ],
+        [
+          21,
+          36
+        ],
+        [
+          35,
+          37
+        ],
+        [
+          36,
+          37
+        ],
+        [
+          37,
+          38
+        ]
+      ]
+    }
+  ],
   "worlds": [
     {
-      "id": 1, "slug": "arrays-hashing", "name": "Arrays & Hashing",
+      "id": 1,
+      "slug": "arrays-hashing",
+      "name": "Arrays & Hashing",
       "tagline": "Trade memory for speed: remember what you've seen.",
       "core_idea": "A hash map / set turns 'search the rest of the array' (O(N)) into an O(1) lookup, collapsing nested loops into a single pass.",
-      "triggers": ["seen before", "duplicate", "frequency / count", "pair that sums to", "group by", "anagram"],
+      "triggers": [
+        "seen before",
+        "duplicate",
+        "frequency / count",
+        "pair that sums to",
+        "group by",
+        "anagram"
+      ],
       "questions": [
-        {"slug": "contains-duplicate", "lc": 217, "title": "Contains Duplicate", "difficulty": "Easy", "visualizer": "array_pointer", "patterns": ["hash-set"]},
-        {"slug": "valid-anagram", "lc": 242, "title": "Valid Anagram", "difficulty": "Easy", "visualizer": "array_pointer", "patterns": ["frequency-count"]},
-        {"slug": "two-sum", "lc": 1, "title": "Two Sum", "difficulty": "Easy", "visualizer": "array_pointer", "patterns": ["hash-map-complement"]},
-        {"slug": "majority-element", "lc": 169, "title": "Majority Element", "difficulty": "Easy", "visualizer": "array_pointer", "patterns": ["frequency-count", "boyer-moore-voting"]},
-        {"slug": "group-anagrams", "lc": 49, "title": "Group Anagrams", "difficulty": "Medium", "visualizer": "array_pointer", "patterns": ["hash-map-grouping", "canonical-key"]},
-        {"slug": "top-k-frequent-elements", "lc": 347, "title": "Top K Frequent Elements", "difficulty": "Medium", "visualizer": "array_pointer", "patterns": ["frequency-count", "bucket-sort"]},
-        {"slug": "product-of-array-except-self", "lc": 238, "title": "Product of Array Except Self", "difficulty": "Medium", "visualizer": "array_pointer", "patterns": ["prefix-suffix"]},
-        {"slug": "longest-consecutive-sequence", "lc": 128, "title": "Longest Consecutive Sequence", "difficulty": "Medium", "visualizer": "array_pointer", "patterns": ["hash-set", "sequence-start"]},
-        {"slug": "subarray-sum-equals-k", "lc": 560, "title": "Subarray Sum Equals K", "difficulty": "Medium", "visualizer": "array_pointer", "patterns": ["prefix-sum", "hash-map-complement"]},
-        {"slug": "next-permutation", "lc": 31, "title": "Next Permutation", "difficulty": "Medium", "visualizer": "array_pointer", "patterns": ["array-scan-from-right", "in-place-reverse"]}
-      ]
+        {
+          "slug": "contains-duplicate",
+          "lc": 217,
+          "title": "Contains Duplicate",
+          "difficulty": "Easy",
+          "visualizer": "array_pointer",
+          "patterns": [
+            "hash-set"
+          ],
+          "world_id": 1
+        },
+        {
+          "slug": "valid-anagram",
+          "lc": 242,
+          "title": "Valid Anagram",
+          "difficulty": "Easy",
+          "visualizer": "array_pointer",
+          "patterns": [
+            "frequency-count"
+          ],
+          "world_id": 1
+        },
+        {
+          "slug": "two-sum",
+          "lc": 1,
+          "title": "Two Sum",
+          "difficulty": "Easy",
+          "visualizer": "array_pointer",
+          "patterns": [
+            "hash-map-complement"
+          ],
+          "world_id": 1
+        },
+        {
+          "slug": "majority-element",
+          "lc": 169,
+          "title": "Majority Element",
+          "difficulty": "Easy",
+          "visualizer": "array_pointer",
+          "patterns": [
+            "frequency-count",
+            "boyer-moore-voting"
+          ],
+          "world_id": 1
+        },
+        {
+          "slug": "group-anagrams",
+          "lc": 49,
+          "title": "Group Anagrams",
+          "difficulty": "Medium",
+          "visualizer": "array_pointer",
+          "patterns": [
+            "hash-map-grouping",
+            "canonical-key"
+          ],
+          "world_id": 1
+        },
+        {
+          "slug": "top-k-frequent-elements",
+          "lc": 347,
+          "title": "Top K Frequent Elements",
+          "difficulty": "Medium",
+          "visualizer": "array_pointer",
+          "patterns": [
+            "frequency-count",
+            "bucket-sort"
+          ],
+          "world_id": 1
+        },
+        {
+          "slug": "product-of-array-except-self",
+          "lc": 238,
+          "title": "Product of Array Except Self",
+          "difficulty": "Medium",
+          "visualizer": "array_pointer",
+          "patterns": [
+            "prefix-suffix"
+          ],
+          "world_id": 1
+        },
+        {
+          "slug": "longest-consecutive-sequence",
+          "lc": 128,
+          "title": "Longest Consecutive Sequence",
+          "difficulty": "Medium",
+          "visualizer": "array_pointer",
+          "patterns": [
+            "hash-set",
+            "sequence-start"
+          ],
+          "world_id": 1
+        },
+        {
+          "slug": "subarray-sum-equals-k",
+          "lc": 560,
+          "title": "Subarray Sum Equals K",
+          "difficulty": "Medium",
+          "visualizer": "array_pointer",
+          "patterns": [
+            "prefix-sum",
+            "hash-map-complement"
+          ],
+          "world_id": 1
+        },
+        {
+          "slug": "next-permutation",
+          "lc": 31,
+          "title": "Next Permutation",
+          "difficulty": "Medium",
+          "visualizer": "array_pointer",
+          "patterns": [
+            "array-scan-from-right",
+            "in-place-reverse"
+          ],
+          "world_id": 1
+        }
+      ],
+      "status": "live",
+      "citadel_id": "dsa"
     },
     {
-      "id": 2, "slug": "two-pointers", "name": "Two Pointers",
+      "id": 2,
+      "slug": "two-pointers",
+      "name": "Two Pointers",
       "tagline": "Two indices moving with a rule beat one index checking everything.",
       "core_idea": "On sorted data (or when you can process from both ends), each comparison lets you safely discard one end, so the search space shrinks every step: O(N) instead of O(N^2).",
-      "triggers": ["sorted array", "pair / triplet", "in-place", "palindrome", "from both ends", "partition"],
+      "triggers": [
+        "sorted array",
+        "pair / triplet",
+        "in-place",
+        "palindrome",
+        "from both ends",
+        "partition"
+      ],
       "questions": [
-        {"slug": "valid-palindrome", "lc": 125, "title": "Valid Palindrome", "difficulty": "Easy", "visualizer": "array_pointer", "patterns": ["opposite-ends"]},
-        {"slug": "move-zeroes", "lc": 283, "title": "Move Zeroes", "difficulty": "Easy", "visualizer": "array_pointer", "patterns": ["read-write-pointers"]},
-        {"slug": "two-sum-ii-input-array-is-sorted", "lc": 167, "title": "Two Sum II - Input Array Is Sorted", "difficulty": "Medium", "visualizer": "array_pointer", "patterns": ["opposite-ends"]},
-        {"slug": "rearrange-array-elements-by-sign", "lc": 2149, "title": "Rearrange Array Elements by Sign", "difficulty": "Medium", "visualizer": "array_pointer", "patterns": ["read-write-pointers"]},
-        {"slug": "sort-colors", "lc": 75, "title": "Sort Colors", "difficulty": "Medium", "visualizer": "array_pointer", "patterns": ["dutch-national-flag"]},
-        {"slug": "3sum", "lc": 15, "title": "3Sum", "difficulty": "Medium", "visualizer": "array_pointer", "patterns": ["sort-then-opposite-ends", "skip-duplicates"]},
-        {"slug": "container-with-most-water", "lc": 11, "title": "Container With Most Water", "difficulty": "Medium", "visualizer": "array_pointer", "patterns": ["opposite-ends", "greedy-discard"]},
-        {"slug": "trapping-rain-water", "lc": 42, "title": "Trapping Rain Water", "difficulty": "Hard", "visualizer": "array_pointer", "patterns": ["opposite-ends", "running-max"]}
-      ]
+        {
+          "slug": "valid-palindrome",
+          "lc": 125,
+          "title": "Valid Palindrome",
+          "difficulty": "Easy",
+          "visualizer": "array_pointer",
+          "patterns": [
+            "opposite-ends"
+          ],
+          "world_id": 2
+        },
+        {
+          "slug": "move-zeroes",
+          "lc": 283,
+          "title": "Move Zeroes",
+          "difficulty": "Easy",
+          "visualizer": "array_pointer",
+          "patterns": [
+            "read-write-pointers"
+          ],
+          "world_id": 2
+        },
+        {
+          "slug": "two-sum-ii-input-array-is-sorted",
+          "lc": 167,
+          "title": "Two Sum II - Input Array Is Sorted",
+          "difficulty": "Medium",
+          "visualizer": "array_pointer",
+          "patterns": [
+            "opposite-ends"
+          ],
+          "world_id": 2
+        },
+        {
+          "slug": "rearrange-array-elements-by-sign",
+          "lc": 2149,
+          "title": "Rearrange Array Elements by Sign",
+          "difficulty": "Medium",
+          "visualizer": "array_pointer",
+          "patterns": [
+            "read-write-pointers"
+          ],
+          "world_id": 2
+        },
+        {
+          "slug": "sort-colors",
+          "lc": 75,
+          "title": "Sort Colors",
+          "difficulty": "Medium",
+          "visualizer": "array_pointer",
+          "patterns": [
+            "dutch-national-flag"
+          ],
+          "world_id": 2
+        },
+        {
+          "slug": "3sum",
+          "lc": 15,
+          "title": "3Sum",
+          "difficulty": "Medium",
+          "visualizer": "array_pointer",
+          "patterns": [
+            "sort-then-opposite-ends",
+            "skip-duplicates"
+          ],
+          "world_id": 2
+        },
+        {
+          "slug": "container-with-most-water",
+          "lc": 11,
+          "title": "Container With Most Water",
+          "difficulty": "Medium",
+          "visualizer": "array_pointer",
+          "patterns": [
+            "opposite-ends",
+            "greedy-discard"
+          ],
+          "world_id": 2
+        },
+        {
+          "slug": "trapping-rain-water",
+          "lc": 42,
+          "title": "Trapping Rain Water",
+          "difficulty": "Hard",
+          "visualizer": "array_pointer",
+          "patterns": [
+            "opposite-ends",
+            "running-max"
+          ],
+          "world_id": 2
+        }
+      ],
+      "status": "live",
+      "citadel_id": "dsa"
     },
     {
-      "id": 3, "slug": "sliding-window", "name": "Sliding Window",
+      "id": 3,
+      "slug": "sliding-window",
+      "name": "Sliding Window",
       "tagline": "Don't recompute the window, update it.",
       "core_idea": "For contiguous subarrays/substrings, add the element entering on the right and remove the one leaving on the left, turning O(N*K) or O(N^2) into O(N).",
-      "triggers": ["contiguous subarray / substring", "longest / shortest window", "at most K", "window of size K", "without repeating"],
+      "triggers": [
+        "contiguous subarray / substring",
+        "longest / shortest window",
+        "at most K",
+        "window of size K",
+        "without repeating"
+      ],
       "questions": [
-        {"slug": "maximum-average-subarray-i", "lc": 643, "title": "Maximum Average Subarray I", "difficulty": "Easy", "visualizer": "array_pointer", "patterns": ["fixed-window"]},
-        {"slug": "best-time-to-buy-and-sell-stock", "lc": 121, "title": "Best Time to Buy and Sell Stock", "difficulty": "Easy", "visualizer": "array_pointer", "patterns": ["running-min", "variable-window"]},
-        {"slug": "max-consecutive-ones-iii", "lc": 1004, "title": "Max Consecutive Ones III", "difficulty": "Medium", "visualizer": "array_pointer", "patterns": ["variable-window", "at-most-k"]},
-        {"slug": "fruit-into-baskets", "lc": 904, "title": "Fruit Into Baskets", "difficulty": "Medium", "visualizer": "array_pointer", "patterns": ["variable-window", "at-most-k-distinct"]},
-        {"slug": "longest-substring-without-repeating-characters", "lc": 3, "title": "Longest Substring Without Repeating Characters", "difficulty": "Medium", "visualizer": "array_pointer", "patterns": ["variable-window", "hash-set"]},
-        {"slug": "longest-repeating-character-replacement", "lc": 424, "title": "Longest Repeating Character Replacement", "difficulty": "Medium", "visualizer": "array_pointer", "patterns": ["variable-window", "frequency-count"]},
-        {"slug": "permutation-in-string", "lc": 567, "title": "Permutation in String", "difficulty": "Medium", "visualizer": "array_pointer", "patterns": ["fixed-window", "frequency-count"]},
-        {"slug": "minimum-window-substring", "lc": 76, "title": "Minimum Window Substring", "difficulty": "Hard", "visualizer": "array_pointer", "patterns": ["variable-window", "need-have-counter"]}
-      ]
+        {
+          "slug": "maximum-average-subarray-i",
+          "lc": 643,
+          "title": "Maximum Average Subarray I",
+          "difficulty": "Easy",
+          "visualizer": "array_pointer",
+          "patterns": [
+            "fixed-window"
+          ],
+          "world_id": 3
+        },
+        {
+          "slug": "best-time-to-buy-and-sell-stock",
+          "lc": 121,
+          "title": "Best Time to Buy and Sell Stock",
+          "difficulty": "Easy",
+          "visualizer": "array_pointer",
+          "patterns": [
+            "running-min",
+            "variable-window"
+          ],
+          "world_id": 3
+        },
+        {
+          "slug": "max-consecutive-ones-iii",
+          "lc": 1004,
+          "title": "Max Consecutive Ones III",
+          "difficulty": "Medium",
+          "visualizer": "array_pointer",
+          "patterns": [
+            "variable-window",
+            "at-most-k"
+          ],
+          "world_id": 3
+        },
+        {
+          "slug": "fruit-into-baskets",
+          "lc": 904,
+          "title": "Fruit Into Baskets",
+          "difficulty": "Medium",
+          "visualizer": "array_pointer",
+          "patterns": [
+            "variable-window",
+            "at-most-k-distinct"
+          ],
+          "world_id": 3
+        },
+        {
+          "slug": "longest-substring-without-repeating-characters",
+          "lc": 3,
+          "title": "Longest Substring Without Repeating Characters",
+          "difficulty": "Medium",
+          "visualizer": "array_pointer",
+          "patterns": [
+            "variable-window",
+            "hash-set"
+          ],
+          "world_id": 3
+        },
+        {
+          "slug": "longest-repeating-character-replacement",
+          "lc": 424,
+          "title": "Longest Repeating Character Replacement",
+          "difficulty": "Medium",
+          "visualizer": "array_pointer",
+          "patterns": [
+            "variable-window",
+            "frequency-count"
+          ],
+          "world_id": 3
+        },
+        {
+          "slug": "permutation-in-string",
+          "lc": 567,
+          "title": "Permutation in String",
+          "difficulty": "Medium",
+          "visualizer": "array_pointer",
+          "patterns": [
+            "fixed-window",
+            "frequency-count"
+          ],
+          "world_id": 3
+        },
+        {
+          "slug": "minimum-window-substring",
+          "lc": 76,
+          "title": "Minimum Window Substring",
+          "difficulty": "Hard",
+          "visualizer": "array_pointer",
+          "patterns": [
+            "variable-window",
+            "need-have-counter"
+          ],
+          "world_id": 3
+        }
+      ],
+      "status": "live",
+      "citadel_id": "dsa"
     },
     {
-      "id": 4, "slug": "stack-monotonic-stack", "name": "Stack & Monotonic Stack",
+      "id": 4,
+      "slug": "stack-monotonic-stack",
+      "name": "Stack & Monotonic Stack",
       "tagline": "The most recent unresolved thing is the one that matters.",
       "core_idea": "A stack keeps pending items in LIFO order; a monotonic stack keeps them sorted so each element is pushed and popped once, answering 'next greater/smaller' in O(N).",
-      "triggers": ["matching brackets", "next greater / smaller", "previous smaller", "evaluate expression", "undo / collapse", "nearest"],
+      "triggers": [
+        "matching brackets",
+        "next greater / smaller",
+        "previous smaller",
+        "evaluate expression",
+        "undo / collapse",
+        "nearest"
+      ],
       "questions": [
-        {"slug": "valid-parentheses", "lc": 20, "title": "Valid Parentheses", "difficulty": "Easy", "visualizer": "stack_queue", "patterns": ["matching-stack"]},
-        {"slug": "next-greater-element-i", "lc": 496, "title": "Next Greater Element I", "difficulty": "Easy", "visualizer": "stack_queue", "patterns": ["monotonic-stack"]},
-        {"slug": "min-stack", "lc": 155, "title": "Min Stack", "difficulty": "Medium", "visualizer": "stack_queue", "patterns": ["auxiliary-stack", "design"]},
-        {"slug": "evaluate-reverse-polish-notation", "lc": 150, "title": "Evaluate Reverse Polish Notation", "difficulty": "Medium", "visualizer": "stack_queue", "patterns": ["operand-stack"]},
-        {"slug": "daily-temperatures", "lc": 739, "title": "Daily Temperatures", "difficulty": "Medium", "visualizer": "stack_queue", "patterns": ["monotonic-stack"]},
-        {"slug": "asteroid-collision", "lc": 735, "title": "Asteroid Collision", "difficulty": "Medium", "visualizer": "stack_queue", "patterns": ["collapse-stack"]},
-        {"slug": "car-fleet", "lc": 853, "title": "Car Fleet", "difficulty": "Medium", "visualizer": "stack_queue", "patterns": ["sort-then-stack"]},
-        {"slug": "largest-rectangle-in-histogram", "lc": 84, "title": "Largest Rectangle in Histogram", "difficulty": "Hard", "visualizer": "stack_queue", "patterns": ["monotonic-stack", "previous-next-smaller"]}
-      ]
+        {
+          "slug": "valid-parentheses",
+          "lc": 20,
+          "title": "Valid Parentheses",
+          "difficulty": "Easy",
+          "visualizer": "stack_queue",
+          "patterns": [
+            "matching-stack"
+          ],
+          "world_id": 4
+        },
+        {
+          "slug": "next-greater-element-i",
+          "lc": 496,
+          "title": "Next Greater Element I",
+          "difficulty": "Easy",
+          "visualizer": "stack_queue",
+          "patterns": [
+            "monotonic-stack"
+          ],
+          "world_id": 4
+        },
+        {
+          "slug": "min-stack",
+          "lc": 155,
+          "title": "Min Stack",
+          "difficulty": "Medium",
+          "visualizer": "stack_queue",
+          "patterns": [
+            "auxiliary-stack",
+            "design"
+          ],
+          "world_id": 4
+        },
+        {
+          "slug": "evaluate-reverse-polish-notation",
+          "lc": 150,
+          "title": "Evaluate Reverse Polish Notation",
+          "difficulty": "Medium",
+          "visualizer": "stack_queue",
+          "patterns": [
+            "operand-stack"
+          ],
+          "world_id": 4
+        },
+        {
+          "slug": "daily-temperatures",
+          "lc": 739,
+          "title": "Daily Temperatures",
+          "difficulty": "Medium",
+          "visualizer": "stack_queue",
+          "patterns": [
+            "monotonic-stack"
+          ],
+          "world_id": 4
+        },
+        {
+          "slug": "asteroid-collision",
+          "lc": 735,
+          "title": "Asteroid Collision",
+          "difficulty": "Medium",
+          "visualizer": "stack_queue",
+          "patterns": [
+            "collapse-stack"
+          ],
+          "world_id": 4
+        },
+        {
+          "slug": "car-fleet",
+          "lc": 853,
+          "title": "Car Fleet",
+          "difficulty": "Medium",
+          "visualizer": "stack_queue",
+          "patterns": [
+            "sort-then-stack"
+          ],
+          "world_id": 4
+        },
+        {
+          "slug": "largest-rectangle-in-histogram",
+          "lc": 84,
+          "title": "Largest Rectangle in Histogram",
+          "difficulty": "Hard",
+          "visualizer": "stack_queue",
+          "patterns": [
+            "monotonic-stack",
+            "previous-next-smaller"
+          ],
+          "world_id": 4
+        }
+      ],
+      "status": "live",
+      "citadel_id": "dsa"
     },
     {
-      "id": 5, "slug": "binary-search", "name": "Binary Search & BS on Answer",
+      "id": 5,
+      "slug": "binary-search",
+      "name": "Binary Search & BS on Answer",
       "tagline": "If you can tell which half is wrong, throw it away.",
       "core_idea": "Any monotonic yes/no condition can be binary searched: on a sorted array, on a rotated array's sorted half, or on the answer range itself ('can we finish with speed k?').",
-      "triggers": ["sorted", "O(log N) required", "minimum maximum / maximum minimum", "rotated", "find first / last", "capacity / speed / days"],
+      "triggers": [
+        "sorted",
+        "O(log N) required",
+        "minimum maximum / maximum minimum",
+        "rotated",
+        "find first / last",
+        "capacity / speed / days"
+      ],
       "questions": [
-        {"slug": "binary-search", "lc": 704, "title": "Binary Search", "difficulty": "Easy", "visualizer": "array_pointer", "patterns": ["classic-binary-search"]},
-        {"slug": "search-insert-position", "lc": 35, "title": "Search Insert Position", "difficulty": "Easy", "visualizer": "array_pointer", "patterns": ["lower-bound"]},
-        {"slug": "search-a-2d-matrix", "lc": 74, "title": "Search a 2D Matrix", "difficulty": "Medium", "visualizer": "array_pointer", "patterns": ["flattened-index"]},
-        {"slug": "find-first-and-last-position-of-element-in-sorted-array", "lc": 34, "title": "Find First and Last Position of Element in Sorted Array", "difficulty": "Medium", "visualizer": "array_pointer", "patterns": ["lower-bound", "upper-bound"]},
-        {"slug": "find-minimum-in-rotated-sorted-array", "lc": 153, "title": "Find Minimum in Rotated Sorted Array", "difficulty": "Medium", "visualizer": "array_pointer", "patterns": ["rotated-array"]},
-        {"slug": "search-in-rotated-sorted-array", "lc": 33, "title": "Search in Rotated Sorted Array", "difficulty": "Medium", "visualizer": "array_pointer", "patterns": ["rotated-array", "sorted-half"]},
-        {"slug": "koko-eating-bananas", "lc": 875, "title": "Koko Eating Bananas", "difficulty": "Medium", "visualizer": "array_pointer", "patterns": ["binary-search-on-answer"]},
-        {"slug": "capacity-to-ship-packages-within-d-days", "lc": 1011, "title": "Capacity To Ship Packages Within D Days", "difficulty": "Medium", "visualizer": "array_pointer", "patterns": ["binary-search-on-answer"]},
-        {"slug": "split-array-largest-sum", "lc": 410, "title": "Split Array Largest Sum (Allocate Books)", "difficulty": "Hard", "visualizer": "array_pointer", "patterns": ["binary-search-on-answer", "minimize-maximum"]},
-        {"slug": "median-of-two-sorted-arrays", "lc": 4, "title": "Median of Two Sorted Arrays", "difficulty": "Hard", "visualizer": "array_pointer", "patterns": ["partition-binary-search"]}
-      ]
+        {
+          "slug": "binary-search",
+          "lc": 704,
+          "title": "Binary Search",
+          "difficulty": "Easy",
+          "visualizer": "array_pointer",
+          "patterns": [
+            "classic-binary-search"
+          ],
+          "world_id": 5
+        },
+        {
+          "slug": "search-insert-position",
+          "lc": 35,
+          "title": "Search Insert Position",
+          "difficulty": "Easy",
+          "visualizer": "array_pointer",
+          "patterns": [
+            "lower-bound"
+          ],
+          "world_id": 5
+        },
+        {
+          "slug": "search-a-2d-matrix",
+          "lc": 74,
+          "title": "Search a 2D Matrix",
+          "difficulty": "Medium",
+          "visualizer": "array_pointer",
+          "patterns": [
+            "flattened-index"
+          ],
+          "world_id": 5
+        },
+        {
+          "slug": "find-first-and-last-position-of-element-in-sorted-array",
+          "lc": 34,
+          "title": "Find First and Last Position of Element in Sorted Array",
+          "difficulty": "Medium",
+          "visualizer": "array_pointer",
+          "patterns": [
+            "lower-bound",
+            "upper-bound"
+          ],
+          "world_id": 5
+        },
+        {
+          "slug": "find-minimum-in-rotated-sorted-array",
+          "lc": 153,
+          "title": "Find Minimum in Rotated Sorted Array",
+          "difficulty": "Medium",
+          "visualizer": "array_pointer",
+          "patterns": [
+            "rotated-array"
+          ],
+          "world_id": 5
+        },
+        {
+          "slug": "search-in-rotated-sorted-array",
+          "lc": 33,
+          "title": "Search in Rotated Sorted Array",
+          "difficulty": "Medium",
+          "visualizer": "array_pointer",
+          "patterns": [
+            "rotated-array",
+            "sorted-half"
+          ],
+          "world_id": 5
+        },
+        {
+          "slug": "koko-eating-bananas",
+          "lc": 875,
+          "title": "Koko Eating Bananas",
+          "difficulty": "Medium",
+          "visualizer": "array_pointer",
+          "patterns": [
+            "binary-search-on-answer"
+          ],
+          "world_id": 5
+        },
+        {
+          "slug": "capacity-to-ship-packages-within-d-days",
+          "lc": 1011,
+          "title": "Capacity To Ship Packages Within D Days",
+          "difficulty": "Medium",
+          "visualizer": "array_pointer",
+          "patterns": [
+            "binary-search-on-answer"
+          ],
+          "world_id": 5
+        },
+        {
+          "slug": "split-array-largest-sum",
+          "lc": 410,
+          "title": "Split Array Largest Sum (Allocate Books)",
+          "difficulty": "Hard",
+          "visualizer": "array_pointer",
+          "patterns": [
+            "binary-search-on-answer",
+            "minimize-maximum"
+          ],
+          "world_id": 5
+        },
+        {
+          "slug": "median-of-two-sorted-arrays",
+          "lc": 4,
+          "title": "Median of Two Sorted Arrays",
+          "difficulty": "Hard",
+          "visualizer": "array_pointer",
+          "patterns": [
+            "partition-binary-search"
+          ],
+          "world_id": 5
+        }
+      ],
+      "status": "live",
+      "citadel_id": "dsa"
     },
     {
-      "id": 6, "slug": "linked-lists", "name": "Linked Lists",
+      "id": 6,
+      "slug": "linked-lists",
+      "name": "Linked Lists",
       "tagline": "Never lose the next node before you rewire.",
       "core_idea": "Linked list problems are pointer bookkeeping: dummy heads remove edge cases, fast/slow pointers find middles and cycles, and saving `next` before rewiring prevents losing the list.",
-      "triggers": ["reverse", "cycle", "middle", "nth from end", "merge sorted lists", "O(1) extra space on a list"],
+      "triggers": [
+        "reverse",
+        "cycle",
+        "middle",
+        "nth from end",
+        "merge sorted lists",
+        "O(1) extra space on a list"
+      ],
       "questions": [
-        {"slug": "reverse-linked-list", "lc": 206, "title": "Reverse Linked List", "difficulty": "Easy", "visualizer": "linked_list", "patterns": ["pointer-reversal"]},
-        {"slug": "merge-two-sorted-lists", "lc": 21, "title": "Merge Two Sorted Lists", "difficulty": "Easy", "visualizer": "linked_list", "patterns": ["dummy-head", "merge"]},
-        {"slug": "middle-of-the-linked-list", "lc": 876, "title": "Middle of the Linked List", "difficulty": "Easy", "visualizer": "linked_list", "patterns": ["fast-slow-pointers"]},
-        {"slug": "linked-list-cycle", "lc": 141, "title": "Linked List Cycle", "difficulty": "Easy", "visualizer": "linked_list", "patterns": ["fast-slow-pointers"]},
-        {"slug": "remove-nth-node-from-end-of-list", "lc": 19, "title": "Remove Nth Node From End of List", "difficulty": "Medium", "visualizer": "linked_list", "patterns": ["gap-pointers", "dummy-head"]},
-        {"slug": "reorder-list", "lc": 143, "title": "Reorder List", "difficulty": "Medium", "visualizer": "linked_list", "patterns": ["fast-slow-pointers", "pointer-reversal", "merge"]},
-        {"slug": "copy-list-with-random-pointer", "lc": 138, "title": "Copy List with Random Pointer", "difficulty": "Medium", "visualizer": "linked_list", "patterns": ["hash-map-old-to-new"]},
-        {"slug": "lru-cache", "lc": 146, "title": "LRU Cache", "difficulty": "Medium", "visualizer": "linked_list", "patterns": ["doubly-linked-list", "hash-map", "design"]},
-        {"slug": "reverse-nodes-in-k-group", "lc": 25, "title": "Reverse Nodes in k-Group", "difficulty": "Hard", "visualizer": "linked_list", "patterns": ["pointer-reversal", "dummy-head"]}
-      ]
+        {
+          "slug": "reverse-linked-list",
+          "lc": 206,
+          "title": "Reverse Linked List",
+          "difficulty": "Easy",
+          "visualizer": "linked_list",
+          "patterns": [
+            "pointer-reversal"
+          ],
+          "world_id": 6
+        },
+        {
+          "slug": "merge-two-sorted-lists",
+          "lc": 21,
+          "title": "Merge Two Sorted Lists",
+          "difficulty": "Easy",
+          "visualizer": "linked_list",
+          "patterns": [
+            "dummy-head",
+            "merge"
+          ],
+          "world_id": 6
+        },
+        {
+          "slug": "middle-of-the-linked-list",
+          "lc": 876,
+          "title": "Middle of the Linked List",
+          "difficulty": "Easy",
+          "visualizer": "linked_list",
+          "patterns": [
+            "fast-slow-pointers"
+          ],
+          "world_id": 6
+        },
+        {
+          "slug": "linked-list-cycle",
+          "lc": 141,
+          "title": "Linked List Cycle",
+          "difficulty": "Easy",
+          "visualizer": "linked_list",
+          "patterns": [
+            "fast-slow-pointers"
+          ],
+          "world_id": 6
+        },
+        {
+          "slug": "remove-nth-node-from-end-of-list",
+          "lc": 19,
+          "title": "Remove Nth Node From End of List",
+          "difficulty": "Medium",
+          "visualizer": "linked_list",
+          "patterns": [
+            "gap-pointers",
+            "dummy-head"
+          ],
+          "world_id": 6
+        },
+        {
+          "slug": "reorder-list",
+          "lc": 143,
+          "title": "Reorder List",
+          "difficulty": "Medium",
+          "visualizer": "linked_list",
+          "patterns": [
+            "fast-slow-pointers",
+            "pointer-reversal",
+            "merge"
+          ],
+          "world_id": 6
+        },
+        {
+          "slug": "copy-list-with-random-pointer",
+          "lc": 138,
+          "title": "Copy List with Random Pointer",
+          "difficulty": "Medium",
+          "visualizer": "linked_list",
+          "patterns": [
+            "hash-map-old-to-new"
+          ],
+          "world_id": 6
+        },
+        {
+          "slug": "lru-cache",
+          "lc": 146,
+          "title": "LRU Cache",
+          "difficulty": "Medium",
+          "visualizer": "linked_list",
+          "patterns": [
+            "doubly-linked-list",
+            "hash-map",
+            "design"
+          ],
+          "world_id": 6
+        },
+        {
+          "slug": "reverse-nodes-in-k-group",
+          "lc": 25,
+          "title": "Reverse Nodes in k-Group",
+          "difficulty": "Hard",
+          "visualizer": "linked_list",
+          "patterns": [
+            "pointer-reversal",
+            "dummy-head"
+          ],
+          "world_id": 6
+        }
+      ],
+      "status": "live",
+      "citadel_id": "dsa"
     },
     {
-      "id": 7, "slug": "trees", "name": "Trees — BFS & DFS",
+      "id": 7,
+      "slug": "trees",
+      "name": "Trees \u2014 BFS & DFS",
       "tagline": "Trust the recursion: solve it for one node, assume children are solved.",
       "core_idea": "DFS answers 'what does each subtree return to its parent?'; BFS answers 'what happens level by level?'. Pick what each call returns and the whole tree follows.",
-      "triggers": ["depth / height", "level by level", "left / right view", "ancestor", "valid BST", "path sum"],
+      "triggers": [
+        "depth / height",
+        "level by level",
+        "left / right view",
+        "ancestor",
+        "valid BST",
+        "path sum"
+      ],
       "questions": [
-        {"slug": "maximum-depth-of-binary-tree", "lc": 104, "title": "Maximum Depth of Binary Tree", "difficulty": "Easy", "visualizer": "tree_recursion", "patterns": ["dfs-return-value"]},
-        {"slug": "invert-binary-tree", "lc": 226, "title": "Invert Binary Tree", "difficulty": "Easy", "visualizer": "tree_recursion", "patterns": ["dfs-transform"]},
-        {"slug": "same-tree", "lc": 100, "title": "Same Tree", "difficulty": "Easy", "visualizer": "tree_recursion", "patterns": ["parallel-dfs"]},
-        {"slug": "subtree-of-another-tree", "lc": 572, "title": "Subtree of Another Tree", "difficulty": "Easy", "visualizer": "tree_recursion", "patterns": ["parallel-dfs"]},
-        {"slug": "diameter-of-binary-tree", "lc": 543, "title": "Diameter of Binary Tree", "difficulty": "Easy", "visualizer": "tree_recursion", "patterns": ["dfs-return-height-track-global"]},
-        {"slug": "balanced-binary-tree", "lc": 110, "title": "Balanced Binary Tree", "difficulty": "Easy", "visualizer": "tree_recursion", "patterns": ["dfs-return-height-track-global"]},
-        {"slug": "binary-tree-level-order-traversal", "lc": 102, "title": "Binary Tree Level Order Traversal", "difficulty": "Medium", "visualizer": "tree_recursion", "patterns": ["bfs-levels"]},
-        {"slug": "binary-tree-right-side-view", "lc": 199, "title": "Binary Tree Right Side View", "difficulty": "Medium", "visualizer": "tree_recursion", "patterns": ["bfs-levels"]},
-        {"slug": "lowest-common-ancestor-of-a-binary-search-tree", "lc": 235, "title": "Lowest Common Ancestor of a Binary Search Tree", "difficulty": "Medium", "visualizer": "tree_recursion", "patterns": ["bst-property"]},
-        {"slug": "count-good-nodes-in-binary-tree", "lc": 1448, "title": "Count Good Nodes in Binary Tree", "difficulty": "Medium", "visualizer": "tree_recursion", "patterns": ["dfs-pass-state-down"]},
-        {"slug": "validate-binary-search-tree", "lc": 98, "title": "Validate Binary Search Tree", "difficulty": "Medium", "visualizer": "tree_recursion", "patterns": ["dfs-pass-bounds-down"]},
-        {"slug": "binary-tree-maximum-path-sum", "lc": 124, "title": "Binary Tree Maximum Path Sum", "difficulty": "Hard", "visualizer": "tree_recursion", "patterns": ["dfs-return-height-track-global"]}
-      ]
+        {
+          "slug": "maximum-depth-of-binary-tree",
+          "lc": 104,
+          "title": "Maximum Depth of Binary Tree",
+          "difficulty": "Easy",
+          "visualizer": "tree_recursion",
+          "patterns": [
+            "dfs-return-value"
+          ],
+          "world_id": 7
+        },
+        {
+          "slug": "invert-binary-tree",
+          "lc": 226,
+          "title": "Invert Binary Tree",
+          "difficulty": "Easy",
+          "visualizer": "tree_recursion",
+          "patterns": [
+            "dfs-transform"
+          ],
+          "world_id": 7
+        },
+        {
+          "slug": "same-tree",
+          "lc": 100,
+          "title": "Same Tree",
+          "difficulty": "Easy",
+          "visualizer": "tree_recursion",
+          "patterns": [
+            "parallel-dfs"
+          ],
+          "world_id": 7
+        },
+        {
+          "slug": "subtree-of-another-tree",
+          "lc": 572,
+          "title": "Subtree of Another Tree",
+          "difficulty": "Easy",
+          "visualizer": "tree_recursion",
+          "patterns": [
+            "parallel-dfs"
+          ],
+          "world_id": 7
+        },
+        {
+          "slug": "diameter-of-binary-tree",
+          "lc": 543,
+          "title": "Diameter of Binary Tree",
+          "difficulty": "Easy",
+          "visualizer": "tree_recursion",
+          "patterns": [
+            "dfs-return-height-track-global"
+          ],
+          "world_id": 7
+        },
+        {
+          "slug": "balanced-binary-tree",
+          "lc": 110,
+          "title": "Balanced Binary Tree",
+          "difficulty": "Easy",
+          "visualizer": "tree_recursion",
+          "patterns": [
+            "dfs-return-height-track-global"
+          ],
+          "world_id": 7
+        },
+        {
+          "slug": "binary-tree-level-order-traversal",
+          "lc": 102,
+          "title": "Binary Tree Level Order Traversal",
+          "difficulty": "Medium",
+          "visualizer": "tree_recursion",
+          "patterns": [
+            "bfs-levels"
+          ],
+          "world_id": 7
+        },
+        {
+          "slug": "binary-tree-right-side-view",
+          "lc": 199,
+          "title": "Binary Tree Right Side View",
+          "difficulty": "Medium",
+          "visualizer": "tree_recursion",
+          "patterns": [
+            "bfs-levels"
+          ],
+          "world_id": 7
+        },
+        {
+          "slug": "lowest-common-ancestor-of-a-binary-search-tree",
+          "lc": 235,
+          "title": "Lowest Common Ancestor of a Binary Search Tree",
+          "difficulty": "Medium",
+          "visualizer": "tree_recursion",
+          "patterns": [
+            "bst-property"
+          ],
+          "world_id": 7
+        },
+        {
+          "slug": "count-good-nodes-in-binary-tree",
+          "lc": 1448,
+          "title": "Count Good Nodes in Binary Tree",
+          "difficulty": "Medium",
+          "visualizer": "tree_recursion",
+          "patterns": [
+            "dfs-pass-state-down"
+          ],
+          "world_id": 7
+        },
+        {
+          "slug": "validate-binary-search-tree",
+          "lc": 98,
+          "title": "Validate Binary Search Tree",
+          "difficulty": "Medium",
+          "visualizer": "tree_recursion",
+          "patterns": [
+            "dfs-pass-bounds-down"
+          ],
+          "world_id": 7
+        },
+        {
+          "slug": "binary-tree-maximum-path-sum",
+          "lc": 124,
+          "title": "Binary Tree Maximum Path Sum",
+          "difficulty": "Hard",
+          "visualizer": "tree_recursion",
+          "patterns": [
+            "dfs-return-height-track-global"
+          ],
+          "world_id": 7
+        }
+      ],
+      "status": "live",
+      "citadel_id": "dsa"
     },
     {
-      "id": 8, "slug": "heaps", "name": "Heaps / Priority Queue",
+      "id": 8,
+      "slug": "heaps",
+      "name": "Heaps / Priority Queue",
       "tagline": "Always know the best item right now, cheaply.",
       "core_idea": "A heap gives the min (or max) in O(1) and insert/remove in O(log N). Keep a heap of size K for 'top K', or two heaps for a running median.",
-      "triggers": ["kth largest / smallest", "top K", "closest K", "streaming data", "median", "schedule by priority"],
+      "triggers": [
+        "kth largest / smallest",
+        "top K",
+        "closest K",
+        "streaming data",
+        "median",
+        "schedule by priority"
+      ],
       "questions": [
-        {"slug": "kth-largest-element-in-a-stream", "lc": 703, "title": "Kth Largest Element in a Stream", "difficulty": "Easy", "visualizer": "tree_recursion", "patterns": ["size-k-min-heap", "design"]},
-        {"slug": "last-stone-weight", "lc": 1046, "title": "Last Stone Weight", "difficulty": "Easy", "visualizer": "tree_recursion", "patterns": ["max-heap-simulation"]},
-        {"slug": "kth-largest-element-in-an-array", "lc": 215, "title": "Kth Largest Element in an Array", "difficulty": "Medium", "visualizer": "tree_recursion", "patterns": ["size-k-min-heap", "quickselect"]},
-        {"slug": "k-closest-points-to-origin", "lc": 973, "title": "K Closest Points to Origin", "difficulty": "Medium", "visualizer": "tree_recursion", "patterns": ["size-k-max-heap"]},
-        {"slug": "task-scheduler", "lc": 621, "title": "Task Scheduler", "difficulty": "Medium", "visualizer": "tree_recursion", "patterns": ["max-heap-simulation", "greedy-counting"]},
-        {"slug": "merge-k-sorted-lists", "lc": 23, "title": "Merge k Sorted Lists", "difficulty": "Hard", "visualizer": "tree_recursion", "patterns": ["k-way-merge-heap"]},
-        {"slug": "find-median-from-data-stream", "lc": 295, "title": "Find Median from Data Stream", "difficulty": "Hard", "visualizer": "tree_recursion", "patterns": ["two-heaps", "design"]}
-      ]
+        {
+          "slug": "kth-largest-element-in-a-stream",
+          "lc": 703,
+          "title": "Kth Largest Element in a Stream",
+          "difficulty": "Easy",
+          "visualizer": "tree_recursion",
+          "patterns": [
+            "size-k-min-heap",
+            "design"
+          ],
+          "world_id": 8
+        },
+        {
+          "slug": "last-stone-weight",
+          "lc": 1046,
+          "title": "Last Stone Weight",
+          "difficulty": "Easy",
+          "visualizer": "tree_recursion",
+          "patterns": [
+            "max-heap-simulation"
+          ],
+          "world_id": 8
+        },
+        {
+          "slug": "kth-largest-element-in-an-array",
+          "lc": 215,
+          "title": "Kth Largest Element in an Array",
+          "difficulty": "Medium",
+          "visualizer": "tree_recursion",
+          "patterns": [
+            "size-k-min-heap",
+            "quickselect"
+          ],
+          "world_id": 8
+        },
+        {
+          "slug": "k-closest-points-to-origin",
+          "lc": 973,
+          "title": "K Closest Points to Origin",
+          "difficulty": "Medium",
+          "visualizer": "tree_recursion",
+          "patterns": [
+            "size-k-max-heap"
+          ],
+          "world_id": 8
+        },
+        {
+          "slug": "task-scheduler",
+          "lc": 621,
+          "title": "Task Scheduler",
+          "difficulty": "Medium",
+          "visualizer": "tree_recursion",
+          "patterns": [
+            "max-heap-simulation",
+            "greedy-counting"
+          ],
+          "world_id": 8
+        },
+        {
+          "slug": "merge-k-sorted-lists",
+          "lc": 23,
+          "title": "Merge k Sorted Lists",
+          "difficulty": "Hard",
+          "visualizer": "tree_recursion",
+          "patterns": [
+            "k-way-merge-heap"
+          ],
+          "world_id": 8
+        },
+        {
+          "slug": "find-median-from-data-stream",
+          "lc": 295,
+          "title": "Find Median from Data Stream",
+          "difficulty": "Hard",
+          "visualizer": "tree_recursion",
+          "patterns": [
+            "two-heaps",
+            "design"
+          ],
+          "world_id": 8
+        }
+      ],
+      "status": "live",
+      "citadel_id": "dsa"
     },
     {
-      "id": 9, "slug": "backtracking", "name": "Backtracking & Recursion",
+      "id": 9,
+      "slug": "backtracking",
+      "name": "Backtracking & Recursion",
       "tagline": "Choose, explore, un-choose.",
-      "core_idea": "Build candidates one decision at a time; recurse; undo the decision. Prune branches that can't succeed. Small N (≤ 20) is the giveaway.",
-      "triggers": ["all combinations / subsets / permutations", "generate all", "N ≤ 20", "place N items", "partition into"],
+      "core_idea": "Build candidates one decision at a time; recurse; undo the decision. Prune branches that can't succeed. Small N (\u2264 20) is the giveaway.",
+      "triggers": [
+        "all combinations / subsets / permutations",
+        "generate all",
+        "N \u2264 20",
+        "place N items",
+        "partition into"
+      ],
       "questions": [
-        {"slug": "subsets", "lc": 78, "title": "Subsets", "difficulty": "Medium", "visualizer": "tree_recursion", "patterns": ["include-exclude"]},
-        {"slug": "subsets-ii", "lc": 90, "title": "Subsets II", "difficulty": "Medium", "visualizer": "tree_recursion", "patterns": ["include-exclude", "skip-duplicates"]},
-        {"slug": "permutations", "lc": 46, "title": "Permutations", "difficulty": "Medium", "visualizer": "tree_recursion", "patterns": ["used-array"]},
-        {"slug": "combination-sum", "lc": 39, "title": "Combination Sum", "difficulty": "Medium", "visualizer": "tree_recursion", "patterns": ["start-index-reuse"]},
-        {"slug": "combination-sum-ii", "lc": 40, "title": "Combination Sum II", "difficulty": "Medium", "visualizer": "tree_recursion", "patterns": ["start-index", "skip-duplicates"]},
-        {"slug": "palindrome-partitioning", "lc": 131, "title": "Palindrome Partitioning", "difficulty": "Medium", "visualizer": "tree_recursion", "patterns": ["partition-backtracking"]},
-        {"slug": "word-search", "lc": 79, "title": "Word Search", "difficulty": "Medium", "visualizer": "graph_grid", "patterns": ["grid-backtracking"]},
-        {"slug": "n-queens", "lc": 51, "title": "N-Queens", "difficulty": "Hard", "visualizer": "tree_recursion", "patterns": ["constraint-sets"]}
-      ]
+        {
+          "slug": "subsets",
+          "lc": 78,
+          "title": "Subsets",
+          "difficulty": "Medium",
+          "visualizer": "tree_recursion",
+          "patterns": [
+            "include-exclude"
+          ],
+          "world_id": 9
+        },
+        {
+          "slug": "subsets-ii",
+          "lc": 90,
+          "title": "Subsets II",
+          "difficulty": "Medium",
+          "visualizer": "tree_recursion",
+          "patterns": [
+            "include-exclude",
+            "skip-duplicates"
+          ],
+          "world_id": 9
+        },
+        {
+          "slug": "permutations",
+          "lc": 46,
+          "title": "Permutations",
+          "difficulty": "Medium",
+          "visualizer": "tree_recursion",
+          "patterns": [
+            "used-array"
+          ],
+          "world_id": 9
+        },
+        {
+          "slug": "combination-sum",
+          "lc": 39,
+          "title": "Combination Sum",
+          "difficulty": "Medium",
+          "visualizer": "tree_recursion",
+          "patterns": [
+            "start-index-reuse"
+          ],
+          "world_id": 9
+        },
+        {
+          "slug": "combination-sum-ii",
+          "lc": 40,
+          "title": "Combination Sum II",
+          "difficulty": "Medium",
+          "visualizer": "tree_recursion",
+          "patterns": [
+            "start-index",
+            "skip-duplicates"
+          ],
+          "world_id": 9
+        },
+        {
+          "slug": "palindrome-partitioning",
+          "lc": 131,
+          "title": "Palindrome Partitioning",
+          "difficulty": "Medium",
+          "visualizer": "tree_recursion",
+          "patterns": [
+            "partition-backtracking"
+          ],
+          "world_id": 9
+        },
+        {
+          "slug": "word-search",
+          "lc": 79,
+          "title": "Word Search",
+          "difficulty": "Medium",
+          "visualizer": "graph_grid",
+          "patterns": [
+            "grid-backtracking"
+          ],
+          "world_id": 9
+        },
+        {
+          "slug": "n-queens",
+          "lc": 51,
+          "title": "N-Queens",
+          "difficulty": "Hard",
+          "visualizer": "tree_recursion",
+          "patterns": [
+            "constraint-sets"
+          ],
+          "world_id": 9
+        }
+      ],
+      "status": "live",
+      "citadel_id": "dsa"
     },
     {
-      "id": 10, "slug": "graphs", "name": "Graphs — BFS, DFS, Topo Sort, Shortest Path",
+      "id": 10,
+      "slug": "graphs",
+      "name": "Graphs \u2014 BFS, DFS, Topo Sort, Shortest Path",
       "tagline": "Every grid is a graph; every dependency list is a DAG.",
       "core_idea": "Model cells or items as nodes and relations as edges. DFS/BFS for connectivity, multi-source BFS for 'minutes to spread', Kahn's algorithm for ordering, Dijkstra for weighted shortest paths.",
-      "triggers": ["islands / connected regions", "spread / minutes", "prerequisites / order", "shortest path", "network delay", "transform word by word"],
+      "triggers": [
+        "islands / connected regions",
+        "spread / minutes",
+        "prerequisites / order",
+        "shortest path",
+        "network delay",
+        "transform word by word"
+      ],
       "questions": [
-        {"slug": "flood-fill", "lc": 733, "title": "Flood Fill", "difficulty": "Easy", "visualizer": "graph_grid", "patterns": ["grid-dfs"]},
-        {"slug": "number-of-islands", "lc": 200, "title": "Number of Islands", "difficulty": "Medium", "visualizer": "graph_grid", "patterns": ["grid-dfs", "count-components"]},
-        {"slug": "max-area-of-island", "lc": 695, "title": "Max Area of Island", "difficulty": "Medium", "visualizer": "graph_grid", "patterns": ["grid-dfs"]},
-        {"slug": "rotting-oranges", "lc": 994, "title": "Rotting Oranges", "difficulty": "Medium", "visualizer": "graph_grid", "patterns": ["multi-source-bfs"]},
-        {"slug": "number-of-provinces", "lc": 547, "title": "Number of Provinces", "difficulty": "Medium", "visualizer": "graph_grid", "patterns": ["count-components", "union-find"]},
-        {"slug": "clone-graph", "lc": 133, "title": "Clone Graph", "difficulty": "Medium", "visualizer": "graph_grid", "patterns": ["hash-map-old-to-new", "graph-dfs"]},
-        {"slug": "pacific-atlantic-water-flow", "lc": 417, "title": "Pacific Atlantic Water Flow", "difficulty": "Medium", "visualizer": "graph_grid", "patterns": ["reverse-flow-dfs"]},
-        {"slug": "course-schedule", "lc": 207, "title": "Course Schedule", "difficulty": "Medium", "visualizer": "graph_grid", "patterns": ["topological-sort", "cycle-detection"]},
-        {"slug": "course-schedule-ii", "lc": 210, "title": "Course Schedule II", "difficulty": "Medium", "visualizer": "graph_grid", "patterns": ["topological-sort"]},
-        {"slug": "network-delay-time", "lc": 743, "title": "Network Delay Time", "difficulty": "Medium", "visualizer": "graph_grid", "patterns": ["dijkstra"]},
-        {"slug": "cheapest-flights-within-k-stops", "lc": 787, "title": "Cheapest Flights Within K Stops", "difficulty": "Medium", "visualizer": "graph_grid", "patterns": ["bellman-ford", "bfs-with-state"]},
-        {"slug": "word-ladder", "lc": 127, "title": "Word Ladder", "difficulty": "Hard", "visualizer": "graph_grid", "patterns": ["implicit-graph-bfs"]}
-      ]
+        {
+          "slug": "flood-fill",
+          "lc": 733,
+          "title": "Flood Fill",
+          "difficulty": "Easy",
+          "visualizer": "graph_grid",
+          "patterns": [
+            "grid-dfs"
+          ],
+          "world_id": 10
+        },
+        {
+          "slug": "number-of-islands",
+          "lc": 200,
+          "title": "Number of Islands",
+          "difficulty": "Medium",
+          "visualizer": "graph_grid",
+          "patterns": [
+            "grid-dfs",
+            "count-components"
+          ],
+          "world_id": 10
+        },
+        {
+          "slug": "max-area-of-island",
+          "lc": 695,
+          "title": "Max Area of Island",
+          "difficulty": "Medium",
+          "visualizer": "graph_grid",
+          "patterns": [
+            "grid-dfs"
+          ],
+          "world_id": 10
+        },
+        {
+          "slug": "rotting-oranges",
+          "lc": 994,
+          "title": "Rotting Oranges",
+          "difficulty": "Medium",
+          "visualizer": "graph_grid",
+          "patterns": [
+            "multi-source-bfs"
+          ],
+          "world_id": 10
+        },
+        {
+          "slug": "number-of-provinces",
+          "lc": 547,
+          "title": "Number of Provinces",
+          "difficulty": "Medium",
+          "visualizer": "graph_grid",
+          "patterns": [
+            "count-components",
+            "union-find"
+          ],
+          "world_id": 10
+        },
+        {
+          "slug": "clone-graph",
+          "lc": 133,
+          "title": "Clone Graph",
+          "difficulty": "Medium",
+          "visualizer": "graph_grid",
+          "patterns": [
+            "hash-map-old-to-new",
+            "graph-dfs"
+          ],
+          "world_id": 10
+        },
+        {
+          "slug": "pacific-atlantic-water-flow",
+          "lc": 417,
+          "title": "Pacific Atlantic Water Flow",
+          "difficulty": "Medium",
+          "visualizer": "graph_grid",
+          "patterns": [
+            "reverse-flow-dfs"
+          ],
+          "world_id": 10
+        },
+        {
+          "slug": "course-schedule",
+          "lc": 207,
+          "title": "Course Schedule",
+          "difficulty": "Medium",
+          "visualizer": "graph_grid",
+          "patterns": [
+            "topological-sort",
+            "cycle-detection"
+          ],
+          "world_id": 10
+        },
+        {
+          "slug": "course-schedule-ii",
+          "lc": 210,
+          "title": "Course Schedule II",
+          "difficulty": "Medium",
+          "visualizer": "graph_grid",
+          "patterns": [
+            "topological-sort"
+          ],
+          "world_id": 10
+        },
+        {
+          "slug": "network-delay-time",
+          "lc": 743,
+          "title": "Network Delay Time",
+          "difficulty": "Medium",
+          "visualizer": "graph_grid",
+          "patterns": [
+            "dijkstra"
+          ],
+          "world_id": 10
+        },
+        {
+          "slug": "cheapest-flights-within-k-stops",
+          "lc": 787,
+          "title": "Cheapest Flights Within K Stops",
+          "difficulty": "Medium",
+          "visualizer": "graph_grid",
+          "patterns": [
+            "bellman-ford",
+            "bfs-with-state"
+          ],
+          "world_id": 10
+        },
+        {
+          "slug": "word-ladder",
+          "lc": 127,
+          "title": "Word Ladder",
+          "difficulty": "Hard",
+          "visualizer": "graph_grid",
+          "patterns": [
+            "implicit-graph-bfs"
+          ],
+          "world_id": 10
+        }
+      ],
+      "status": "live",
+      "citadel_id": "dsa"
     },
     {
-      "id": 11, "slug": "greedy-intervals", "name": "Greedy & Intervals",
+      "id": 11,
+      "slug": "greedy-intervals",
+      "name": "Greedy & Intervals",
       "tagline": "Make the locally best choice and prove it never hurts.",
       "core_idea": "Greedy works when an exchange argument shows the local best choice is safe. For intervals, sort by start (to merge) or by end (to keep the most non-overlapping).",
-      "triggers": ["maximum number of", "minimum number of", "intervals / meetings", "can you reach", "overlapping", "assign"],
+      "triggers": [
+        "maximum number of",
+        "minimum number of",
+        "intervals / meetings",
+        "can you reach",
+        "overlapping",
+        "assign"
+      ],
       "questions": [
-        {"slug": "assign-cookies", "lc": 455, "title": "Assign Cookies", "difficulty": "Easy", "visualizer": "array_pointer", "patterns": ["sort-and-match"]},
-        {"slug": "maximum-subarray", "lc": 53, "title": "Maximum Subarray (Kadane's)", "difficulty": "Medium", "visualizer": "array_pointer", "patterns": ["kadane"]},
-        {"slug": "jump-game", "lc": 55, "title": "Jump Game", "difficulty": "Medium", "visualizer": "array_pointer", "patterns": ["farthest-reach"]},
-        {"slug": "jump-game-ii", "lc": 45, "title": "Jump Game II", "difficulty": "Medium", "visualizer": "array_pointer", "patterns": ["farthest-reach", "implicit-bfs-levels"]},
-        {"slug": "gas-station", "lc": 134, "title": "Gas Station", "difficulty": "Medium", "visualizer": "array_pointer", "patterns": ["reset-start"]},
-        {"slug": "merge-intervals", "lc": 56, "title": "Merge Intervals", "difficulty": "Medium", "visualizer": "array_pointer", "patterns": ["sort-by-start", "merge"]},
-        {"slug": "insert-interval", "lc": 57, "title": "Insert Interval", "difficulty": "Medium", "visualizer": "array_pointer", "patterns": ["three-phase-scan"]},
-        {"slug": "non-overlapping-intervals", "lc": 435, "title": "Non-overlapping Intervals", "difficulty": "Medium", "visualizer": "array_pointer", "patterns": ["sort-by-end"]},
-        {"slug": "minimum-number-of-arrows-to-burst-balloons", "lc": 452, "title": "Minimum Number of Arrows to Burst Balloons", "difficulty": "Medium", "visualizer": "array_pointer", "patterns": ["sort-by-end", "interval-sweep"]}
+        {
+          "slug": "assign-cookies",
+          "lc": 455,
+          "title": "Assign Cookies",
+          "difficulty": "Easy",
+          "visualizer": "array_pointer",
+          "patterns": [
+            "sort-and-match"
+          ],
+          "world_id": 11
+        },
+        {
+          "slug": "maximum-subarray",
+          "lc": 53,
+          "title": "Maximum Subarray (Kadane's)",
+          "difficulty": "Medium",
+          "visualizer": "array_pointer",
+          "patterns": [
+            "kadane"
+          ],
+          "world_id": 11
+        },
+        {
+          "slug": "jump-game",
+          "lc": 55,
+          "title": "Jump Game",
+          "difficulty": "Medium",
+          "visualizer": "array_pointer",
+          "patterns": [
+            "farthest-reach"
+          ],
+          "world_id": 11
+        },
+        {
+          "slug": "jump-game-ii",
+          "lc": 45,
+          "title": "Jump Game II",
+          "difficulty": "Medium",
+          "visualizer": "array_pointer",
+          "patterns": [
+            "farthest-reach",
+            "implicit-bfs-levels"
+          ],
+          "world_id": 11
+        },
+        {
+          "slug": "gas-station",
+          "lc": 134,
+          "title": "Gas Station",
+          "difficulty": "Medium",
+          "visualizer": "array_pointer",
+          "patterns": [
+            "reset-start"
+          ],
+          "world_id": 11
+        },
+        {
+          "slug": "merge-intervals",
+          "lc": 56,
+          "title": "Merge Intervals",
+          "difficulty": "Medium",
+          "visualizer": "array_pointer",
+          "patterns": [
+            "sort-by-start",
+            "merge"
+          ],
+          "world_id": 11
+        },
+        {
+          "slug": "insert-interval",
+          "lc": 57,
+          "title": "Insert Interval",
+          "difficulty": "Medium",
+          "visualizer": "array_pointer",
+          "patterns": [
+            "three-phase-scan"
+          ],
+          "world_id": 11
+        },
+        {
+          "slug": "non-overlapping-intervals",
+          "lc": 435,
+          "title": "Non-overlapping Intervals",
+          "difficulty": "Medium",
+          "visualizer": "array_pointer",
+          "patterns": [
+            "sort-by-end"
+          ],
+          "world_id": 11
+        },
+        {
+          "slug": "minimum-number-of-arrows-to-burst-balloons",
+          "lc": 452,
+          "title": "Minimum Number of Arrows to Burst Balloons",
+          "difficulty": "Medium",
+          "visualizer": "array_pointer",
+          "patterns": [
+            "sort-by-end",
+            "interval-sweep"
+          ],
+          "world_id": 11
+        }
+      ],
+      "status": "live",
+      "citadel_id": "dsa"
+    },
+    {
+      "id": 12,
+      "slug": "dynamic-programming",
+      "name": "1D & 2D Dynamic Programming",
+      "tagline": "Recursion + memory: never solve the same subproblem twice.",
+      "core_idea": "Define dp[i] (or dp[i][j]) in words, write the recurrence from smaller states, set base cases, choose the fill order. Most interview DP is 'take it or skip it'.",
+      "triggers": [
+        "number of ways",
+        "minimum / maximum cost",
+        "can you form",
+        "longest subsequence",
+        "choices at each step",
+        "overlapping subproblems"
+      ],
+      "questions": [
+        {
+          "slug": "climbing-stairs",
+          "lc": 70,
+          "title": "Climbing Stairs",
+          "difficulty": "Easy",
+          "visualizer": "dp_table",
+          "patterns": [
+            "fibonacci-dp"
+          ],
+          "world_id": 12
+        },
+        {
+          "slug": "min-cost-climbing-stairs",
+          "lc": 746,
+          "title": "Min Cost Climbing Stairs",
+          "difficulty": "Easy",
+          "visualizer": "dp_table",
+          "patterns": [
+            "fibonacci-dp"
+          ],
+          "world_id": 12
+        },
+        {
+          "slug": "house-robber",
+          "lc": 198,
+          "title": "House Robber",
+          "difficulty": "Medium",
+          "visualizer": "dp_table",
+          "patterns": [
+            "take-or-skip"
+          ],
+          "world_id": 12
+        },
+        {
+          "slug": "house-robber-ii",
+          "lc": 213,
+          "title": "House Robber II",
+          "difficulty": "Medium",
+          "visualizer": "dp_table",
+          "patterns": [
+            "take-or-skip",
+            "circular-split"
+          ],
+          "world_id": 12
+        },
+        {
+          "slug": "unique-paths",
+          "lc": 62,
+          "title": "Unique Paths",
+          "difficulty": "Medium",
+          "visualizer": "dp_table",
+          "patterns": [
+            "grid-dp"
+          ],
+          "world_id": 12
+        },
+        {
+          "slug": "coin-change",
+          "lc": 322,
+          "title": "Coin Change",
+          "difficulty": "Medium",
+          "visualizer": "dp_table",
+          "patterns": [
+            "unbounded-knapsack-min"
+          ],
+          "world_id": 12
+        },
+        {
+          "slug": "coin-change-ii",
+          "lc": 518,
+          "title": "Coin Change II",
+          "difficulty": "Medium",
+          "visualizer": "dp_table",
+          "patterns": [
+            "unbounded-knapsack-count"
+          ],
+          "world_id": 12
+        },
+        {
+          "slug": "longest-increasing-subsequence",
+          "lc": 300,
+          "title": "Longest Increasing Subsequence",
+          "difficulty": "Medium",
+          "visualizer": "dp_table",
+          "patterns": [
+            "lis"
+          ],
+          "world_id": 12
+        },
+        {
+          "slug": "word-break",
+          "lc": 139,
+          "title": "Word Break",
+          "difficulty": "Medium",
+          "visualizer": "dp_table",
+          "patterns": [
+            "prefix-dp"
+          ],
+          "world_id": 12
+        },
+        {
+          "slug": "partition-equal-subset-sum",
+          "lc": 416,
+          "title": "Partition Equal Subset Sum",
+          "difficulty": "Medium",
+          "visualizer": "dp_table",
+          "patterns": [
+            "0-1-knapsack"
+          ],
+          "world_id": 12
+        },
+        {
+          "slug": "target-sum",
+          "lc": 494,
+          "title": "Target Sum",
+          "difficulty": "Medium",
+          "visualizer": "dp_table",
+          "patterns": [
+            "0-1-knapsack-count"
+          ],
+          "world_id": 12
+        },
+        {
+          "slug": "longest-common-subsequence",
+          "lc": 1143,
+          "title": "Longest Common Subsequence",
+          "difficulty": "Medium",
+          "visualizer": "dp_table",
+          "patterns": [
+            "two-string-dp"
+          ],
+          "world_id": 12
+        },
+        {
+          "slug": "best-time-to-buy-and-sell-stock-with-cooldown",
+          "lc": 309,
+          "title": "Best Time to Buy and Sell Stock with Cooldown",
+          "difficulty": "Medium",
+          "visualizer": "dp_table",
+          "patterns": [
+            "state-machine-dp"
+          ],
+          "world_id": 12
+        },
+        {
+          "slug": "edit-distance",
+          "lc": 72,
+          "title": "Edit Distance",
+          "difficulty": "Medium",
+          "visualizer": "dp_table",
+          "patterns": [
+            "two-string-dp"
+          ],
+          "world_id": 12
+        }
+      ],
+      "status": "live",
+      "citadel_id": "dsa"
+    },
+    {
+      "id": 13,
+      "slug": "python-internals",
+      "name": "Python Internals & Memory",
+      "citadel_id": "python_data",
+      "tagline": "Pointers, frames, and yields: know how CPython physically executes your code.",
+      "core_idea": "Variables in Python are stack pointers to heap PyObjects. Misunderstanding reference sharing, mutable default args, or generator evaluation leads to subtle production bugs and OOM crashes.",
+      "triggers": [
+        "mutable default argument",
+        "generator streaming",
+        "context manager",
+        "custom decorator"
+      ],
+      "questions": [
+        {
+          "slug": "mutability-and-default-args",
+          "lc": 9201,
+          "title": "Mutable Default Arguments & Object Identity",
+          "difficulty": "Easy",
+          "visualizer": "dataframe_pipeline",
+          "patterns": [
+            "pyobject-reference",
+            "mutable-default"
+          ],
+          "runner_type": "python_practical",
+          "brick_layer": 1,
+          "world_id": 13
+        },
+        {
+          "slug": "generators-memory-streaming",
+          "lc": 9202,
+          "title": "Streaming Generator & Lazy Pipeline",
+          "difficulty": "Medium",
+          "visualizer": "dataframe_pipeline",
+          "patterns": [
+            "generator-yield",
+            "lazy-evaluation"
+          ],
+          "runner_type": "python_practical",
+          "brick_layer": 2,
+          "world_id": 13
+        },
+        {
+          "slug": "custom-context-manager",
+          "lc": 9203,
+          "title": "Transaction Rollback Context Manager",
+          "difficulty": "Medium",
+          "visualizer": "system_blueprint",
+          "patterns": [
+            "context-manager",
+            "dunder-enter-exit"
+          ],
+          "runner_type": "python_practical",
+          "brick_layer": 3,
+          "world_id": 13
+        },
+        {
+          "slug": "retry-with-backoff-decorator",
+          "lc": 9204,
+          "title": "Adaptive Exponential Backoff Decorator",
+          "difficulty": "Medium",
+          "visualizer": "concurrency_timeline",
+          "patterns": [
+            "decorator",
+            "closure",
+            "retry-backoff"
+          ],
+          "runner_type": "python_practical",
+          "brick_layer": 4,
+          "world_id": 13
+        },
+        {
+          "slug": "python-closures-late-binding",
+          "lc": 9205,
+          "title": "Python Closures and the Late Binding Variable Trap",
+          "difficulty": "Medium",
+          "visualizer": "system_blueprint",
+          "patterns": [
+            "closures",
+            "lexical-scoping",
+            "late-binding",
+            "default-arguments"
+          ],
+          "runner_type": "python_practical",
+          "brick_layer": 1,
+          "world_id": 13
+        },
+        {
+          "slug": "retry-backoff-injected-sleep",
+          "lc": 9206,
+          "title": "Exponential Backoff Retry Decorator with Injected Sleep Function",
+          "difficulty": "Medium",
+          "visualizer": "system_blueprint",
+          "patterns": [
+            "decorators",
+            "retry-backoff",
+            "dependency-injection",
+            "closures"
+          ],
+          "runner_type": "python_practical",
+          "brick_layer": 1,
+          "world_id": 13
+        }
+      ],
+      "status": "live"
+    },
+    {
+      "id": 14,
+      "slug": "oop-patterns",
+      "name": "OOP, SOLID & Design Patterns",
+      "citadel_id": "python_data",
+      "tagline": "Write code that survives scale: clean abstractions, SOLID boundaries, and proven patterns.",
+      "core_idea": "Object-oriented design turns tangled procedural spaghetti into modular, testable components. Dunder methods make objects first-class, ABCs enforce contracts, and design patterns isolate changes.",
+      "triggers": [
+        "dunder methods",
+        "abstract base class",
+        "SOLID refactoring",
+        "factory pattern"
+      ],
+      "questions": [
+        {
+          "slug": "dunder-methods-evaluator",
+          "lc": 9211,
+          "title": "Magic Dunder Methods & Comparable Evaluator",
+          "difficulty": "Easy",
+          "visualizer": "system_blueprint",
+          "patterns": [
+            "dunder-methods",
+            "operator-overloading"
+          ],
+          "runner_type": "python_practical",
+          "brick_layer": 1,
+          "world_id": 14
+        },
+        {
+          "slug": "abstract-document-parser",
+          "lc": 9212,
+          "title": "Document Parser Hierarchy with ABC",
+          "difficulty": "Medium",
+          "visualizer": "system_blueprint",
+          "patterns": [
+            "abc-contract",
+            "polymorphism"
+          ],
+          "runner_type": "python_practical",
+          "brick_layer": 2,
+          "world_id": 14
+        },
+        {
+          "slug": "solid-llm-refactor",
+          "lc": 9213,
+          "title": "Spaghetti to SOLID: Extensible LLM Client",
+          "difficulty": "Medium",
+          "visualizer": "system_blueprint",
+          "patterns": [
+            "srp-ocp",
+            "dependency-inversion"
+          ],
+          "runner_type": "python_practical",
+          "brick_layer": 3,
+          "world_id": 14
+        },
+        {
+          "slug": "llm-provider-factory",
+          "lc": 9214,
+          "title": "Multi-Provider LLM Client Factory",
+          "difficulty": "Medium",
+          "visualizer": "system_blueprint",
+          "patterns": [
+            "factory-pattern",
+            "singleton"
+          ],
+          "runner_type": "python_practical",
+          "brick_layer": 4,
+          "world_id": 14
+        },
+        {
+          "slug": "oop-llm-provider-strategy",
+          "lc": 9215,
+          "title": "Strategy Design Pattern for Multi-Model LLM Inference Providers",
+          "difficulty": "Easy",
+          "visualizer": "system_blueprint",
+          "patterns": [
+            "strategy-pattern",
+            "object-oriented-design",
+            "open-closed-principle",
+            "llm-provider"
+          ],
+          "runner_type": "python_practical",
+          "brick_layer": 2,
+          "world_id": 14
+        },
+        {
+          "slug": "oop-observer-event-bus",
+          "lc": 9216,
+          "title": "Observer Design Pattern In-Memory Event Bus",
+          "difficulty": "Medium",
+          "visualizer": "system_blueprint",
+          "patterns": [
+            "observer-pattern",
+            "pub-sub",
+            "event-driven",
+            "object-oriented-design"
+          ],
+          "runner_type": "python_practical",
+          "brick_layer": 2,
+          "world_id": 14
+        }
+      ],
+      "status": "live"
+    },
+    {
+      "id": 15,
+      "slug": "file-processing",
+      "name": "Practical File Processing (JSON/XML/PDF)",
+      "citadel_id": "python_data",
+      "tagline": "Parse real-world messy files: flatten nested JSON, prune XML trees, and chunk PDFs for RAG.",
+      "core_idea": "Raw production data arrives in nested JSON telemetry, bloated XML DOMs, and messy PDF streams. Efficient parsing extracts clean records without crashing memory.",
+      "triggers": [
+        "flatten nested json",
+        "xml element tree",
+        "lca tree pruning",
+        "pdf semantic chunking"
+      ],
+      "questions": [
+        {
+          "slug": "flatten-nested-json-telemetry",
+          "lc": 9221,
+          "title": "Flattening Deep JSON Telemetry Logs",
+          "difficulty": "Medium",
+          "visualizer": "dataframe_pipeline",
+          "patterns": [
+            "json-parsing",
+            "dict-flattening"
+          ],
+          "runner_type": "python_practical",
+          "brick_layer": 1,
+          "world_id": 15
+        },
+        {
+          "slug": "xml-lca-sibling-pruning",
+          "lc": 9222,
+          "title": "XML Tree Active Sibling Pruning (Drizz LCA)",
+          "difficulty": "Hard",
+          "visualizer": "dataframe_pipeline",
+          "patterns": [
+            "xml-dom",
+            "tree-pruning"
+          ],
+          "runner_type": "python_practical",
+          "brick_layer": 2,
+          "world_id": 15
+        },
+        {
+          "slug": "pdf-text-semantic-chunker",
+          "lc": 9223,
+          "title": "RAG Document Cleaning & Semantic Chunker",
+          "difficulty": "Medium",
+          "visualizer": "system_blueprint",
+          "patterns": [
+            "sliding-window-tokens",
+            "rag-chunking"
+          ],
+          "runner_type": "python_practical",
+          "brick_layer": 3,
+          "world_id": 15
+        },
+        {
+          "slug": "resilient-csv-stream-pipeline",
+          "lc": 9224,
+          "title": "Resilient Streaming CSV Log Ingestion",
+          "difficulty": "Medium",
+          "visualizer": "dataframe_pipeline",
+          "patterns": [
+            "csv-streaming",
+            "error-recovery"
+          ],
+          "runner_type": "python_practical",
+          "brick_layer": 4,
+          "world_id": 15
+        },
+        {
+          "slug": "safe-nested-json-resolver",
+          "lc": 9225,
+          "title": "Safe Nested JSON Path Resolver Without KeyError or IndexError",
+          "difficulty": "Easy",
+          "visualizer": "system_blueprint",
+          "patterns": [
+            "json-parsing",
+            "path-traversal",
+            "defensive-programming",
+            "safe-navigation"
+          ],
+          "runner_type": "python_practical",
+          "brick_layer": 3,
+          "world_id": 15
+        }
+      ],
+      "status": "live"
+    },
+    {
+      "id": 16,
+      "slug": "practical-pandas",
+      "name": "Practical Pandas & Data Engineering",
+      "citadel_id": "python_data",
+      "tagline": "Vectorized data manipulation: filter, clean, aggregate, and rank at scale.",
+      "core_idea": "Pandas provides C-accelerated columnar operations. Mastering boolean indexing, missing-value imputation, groupby aggregations, and window rankings lets you build robust data pipelines.",
+      "triggers": [
+        "boolean indexing loc",
+        "dropna fillna",
+        "split-apply-combine agg",
+        "relational merge",
+        "dense rank window"
+      ],
+      "questions": [
+        {
+          "slug": "pandas-loc-boolean-filtering",
+          "lc": 9231,
+          "title": "Vectorized Boolean Indexing with .loc",
+          "difficulty": "Easy",
+          "visualizer": "dataframe_pipeline",
+          "patterns": [
+            "boolean-mask",
+            "vectorized-filter"
+          ],
+          "runner_type": "python_practical",
+          "brick_layer": 1,
+          "world_id": 16
+        },
+        {
+          "slug": "pandas-cleaning-and-imputation",
+          "lc": 9232,
+          "title": "Cleaning Telemetry: NaNs, Duplicates & Types",
+          "difficulty": "Medium",
+          "visualizer": "dataframe_pipeline",
+          "patterns": [
+            "data-cleaning",
+            "median-imputation"
+          ],
+          "runner_type": "python_practical",
+          "brick_layer": 2,
+          "world_id": 16
+        },
+        {
+          "slug": "pandas-groupby-aggregations",
+          "lc": 9233,
+          "title": "Multi-Metric GroupBy & Percentile Leaderboard",
+          "difficulty": "Medium",
+          "visualizer": "dataframe_pipeline",
+          "patterns": [
+            "groupby-agg",
+            "split-apply-combine"
+          ],
+          "runner_type": "python_practical",
+          "brick_layer": 3,
+          "world_id": 16
+        },
+        {
+          "slug": "pandas-relational-merges",
+          "lc": 9234,
+          "title": "Relational Joins & P1 Customer Impact Finder",
+          "difficulty": "Medium",
+          "visualizer": "dataframe_pipeline",
+          "patterns": [
+            "pd-merge",
+            "relational-join"
+          ],
+          "runner_type": "python_practical",
+          "brick_layer": 4,
+          "world_id": 16
+        },
+        {
+          "slug": "pandas-window-ranking",
+          "lc": 9235,
+          "title": "Department 2nd Highest Salary via Dense Rank",
+          "difficulty": "Medium",
+          "visualizer": "dataframe_pipeline",
+          "patterns": [
+            "window-ranking",
+            "dense-rank"
+          ],
+          "runner_type": "python_practical",
+          "brick_layer": 5,
+          "world_id": 16
+        },
+        {
+          "slug": "pandas-merge-groupby-p95-latency",
+          "lc": 9236,
+          "title": "Pandas Relational Merge and GroupBy P95 Tail Latency Aggregation",
+          "difficulty": "Medium",
+          "visualizer": "dataframe_pipeline",
+          "patterns": [
+            "pandas",
+            "merge",
+            "groupby",
+            "quantile-p95",
+            "data-analytics"
+          ],
+          "runner_type": "python_practical",
+          "brick_layer": 4,
+          "world_id": 16
+        }
+      ],
+      "status": "live"
+    },
+    {
+      "id": 17,
+      "slug": "dbms-storage",
+      "name": "Disk Storage & Heap Pages",
+      "citadel_id": "sql_dbms",
+      "tagline": "8KB pages, sequential scans, and tuple layouts on disk.",
+      "core_idea": "Databases do not read individual rows like files. Data lives inside 8KB disk pages. Understanding table scans, B-Trees, leftmost prefix rules, and normalization unlocks 10x query performance.",
+      "triggers": [
+        "8kb heap pages",
+        "btree index traversal",
+        "composite leftmost prefix",
+        "database normalization"
+      ],
+      "questions": [
+        {
+          "slug": "heap-pages-and-scans",
+          "lc": 9301,
+          "title": "8KB Disk Heap Pages & Sequential Scans",
+          "difficulty": "Easy",
+          "visualizer": "sql_pipeline",
+          "patterns": [
+            "heap-storage",
+            "sequential-scan"
+          ],
+          "runner_type": "python_practical",
+          "brick_layer": 1,
+          "world_id": 17
+        }
+      ],
+      "status": "live"
+    },
+    {
+      "id": 18,
+      "slug": "sql-arena",
+      "name": "Core SQL Arena",
+      "citadel_id": "sql_dbms",
+      "tagline": "Anti-joins, self-joins, and conditional pivot aggregations.",
+      "core_idea": "Writing correct SQL requires understanding the logical query execution order: FROM/JOIN -> WHERE -> GROUP BY -> HAVING -> SELECT -> WINDOW -> ORDER BY -> LIMIT.",
+      "triggers": [
+        "dense rank salary",
+        "department top salaries",
+        "customers never order",
+        "self join managers",
+        "consecutive seats",
+        "conditional aggregation"
+      ],
+      "questions": [
+        {
+          "slug": "sql-customers-never-order",
+          "lc": 9313,
+          "title": "Customers Who Never Placed Orders",
+          "difficulty": "Easy",
+          "visualizer": "sql_pipeline",
+          "patterns": [
+            "left-join-null",
+            "anti-join"
+          ],
+          "runner_type": "sql_sqlite",
+          "brick_layer": 3,
+          "world_id": 18
+        },
+        {
+          "slug": "sql-employees-earning-more-than-managers",
+          "lc": 9314,
+          "title": "Employees Earning More Than Their Managers",
+          "difficulty": "Easy",
+          "visualizer": "sql_pipeline",
+          "patterns": [
+            "self-join",
+            "hierarchical-comparison"
+          ],
+          "runner_type": "sql_sqlite",
+          "brick_layer": 4,
+          "world_id": 18
+        },
+        {
+          "slug": "sql-conditional-aggregation-pivot",
+          "lc": 9316,
+          "title": "Test Run Status Conditional Pivot",
+          "difficulty": "Medium",
+          "visualizer": "sql_pipeline",
+          "patterns": [
+            "case-when-sum",
+            "conditional-pivot"
+          ],
+          "runner_type": "sql_sqlite",
+          "brick_layer": 6,
+          "world_id": 18
+        }
+      ],
+      "status": "live"
+    },
+    {
+      "id": 19,
+      "slug": "os-concurrency",
+      "name": "Processes & Threads",
+      "citadel_id": "os_concurrency",
+      "tagline": "Memory sharing, race conditions, and mutex locks.",
+      "core_idea": "Concurrency is about structure (dealing with lots of things at once); parallelism is about execution (doing lots of things at once). The Python GIL protects reference counts by allowing only one thread to execute Python bytecode at a time, making asyncio ideal for I/O and multiprocessing ideal for CPU tasks.",
+      "triggers": [
+        "process thread race condition",
+        "python gil contention",
+        "asyncio semaphore throttling",
+        "single flight lock"
+      ],
+      "questions": [
+        {
+          "slug": "processes-vs-threads-memory",
+          "lc": 9401,
+          "title": "Thread Race Conditions & Mutex Locks",
+          "difficulty": "Medium",
+          "visualizer": "concurrency_timeline",
+          "patterns": [
+            "mutex-lock",
+            "race-condition"
+          ],
+          "runner_type": "python_practical",
+          "brick_layer": 1,
+          "world_id": 19
+        },
+        {
+          "slug": "memory-isolation-threads-vs-processes",
+          "lc": 9405,
+          "title": "Thread Shared Heap vs Process Memory Isolation",
+          "difficulty": "Medium",
+          "visualizer": "concurrency_timeline",
+          "patterns": [
+            "shared-heap",
+            "copy-on-write",
+            "virtual-memory"
+          ],
+          "runner_type": "python_practical",
+          "brick_layer": 1,
+          "world_id": 19
+        },
+        {
+          "slug": "context-switch-cost-model",
+          "lc": 9406,
+          "title": "Thread vs Process Context Switch Cost Model",
+          "difficulty": "Easy",
+          "visualizer": "concurrency_timeline",
+          "patterns": [
+            "context-switch",
+            "tlb-flush",
+            "cache-miss"
+          ],
+          "runner_type": "python_practical",
+          "brick_layer": 1,
+          "world_id": 19
+        }
+      ],
+      "status": "live"
+    },
+    {
+      "id": 20,
+      "slug": "backend-fastapi",
+      "name": "HTTP & Status Codes",
+      "citadel_id": "backend_apis",
+      "tagline": "Exact RFC status codes and error diagnostics.",
+      "core_idea": "A production backend request passes through a sequence of middleware gates: reverse proxy -> rate limiter -> auth -> routing -> validation -> controller. Understanding status codes and async execution prevents 504 timeouts and 500 crashes.",
+      "triggers": [
+        "http status diagnostics",
+        "jwt auth role guard",
+        "async job 202 accepted",
+        "redis sliding window limiter"
+      ],
+      "questions": [
+        {
+          "slug": "http-status-code-diagnostics",
+          "lc": 9501,
+          "title": "HTTP 4xx & 5xx Status Code Diagnostics",
+          "difficulty": "Easy",
+          "visualizer": "http_lifecycle",
+          "patterns": [
+            "status-codes",
+            "error-classification"
+          ],
+          "runner_type": "python_practical",
+          "brick_layer": 1,
+          "world_id": 20
+        },
+        {
+          "slug": "idempotency-key-store",
+          "lc": 9505,
+          "title": "HTTP Idempotency Key Store",
+          "difficulty": "Medium",
+          "visualizer": "http_lifecycle",
+          "patterns": [
+            "idempotency",
+            "deduplication",
+            "http-methods"
+          ],
+          "runner_type": "python_practical",
+          "brick_layer": 1,
+          "world_id": 20
+        },
+        {
+          "slug": "cors-preflight-evaluator",
+          "lc": 9506,
+          "title": "CORS Preflight OPTIONS Decision Engine",
+          "difficulty": "Medium",
+          "visualizer": "http_lifecycle",
+          "patterns": [
+            "cors",
+            "preflight-options",
+            "security-headers",
+            "http-security"
+          ],
+          "runner_type": "python_practical",
+          "brick_layer": 1,
+          "world_id": 20
+        }
+      ],
+      "status": "live"
+    },
+    {
+      "id": 21,
+      "slug": "ai-resume-defense",
+      "name": "Embeddings & Vector Math",
+      "citadel_id": "ai_resume",
+      "tagline": "High-dimensional embeddings and cosine similarity search.",
+      "core_idea": "Generative AI systems require engineering rigor: hybrid vector/BM25 retrieval eliminates hallucinations, genetic prompt optimization cuts token costs, and defending your architectural decisions under pressure proves staff-level ownership.",
+      "triggers": [
+        "vector cosine similarity",
+        "reciprocal rank fusion",
+        "gepa genetic optimization",
+        "resume architecture defense"
+      ],
+      "questions": [
+        {
+          "slug": "vector-cosine-similarity-search",
+          "lc": 9601,
+          "title": "Vector Embeddings & Cosine Similarity Search",
+          "difficulty": "Medium",
+          "visualizer": "system_blueprint",
+          "patterns": [
+            "cosine-similarity",
+            "ann-vector-search"
+          ],
+          "runner_type": "python_practical",
+          "brick_layer": 1,
+          "world_id": 21
+        },
+        {
+          "slug": "embeddings-top-k-nearest-neighbors",
+          "lc": 9605,
+          "title": "Vector Nearest Neighbors Search Comparing Cosine Similarity and Dot Product",
+          "difficulty": "Easy",
+          "visualizer": "system_blueprint",
+          "patterns": [
+            "vector-search",
+            "cosine-similarity",
+            "dot-product",
+            "l2-normalization"
+          ],
+          "runner_type": "python_practical",
+          "brick_layer": 1,
+          "world_id": 21
+        }
+      ],
+      "status": "live"
+    },
+    {
+      "id": 22,
+      "slug": "indexing",
+      "citadel_id": "sql_dbms",
+      "status": "live",
+      "name": "Indexing & Leftmost Prefix",
+      "tagline": "B-Tree vs hash indexes and composite index scan rules.",
+      "core_idea": "B-Tree indexes maintain sorted keys for O(log N) point and range lookups. Composite indexes strictly obey the leftmost prefix rule.",
+      "triggers": [
+        "btree index traversal",
+        "composite leftmost prefix"
+      ],
+      "questions": [
+        {
+          "slug": "btree-vs-hash-indexes",
+          "lc": 9302,
+          "title": "B-Tree vs Hash Index Benchmark",
+          "difficulty": "Medium",
+          "visualizer": "sql_pipeline",
+          "patterns": [
+            "btree-traversal",
+            "range-search"
+          ],
+          "runner_type": "python_practical",
+          "brick_layer": 2,
+          "world_id": 22
+        },
+        {
+          "slug": "composite-index-left-prefix",
+          "lc": 9303,
+          "title": "The Leftmost Prefix Composite Rule",
+          "difficulty": "Medium",
+          "visualizer": "sql_pipeline",
+          "patterns": [
+            "composite-index",
+            "index-prefix"
+          ],
+          "runner_type": "python_practical",
+          "brick_layer": 3,
+          "world_id": 22
+        },
+        {
+          "slug": "sql-explain-composite-index",
+          "lc": 9307,
+          "title": "EXPLAIN QUERY PLAN Composite Index Evaluation",
+          "difficulty": "Medium",
+          "visualizer": "sql_pipeline",
+          "patterns": [
+            "explain-query-plan",
+            "composite-index",
+            "left-prefix",
+            "b-tree"
+          ],
+          "runner_type": "sql_sqlite",
+          "brick_layer": 2,
+          "world_id": 22
+        }
       ]
     },
     {
-      "id": 12, "slug": "dynamic-programming", "name": "1D & 2D Dynamic Programming",
-      "tagline": "Recursion + memory: never solve the same subproblem twice.",
-      "core_idea": "Define dp[i] (or dp[i][j]) in words, write the recurrence from smaller states, set base cases, choose the fill order. Most interview DP is 'take it or skip it'.",
-      "triggers": ["number of ways", "minimum / maximum cost", "can you form", "longest subsequence", "choices at each step", "overlapping subproblems"],
+      "id": 23,
+      "slug": "normalization-views",
+      "citadel_id": "sql_dbms",
+      "status": "live",
+      "name": "Normalization & Schema Design",
+      "tagline": "Eliminate update anomalies and functional dependency cycles with 3NF.",
+      "core_idea": "Third Normal Form guarantees that every non-key attribute depends on the key, the whole key, and nothing but the key.",
+      "triggers": [
+        "database normalization",
+        "3nf schema decomposition"
+      ],
       "questions": [
-        {"slug": "climbing-stairs", "lc": 70, "title": "Climbing Stairs", "difficulty": "Easy", "visualizer": "dp_table", "patterns": ["fibonacci-dp"]},
-        {"slug": "min-cost-climbing-stairs", "lc": 746, "title": "Min Cost Climbing Stairs", "difficulty": "Easy", "visualizer": "dp_table", "patterns": ["fibonacci-dp"]},
-        {"slug": "house-robber", "lc": 198, "title": "House Robber", "difficulty": "Medium", "visualizer": "dp_table", "patterns": ["take-or-skip"]},
-        {"slug": "house-robber-ii", "lc": 213, "title": "House Robber II", "difficulty": "Medium", "visualizer": "dp_table", "patterns": ["take-or-skip", "circular-split"]},
-        {"slug": "unique-paths", "lc": 62, "title": "Unique Paths", "difficulty": "Medium", "visualizer": "dp_table", "patterns": ["grid-dp"]},
-        {"slug": "coin-change", "lc": 322, "title": "Coin Change", "difficulty": "Medium", "visualizer": "dp_table", "patterns": ["unbounded-knapsack-min"]},
-        {"slug": "coin-change-ii", "lc": 518, "title": "Coin Change II", "difficulty": "Medium", "visualizer": "dp_table", "patterns": ["unbounded-knapsack-count"]},
-        {"slug": "longest-increasing-subsequence", "lc": 300, "title": "Longest Increasing Subsequence", "difficulty": "Medium", "visualizer": "dp_table", "patterns": ["lis"]},
-        {"slug": "word-break", "lc": 139, "title": "Word Break", "difficulty": "Medium", "visualizer": "dp_table", "patterns": ["prefix-dp"]},
-        {"slug": "partition-equal-subset-sum", "lc": 416, "title": "Partition Equal Subset Sum", "difficulty": "Medium", "visualizer": "dp_table", "patterns": ["0-1-knapsack"]},
-        {"slug": "target-sum", "lc": 494, "title": "Target Sum", "difficulty": "Medium", "visualizer": "dp_table", "patterns": ["0-1-knapsack-count"]},
-        {"slug": "longest-common-subsequence", "lc": 1143, "title": "Longest Common Subsequence", "difficulty": "Medium", "visualizer": "dp_table", "patterns": ["two-string-dp"]},
-        {"slug": "best-time-to-buy-and-sell-stock-with-cooldown", "lc": 309, "title": "Best Time to Buy and Sell Stock with Cooldown", "difficulty": "Medium", "visualizer": "dp_table", "patterns": ["state-machine-dp"]},
-        {"slug": "edit-distance", "lc": 72, "title": "Edit Distance", "difficulty": "Medium", "visualizer": "dp_table", "patterns": ["two-string-dp"]}
+        {
+          "slug": "database-normalization",
+          "lc": 9304,
+          "title": "Schema Decomposition to Third Normal Form (3NF)",
+          "difficulty": "Medium",
+          "visualizer": "sql_pipeline",
+          "patterns": [
+            "normalization-3nf",
+            "schema-design"
+          ],
+          "runner_type": "python_practical",
+          "brick_layer": 4,
+          "world_id": 23
+        },
+        {
+          "slug": "sql-decompose-3nf-lossless-join",
+          "lc": 9305,
+          "title": "3NF Decomposition & Lossless Join Verification",
+          "difficulty": "Medium",
+          "visualizer": "sql_pipeline",
+          "patterns": [
+            "3nf-normalization",
+            "lossless-join",
+            "schema-design"
+          ],
+          "runner_type": "sql_sqlite",
+          "brick_layer": 2,
+          "world_id": 23
+        },
+        {
+          "slug": "sql-view-and-audit-trigger",
+          "lc": 9306,
+          "title": "Database View & Audit Trigger Verification",
+          "difficulty": "Medium",
+          "visualizer": "sql_pipeline",
+          "patterns": [
+            "views",
+            "triggers",
+            "audit-logging",
+            "compliance"
+          ],
+          "runner_type": "sql_sqlite",
+          "brick_layer": 2,
+          "world_id": 23
+        }
+      ]
+    },
+    {
+      "id": 24,
+      "slug": "analytical-sql",
+      "citadel_id": "sql_dbms",
+      "status": "live",
+      "name": "Analytical SQL Arena",
+      "tagline": "DENSE_RANK, department top salaries, and consecutive seat windows.",
+      "core_idea": "Window functions partition and order result sets without collapsing rows like GROUP BY, enabling moving averages, dense rankings, and streak detection.",
+      "triggers": [
+        "dense rank salary",
+        "department top salaries",
+        "consecutive seats"
+      ],
+      "questions": [
+        {
+          "slug": "sql-second-highest-salary",
+          "lc": 9311,
+          "title": "Second Highest Salary (Window & Offset)",
+          "difficulty": "Medium",
+          "visualizer": "sql_pipeline",
+          "patterns": [
+            "window-dense-rank",
+            "offset-limit"
+          ],
+          "runner_type": "sql_sqlite",
+          "brick_layer": 1,
+          "world_id": 24
+        },
+        {
+          "slug": "sql-department-top-three-salaries",
+          "lc": 9312,
+          "title": "Department Top Three Salaried Employees",
+          "difficulty": "Hard",
+          "visualizer": "sql_pipeline",
+          "patterns": [
+            "partition-by-rank",
+            "window-function"
+          ],
+          "runner_type": "sql_sqlite",
+          "brick_layer": 2,
+          "world_id": 24
+        },
+        {
+          "slug": "sql-consecutive-available-seats",
+          "lc": 9315,
+          "title": "Consecutive Available Cinema Seats",
+          "difficulty": "Medium",
+          "visualizer": "sql_pipeline",
+          "patterns": [
+            "window-lag-lead",
+            "consecutive-streaks"
+          ],
+          "runner_type": "sql_sqlite",
+          "brick_layer": 5,
+          "world_id": 24
+        },
+        {
+          "slug": "sql-running-total-mom-lag",
+          "lc": 9317,
+          "title": "Running Total & Month-over-Month Growth with LAG",
+          "difficulty": "Medium",
+          "visualizer": "sql_pipeline",
+          "patterns": [
+            "window-functions",
+            "running-total",
+            "lag",
+            "financial-metrics"
+          ],
+          "runner_type": "sql_sqlite",
+          "brick_layer": 3,
+          "world_id": 24
+        },
+        {
+          "slug": "sql-delete-duplicate-emails",
+          "lc": 9318,
+          "title": "Purge Duplicate Rows Keeping Lowest Identifier",
+          "difficulty": "Medium",
+          "visualizer": "sql_pipeline",
+          "patterns": [
+            "deduplication",
+            "group-by",
+            "subquery-filter",
+            "data-cleaning"
+          ],
+          "runner_type": "sql_sqlite",
+          "brick_layer": 3,
+          "world_id": 24
+        }
+      ]
+    },
+    {
+      "id": 25,
+      "slug": "transactions-acid",
+      "citadel_id": "sql_dbms",
+      "status": "live",
+      "name": "Transactions & ACID Mastery",
+      "tagline": "WAL logs, dirty reads, phantom rows, and 2-phase locking.",
+      "core_idea": "ACID guarantees data integrity across concurrent crashes and rollbacks.",
+      "triggers": [
+        "acid isolation",
+        "dirty read",
+        "wal log"
+      ],
+      "questions": [
+        {
+          "slug": "sql-acid-money-transfer",
+          "lc": 9321,
+          "title": "ACID Atomic Money Transfer & Rollback",
+          "difficulty": "Medium",
+          "visualizer": "sql_pipeline",
+          "patterns": [
+            "transactions",
+            "acid-atomicity",
+            "conditional-case"
+          ],
+          "runner_type": "sql_sqlite",
+          "brick_layer": 4,
+          "world_id": 25
+        },
+        {
+          "slug": "sql-lost-update-optimistic-lock",
+          "lc": 9322,
+          "title": "Optimistic Locking & Lost Update Prevention",
+          "difficulty": "Medium",
+          "visualizer": "sql_pipeline",
+          "patterns": [
+            "lost-update",
+            "optimistic-locking",
+            "concurrency-control"
+          ],
+          "runner_type": "sql_sqlite",
+          "brick_layer": 4,
+          "world_id": 25
+        },
+        {
+          "slug": "sql-prevent-n-plus-one-join",
+          "lc": 9323,
+          "title": "Eliminate N+1 Queries with Relational Aggregation",
+          "difficulty": "Medium",
+          "visualizer": "sql_pipeline",
+          "patterns": [
+            "n-plus-one",
+            "left-join",
+            "group-by",
+            "aggregation"
+          ],
+          "runner_type": "sql_sqlite",
+          "brick_layer": 4,
+          "world_id": 25
+        }
+      ]
+    },
+    {
+      "id": 26,
+      "slug": "concurrency-race-conditions",
+      "citadel_id": "os_concurrency",
+      "status": "live",
+      "name": "Concurrency vs Parallelism",
+      "tagline": "Race condition reproduction and atomicity violations.",
+      "core_idea": "Concurrency structures independent tasks; parallelism executes them simultaneously across hardware cores.",
+      "triggers": [
+        "concurrency vs parallelism",
+        "race condition reproduction"
+      ],
+      "questions": [
+        {
+          "slug": "deterministic-interleaving-counter",
+          "lc": 9411,
+          "title": "Deterministic Interleaving Counter",
+          "difficulty": "Medium",
+          "visualizer": "concurrency_timeline",
+          "patterns": [
+            "race-condition",
+            "interleaving-schedule",
+            "shared-memory"
+          ],
+          "runner_type": "python_practical",
+          "brick_layer": 2,
+          "world_id": 26
+        },
+        {
+          "slug": "mutex-protected-counter",
+          "lc": 9412,
+          "title": "Mutex-Protected Atomic Counter",
+          "difficulty": "Medium",
+          "visualizer": "concurrency_timeline",
+          "patterns": [
+            "mutex-lock",
+            "critical-section",
+            "concurrency"
+          ],
+          "runner_type": "python_practical",
+          "brick_layer": 2,
+          "world_id": 26
+        },
+        {
+          "slug": "concurrency-vs-parallelism-cores",
+          "lc": 9413,
+          "title": "Concurrency vs Parallelism Multi-Core Model",
+          "difficulty": "Medium",
+          "visualizer": "concurrency_timeline",
+          "patterns": [
+            "concurrency-vs-parallelism",
+            "multi-core",
+            "task-scheduling"
+          ],
+          "runner_type": "python_practical",
+          "brick_layer": 2,
+          "world_id": 26
+        }
+      ]
+    },
+    {
+      "id": 27,
+      "slug": "locks-deadlocks",
+      "citadel_id": "os_concurrency",
+      "status": "live",
+      "name": "Locks, Semaphores & Deadlocks",
+      "tagline": "Mutexes, semaphores, and Coffman deadlock conditions.",
+      "core_idea": "Resource ordering and bounded timeouts prevent deadlock cycles in shared-state concurrent systems.",
+      "triggers": [
+        "deadlock avoidance",
+        "semaphore counting"
+      ],
+      "questions": [
+        {
+          "slug": "bounded-semaphore-simulator",
+          "lc": 9421,
+          "title": "Bounded Semaphore Permit Management",
+          "difficulty": "Medium",
+          "visualizer": "concurrency_timeline",
+          "patterns": [
+            "semaphore",
+            "permit-pool",
+            "synchronization"
+          ],
+          "runner_type": "python_practical",
+          "brick_layer": 2,
+          "world_id": 27
+        },
+        {
+          "slug": "deadlock-cycle-detector",
+          "lc": 9422,
+          "title": "Resource Allocation Graph Deadlock Detection",
+          "difficulty": "Hard",
+          "visualizer": "concurrency_timeline",
+          "patterns": [
+            "deadlock-detection",
+            "cycle-detection",
+            "graph-dfs"
+          ],
+          "runner_type": "python_practical",
+          "brick_layer": 2,
+          "world_id": 27
+        },
+        {
+          "slug": "hierarchical-lock-order-resolver",
+          "lc": 9423,
+          "title": "Hierarchical Lock Order Resolver",
+          "difficulty": "Medium",
+          "visualizer": "concurrency_timeline",
+          "patterns": [
+            "lock-hierarchy",
+            "deadlock-prevention",
+            "dijkstra-ordering"
+          ],
+          "runner_type": "python_practical",
+          "brick_layer": 2,
+          "world_id": 27
+        }
+      ]
+    },
+    {
+      "id": 28,
+      "slug": "gil-thread-pools",
+      "citadel_id": "os_concurrency",
+      "status": "live",
+      "name": "GIL & Thread/Process Pools",
+      "tagline": "Bypass Python bytecode serialization with multi-core pools.",
+      "core_idea": "The CPython GIL prevents true multithreaded CPU parallelism, requiring ProcessPoolExecutor or C-extensions for CPU workloads.",
+      "triggers": [
+        "python gil contention",
+        "multiprocessing pool"
+      ],
+      "questions": [
+        {
+          "slug": "python-gil-contention",
+          "lc": 9402,
+          "title": "Python GIL: CPU-Bound vs I/O Workloads",
+          "difficulty": "Medium",
+          "visualizer": "concurrency_timeline",
+          "patterns": [
+            "gil-contention",
+            "multiprocessing"
+          ],
+          "runner_type": "python_practical",
+          "brick_layer": 2,
+          "world_id": 28
+        },
+        {
+          "slug": "thread-vs-process-pool-advisor",
+          "lc": 9425,
+          "title": "ThreadPool vs ProcessPool Workload Advisor",
+          "difficulty": "Medium",
+          "visualizer": "concurrency_timeline",
+          "patterns": [
+            "gil-contention",
+            "threadpool",
+            "processpool",
+            "pool-optimization"
+          ],
+          "runner_type": "python_practical",
+          "brick_layer": 3,
+          "world_id": 28
+        }
+      ]
+    },
+    {
+      "id": 29,
+      "slug": "asyncio-event-loop",
+      "citadel_id": "os_concurrency",
+      "status": "live",
+      "name": "Asyncio Event Loop",
+      "tagline": "Cooperative multitasking and bounded semaphore throttling.",
+      "core_idea": "Asyncio runs on a single thread using an epoll event loop, yielding on I/O to handle tens of thousands of concurrent sockets.",
+      "triggers": [
+        "asyncio semaphore throttling",
+        "cooperative loop"
+      ],
+      "questions": [
+        {
+          "slug": "asyncio-event-loop-semaphore",
+          "lc": 9403,
+          "title": "Asyncio Concurrency Throttling with Semaphores",
+          "difficulty": "Medium",
+          "visualizer": "concurrency_timeline",
+          "patterns": [
+            "asyncio-semaphore",
+            "cooperative-loop"
+          ],
+          "runner_type": "python_practical",
+          "brick_layer": 3,
+          "world_id": 29
+        }
+      ]
+    },
+    {
+      "id": 30,
+      "slug": "production-concurrency-boss",
+      "citadel_id": "os_concurrency",
+      "status": "live",
+      "name": "Production Concurrency Boss",
+      "tagline": "Single-flight lock and cache stampede suppression.",
+      "core_idea": "When a hot cache key expires under 10k RPS, single-flight coalesces concurrent queries into one upstream call.",
+      "triggers": [
+        "single flight lock",
+        "cache stampede coalesce"
+      ],
+      "questions": [
+        {
+          "slug": "single-flight-cache-lock",
+          "lc": 9404,
+          "title": "Single-Flight Lock & Stampede Prevention",
+          "difficulty": "Hard",
+          "visualizer": "concurrency_timeline",
+          "patterns": [
+            "single-flight",
+            "stampede-coalesce"
+          ],
+          "runner_type": "python_practical",
+          "brick_layer": 4,
+          "world_id": 30
+        }
+      ]
+    },
+    {
+      "id": 31,
+      "slug": "auth-security",
+      "citadel_id": "backend_apis",
+      "status": "live",
+      "name": "Auth & Security",
+      "tagline": "Stateless JWT tokens and role-based access control.",
+      "core_idea": "Cryptographic JWT verification enables scalable stateless authentication without database lookup per request.",
+      "triggers": [
+        "jwt auth role guard",
+        "rbac middleware"
+      ],
+      "questions": [
+        {
+          "slug": "jwt-auth-role-guard",
+          "lc": 9502,
+          "title": "Stateless JWT Auth & Role-Based Access Guard",
+          "difficulty": "Medium",
+          "visualizer": "http_lifecycle",
+          "patterns": [
+            "jwt-auth",
+            "rbac-guard"
+          ],
+          "runner_type": "python_practical",
+          "brick_layer": 2,
+          "world_id": 31
+        },
+        {
+          "slug": "hmac-signed-jwt-engine",
+          "lc": 9521,
+          "title": "HMAC-SHA256 Stateless Token Engine",
+          "difficulty": "Medium",
+          "visualizer": "http_lifecycle",
+          "patterns": [
+            "stateless-auth",
+            "hmac-sha256",
+            "token-expiration",
+            "security"
+          ],
+          "runner_type": "python_practical",
+          "brick_layer": 2,
+          "world_id": 31
+        },
+        {
+          "slug": "refresh-token-rotation-reuse",
+          "lc": 9522,
+          "title": "Refresh Token Rotation with Replay Detection",
+          "difficulty": "Medium",
+          "visualizer": "http_lifecycle",
+          "patterns": [
+            "token-rotation",
+            "replay-detection",
+            "session-revocation",
+            "oauth2"
+          ],
+          "runner_type": "python_practical",
+          "brick_layer": 2,
+          "world_id": 31
+        }
+      ]
+    },
+    {
+      "id": 32,
+      "slug": "fastapi-pydantic",
+      "citadel_id": "backend_apis",
+      "status": "live",
+      "name": "FastAPI & Pydantic",
+      "tagline": "Dependency injection, request validation, and OpenAPI schemas.",
+      "core_idea": "Pydantic v2 rust-accelerated parsing validates incoming JSON payloads before controller execution.",
+      "triggers": [
+        "fastapi dependency injection",
+        "pydantic validation"
+      ],
+      "questions": [
+        {
+          "slug": "pydantic-payload-validator",
+          "lc": 9511,
+          "title": "Pydantic Schema Validation & HTTP 422",
+          "difficulty": "Medium",
+          "visualizer": "http_lifecycle",
+          "patterns": [
+            "schema-validation",
+            "http-422",
+            "pydantic"
+          ],
+          "runner_type": "python_practical",
+          "brick_layer": 2,
+          "world_id": 32
+        },
+        {
+          "slug": "dependency-injection-resolver",
+          "lc": 9512,
+          "title": "FastAPI Dependency Injection Resolver",
+          "difficulty": "Medium",
+          "visualizer": "http_lifecycle",
+          "patterns": [
+            "dependency-injection",
+            "dag-resolution",
+            "ioc",
+            "caching"
+          ],
+          "runner_type": "python_practical",
+          "brick_layer": 2,
+          "world_id": 32
+        },
+        {
+          "slug": "sync-vs-async-handler-throughput",
+          "lc": 9513,
+          "title": "Sync vs Async Def Event Loop Starvation",
+          "difficulty": "Medium",
+          "visualizer": "http_lifecycle",
+          "patterns": [
+            "event-loop",
+            "blocking-io",
+            "threadpool-offload",
+            "throughput"
+          ],
+          "runner_type": "python_practical",
+          "brick_layer": 2,
+          "world_id": 32
+        }
+      ]
+    },
+    {
+      "id": 33,
+      "slug": "async-jobs-polling",
+      "citadel_id": "backend_apis",
+      "status": "live",
+      "name": "Async Jobs & Polling",
+      "tagline": "202 Accepted, worker task queues, and polling loops.",
+      "core_idea": "Long-running requests must return 202 Accepted with a status URL rather than keeping the HTTP socket open and timing out.",
+      "triggers": [
+        "async job 202 accepted",
+        "job queue polling"
+      ],
+      "questions": [
+        {
+          "slug": "async-job-queue-polling",
+          "lc": 9503,
+          "title": "Asynchronous Job Dispatch & 202 Polling Pattern",
+          "difficulty": "Medium",
+          "visualizer": "http_lifecycle",
+          "patterns": [
+            "job-queue-polling",
+            "202-accepted"
+          ],
+          "runner_type": "python_practical",
+          "brick_layer": 3,
+          "world_id": 33
+        },
+        {
+          "slug": "http-202-polling-backoff",
+          "lc": 9531,
+          "title": "HTTP 202 Polling with Exponential Backoff",
+          "difficulty": "Medium",
+          "visualizer": "http_lifecycle",
+          "patterns": [
+            "async-jobs",
+            "http-202",
+            "exponential-backoff",
+            "polling"
+          ],
+          "runner_type": "python_practical",
+          "brick_layer": 3,
+          "world_id": 33
+        }
+      ]
+    },
+    {
+      "id": 34,
+      "slug": "redis-rate-limiter-boss",
+      "citadel_id": "backend_apis",
+      "status": "live",
+      "name": "Redis & Rate Limiting Boss",
+      "tagline": "Sliding window log rate limiter with Redis sorted sets.",
+      "core_idea": "Atomic sliding-window counters protect downstream services from volumetric abuse and brute-force storms.",
+      "triggers": [
+        "redis sliding window limiter",
+        "http 429 too many requests"
+      ],
+      "questions": [
+        {
+          "slug": "redis-sliding-window-rate-limiter",
+          "lc": 9504,
+          "title": "Redis Sliding Window Log Rate Limiter",
+          "difficulty": "Hard",
+          "visualizer": "http_lifecycle",
+          "patterns": [
+            "sliding-window-rate-limit",
+            "http-429"
+          ],
+          "runner_type": "python_practical",
+          "brick_layer": 4,
+          "world_id": 34
+        }
+      ]
+    },
+    {
+      "id": 35,
+      "slug": "vector-dbs-rag",
+      "citadel_id": "ai_resume",
+      "status": "live",
+      "name": "Vector DBs & RAG",
+      "tagline": "Reciprocal Rank Fusion hybrid search (BM25 + Dense).",
+      "core_idea": "Hybrid retrieval combines exact keyword hits from BM25 with semantic relevance from dense embeddings using RRF scoring.",
+      "triggers": [
+        "reciprocal rank fusion",
+        "hybrid search rrf"
+      ],
+      "questions": [
+        {
+          "slug": "reciprocal-rank-fusion-hybrid-search",
+          "lc": 9602,
+          "title": "Hybrid Search: Reciprocal Rank Fusion (RRF)",
+          "difficulty": "Medium",
+          "visualizer": "system_blueprint",
+          "patterns": [
+            "rrf-hybrid-search",
+            "bm25-vector-merge"
+          ],
+          "runner_type": "python_practical",
+          "brick_layer": 2,
+          "world_id": 35
+        },
+        {
+          "slug": "rag-text-chunker-with-overlap",
+          "lc": 9606,
+          "title": "Sliding Window Document Text Chunker with Token Overlap and Metadata",
+          "difficulty": "Easy",
+          "visualizer": "system_blueprint",
+          "patterns": [
+            "sliding-window",
+            "chunking",
+            "rag-ingestion",
+            "metadata-enrichment"
+          ],
+          "runner_type": "python_practical",
+          "brick_layer": 2,
+          "world_id": 35
+        },
+        {
+          "slug": "rag-cross-encoder-reranker",
+          "lc": 9607,
+          "title": "Deterministic Cross-Encoder Candidate Reranker by Query-Passage Relevance",
+          "difficulty": "Medium",
+          "visualizer": "system_blueprint",
+          "patterns": [
+            "cross-encoder",
+            "reranking",
+            "lexical-coverage",
+            "rag-ranking"
+          ],
+          "runner_type": "python_practical",
+          "brick_layer": 2,
+          "world_id": 35
+        }
+      ]
+    },
+    {
+      "id": 36,
+      "slug": "agents-langgraph",
+      "citadel_id": "ai_resume",
+      "status": "live",
+      "name": "Agents & LangGraph",
+      "tagline": "Stateful cyclic graphs, tool calling, and human-in-the-loop.",
+      "core_idea": "LangGraph models multi-step agent reasoning loops with explicit state checkpoints and branch conditional routing.",
+      "triggers": [
+        "langgraph cyclic agent",
+        "multi agent tool call"
+      ],
+      "questions": [
+        {
+          "slug": "agent-state-machine-graph",
+          "lc": 9631,
+          "title": "StateGraph Finite State Machine with Conditional Routing",
+          "difficulty": "Medium",
+          "visualizer": "system_blueprint",
+          "patterns": [
+            "state-machine",
+            "conditional-edges",
+            "graph-orchestration",
+            "agentic-workflow"
+          ],
+          "runner_type": "python_practical",
+          "brick_layer": 5,
+          "world_id": 36
+        },
+        {
+          "slug": "agent-tool-calling-loop",
+          "lc": 9632,
+          "title": "Autonomous Tool-Calling Loop with Max-Steps Guard",
+          "difficulty": "Medium",
+          "visualizer": "system_blueprint",
+          "patterns": [
+            "react-loop",
+            "tool-calling",
+            "safety-guard",
+            "agent-runtime"
+          ],
+          "runner_type": "python_practical",
+          "brick_layer": 5,
+          "world_id": 36
+        },
+        {
+          "slug": "llm-provider-fallback-router",
+          "lc": 9633,
+          "title": "Multi-Provider Gateway with Exponential Retry and Fallback Routing",
+          "difficulty": "Medium",
+          "visualizer": "system_blueprint",
+          "patterns": [
+            "fallback-routing",
+            "retry-backoff",
+            "multi-provider",
+            "gateway-resilience"
+          ],
+          "runner_type": "python_practical",
+          "brick_layer": 5,
+          "world_id": 36
+        }
+      ]
+    },
+    {
+      "id": 37,
+      "slug": "gepa-prompt-optimization",
+      "citadel_id": "ai_resume",
+      "status": "live",
+      "name": "GEPA Prompt Optimization",
+      "tagline": "Genetic mutation and pareto token budget optimization.",
+      "core_idea": "Genetic prompt algorithms evolve system prompts to maximize accuracy while pruning 30%+ of token overhead.",
+      "triggers": [
+        "gepa genetic optimization",
+        "token budget pruning"
+      ],
+      "questions": [
+        {
+          "slug": "gepa-genetic-prompt-optimizer",
+          "lc": 9603,
+          "title": "GEPA Prompt Optimizer & Token Budget Trimming",
+          "difficulty": "Hard",
+          "visualizer": "system_blueprint",
+          "patterns": [
+            "genetic-mutation",
+            "prompt-optimization"
+          ],
+          "runner_type": "python_practical",
+          "brick_layer": 3,
+          "world_id": 37
+        },
+        {
+          "slug": "gepa-genetic-crossover-elitism",
+          "lc": 9608,
+          "title": "Genetic Prompt Optimization with Elitism, Crossover, and Mutation",
+          "difficulty": "Medium",
+          "visualizer": "system_blueprint",
+          "patterns": [
+            "genetic-algorithm",
+            "prompt-optimization",
+            "elitism",
+            "evolutionary-search"
+          ],
+          "runner_type": "python_practical",
+          "brick_layer": 4,
+          "world_id": 37
+        }
+      ]
+    },
+    {
+      "id": 38,
+      "slug": "resume-defense-boss",
+      "citadel_id": "ai_resume",
+      "status": "live",
+      "name": "Staff Resume Defense Boss",
+      "tagline": "Live technical grill and architecture defense simulator.",
+      "core_idea": "Staff engineers must rigorously justify architecture trade-offs, P1 postmortems, and distributed failure modes.",
+      "triggers": [
+        "resume architecture defense",
+        "staff interview grill"
+      ],
+      "questions": [
+        {
+          "slug": "resume-bullet-architecture-grill",
+          "lc": 9604,
+          "title": "Senior Engineer Live Resume Grill Simulator",
+          "difficulty": "Hard",
+          "visualizer": "system_blueprint",
+          "patterns": [
+            "system-design-defense",
+            "p1-incident-rca"
+          ],
+          "runner_type": "python_practical",
+          "brick_layer": 4,
+          "world_id": 38
+        }
       ]
     }
   ]

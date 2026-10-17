@@ -1,135 +1,243 @@
 @import 'tailwindcss';
 
-/* Design language: see DESIGN_REFERENCES.md. Tokens below are the studio-contrast defaults; */
-/* [data-theme] and .stage redefine them for their subtree.                                  */
+/* Design language: see DESIGN_REFERENCES.md. Tokens below are the carbon-dark defaults; */
+/* [data-theme='paper'] redefines zones 1+2 for a warm-stone light mode.                 */
 @theme {
   --font-sans: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
   --font-plate: 'IBM Plex Sans Condensed', 'IBM Plex Sans', ui-sans-serif, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, monospace;
 
+  /* Surfaces (Linear Enterprise: surface-0 to surface-3) */
+  --color-surface-0: #090A0F;
+  --color-surface-1: #101218;
+  --color-surface-2: #181B22;
+  --color-surface-3: #212631;
+
+  --color-void: #090A0F;      /* --surface-0: page canvas */
+  --color-panel: #101218;     /* --surface-1: card */
+  --color-panel-2: #181B22;   /* --surface-2: wells, inputs */
+  --color-panel-3: #212631;   /* --surface-3: hover/selected */
+  --color-ink: #090A0F;       /* inset wells, code blocks */
+  --color-line: rgba(255, 255, 255, 0.08);
+  --color-line-strong: rgba(255, 255, 255, 0.16);
+  --color-fog: #212631;
+
+  /* Text (Neutral Enterprise Slates) */
+  --color-text-1: #F8FAFC;
+  --color-text-2: #94A3B8;
+  --color-text-3: #64748B;
+  --color-chalk: #F8FAFC;     /* --text-1 (clean slate-50) */
+  --color-muted: #94A3B8;     /* --text-2 (clean slate-400) */
+  --color-faint: #64748B;     /* --text-3 (clean slate-500) */
+  --color-code: #F8FAFC;
+  --color-reward: #F5C451;
+
+  /* Accents */
+  --color-cyan: #38BDF8;
+  --color-indigo: #38BDF8;
+  --color-forge: #6EE7B7;
+  --color-emerald: #10B981;
+  --color-emerald-hi: #6EE7B7;
+  --color-verdigris: #6EE7B7;
+  --color-amber: #F2B866;
+  --color-ochre: #F2B866;
+  --color-rust: #FB923C;
+  --color-crimson: #FB7185;
+  --color-oxide: #FB7185;
+  --color-sky: #38BDF8;
+  --color-orchid: #94A3B8;
+  --color-gold: #F5C451;
+
+  /* Solid action pills (use peak accent, no indigo blue tint) */
+  --color-action: var(--peak-accent, #6EE7B7);
+  --color-action-hi: color-mix(in srgb, var(--peak-accent, #6EE7B7) 88%, white);
+  --color-success: #10B981;
+
+  /* Type Scale v2 */
+  --text-2xs: 13px;
+  --text-xs: 13px;
+  --text-sm: 15px;
+  --text-base: 17px;
+  --text-lg: 19px;
+  --text-xl: 22px;
+  --text-2xl: 28px;
+  --text-3xl: 36px;
+}
+
+/* ---- Type Scale & Tokens v2 (CSS custom props — usable anywhere incl. canvas/SVG) ------- */
+
+:root {
+  /* Surfaces (Neutral Charcoal Depths) */
+  --surface-0: #090A0F;
+  --surface-1: #101218;
+  --surface-2: #181B22;
+  --surface-3: #212631;
+  --line: rgba(255, 255, 255, 0.08);
+  --line-strong: rgba(255, 255, 255, 0.16);
+  --surface-line: rgba(255, 255, 255, 0.08);
+  --surface-line-strong: rgba(255, 255, 255, 0.16);
+
+  /* Text tokens (Clean Slate Monochromes) */
+  --text-1: #F8FAFC;
+  --text-2: #94A3B8; /* >= 4.5:1 on surface-1 */
+  --text-3: #64748B; /* metadata / faint */
+  --reward: #F5C451;
+
+  /* Type scale */
+  --text-caption: 13px;   --lh-caption: 1.4;   /* metadata labels, keycaps, counters ONLY */
+  --text-ui:      15px;   --lh-ui:      1.45;  /* nav, buttons, badges, secondary UI text  */
+  --text-body:    17px;   --lh-body:    1.6;   /* body copy, prose                         */
+  --text-lead:    19px;   --lh-lead:    1.6;   /* section intros, card subtitles            */
+  --text-h3:      22px;   --lh-h3:      1.3;   /* card headings                             */
+  --text-h2:      28px;   --lh-h2:      1.25;  /* section headings                          */
+  --text-h1:      36px;   --lh-h1:      1.15;  /* page titles                               */
+  --text-code:    15px;   --lh-code:    1.6;   /* mono code                                 */
+
+  /* Layout containers */
+  --shell-max:   1680px;
+  --shell-px:    clamp(16px, 3vw, 48px);
+  --measure-max: 68ch;
+
+  /* Per-peak accent colours */
+  --accent-dsa:            #6EE7B7;
+  --accent-python-data:    #F2B866;
+  --accent-sql-dbms:       #67E8F9;
+  --accent-os-concurrency: #FB923C;
+  --accent-backend-apis:   #FB7185;
+  --accent-ai-resume:      #38BDF8;
+  --peak-accent:           var(--accent-dsa, #6EE7B7);
+
+  /* Card elevation: lighter surface + 1px hairline border, subtle clean elevation without heavy blur */
+  --page-dot: #181B22;
+  --card-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.5), 0 1px 2px -1px rgba(0, 0, 0, 0.5);
+  --card-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  --stage-bg: #090A0F;
+  --stage-frame: rgba(255, 255, 255, 0.08);
+  --stage-glow: inset 0 2px 14px -4px rgba(0, 0, 0, 0.8);
+}
+
+html[data-theme='paper'] {
+  color-scheme: light;
+
   /* Surfaces */
-  --color-void: #f3f2ec; /* zone 1: page shell */
-  --color-panel: #ffffff; /* zone 2: reading card */
-  --color-panel-2: #f7f6f2; /* recessed sand: inline code, example boxes, raised controls */
-  --color-ink: #f7f6f2; /* inset wells: inputs, code blocks */
-  --color-line: #e2e0d6;
-  --color-line-strong: #d3d0c4;
-  --color-fog: #c9c6bb;
+  --surface-0: #F3F2EC;
+  --surface-1: #FFFFFF;
+  --surface-2: #EAE8DF;
+  --surface-3: #DDD9CD;
+  --line: rgba(20, 20, 19, 0.12);
+  --line-strong: rgba(20, 20, 19, 0.22);
+  --surface-line: rgba(20, 20, 19, 0.12);
+  --surface-line-strong: rgba(20, 20, 19, 0.22);
 
-  /* Text */
+  /* Tailwind Color Mappings for Paper Light */
+  --color-surface-0: #F3F2EC;
+  --color-surface-1: #FFFFFF;
+  --color-surface-2: #EAE8DF;
+  --color-surface-3: #DDD9CD;
+
+  --color-void: #F3F2EC;
+  --color-panel: #FFFFFF;
+  --color-panel-2: #F8F7F3;
+  --color-panel-3: #EAE8DF;
+  --color-ink: #EAE8DF;
+  --color-line: #CBC7B7;
+  --color-line-strong: #9C9786;
+  --color-fog: #DCD8CA;
+
+  /* Text Tokens */
+  --text-1: #141413;
+  --text-2: #454440;
+  --text-3: #76746D;
+  --color-text-1: #141413;
+  --color-text-2: #454440;
+  --color-text-3: #76746D;
   --color-chalk: #141413;
-  --color-muted: #575653;
-  --color-faint: #76746d;
-  --color-code: #1e293b;
+  --color-muted: #454440;
+  --color-faint: #76746D;
+  --color-code: #0F172A;
+  --color-reward: #B45309;
+  --reward: #B45309;
 
-  /* Accents (AA on ivory) */
-  --color-cyan: #0e7490;
-  --color-indigo: #4f46e5;
-  --color-forge: #0e7490;
+  /* Accents (Deep & accessible for light background) */
+  --color-cyan: #0E7490;
+  --color-indigo: #0284C7;
+  --color-forge: #047857;
   --color-emerald: #047857;
   --color-emerald-hi: #047857;
   --color-verdigris: #047857;
-  --color-amber: #b45309;
-  --color-ochre: #b45309;
-  --color-rust: #c2410c;
-  --color-crimson: #be123c;
-  --color-oxide: #be123c;
-  --color-sky: #4f46e5;
-  --color-orchid: #7e22ce;
-  --color-gold: #b45309;
+  --color-amber: #B45309;
+  --color-ochre: #B45309;
+  --color-rust: #C2410C;
+  --color-crimson: #BE123C;
+  --color-oxide: #BE123C;
+  --color-sky: #0369A1;
+  --color-orchid: #475569;
+  --color-gold: #B45309;
 
-  /* Solid action pills (same in every zone) */
-  --color-action: #4f46e5;
-  --color-action-hi: #4338ca;
-  --color-success: #059669;
+  /* Per-peak accent colours calibrated for light background */
+  --accent-dsa:            #047857;
+  --accent-python-data:    #B45309;
+  --accent-sql-dbms:       #0E7490;
+  --accent-os-concurrency: #C2410C;
+  --accent-backend-apis:   #BE123C;
+  --accent-ai-resume:      #0284C7;
+  --peak-accent:           var(--accent-dsa, #047857);
 
-  --text-2xs: 0.6875rem;
-}
+  --color-action: var(--peak-accent, #047857);
+  --color-action-hi: color-mix(in srgb, var(--peak-accent, #047857) 88%, black);
+  --color-success: #047857;
 
-/* ---- Zone 1 + 2 per theme ------------------------------------------------------------------ */
-
-:root,
-html[data-theme='studio-contrast'] {
-  --page-dot: #e4e2d8;
-  --card-shadow: 0 4px 20px -2px rgb(20 20 19 / 0.06), 0 1px 2px rgb(20 20 19 / 0.04);
-  --stage-bg: #0b0c10;
-  --stage-frame: #1e2028;
-  --stage-glow: 0 25px 50px -12px rgb(20 20 19 / 0.35);
-}
-
-html[data-theme='carbon-dark'] {
-  --color-void: #09090b;
-  --color-panel: #18181c;
-  --color-panel-2: #222228;
-  --color-ink: #111114;
-  --color-line: #2e2e36;
-  --color-line-strong: #3f3f48;
-  --color-fog: #3f3f46;
-  --color-chalk: #fafafa;
-  --color-muted: #a1a1aa;
-  --color-faint: #8a8a94;
-  --color-code: #e4e4e7;
-  --color-cyan: #22d3ee;
-  --color-forge: #22d3ee;
-  --color-indigo: #818cf8;
-  --color-emerald: #10b981;
-  --color-emerald-hi: #34d399;
-  --color-verdigris: #34d399;
-  --color-amber: #f59e0b;
-  --color-ochre: #f59e0b;
-  --color-rust: #fb923c;
-  --color-crimson: #fb7185;
-  --color-oxide: #fb7185;
-  --color-sky: #a5b4fc;
-  --color-orchid: #c084fc;
-  --color-gold: #fbbf24;
-  --page-dot: #1c1c21;
-  --card-shadow: 0 1px 0 0 rgb(255 255 255 / 0.04) inset, 0 8px 24px -8px rgb(0 0 0 / 0.6);
-  --stage-bg: #000000;
-  --stage-frame: #27272a;
-  --stage-glow: inset 0 0 60px -20px rgb(99 102 241 / 0.25), 0 20px 40px -16px rgb(0 0 0 / 0.8);
+  --page-dot: #DDD9CD;
+  --card-shadow: 0 4px 20px -2px rgba(20, 20, 19, 0.06), 0 1px 2px rgba(20, 20, 19, 0.04);
+  --card-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  --stage-bg: #F3F2EC;
+  --stage-frame: #CBC7B7;
+  --stage-glow: 0 20px 40px -12px rgba(20, 20, 19, 0.12);
 }
 
 /* ---- Zone 3: theater stage (identical in both themes, bright accents) ----------------------- */
 
 .stage {
-  --color-panel: #181b24; /* nodes and cells inside the stage */
-  --color-panel-2: #1f2330;
-  --color-ink: #0b0c10;
-  --color-line: #2e3446;
-  --color-line-strong: #3d4560;
-  --color-fog: #2e3446;
-  --color-chalk: #f1f5f9;
-  --color-muted: #94a3b8;
-  --color-faint: #64748b;
-  --color-code: #e2e8f0;
-  --color-cyan: #00f0ff;
-  --color-forge: #00f0ff;
-  --color-indigo: #818cf8;
-  --color-emerald: #10b981;
-  --color-emerald-hi: #34d399;
-  --color-verdigris: #34d399;
-  --color-amber: #f59e0b;
-  --color-ochre: #f59e0b;
-  --color-rust: #fb923c;
-  --color-crimson: #fb7185;
-  --color-oxide: #fb7185;
-  --color-sky: #818cf8;
-  --color-orchid: #c084fc;
-  --color-gold: #fbbf24;
+  --color-panel: #101218;   /* nodes and cells inside the stage */
+  --color-panel-2: #181B22;
+  --color-ink: #090A0F;
+  --color-line: rgba(255, 255, 255, 0.08);
+  --color-line-strong: rgba(255, 255, 255, 0.16);
+  --color-fog: #212631;
+  --color-chalk: #F8FAFC;
+  --color-muted: #94A3B8;
+  --color-faint: #64748B;
+  --color-code: #F8FAFC;
+  --color-cyan: #38BDF8;
+  --color-forge: #38BDF8;
+  --color-indigo: #38BDF8;
+  --color-emerald: #10B981;
+  --color-emerald-hi: #10B981;
+  --color-verdigris: #10B981;
+  --color-amber: #F59E0B;
+  --color-ochre: #F59E0B;
+  --color-rust: #FB923C;
+  --color-crimson: #FB7185;
+  --color-oxide: #FB7185;
+  --color-sky: #38BDF8;
+  --color-orchid: #94A3B8;
+  --color-gold: #FBBF24;
   color-scheme: dark;
   background-color: var(--stage-bg);
+  background-image: radial-gradient(rgba(255,255,255,0.06) 1px, transparent 1px);
+  background-size: 20px 20px;
   color: var(--color-chalk);
   border: 1px solid var(--stage-frame);
+  border-radius: 20px;
   box-shadow: var(--stage-glow);
 }
 
 @layer base {
   html {
-    color-scheme: light;
-  }
-  html[data-theme='carbon-dark'] {
     color-scheme: dark;
+  }
+  html[data-theme='paper'] {
+    color-scheme: light;
   }
   body {
     @apply text-chalk font-sans antialiased;
@@ -137,24 +245,25 @@ html[data-theme='carbon-dark'] {
     background-image: radial-gradient(var(--page-dot) 1.2px, transparent 1.2px);
     background-size: 22px 22px;
     background-attachment: fixed;
-    font-size: 15px;
-    line-height: 1.55;
+    font-size: var(--text-body);    /* 17px */
+    line-height: var(--lh-body);   /* 1.6  */
   }
   :focus-visible {
-    outline: 2px solid var(--color-indigo);
+    outline: 2px solid var(--peak-accent, var(--accent-dsa, #6EE7B7));
     outline-offset: 2px;
     border-radius: 4px;
   }
   ::selection {
-    background: rgb(99 102 241 / 0.28);
+    background: color-mix(in srgb, var(--peak-accent, #6EE7B7) 28%, transparent);
   }
 }
 
-/* Zone 2 card: solid, crisp border, warm elevation. */
+/* Zone 2 card: solid, crisp border, warm elevation, faint top-edge highlight. */
 @utility card {
   background-color: var(--color-panel);
   border: 1px solid var(--color-line);
-  box-shadow: var(--card-shadow);
+  border-radius: 16px;
+  box-shadow: var(--card-highlight), var(--card-shadow);
 }
 
 /* Glass: only the floating navbar and the stage capsule. Adapts to the zone it sits in. */
@@ -170,6 +279,51 @@ html[data-theme='carbon-dark'] {
 
 @utility glass-edge {
   box-shadow: inset 0 1px 0 0 color-mix(in srgb, white 30%, transparent);
+}
+
+/* Layout containers */
+@utility shell {
+  max-width: var(--shell-max);
+  margin-inline: auto;
+  padding-inline: var(--shell-px);
+}
+
+@utility measure {
+  max-width: var(--measure-max);
+}
+
+/* Typed text-size utilities (use instead of magic px values) */
+@utility text-caption {
+  font-size: var(--text-caption);
+  line-height: var(--lh-caption);
+}
+@utility text-ui {
+  font-size: var(--text-ui);
+  line-height: var(--lh-ui);
+}
+@utility text-body {
+  font-size: var(--text-body);
+  line-height: var(--lh-body);
+}
+@utility text-lead {
+  font-size: var(--text-lead);
+  line-height: var(--lh-lead);
+}
+@utility text-h3 {
+  font-size: var(--text-h3);
+  line-height: var(--lh-h3);
+}
+@utility text-h2 {
+  font-size: var(--text-h2);
+  line-height: var(--lh-h2);
+}
+@utility text-h1 {
+  font-size: var(--text-h1);
+  line-height: var(--lh-h1);
+}
+@utility text-code-size {
+  font-size: var(--text-code);
+  line-height: var(--lh-code);
 }
 
 /* Visualizer canvas: always zone 3 */
@@ -198,11 +352,15 @@ kbd.keycap {
 
 /* Markdown body inside content panels */
 .prose-forge {
-  @apply text-chalk;
-  max-width: 72ch;
+  @apply text-chalk font-normal;
+  max-width: var(--measure-max, 68ch);
+  font-size: var(--text-body);
+  line-height: var(--lh-body);
 }
 .prose-forge p {
-  margin: 0 0 0.75em;
+  margin: 0 0 0.85em;
+  font-size: var(--text-body);
+  line-height: var(--lh-body);
 }
 .prose-forge p:last-child {
   margin-bottom: 0;
@@ -238,7 +396,7 @@ kbd.keycap {
 
 .trace-line-highlight {
   background: rgb(0 240 255 / 0.1);
-  border-left: 2px solid #00f0ff;
+  border-left: 2px solid var(--color-cyan);
 }
 .error-line-highlight {
   background: rgb(244 63 94 / 0.18);
@@ -262,7 +420,7 @@ kbd.keycap {
   inset: 0;
   border-radius: inherit;
   padding: 1.5px;
-  background: conic-gradient(from var(--beam-angle), transparent 0 72%, #06b6d4 82%, #6366f1 90%, transparent 100%);
+  background: conic-gradient(from var(--beam-angle), transparent 0 72%, var(--peak-accent, #6EE7B7) 82%, rgba(255, 255, 255, 0.4) 90%, transparent 100%);
   -webkit-mask:
     linear-gradient(#000 0 0) content-box,
     linear-gradient(#000 0 0);
@@ -315,6 +473,54 @@ kbd.keycap {
 ::view-transition-new(root) {
   animation: none;
   mix-blend-mode: normal;
+}
+
+@keyframes pf-shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-6px); }
+  40%, 80% { transform: translateX(6px); }
+}
+
+.animate-shake {
+  animation: pf-shake 0.35s ease-in-out;
+}
+
+@keyframes pf-pulse-red {
+  0% { box-shadow: 0 0 0 0 rgba(251, 113, 133, 0.6); }
+  70% { box-shadow: 0 0 0 10px rgba(251, 113, 133, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(251, 113, 133, 0); }
+}
+
+.pulse-red {
+  animation: pf-pulse-red 0.5s cubic-bezier(0.4, 0, 0.6, 1);
+  border-color: rgba(251, 113, 133, 0.8) !important;
+}
+
+/* ---- Flagship Workspace & Telemetry Cockpit (Linear / VS Code aesthetic) ---- */
+.pf-glass-panel {
+  background: color-mix(in srgb, var(--surface-1, #101218) 85%, transparent);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--line, rgba(255, 255, 255, 0.08));
+  box-shadow: var(--card-shadow), inset 0 1px 0 var(--card-highlight);
+}
+
+.pf-telemetry-panel {
+  background: color-mix(in srgb, var(--surface-0, #090A0F) 88%, transparent);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--line, rgba(255, 255, 255, 0.08));
+  box-shadow: inset 0 1px 0 var(--card-highlight), var(--card-shadow);
+}
+
+@keyframes beacon-pulse {
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 var(--beacon-glow, rgba(34, 211, 238, 0.6)); }
+  70% { transform: scale(1); box-shadow: 0 0 0 8px rgba(34, 211, 238, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 211, 238, 0); }
+}
+
+.pf-beacon {
+  animation: beacon-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {

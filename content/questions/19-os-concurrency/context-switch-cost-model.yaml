@@ -1,0 +1,244 @@
+slug: context-switch-cost-model
+lc: 9406
+citadel_id: os_concurrency
+brick_layer: 1
+runner_type: python_practical
+concept:
+  problem_it_solves: Why is an OS thread context switch an order of magnitude faster than a process context switch? A thread
+    switch only saves and restores general-purpose registers, program counter, and stack pointer. A process switch must additionally
+    swap the Page Table Base Register (CR3 in x86), flush the Translation Lookaside Buffer (TLB), and invalidate L1/L2 CPU
+    caches, inducing expensive memory misses.
+  brute_force: Assuming threads and processes have identical CPU scheduling costs.
+  brute_force_complexity: Flawed architectural assumption leading to CPU throttling.
+  key_insight: Modeling the CPU register save latency, TLB flush overhead, and cache penalty quantifies the exact microsecond
+    divergence between thread and process switching.
+  real_world: Sizing Nginx worker processes vs Golang goroutines vs Python Celery prefork workers.
+statement:
+  clean: "Implement an OS context switch cost model to compare thread vs process switching overhead:\n`compare_context_switch_costs(switches:\
+    \ int, switch_type: str, cache_miss_rate: float) -> dict`.\n\nHardware Benchmark Constants:\n- Thread Switch:\n  - Base\
+    \ register save/restore: `1200` ns\n  - TLB flush: `0` ns (threads share address space)\n  - Cache penalty: `int(cache_miss_rate\
+    \ * 3000)` ns\n- Process Switch:\n  - Base register save/restore: `3500` ns\n  - TLB flush: `4500` ns (address space change\
+    \ requires TLB invalidation)\n  - Cache penalty: `int(cache_miss_rate * 12000)` ns\n\nFormulas:\n1. `overhead_per_switch_ns\
+    \ = base_ns + tlb_ns + cache_ns`\n2. `total_latency_ns = overhead_per_switch_ns * switches`\n3. `total_latency_ms = round(total_latency_ns\
+    \ / 1_000_000, 4)`\n\nReturn a dictionary containing:\n- `\"switch_type\"`: `str` (`\"thread\"` or `\"process\"`)\n- `\"\
+    switches\"`: `int`\n- `\"overhead_per_switch_ns\"`: `int`\n- `\"total_latency_ns\"`: `int`\n- `\"total_latency_ms\"`:\
+    \ `float`"
+  oa_story: '**Ola Fleet Tracking Gateway — Worker Architecture Benchmark**
+
+
+    Ola''s vehicle telematics cluster handles 50,000 location pings per second. The platform team evaluated whether to run
+    worker tasks using multi-processing vs multi-threading. The profiling team observed high CPU kernel time during process
+    context switches.
+
+
+    Implement this context switch cost model to quantify the exact latency impact of TLB flushes and CPU cache misses.'
+  trigger_keywords:
+  - context switch cost model
+  - compare_context_switch_costs
+  - total_latency_ms
+  examples:
+  - input: switches = 1000, switch_type = "process", cache_miss_rate = 0.5
+    output: '{"switch_type": "process", "switches": 1000, "overhead_per_switch_ns": 14000, "total_latency_ns": 14000000, "total_latency_ms":
+      14.0}'
+    explanation: Process switch takes 3500 base + 4500 TLB + 6000 cache = 14000ns per switch. 1000 switches = 14.0ms.
+  - input: switches = 1000, switch_type = "thread", cache_miss_rate = 0.5
+    output: '{"switch_type": "thread", "switches": 1000, "overhead_per_switch_ns": 2700, "total_latency_ns": 2700000, "total_latency_ms":
+      2.7}'
+    explanation: Thread switch takes 1200 base + 0 TLB + 1500 cache = 2700ns. 1000 switches = 2.7ms (over 5x faster).
+  constraints:
+  - 0 <= switches <= 1_000_000
+  - switch_type in ('thread', 'process')
+  - 0.0 <= cache_miss_rate <= 1.0
+constraint_quiz:
+  prompt: Why does a process context switch invalidate the Translation Lookaside Buffer (TLB)?
+  options:
+  - Because virtual addresses map to completely different physical frames in different process address spaces
+  - Because the CPU resets its clock frequency during process switching
+  - Because TLB memory is cleared on every timer interrupt
+  - Because threads do not use virtual memory
+  answer: 0
+  explanation: Each process has its own page tables. Virtual address 0x00400000 in Process A points to different physical
+    RAM than the same address in Process B, requiring the TLB cache to be flushed.
+pattern_quiz:
+  prompt: What primary hardware components are saved during a lightweight thread context switch?
+  options:
+  - General purpose CPU registers, Program Counter (PC), and Stack Pointer (SP)
+  - Entire 4GB RAM address space
+  - Disk swap partitions
+  - GPU framebuffers
+  answer: 0
+  explanation: A thread switch only needs to preserve the CPU execution context (registers, PC, SP) since heap and address
+    spaces are already shared.
+function:
+  name: compare_context_switch_costs
+  params:
+  - name: switches
+  - name: switch_type
+  - name: cache_miss_rate
+  returns: any
+  compare: exact
+starter_code: "class Solution:\n    def compare_context_switch_costs(self, switches: int, switch_type: str, cache_miss_rate:\
+  \ float) -> dict:\n        pass\n"
+tests:
+- args:
+  - 1000
+  - process
+  - 0.5
+  expected:
+    switch_type: process
+    switches: 1000
+    overhead_per_switch_ns: 14000
+    total_latency_ns: 14000000
+    total_latency_ms: 14.0
+  note: Process switch benchmark
+- args:
+  - 1000
+  - thread
+  - 0.5
+  expected:
+    switch_type: thread
+    switches: 1000
+    overhead_per_switch_ns: 2700
+    total_latency_ns: 2700000
+    total_latency_ms: 2.7
+  note: Thread switch benchmark
+- args:
+  - 0
+  - thread
+  - 0.0
+  expected:
+    switch_type: thread
+    switches: 0
+    overhead_per_switch_ns: 1200
+    total_latency_ns: 0
+    total_latency_ms: 0.0
+  note: Zero switches edge case
+visualize_test: 0
+drills:
+- skill: setup
+  title: Select base constants
+  goal: Choose base and TLB latency according to switch type.
+  instructions: Return `(1200, 0)` for thread, `(3500, 4500)` for process.
+  function:
+    name: drill_get_base
+    params:
+    - name: switch_type
+  starter_code: "class Solution:\n    def drill_get_base(self, switch_type: str) -> list[int]:\n        pass\n"
+  tests:
+  - args:
+    - thread
+    expected:
+    - 1200
+    - 0
+  - args:
+    - process
+    expected:
+    - 3500
+    - 4500
+  solution: "class Solution:\n    def drill_get_base(self, switch_type: str) -> list[int]:\n        return [1200, 0] if switch_type\
+    \ == \"thread\" else [3500, 4500]\n"
+  hint: Check switch_type string.
+- skill: core
+  title: Calculate per-switch overhead
+  goal: Compute total nanoseconds per switch.
+  instructions: Return `base + tlb + int(rate * mult)`.
+  function:
+    name: drill_calc_overhead
+    params:
+    - name: base
+    - name: tlb
+    - name: rate
+    - name: mult
+  starter_code: "class Solution:\n    def drill_calc_overhead(self, base: int, tlb: int, rate: float, mult: int) -> int:\n\
+    \        pass\n"
+  tests:
+  - args:
+    - 1200
+    - 0
+    - 0.5
+    - 3000
+    expected: 2700
+  - args:
+    - 3500
+    - 4500
+    - 0.5
+    - 12000
+    expected: 14000
+  solution: "class Solution:\n    def drill_calc_overhead(self, base: int, tlb: int, rate: float, mult: int) -> int:\n   \
+    \     return base + tlb + int(rate * mult)\n"
+  hint: Sum base, tlb, and int(rate * mult).
+- skill: edge
+  title: Convert ns to ms
+  goal: Convert nanoseconds to milliseconds rounded to 4 decimals.
+  instructions: Return `round(ns / 1_000_000, 4)`.
+  function:
+    name: drill_ns_to_ms
+    params:
+    - name: ns
+  starter_code: "class Solution:\n    def drill_ns_to_ms(self, ns: int) -> float:\n        pass\n"
+  tests:
+  - args:
+    - 14000000
+    expected: 14.0
+  - args:
+    - 2700000
+    expected: 2.7
+  solution: "class Solution:\n    def drill_ns_to_ms(self, ns: int) -> float:\n        return round(ns / 1_000_000, 4)\n"
+  hint: Divide by 1_000_000 and round to 4 decimals.
+hints:
+- Check whether `switch_type == 'thread'` or `'process'` to choose base and TLB constants.
+- Multiply overhead per switch by total switches, then divide by 1,000,000 to get milliseconds.
+- '| # Pseudocode Blueprint
+
+  | if switch_type == "thread":
+
+  |     base = 1200, tlb = 0, cache = int(rate * 3000)
+
+  | else:
+
+  |     base = 3500, tlb = 4500, cache = int(rate * 12000)
+
+  | overhead = base + tlb + cache
+
+  | total_ns = overhead * switches
+
+  | return total_ns, round(total_ns / 1e6, 4)'
+solution:
+  code: "class Solution:\n    def compare_context_switch_costs(self, switches: int, switch_type: str, cache_miss_rate: float)\
+    \ -> dict:\n        if switch_type == \"thread\":\n            base_ns = 1200\n            tlb_ns = 0\n            cache_ns\
+    \ = int(cache_miss_rate * 3000)\n        else:\n            base_ns = 3500\n            tlb_ns = 4500\n            cache_ns\
+    \ = int(cache_miss_rate * 12000)\n\n        overhead_per_switch = base_ns + tlb_ns + cache_ns\n        total_ns = overhead_per_switch\
+    \ * switches\n        total_ms = round(total_ns / 1_000_000, 4)\n\n        return {\n            \"switch_type\": switch_type,\n\
+    \            \"switches\": switches,\n            \"overhead_per_switch_ns\": overhead_per_switch,\n            \"total_latency_ns\"\
+    : total_ns,\n            \"total_latency_ms\": total_ms,\n        }\n"
+  explanation: Threads share virtual memory page tables, so thread switching incurs zero TLB flush penalty and minimal cache
+    disturbance. Process switching invalidates the CPU TLB and forces high cache miss penalties, making process context switches
+    5x to 10x more expensive.
+  time: O(1) arithmetic calculation
+  space: O(1) returned dictionary
+pitch_script: '**(Clarify)** "We need to calculate the context switch latency overhead for threads versus processes based
+  on base register swaps, TLB flushes, and cache miss rates."
+
+
+  **(Brute force)** "Treating thread and process scheduling costs identically leads to poor architectural sizing in high-concurrency
+  systems."
+
+
+  **(Trigger)** "Quantifying context switch penalties based on hardware cache misses and TLB invalidation signals an OS latency
+  model."
+
+
+  **(Optimal)** "For threads, base latency is 1200ns with 0ns TLB cost and low cache penalty. For processes, changing address
+  space requires a 4500ns TLB flush and 4x cache miss penalty. Multiplying by switch count yields exact microsecond and millisecond
+  figures."
+
+
+  **(Complexity)** "Executes in O(1) time and space." '
+twist:
+  lc: 9425
+  title: 'Workload Pool Optimizer: ThreadPool vs ProcessPool'
+  why: Because process switches have higher overhead, CPU-bound workloads require process pools to bypass the GIL, while IO
+    workloads benefit from lightweight thread pools.
+viz:
+  title: Context Switch Latency Model
+  type: concurrency_timeline

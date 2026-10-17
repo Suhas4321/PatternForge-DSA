@@ -1,0 +1,240 @@
+slug: oop-observer-event-bus
+lc: 9216
+citadel_id: python_data
+brick_layer: 2
+runner_type: python_practical
+concept:
+  problem_it_solves: How do backend architectures decouple order placement from side effects (sending email, updating inventory,
+    alerting fraud detection) without tight class coupling? The Observer pattern (Publish-Subscribe) maintains a registry
+    of listeners per event type. When an event is published, all subscribed observers are notified in sequence without the
+    publisher needing to know their identities.
+  brute_force: The order service directly calling EmailService.send(), InventoryService.reserve(), and AnalyticsService.log()
+    synchronously.
+  brute_force_complexity: Tight coupling where modifying or adding a side effect requires altering the core order service.
+  key_insight: 'Inverting dependency: the event bus maintains the observer registry so publishers remain completely unaware
+    of consumers.'
+  real_world: Django signals, Node.js EventEmitter, and microservice message brokers like Kafka and RabbitMQ.
+statement:
+  clean: "Implement the Observer design pattern event bus:\n`simulate_event_pipeline(self, operations: list[dict]) -> list[dict]`.\n\
+    \nEventBus Specifications:\n- `subscribe(event_type: str, listener_id: str)`: registers a listener for an event type.\
+    \ If already subscribed, do not add duplicates.\n- `unsubscribe(event_type: str, listener_id: str)`: removes listener\
+    \ from that event type if present.\n- `publish(event_type: str, payload: dict) -> list[dict]`: notifies all current listeners\
+    \ registered for `event_type` in chronological registration order. For each listener, records a delivery receipt:\n  `{'event_type':\
+    \ event_type, 'listener_id': listener_id, 'payload': payload}`.\n\nOperations List:\n- Input is a list of sequential action\
+    \ dicts:\n  - `{'action': 'subscribe', 'event_type': '...', 'listener_id': '...'}`\n  - `{'action': 'unsubscribe', 'event_type':\
+    \ '...', 'listener_id': '...'}`\n  - `{'action': 'publish', 'event_type': '...', 'payload': {...}}`\n\nReturn Value:\n\
+    - Return the list of all delivery receipts produced across all `'publish'` operations in chronological order."
+  oa_story: '**KiranaKart Checkout Engine — Decoupled Event Notification Bus**
+
+
+    Whenever a KiranaKart customer places an order, multiple downstream systems must react: warehouse inventory reservation,
+    push notification dispatch, loyalty coin crediting, and fraud evaluation. Earlier code invoked all these services directly
+    inside the checkout endpoint. If the push notification service stalled, checkout transactions timed out.
+
+
+    The platform team decoupled checkout using an in-memory Observer event bus. Implement this pub-sub event bus.'
+  trigger_keywords:
+  - Observer design pattern event bus
+  - simulate_event_pipeline
+  - listener_id
+  examples:
+  - input: 'operations = [{''action'': ''subscribe'', ''event_type'': ''order_created'', ''listener_id'': ''email''}, {''action'':
+      ''publish'', ''event_type'': ''order_created'', ''payload'': {''id'': 1}}]'
+    output: '[{''event_type'': ''order_created'', ''listener_id'': ''email'', ''payload'': {''id'': 1}}]'
+    explanation: Event published to the single registered listener email.
+  constraints:
+  - 0 <= len(operations) <= 100
+  - action in ['subscribe', 'unsubscribe', 'publish']
+constraint_quiz:
+  prompt: What major design benefit does the Observer pattern provide to distributed systems?
+  options:
+  - 'Loose coupling: publishers emit events without knowing how many or which observers exist'
+  - Guaranteed zero network latency
+  - Automatic database compression
+  - Elimination of all exception handling
+  answer: 0
+  explanation: Publishers and subscribers remain mutually independent. Observers can be added, removed, or scaled dynamically
+    without altering the publisher.
+pattern_quiz:
+  prompt: What data structure typically represents the observer registry inside an EventBus?
+  options:
+  - A dictionary mapping event types (keys) to lists or sets of registered listeners (values)
+  - A binary search tree of integers
+  - A circular linked list of file descriptors
+  - A fixed-size byte array
+  answer: 0
+  explanation: A hash map of event_type -> list of listeners allows O(1) lookup of interested listeners upon event publication.
+function:
+  name: simulate_event_pipeline
+  params:
+  - name: operations
+    type: any
+  returns: any
+starter_code: "class Solution:\n    def simulate_event_pipeline(self, operations: list[dict]) -> list[dict]:\n        pass\n"
+tests:
+- args:
+  - - action: subscribe
+      event_type: order_created
+      listener_id: email_service
+    - action: subscribe
+      event_type: order_created
+      listener_id: analytics_tracker
+    - action: publish
+      event_type: order_created
+      payload:
+        order_id: 101
+        total: 450
+  expected:
+  - event_type: order_created
+    listener_id: email_service
+    payload:
+      order_id: 101
+      total: 450
+  - event_type: order_created
+    listener_id: analytics_tracker
+    payload:
+      order_id: 101
+      total: 450
+  note: Subscribe multiple listeners and publish
+- args:
+  - - action: subscribe
+      event_type: user_signup
+      listener_id: welcome_email
+    - action: unsubscribe
+      event_type: user_signup
+      listener_id: welcome_email
+    - action: publish
+      event_type: user_signup
+      payload:
+        user: aarav
+  expected: []
+  note: Unsubscribe listener before publish yields empty deliveries
+- args:
+  - - action: publish
+      event_type: metric_flush
+      payload:
+        count: 10
+  expected: []
+  note: Publishing with no registered subscribers produces no receipts
+visualize_test: 0
+drills:
+- title: Register Subscriber
+  skill: setup
+  goal: Add listener to list without duplicates.
+  instructions: If listener not in listeners, append it.
+  function:
+    name: add_listener
+    params:
+    - name: listeners
+      type: any
+    - name: listener
+      type: any
+  starter_code: "class Solution:\n    def add_listener(self, listeners: list, listener: str) -> list:\n        pass\n"
+  tests:
+  - args:
+    - - a
+    - b
+    expected:
+    - a
+    - b
+  - args:
+    - - a
+    - a
+    expected:
+    - a
+  solution: "class Solution:\n    def add_listener(self, listeners: list, listener: str) -> list:\n        if listener not\
+    \ in listeners:\n            listeners.append(listener)\n        return listeners\n"
+  hint: Check if listener not in listeners.
+- title: Dispatch Event to Listeners
+  skill: core
+  goal: Generate delivery notifications for all listeners.
+  instructions: Return list of dicts with event_type, listener_id, payload.
+  function:
+    name: notify_all
+    params:
+    - name: listeners
+      type: any
+    - name: ev
+      type: any
+    - name: payload
+      type: any
+  starter_code: "class Solution:\n    def notify_all(self, listeners: list, ev: str, payload: dict) -> list:\n        pass\n"
+  tests:
+  - args:
+    - - l1
+    - ev1
+    - x: 1
+    expected:
+    - event_type: ev1
+      listener_id: l1
+      payload:
+        x: 1
+  solution: "class Solution:\n    def notify_all(self, listeners: list, ev: str, payload: dict) -> list:\n        return [{\"\
+    event_type\": ev, \"listener_id\": l, \"payload\": payload} for l in listeners]\n"
+  hint: List comprehension over listeners.
+- title: Unsubscribe Listener
+  skill: edge
+  goal: Safely remove listener from list.
+  instructions: Return [l for l in listeners if l != target].
+  function:
+    name: remove_listener
+    params:
+    - name: listeners
+      type: any
+    - name: target
+      type: any
+  starter_code: "class Solution:\n    def remove_listener(self, listeners: list, target: str) -> list:\n        pass\n"
+  tests:
+  - args:
+    - - a
+      - b
+    - a
+    expected:
+    - b
+  solution: "class Solution:\n    def remove_listener(self, listeners: list, target: str) -> list:\n        return [l for\
+    \ l in listeners if l != target]\n"
+  hint: Filter out target listener.
+hints:
+- Maintain self.subscribers = {} mapping event_type to list of listener_ids.
+- On subscribe, append listener if not present; on unsubscribe, filter out listener.
+- On publish, generate notification receipts for each subscriber and accumulate them.
+solution:
+  code: "class EventBus:\n    def __init__(self):\n        self.subscribers = {}\n        \n    def subscribe(self, event_type:\
+    \ str, listener_id: str):\n        if event_type not in self.subscribers:\n            self.subscribers[event_type] =\
+    \ []\n        if listener_id not in self.subscribers[event_type]:\n            self.subscribers[event_type].append(listener_id)\n\
+    \            \n    def unsubscribe(self, event_type: str, listener_id: str):\n        if event_type in self.subscribers:\n\
+    \            self.subscribers[event_type] = [l for l in self.subscribers[event_type] if l != listener_id]\n          \
+    \  \n    def publish(self, event_type: str, payload: dict) -> list[dict]:\n        notifications = []\n        listeners\
+    \ = self.subscribers.get(event_type, [])\n        for listener in listeners:\n            notifications.append({\n   \
+    \             \"event_type\": event_type,\n                \"listener_id\": listener,\n                \"payload\": payload,\n\
+    \            })\n        return notifications\n\nclass Solution:\n    def simulate_event_pipeline(self, operations: list[dict])\
+    \ -> list[dict]:\n        bus = EventBus()\n        all_notifications = []\n        \n        for op in operations:\n\
+    \            action = op.get(\"action\")\n            ev_type = op.get(\"event_type\")\n            if action == \"subscribe\"\
+    :\n                bus.subscribe(ev_type, op.get(\"listener_id\"))\n            elif action == \"unsubscribe\":\n    \
+    \            bus.unsubscribe(ev_type, op.get(\"listener_id\"))\n            elif action == \"publish\":\n            \
+    \    notes = bus.publish(ev_type, op.get(\"payload\", {}))\n                all_notifications.extend(notes)\n        \
+    \        \n        return all_notifications\n"
+  explanation: Implements an in-memory Observer event bus managing dynamic subscriptions and chronological notification delivery.
+  time: O(N * L) where N is operations count and L is average subscriber count
+  space: O(S + D) for subscriber registry and delivery logs
+pitch_script: '**(Clarify)** "We need to implement the Observer design pattern via an in-memory EventBus that manages event
+  subscriptions and generates delivery notifications on publish."
+
+
+  **(Basement Insight)** "Directly wiring producers to consumers creates brittle coupling. The Observer pattern isolates producers,
+  allowing independent subscriber registration."
+
+
+  **(Solution)** "We track subscriptions in an event map. When publish is called, we broadcast the payload to all registered
+  listeners and log the delivery receipt."
+
+
+  **(Complexity)** "Executes in O(N * L) time and O(S + D) space."
+
+  '
+twist:
+  lc: 9225
+  title: Safe Nested JSON Path Resolver Without KeyError
+  why: Once events are received, extract deeply nested payload properties safely without KeyError exceptions.
+viz:
+  title: Observer Pattern Pub-Sub Event Bus Architecture

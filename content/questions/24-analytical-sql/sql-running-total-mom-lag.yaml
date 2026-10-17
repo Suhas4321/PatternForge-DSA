@@ -1,0 +1,238 @@
+slug: sql-running-total-mom-lag
+lc: 9317
+citadel_id: sql_dbms
+brick_layer: 3
+runner_type: sql_sqlite
+concept:
+  problem_it_solves: How do financial analytics platforms calculate cumulative annual revenue and month-over-month (MoM) growth
+    rates in a single SQL query? Window functions (`SUM() OVER (...)` and `LAG() OVER (...)`) compute running totals and inspect
+    previous row values across ordered time intervals without self-joins or nested loops.
+  brute_force: Self-joining a sales table with itself on `t1.month = t2.month + 1`, resulting in quadratic O(N^2) complexity.
+  brute_force_complexity: O(N^2) Cartesian join that chokes on time-series data.
+  key_insight: '`LAG(revenue, 1) OVER (ORDER BY month)` accesses the previous month''s revenue in O(1) time during the window
+    scan, enabling direct MoM percentage growth calculation.'
+  real_world: SaaS Gross Merchandise Value (GMV) dashboards, Stripe financial reports, and e-commerce growth metrics.
+statement:
+  clean: "Write an analytical SQL query to calculate running total and month-over-month (MoM) revenue growth.\n\nTable schema:\n\
+    ```sql\nCREATE TABLE MonthlyRevenue (\n    month TEXT PRIMARY KEY,\n    revenue INTEGER\n);\n```\n\nCompute for each month:\n\
+    - `month`: calendar month string (e.g. `'2026-01'`)\n- `revenue`: revenue for that month\n- `running_total`: cumulative\
+    \ sum of revenue up to and including current month (`SUM(revenue) OVER (ORDER BY month)`)\n- `prev_month_revenue`: revenue\
+    \ from preceding month (`LAG(revenue, 1) OVER (ORDER BY month)`), or `NULL` for the first month\n- `mom_growth_pct`: percentage\
+    \ growth calculated as:\n  `ROUND(((revenue - prev_month_revenue) * 100.0 / prev_month_revenue), 2)`, or `NULL` for the\
+    \ first month\n\nOrder by `month` ascending."
+  oa_story: '**SwiftCart Finance Analytics — Executive Revenue Dashboard**
+
+
+    SwiftCart''s Chief Financial Officer requested an automated monthly revenue report showing cumulative GMV and month-over-month
+    growth rates to present to board investors. The existing spreadsheet was prone to manual formula mistakes.
+
+
+    Write an analytical window SQL query using `SUM() OVER ()` and `LAG()` to generate the financial metrics directly from
+    the database in a single query.'
+  trigger_keywords:
+  - running total and month-over-month
+  - MonthlyRevenue
+  - mom_growth_pct
+  examples:
+  - input: 'MonthlyRevenue: [(''2026-01'', 10000), (''2026-02'', 12000)]'
+    output: '[(''2026-01'', 10000, 10000, None, None), (''2026-02'', 12000, 22000, 10000, 20.0)]'
+    explanation: Month 1 has running total 10000, prev None, MoM None. Month 2 has running total 22000, prev 10000, MoM 20.0%.
+  constraints:
+  - 1 <= len(MonthlyRevenue) <= 120
+  - month format is YYYY-MM
+  - revenue >= 0
+constraint_quiz:
+  prompt: What does `LAG(col, 1) OVER (ORDER BY date)` return for the very first row in an ordered partition?
+  options:
+  - '`NULL` (or None in Python), because there is no preceding row'
+  - '`0`'
+  - The current row value
+  - An SQL exception is thrown
+  answer: 0
+  explanation: By default, LAG returns NULL when the offset extends beyond the window frame boundary before the first row.
+pattern_quiz:
+  prompt: Why does multiplying by `100.0` before division in SQL prevent silent zero-value results?
+  options:
+  - In SQL integer arithmetic, `(12000 - 10000) / 10000` performs integer division yielding `0`; multiplying by `100.0` forces
+    float arithmetic
+  - To format the number as a string
+  - Because SQL requires all percentages to be over 100
+  - To invert negative percentages
+  answer: 0
+  explanation: Dividing two integers in SQLite truncates the decimal remainder to 0. Multiplying by 100.0 promotes the numerator
+    to a floating-point number.
+schema_sql: "CREATE TABLE MonthlyRevenue (\n    month TEXT PRIMARY KEY,\n    revenue INTEGER\n);"
+seed_sql: "INSERT INTO MonthlyRevenue VALUES\n    ('2026-01', 10000),\n    ('2026-02', 12000),\n    ('2026-03', 15000),\n\
+  \    ('2026-04', 13500);"
+function:
+  name: execute_sql
+  params: []
+  returns: any
+  compare: exact
+starter_code: "-- Write your SQL query below to compute running total and MoM growth with LAG\nSELECT\n    month,\n    revenue,\n\
+  \    SUM(revenue) OVER (ORDER BY month) AS running_total,\n    LAG(revenue, 1) OVER (ORDER BY month) AS prev_month_revenue,\n\
+  \    NULL AS mom_growth_pct\nFROM MonthlyRevenue\nORDER BY month;\n"
+tests:
+- args: []
+  expected:
+  - - 2026-01
+    - 10000
+    - 10000
+    - null
+    - null
+  - - 2026-02
+    - 12000
+    - 22000
+    - 10000
+    - 20.0
+  - - 2026-03
+    - 15000
+    - 37000
+    - 12000
+    - 25.0
+  - - 2026-04
+    - 13500
+    - 50500
+    - 15000
+    - -10.0
+  note: 4-month financial running total and MoM growth
+- args: []
+  expected: null
+  note: Reference verification
+- args: []
+  expected: null
+  note: Consistency check
+visualize_test: 0
+drills:
+- skill: setup
+  title: Compute cumulative running total
+  goal: Use SUM(revenue) OVER (ORDER BY month).
+  instructions: Select `month, SUM(revenue) OVER (ORDER BY month) AS running_total FROM MonthlyRevenue ORDER BY month;`.
+  function:
+    name: execute_sql
+    params: []
+  starter_code: 'SELECT month, SUM(revenue) OVER (ORDER BY month) AS running_total FROM MonthlyRevenue ORDER BY month;
+
+    '
+  tests:
+  - args: []
+    expected:
+    - - 2026-01
+      - 10000
+    - - 2026-02
+      - 22000
+    - - 2026-03
+      - 37000
+    - - 2026-04
+      - 50500
+  solution: 'SELECT month, SUM(revenue) OVER (ORDER BY month) AS running_total FROM MonthlyRevenue ORDER BY month;
+
+    '
+  hint: Use `SUM(revenue) OVER (ORDER BY month)`.
+- skill: core
+  title: Fetch previous row with LAG
+  goal: Use LAG(revenue, 1) OVER (ORDER BY month).
+  instructions: Select `month, LAG(revenue, 1) OVER (ORDER BY month) AS prev FROM MonthlyRevenue ORDER BY month;`.
+  function:
+    name: execute_sql
+    params: []
+  starter_code: 'SELECT month, LAG(revenue, 1) OVER (ORDER BY month) AS prev FROM MonthlyRevenue ORDER BY month;
+
+    '
+  tests:
+  - args: []
+    expected:
+    - - 2026-01
+      - null
+    - - 2026-02
+      - 10000
+    - - 2026-03
+      - 12000
+    - - 2026-04
+      - 15000
+  solution: 'SELECT month, LAG(revenue, 1) OVER (ORDER BY month) AS prev FROM MonthlyRevenue ORDER BY month;
+
+    '
+  hint: Use `LAG(revenue, 1) OVER (ORDER BY month)`.
+- skill: edge
+  title: Compute percentage growth
+  goal: Calculate float percentage rounded to 2 decimals.
+  instructions: Calculate `ROUND(((revenue - prev) * 100.0 / prev), 2)`.
+  function:
+    name: execute_sql
+    params: []
+  starter_code: 'SELECT month, ROUND(((revenue - LAG(revenue, 1) OVER (ORDER BY month)) * 100.0 / LAG(revenue, 1) OVER (ORDER
+    BY month)), 2) AS mom_growth_pct FROM MonthlyRevenue ORDER BY month;
+
+    '
+  tests:
+  - args: []
+    expected:
+    - - 2026-01
+      - null
+    - - 2026-02
+      - 20.0
+    - - 2026-03
+      - 25.0
+    - - 2026-04
+      - -10.0
+  solution: 'SELECT month, ROUND(((revenue - LAG(revenue, 1) OVER (ORDER BY month)) * 100.0 / LAG(revenue, 1) OVER (ORDER
+    BY month)), 2) AS mom_growth_pct FROM MonthlyRevenue ORDER BY month;
+
+    '
+  hint: Use 100.0 to prevent integer truncation.
+hints:
+- Use `SUM(revenue) OVER (ORDER BY month)` to calculate the cumulative running total.
+- Use `LAG(revenue, 1) OVER (ORDER BY month)` to look back at the previous month's value.
+- '| # Pseudocode Blueprint
+
+  | SELECT
+
+  |     month,
+
+  |     revenue,
+
+  |     SUM(revenue) OVER (ORDER BY month) AS running_total,
+
+  |     LAG(revenue, 1) OVER (ORDER BY month) AS prev_month_revenue,
+
+  |     ROUND(((revenue - LAG(revenue, 1) OVER (ORDER BY month)) * 100.0 /
+
+  |            LAG(revenue, 1) OVER (ORDER BY month)), 2) AS mom_growth_pct
+
+  | FROM MonthlyRevenue
+
+  | ORDER BY month;'
+solution:
+  code: "SELECT\n    month,\n    revenue,\n    SUM(revenue) OVER (ORDER BY month) AS running_total,\n    LAG(revenue, 1) OVER\
+    \ (ORDER BY month) AS prev_month_revenue,\n    ROUND(((revenue - LAG(revenue, 1) OVER (ORDER BY month)) * 100.0 / LAG(revenue,\
+    \ 1) OVER (ORDER BY month)), 2) AS mom_growth_pct\nFROM MonthlyRevenue\nORDER BY month;\n"
+  explanation: Window functions evaluate running aggregates in a single sequential pass. `SUM() OVER (ORDER BY month)` aggregates
+    all prior rows to compute cumulative revenue. `LAG(revenue, 1) OVER (ORDER BY month)` retrieves the previous row's value,
+    enabling direct calculation of month-over-month growth with float precision.
+  time: O(N log N) sorting by month
+  space: O(N) for window frame evaluation
+pitch_script: '**(Clarify)** "We need to calculate cumulative running totals and month-over-month revenue growth percentage
+  for each calendar month."
+
+
+  **(Brute force)** "Self-joining the table on date offsets requires O(N^2) time and fails when dates have gaps."
+
+
+  **(Trigger)** "Calculating cumulative sums and referencing prior time periods signals window functions: `SUM() OVER ()`
+  and `LAG()`."
+
+
+  **(Optimal)** "We select `month` and `revenue`. We compute `SUM(revenue) OVER (ORDER BY month)` for running totals. We use
+  `LAG(revenue, 1) OVER (ORDER BY month)` to fetch the prior month, and compute percentage growth with `ROUND(((revenue -
+  prev) * 100.0 / prev), 2)`. The first month safely evaluates to NULL."
+
+
+  **(Complexity)** "Executes in O(N log N) time and O(N) space." '
+twist:
+  lc: 9318
+  title: Purge Duplicate Rows Keeping Lowest Identifier
+  why: After analyzing aggregate metrics, data cleaning queries like purging duplicate contact rows ensure data quality.
+viz:
+  title: Analytical Window Revenue Pipeline
+  type: sql_pipeline

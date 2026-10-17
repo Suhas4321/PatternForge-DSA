@@ -1,0 +1,255 @@
+slug: asyncio-event-loop-semaphore
+lc: 9403
+citadel_id: os_concurrency
+brick_layer: 3
+runner_type: python_practical
+
+concept:
+  problem_it_solves: >-
+    "What happens when you launch 1,000 asynchronous API requests simultaneously with asyncio.gather()?"
+    Dispatching 1,000 requests at once creates 1,000 open sockets, triggering `ConnectionResetError`,
+    exhausting operating system file descriptors, and triggering HTTP 429 rate limits from downstream providers.
+    An `asyncio.Semaphore(K)` bounds concurrency to exactly K active tasks at any moment.
+  brute_force: >-
+    Executing tasks sequentially in a loop with `for task in tasks: await task()`.
+    While safe, this completely abandons concurrency, turning a 2-second batch into a 5-minute crawl.
+  brute_force_complexity: O(N * T) serialized wall-clock time.
+  key_insight: >-
+    An `asyncio.Semaphore(K)` maintains an internal counter. When a coroutine executes `async with sem:`,
+    the counter decrements. If the counter reaches zero, subsequent tasks yield execution to the Event Loop
+    and wait in a FIFO queue until an active task exits the context manager and releases a permit.
+    This achieves optimal concurrency without overwhelming downstream services.
+  real_world: >-
+    Suhas's Drizz testing pipeline (throttling 100 mobile UI journeys to 25x concurrency), web scrapers, and LLM batch evaluation.
+
+statement:
+  clean: |
+    Implement an asynchronous concurrency throttle using asyncio semaphore throttling:
+    `async def simulate_async_throttle(task_count: int, max_concurrency: int) -> dict`.
+    
+    You need to dispatch `task_count` concurrent async jobs while bounding the number of active jobs to `max_concurrency`:
+    1. Initialize an `asyncio.Semaphore(max_concurrency)`.
+    2. Track:
+       - `active_workers`: integer counter of tasks currently inside the critical section.
+       - `max_observed`: the maximum value of `active_workers` observed during the entire execution.
+    3. Define an async worker function:
+       - Enters the semaphore: `async with sem:`.
+       - Increments `active_workers += 1`.
+       - Updates `max_observed = max(max_observed, active_workers)`.
+       - Yields execution cooperatively: `await asyncio.sleep(0.001)`.
+       - Decrements `active_workers -= 1`.
+    4. Run all `task_count` workers concurrently using `await asyncio.gather(...)`.
+    5. Return a dictionary containing:
+       - `tasks_completed`: total number of completed tasks.
+       - `max_concurrent_observed`: peak simultaneous workers observed (must be `<= max_concurrency`).
+  oa_story: |
+    **Drizz Mobile Evaluation — 25x Concurrency Throttling**
+    
+    When testing 100 mobile UI paths concurrently, naively executing `asyncio.gather(*all_100_tasks)`
+    saturated our WebSocket gateway and exhausted downstream LLM rate limits.
+    
+    Implement this Semaphore-bounded executor to throttle parallel execution to exactly K active workers at any instant.
+  trigger_keywords: ["asyncio semaphore throttling", "simulate_async_throttle", "task_count"]
+  examples:
+    - input: "task_count = 10, max_concurrency = 3"
+      output: "{'tasks_completed': 10, 'max_concurrent_observed': 3}"
+      explanation: "All 10 tasks execute, but at no point do more than 3 tasks run concurrently."
+    - input: "task_count = 2, max_concurrency = 5"
+      output: "{'tasks_completed': 2, 'max_concurrent_observed': 2}"
+      explanation: "Total tasks (2) is less than semaphore limit (5), peak concurrency is 2."
+  constraints:
+    - "task_count >= 0"
+    - "max_concurrency >= 1"
+
+constraint_quiz:
+  prompt: >-
+    How does `asyncio.Semaphore` block excess coroutines without freezing the operating system thread?
+  options:
+    - "It uses time.sleep() in a while loop"
+    - "It voluntarily yields control back to the Event Loop, allowing other running tasks to make progress"
+    - "It spawns a new process"
+    - "It crashes with an exception"
+  answer: 1
+  explanation: >-
+    In asyncio, awaiting a semaphore does not block the thread; it suspends the coroutine and allows the single-threaded Event Loop to run other tasks.
+
+pattern_quiz:
+  prompt: Which statement correctly acquires and releases an asyncio semaphore within a coroutine?
+  options:
+    - "async with sem:"
+    - "with sem:"
+    - "sem.acquire_sync()"
+    - "await sem.lock()"
+  answer: 0
+  explanation: >-
+    `async with sem:` is the standard asynchronous context manager syntax that acquires and releases permits cooperatively.
+
+function:
+  name: simulate_async_throttle
+  params:
+    - {name: task_count}
+    - {name: max_concurrency}
+
+starter_code: |
+  class Solution:
+      async def simulate_async_throttle(self, task_count: int, max_concurrency: int) -> dict:
+          pass
+
+tests:
+  - args: [10, 3]
+    expected:
+      tasks_completed: 10
+      max_concurrent_observed: 3
+  - args: [2, 5]
+    expected:
+      tasks_completed: 2
+      max_concurrent_observed: 2
+  - args: [0, 4]
+    expected:
+      tasks_completed: 0
+      max_concurrent_observed: 0
+  - args: [8, 4]
+    expected:
+      tasks_completed: 8
+      max_concurrent_observed: 4
+
+visualize_test: 0
+
+drills:
+  - title: Initialize asyncio semaphore
+    skill: setup
+    goal: Create semaphore with permit capacity.
+    instructions: |
+      Return `sem._value` from `asyncio.Semaphore(k)`.
+    function:
+      name: get_sem_capacity
+      params: [{name: k}]
+    starter_code: |
+      class Solution:
+          def get_sem_capacity(self, k: int) -> int:
+              pass
+    tests:
+      - {args: [5], expected: 5}
+      - {args: [25], expected: 25}
+    solution: |
+      import asyncio
+
+      class Solution:
+          def get_sem_capacity(self, k: int) -> int:
+              sem = asyncio.Semaphore(k)
+              return sem._value
+    hint: "Use `asyncio.Semaphore(k)._value`."
+
+  - title: Async with semaphore acquisition
+    skill: core
+    goal: Acquire semaphore in an async context manager.
+    instructions: |
+      Inside `async with sem:`, append 1 to `res` and return `res`.
+    function:
+      name: test_sem_acquire
+      params: []
+    starter_code: |
+      class Solution:
+          async def test_sem_acquire(self) -> list[int]:
+              pass
+    tests:
+      - args: []
+        expected: [1]
+    solution: |
+      import asyncio
+
+      class Solution:
+          async def test_sem_acquire(self) -> list[int]:
+              sem = asyncio.Semaphore(2)
+              res = []
+              async with sem:
+                  res.append(1)
+              return res
+    hint: "Use `async with sem:` inside an async function."
+
+  - title: Bounded peak observation
+    skill: edge
+    goal: Verify observed <= limit.
+    instructions: |
+      Return `min(observed, limit)`.
+    function:
+      name: bound_metric
+      params: [{name: observed}, {name: limit}]
+    starter_code: |
+      class Solution:
+          def bound_metric(self, observed: int, limit: int) -> int:
+              pass
+    tests:
+      - {args: [4, 3], expected: 3}
+      - {args: [2, 5], expected: 2}
+    solution: |
+      class Solution:
+          def bound_metric(self, observed: int, limit: int) -> int:
+              return min(observed, limit)
+    hint: "Return min(observed, limit)."
+
+hints:
+  - "If `task_count == 0`, return `{'tasks_completed': 0, 'max_concurrent_observed': 0}`."
+  - "Instantiate `sem = asyncio.Semaphore(max_concurrency)`."
+  - "Define `async def worker()` with `async with sem:`, update active workers, await `asyncio.sleep(0.001)`, and run all via `await asyncio.gather(...)`."
+
+solution:
+  code: |
+    import asyncio
+
+    class Solution:
+        async def simulate_async_throttle(self, task_count: int, max_concurrency: int) -> dict:
+            if task_count == 0:
+                return {
+                    "tasks_completed": 0,
+                    "max_concurrent_observed": 0,
+                }
+
+            sem = asyncio.Semaphore(max_concurrency)
+            active_workers = 0
+            max_observed = 0
+
+            async def worker():
+                nonlocal active_workers, max_observed
+                async with sem:
+                    active_workers += 1
+                    if active_workers > max_observed:
+                        max_observed = active_workers
+                    await asyncio.sleep(0.001)
+                    active_workers -= 1
+
+            tasks = [worker() for _ in range(task_count)]
+            await asyncio.gather(*tasks)
+
+            return {
+                "tasks_completed": task_count,
+                "max_concurrent_observed": max_observed,
+            }
+  explanation: |
+    `asyncio.Semaphore(max_concurrency)` controls permit distribution on the single-threaded Event Loop.
+    When `active_workers` reaches `max_concurrency`, the next coroutine to call `async with sem:` yields control
+    and is placed on the waiting queue.
+    
+    As running workers complete their sleep and exit the context block, permits are returned and waiting
+    coroutines resume, guaranteeing that peak simultaneous execution never exceeds `max_concurrency`.
+  time: O(N * T / K) wall-clock time where N is tasks, T is sleep duration, and K is concurrency
+  space: O(N) for coroutine objects
+
+pitch_script: |
+  **(Clarify)** "We need to throttle asynchronous tasks using an asyncio Semaphore so that at most K tasks run simultaneously, measuring the peak concurrent workers observed."
+
+  **(Basement Insight)** "Dispatching hundreds of async coroutines via `asyncio.gather()` without bounds causes network socket exhaustion, HTTP 429 rate limiting, and memory spikes. `asyncio.Semaphore` provides cooperative backpressure without blocking the event loop thread."
+
+  **(Solution)** "We instantiate `asyncio.Semaphore(max_concurrency)`. Each task enters via `async with sem:`, increments the active counter, updates `max_observed`, and awaits cooperative sleep. Awaiting `asyncio.gather` executes all tasks while strictly honoring the concurrency ceiling."
+
+  **(Complexity)** "Executes in O(N) logical time, with wall-clock time proportional to N / K."
+
+twist:
+  lc: 9404
+  title: Dynamic Concurrency Adaptation on HTTP 429
+  why: >-
+    In production gateways, if downstream APIs return HTTP 429 Too Many Requests,
+    dynamically shrink semaphore capacity from 25 to 10 (additive decrease) and restore on success (multiplicative recovery).
+
+viz:
+  title: "Asyncio Semaphore Event Loop Timeline"

@@ -8,6 +8,11 @@ export type VisualizerKind =
   | 'tree_recursion'
   | 'graph_grid'
   | 'dp_table'
+  | 'sql_pipeline'
+  | 'dataframe_pipeline'
+  | 'concurrency_timeline'
+  | 'http_lifecycle'
+  | 'system_blueprint'
 
 export interface Progress {
   concept_done: boolean
@@ -33,6 +38,9 @@ export interface QuestionSummary {
   difficulty: Difficulty
   world_id: number
   position: number
+  citadel_id?: string
+  brick_layer?: number
+  runner_type?: string
   visualizer: VisualizerKind
   patterns: string[]
   has_content: boolean
@@ -43,6 +51,8 @@ export interface QuestionSummary {
 export interface World {
   id: number
   slug: string
+  citadel_id?: string
+  status?: 'live' | 'coming_soon'
   name: string
   tagline: string
   core_idea: string
@@ -93,6 +103,13 @@ export interface Quiz {
 export interface QuestionContent {
   slug: string
   lc: number
+  citadel_id?: string
+  brick_layer?: number
+  runner_type?: string
+  concept_trace?: any
+  visual_demo?: any
+  schema_sql?: string
+  seed_sql?: string
   concept: {
     problem_it_solves: string
     brute_force: string
@@ -195,7 +212,7 @@ export interface TraceFrame {
 }
 
 export interface TraceStep {
-  event: 'call' | 'line' | 'return' | 'exception'
+  event: 'call' | 'line' | 'return' | 'exception' | 'pipeline_step'
   line: number
   func: string
   depth: number
@@ -206,6 +223,13 @@ export interface TraceStep {
   exception?: string
   /** On call events: the function's parameter names (excludes closure variables). */
   params?: string[]
+  sql_state?: any
+  df_state?: any
+  concurrency_state?: any
+  http_state?: any
+  blueprint_state?: any
+  title?: string
+  description?: string
 }
 
 export interface Trace {
@@ -299,3 +323,114 @@ export interface ActivityEvent {
   passed: boolean
   slug: string
 }
+
+export interface PeakStat {
+  id: string
+  name: string
+  short_name: string
+  numeral: string
+  accent: string
+  icon: string
+  solved: number
+  total: number
+  mastery: number
+}
+
+export interface RustCamp {
+  slug: string
+  title: string
+  world_slug: string
+  world_title: string
+  citadel_id: string
+  rust: 'rusting' | 'rusted'
+  box: number
+  next_review_at: string | null
+  last_practiced_at: string | null
+}
+
+export interface WeakestLesson {
+  slug: string
+  title: string
+  world_slug: string
+  world_title: string
+  citadel_id: string
+  confidence: number | null
+  attempts: number
+  solved: boolean
+}
+
+export interface ActivityDay {
+  date: string
+  count: number
+  level: number
+}
+
+export interface ThisWeekDay {
+  day: string
+  date: string
+  count: number
+}
+
+export interface WorldMastery {
+  slug: string
+  order: number
+  title: string
+  citadel_id: string
+  solved: number
+  total: number
+  mastery: number
+}
+
+export interface TimelineEvent {
+  id: number
+  question_slug: string
+  question_title: string
+  target: string
+  passed: boolean
+  passed_count: number
+  total_count: number
+  created_at: string
+}
+
+export interface CitadelSeal {
+  citadel_id: string
+  numeral: string
+  name: string
+  accent: string
+  unlocked: boolean
+  solved: number
+  total: number
+}
+
+export interface AchievementBadge {
+  id: string
+  title: string
+  description: string
+  icon: string
+  unlocked: boolean
+}
+
+export interface StatsResponse {
+  level: number
+  xp: number
+  level_xp: number
+  streak: number
+  total_solved: number
+  total_questions: number
+  readiness_score: number
+  peaks: PeakStat[]
+  first_try_pass_rate: number | null
+  average_hints: number | null
+  average_confidence: number | null
+  rust_camps: RustCamp[]
+  reviews_due_today: number
+  reviews_due_this_week: number
+  weakest_lessons: WeakestLesson[]
+  activity_20_weeks: ActivityDay[]
+  activity_this_week: ThisWeekDay[]
+  world_mastery: WorldMastery[]
+  recent_timeline: TimelineEvent[]
+  seals: CitadelSeal[]
+  badges: AchievementBadge[]
+}
+

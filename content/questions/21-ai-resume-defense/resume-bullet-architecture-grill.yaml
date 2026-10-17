@@ -1,0 +1,325 @@
+slug: resume-bullet-architecture-grill
+lc: 9604
+citadel_id: ai_resume
+brick_layer: 4
+runner_type: python_practical
+
+concept:
+  problem_it_solves: >-
+    "How does a Senior Engineer defend their resume projects against relentless technical interrogation from Principal interviewers?"
+    Memorizing high-level buzzwords fails when interviewers probe the 'Basement' layer:
+    'Why did DynamoDB fail your query pattern?', 'What exact composite index did you create in PostgreSQL?',
+    and 'How did you prevent GPU out-of-memory crashes under 500 concurrent try-on requests?'
+    A Staff-level defense articulates the baseline bottleneck, the exact architectural trade-off, and verified quantitative outcomes.
+  brute_force: >-
+    Reciting scripted project summaries without knowing why alternatives were rejected.
+    Fails instantly when an interviewer asks 'Why not just increase DynamoDB provisioned read capacity?'
+  brute_force_complexity: Immediate candidate rejection on shallow answers.
+  key_insight: >-
+    The 4-Part Senior Defense Matrix:
+    1. Baseline Bottleneck: State the exact measured metric before optimization (e.g., 200ms p95 scan latencies; 50-minute sequential test runs).
+    2. Rejected Alternatives: Explain why naive scaling failed (DynamoDB full table scans are O(N) and cost-prohibitive; unbounded async crashes gateways).
+    3. Precise Mechanism: Name the exact data structure / primitive chosen (Composite B-Tree index on `(tenant_id, created_at DESC)`, `asyncio.Semaphore(25)`, Single-Flight Lock).
+    4. Verified Outcome: Quantify the measured impact (20ms p95, 25x concurrency throughput, 66% token cost reduction).
+  real_world: >-
+    Senior and Staff Software Engineer system design and deep-dive technical interview rounds at Google, Meta, and top AI labs.
+
+statement:
+  clean: |
+    Implement a resume defense evaluator and interview scoring engine using resume architecture defense:
+    `def evaluate_resume_defense(self, defense_submission: dict) -> dict`.
+    
+    Given a `defense_submission` dictionary describing a candidate's technical defense:
+    - `topic`: project topic string (`"dynamodb_migration"`, `"drizz_async"`, `"gepa_prompt"`, or `"fitlabs_vton"`)
+    - `claims`: dictionary of numeric metric claims (e.g. `latency_reduction_pct`, `concurrency_boost`, `cost_reduction_pct`)
+    - `architectural_answers`: dictionary of technical architecture and trade-off choices
+    
+    1. Validate topic:
+       - Recognized topics: `{"dynamodb_migration", "drizz_async", "gepa_prompt", "fitlabs_vton"}`
+       - If `topic` is not in this set, return:
+         `{"verified": False, "score": 0, "verdict": "REJECT", "feedback": f"Unknown resume project topic '{topic}'"}`
+    2. Check mandatory defense criteria for the topic:
+       - For `"dynamodb_migration"`:
+         - `claims.get("latency_reduction_pct", 0) >= 80`
+         - `architectural_answers.get("storage_engine") == "postgresql"`
+         - `architectural_answers.get("index_strategy") == "composite_btree"`
+         - `architectural_answers.get("connection_pooler") == "pgbouncer"`
+       - For `"drizz_async"`:
+         - `claims.get("concurrency_boost", 0) >= 20`
+         - `architectural_answers.get("concurrency_primitive") == "asyncio_semaphore"`
+         - `architectural_answers.get("max_workers") == 25`
+       - For `"gepa_prompt"`:
+         - `claims.get("cost_reduction_pct", 0) >= 60`
+         - `architectural_answers.get("optimizer") == "genetic_algorithm"`
+         - `architectural_answers.get("objective") == "accuracy_minus_token_penalty"`
+       - For `"fitlabs_vton"`:
+         - `architectural_answers.get("polling_pattern") == "http_202_accepted"`
+         - `architectural_answers.get("stampede_protection") == "single_flight_lock"`
+    3. Return evaluation verdict:
+       - If all criteria for that topic are met:
+         return {
+           "verified": True,
+           "score": 100,
+           "verdict": "STRONG_HIRE",
+           "feedback": "Architectural defenses, trade-offs, and quantitative metrics rigorously verified"
+         }
+       - Otherwise:
+         return {
+           "verified": False,
+           "score": 40,
+           "verdict": "LEAN_NO_HIRE",
+           "feedback": "Superficial defense: missing critical trade-offs or unverified metric claims"
+         }
+  oa_story: |
+    **Staff AI Systems Engineer — The Final Resume Grill**
+    
+    In the final interview round, the hiring committee dug deep into the technical claims on Suhas's resume:
+    from the 200ms -> 20ms DynamoDB migration to the 25x async test runner and FitLabs ZeroGPU single-flight lock.
+    
+    Implement this automated defense verification evaluator to grade candidate architectural rigor under pressure.
+  trigger_keywords: ["resume architecture defense", "evaluate_resume_defense", "defense_submission"]
+  examples:
+    - input: 'defense_submission = {"topic": "dynamodb_migration", "claims": {"latency_reduction_pct": 90}, "architectural_answers": {"storage_engine": "postgresql", "index_strategy": "composite_btree", "connection_pooler": "pgbouncer"}}'
+      output: '{"verified": True, "score": 100, "verdict": "STRONG_HIRE", "feedback": "Architectural defenses, trade-offs, and quantitative metrics rigorously verified"}'
+      explanation: "All DynamoDB migration criteria satisfied (90% reduction, postgresql, composite btree, pgbouncer)."
+    - input: 'defense_submission = {"topic": "dynamodb_migration", "claims": {"latency_reduction_pct": 50}, "architectural_answers": {}}'
+      output: '{"verified": False, "score": 40, "verdict": "LEAN_NO_HIRE", "feedback": "Superficial defense: missing critical trade-offs or unverified metric claims"}'
+      explanation: "Claims only 50% latency reduction and missing index and pooler answers."
+  constraints:
+    - "defense_submission is a valid dictionary"
+
+constraint_quiz:
+  prompt: "When defending the DynamoDB to PostgreSQL migration, why is mentioning PgBouncer essential?"
+  options:
+    - "Because PostgreSQL forks a separate backend OS process per connection, meaning hundreds of microservice instances will exhaust DB memory without an external connection pooler like PgBouncer"
+    - "Because DynamoDB requires PgBouncer to export JSON"
+    - "Because PgBouncer translates SQL to DynamoDB API calls"
+    - "Because PgBouncer compresses table scans on disk"
+  answer: 0
+  explanation: "Unlike DynamoDB which handles thousands of HTTP connections natively, PostgreSQL uses a process-per-connection model. Connecting hundreds of async worker tasks directly to PostgreSQL will crash the server from RAM and socket exhaustion; PgBouncer multiplexes connections efficiently."
+
+pattern_quiz:
+  prompt: "What is the most effective framework for answering a system design or past project behavioral question?"
+  options:
+    - "The STAR-T framework: Situation (bottleneck metric), Task (objective), Action (specific architectural trade-off & mechanism), Result (measured quantitative impact)"
+    - "Reading the company's Wikipedia page"
+    - "Saying the project worked with zero bugs"
+    - "Refusing to disclose technical details due to confidentiality"
+  answer: 0
+  explanation: "Interviewers look for the STAR framework augmented with Technical Depth: clear problem baseline, rejected trade-offs, precise implementation details, and measured business/engineering impact."
+
+function:
+  name: evaluate_resume_defense
+  params:
+    - name: defense_submission
+      type: any
+  returns: any
+
+starter_code: |
+  class Solution:
+      def evaluate_resume_defense(self, defense_submission: dict) -> dict:
+          pass
+
+tests:
+  - args:
+      - topic: "dynamodb_migration"
+        claims: {latency_reduction_pct: 90}
+        architectural_answers:
+          storage_engine: "postgresql"
+          index_strategy: "composite_btree"
+          connection_pooler: "pgbouncer"
+    expected:
+      verified: true
+      score: 100
+      verdict: "STRONG_HIRE"
+      feedback: "Architectural defenses, trade-offs, and quantitative metrics rigorously verified"
+    note: "Strong hire for DynamoDB migration"
+
+  - args:
+      - topic: "drizz_async"
+        claims: {concurrency_boost: 25}
+        architectural_answers:
+          concurrency_primitive: "asyncio_semaphore"
+          max_workers: 25
+    expected:
+      verified: true
+      score: 100
+      verdict: "STRONG_HIRE"
+      feedback: "Architectural defenses, trade-offs, and quantitative metrics rigorously verified"
+    note: "Strong hire for Drizz async"
+
+  - args:
+      - topic: "dynamodb_migration"
+        claims: {latency_reduction_pct: 50}
+        architectural_answers: {}
+    expected:
+      verified: false
+      score: 40
+      verdict: "LEAN_NO_HIRE"
+      feedback: "Superficial defense: missing critical trade-offs or unverified metric claims"
+    note: "Lean no hire for missing criteria"
+
+  - args:
+      - topic: "blockchain_crypto"
+        claims: {}
+        architectural_answers: {}
+    expected:
+      verified: false
+      score: 0
+      verdict: "REJECT"
+      feedback: "Unknown resume project topic 'blockchain_crypto'"
+    note: "Reject unknown topic"
+
+visualize_test: 0
+
+drills:
+  - title: Validate recognized topic
+    skill: setup
+    goal: Check if topic is in allowed set.
+    instructions: |
+      Return `topic in {"dynamodb_migration", "drizz_async", "gepa_prompt", "fitlabs_vton"}`.
+    function:
+      name: is_valid_topic
+      params: [{name: topic}]
+    starter_code: |
+      class Solution:
+          def is_valid_topic(self, topic: str) -> bool:
+              pass
+    tests:
+      - {args: ["dynamodb_migration"], expected: true}
+      - {args: ["unknown_topic"], expected: false}
+    solution: |
+      class Solution:
+          def is_valid_topic(self, topic: str) -> bool:
+              return topic in {"dynamodb_migration", "drizz_async", "gepa_prompt", "fitlabs_vton"}
+    hint: "Use `return topic in {...}`."
+
+  - title: Metric claim threshold
+    skill: core
+    goal: Verify claimed number exceeds minimum requirement.
+    instructions: |
+      Return `claims.get(key, 0) >= min_val`.
+    function:
+      name: verify_metric
+      params: [{name: claims}, {name: key}, {name: min_val}]
+    starter_code: |
+      class Solution:
+          def verify_metric(self, claims: dict, key: str, min_val: int) -> bool:
+              pass
+    tests:
+      - {args: [{"boost": 25}, "boost", 20], expected: true}
+      - {args: [{}, "boost", 20], expected: false}
+    solution: |
+      class Solution:
+          def verify_metric(self, claims: dict, key: str, min_val: int) -> bool:
+              return claims.get(key, 0) >= min_val
+    hint: "Check claims.get(key, 0) >= min_val."
+
+  - title: Dict key equality
+    skill: edge
+    goal: Return True if answers.get(k) == expected.
+    instructions: |
+      Return `answers.get(k) == expected`.
+    function:
+      name: check_answer
+      params: [{name: answers}, {name: k}, {name: expected}]
+    starter_code: |
+      class Solution:
+          def check_answer(self, answers: dict, k: str, expected: str) -> bool:
+              pass
+    tests:
+      - {args: [{"engine": "postgres"}, "engine", "postgres"], expected: true}
+    solution: |
+      class Solution:
+          def check_answer(self, answers: dict, k: str, expected: str) -> bool:
+              return answers.get(k) == expected
+    hint: "Return answers.get(k) == expected."
+
+hints:
+  - "First check `if topic not in {'dynamodb_migration', 'drizz_async', 'gepa_prompt', 'fitlabs_vton'}:` and return score 0 REJECT."
+  - "Evaluate the topic-specific requirements: check metric thresholds in `claims` and architectural keys in `architectural_answers`."
+  - "If all criteria pass, return score 100 STRONG_HIRE, otherwise return score 40 LEAN_NO_HIRE."
+
+solution:
+  code: |
+    class Solution:
+        def evaluate_resume_defense(self, defense_submission: dict) -> dict:
+            topic = defense_submission.get("topic")
+            valid_topics = {"dynamodb_migration", "drizz_async", "gepa_prompt", "fitlabs_vton"}
+
+            if topic not in valid_topics:
+                return {
+                    "verified": False,
+                    "score": 0,
+                    "verdict": "REJECT",
+                    "feedback": f"Unknown resume project topic '{topic}'",
+                }
+
+            claims = defense_submission.get("claims") or {}
+            answers = defense_submission.get("architectural_answers") or {}
+
+            passed = False
+            if topic == "dynamodb_migration":
+                passed = (
+                    claims.get("latency_reduction_pct", 0) >= 80 and
+                    answers.get("storage_engine") == "postgresql" and
+                    answers.get("index_strategy") == "composite_btree" and
+                    answers.get("connection_pooler") == "pgbouncer"
+                )
+            elif topic == "drizz_async":
+                passed = (
+                    claims.get("concurrency_boost", 0) >= 20 and
+                    answers.get("concurrency_primitive") == "asyncio_semaphore" and
+                    answers.get("max_workers") == 25
+                )
+            elif topic == "gepa_prompt":
+                passed = (
+                    claims.get("cost_reduction_pct", 0) >= 60 and
+                    answers.get("optimizer") == "genetic_algorithm" and
+                    answers.get("objective") == "accuracy_minus_token_penalty"
+                )
+            elif topic == "fitlabs_vton":
+                passed = (
+                    answers.get("polling_pattern") == "http_202_accepted" and
+                    answers.get("stampede_protection") == "single_flight_lock"
+                )
+
+            if passed:
+                return {
+                    "verified": True,
+                    "score": 100,
+                    "verdict": "STRONG_HIRE",
+                    "feedback": "Architectural defenses, trade-offs, and quantitative metrics rigorously verified",
+                }
+            else:
+                return {
+                    "verified": False,
+                    "score": 40,
+                    "verdict": "LEAN_NO_HIRE",
+                    "feedback": "Superficial defense: missing critical trade-offs or unverified metric claims",
+                }
+  explanation: |
+    The evaluator applies strict rubrics based on real-world engineering trade-offs:
+    verifying that candidates understand the physical constraints of their systems
+    (e.g., PostgreSQL connection pooling via PgBouncer, concurrency limits on external APIs, and cache stampede locks).
+  time: O(1) dictionary checks
+  space: O(1)
+
+pitch_script: |
+  **(Clarify)** "We need to evaluate a candidate's resume defense against technical project rubrics, scoring the rigor of their architectural choices and trade-offs."
+
+  **(Basement Insight)** "Claiming big performance wins without knowing the underlying mechanics—like mentioning PostgreSQL without knowing why PgBouncer is necessary—signals superficial understanding. Senior engineers must defend both the quantitative win and the physical constraints."
+
+  **(Solution)** "We validate the project topic against known resume domains. Next, we check specific metric thresholds (such as 80%+ latency reduction or 20x concurrency boost) alongside required architectural design choices. If all pass, we award STRONG_HIRE (100); otherwise LEAN_NO_HIRE (40)."
+
+  **(Complexity)** "Executes in O(1) time and space."
+
+twist:
+  lc: 9605
+  title: STAR + 5 Whys Root Cause Analysis (RCA) Scoring
+  why: >-
+    Add an interactive drill where the candidate is asked 5 consecutive 'Why' questions probing a production incident
+    (e.g., Why did the database run out of connections? Why did the pool fill up? Why did the query stall?).
+
+viz:
+  title: "Senior Engineer Resume Architecture Defense Matrix"

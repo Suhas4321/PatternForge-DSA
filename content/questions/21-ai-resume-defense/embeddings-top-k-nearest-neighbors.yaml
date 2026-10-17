@@ -1,0 +1,243 @@
+slug: embeddings-top-k-nearest-neighbors
+lc: 9605
+citadel_id: ai_resume
+brick_layer: 1
+runner_type: python_practical
+concept:
+  problem_it_solves: Why do high-scale vector databases (Pinecone, Milvus, Qdrant) require embedding vectors to be L2-normalized
+    upon ingestion? Cosine similarity requires computing vector magnitudes ||u|| and ||v|| using square roots on every distance
+    calculation. If vectors are unit length (||u|| = 1), cosine similarity identically equals the dot product (u . v), saving
+    billions of CPU/GPU square-root operations per second.
+  brute_force: Re-calculating square roots and vector norms for millions of vector comparisons during real-time query serving.
+  brute_force_complexity: O(D) arithmetic operations with expensive sqrt overhead per vector comparison.
+  key_insight: 'Pre-normalizing vectors to unit length converts cosine similarity into a pure dot product: cos(u, v) = u .
+    v.'
+  real_world: Pinecone index metric selection, OpenAI text-embedding-3 normalization, and Milvus vector search engine.
+statement:
+  clean: "Implement vector nearest neighbors search comparing cosine similarity and dot product:\n`find_nearest_neighbors(self,\
+    \ query_vector: list[float], candidates: list[dict], k: int = 3, metric: str = 'cosine') -> list[dict]`.\n\nGiven:\n-\
+    \ `query_vector`: list of float embedding dimensions\n- `candidates`: list of candidate dicts: `{'id': str, 'vector':\
+    \ list[float]}`\n- `k`: number of nearest neighbors to retrieve (`k >= 1`)\n- `metric`: `'cosine'` or `'dot_product'`\n\
+    \nDistance Metrics:\n- Dot Product: `sum(u_i * v_i)`\n- L2 Norm: `sqrt(sum(v_i^2))`\n- Cosine Similarity: `dot(u, v) /\
+    \ (norm(u) * norm(v))` (if either norm is `0.0`, return `0.0`).\n- If `metric == 'cosine'`: compute cosine similarity.\n\
+    - If `metric == 'dot_product'`: compute dot product.\n- Round similarity score to 5 decimal places: `round(score, 5)`.\n\
+    \nOrdering Rules:\n1. Sort candidates:\n   - Primary: `score` descending\n   - Secondary (tie-breaker): `id` alphabetically\
+    \ ascending\n2. Return top `min(k, len(candidates))` candidates: `[{'id': id, 'score': score}, ...]`.\n3. If `candidates`\
+    \ is empty, return `[]`."
+  oa_story: '**OlaCabs Rider Matching — Geospatial Driver Embedding Search**
+
+
+    OlaCabs uses learned driver-rider spatial embeddings to match premium airport pickups in Bengaluru. The latency SLA for
+    dispatching ride offers is under 5 milliseconds.
+
+
+    The engineering lead discovered that computing cosine similarity with vector magnitude square roots accounted for 40%
+    of matching latency. By verifying when dot product matches cosine similarity under normalized vectors, the cluster doubled
+    search throughput. Implement this comparative vector search module.'
+  trigger_keywords:
+  - vector nearest neighbors search comparing cosine similarity and dot product
+  - find_nearest_neighbors
+  - query_vector
+  examples:
+  - input: 'query_vector = [1.0, 0.0], candidates = [{''id'': ''v1'', ''vector'': [1.0, 0.0]}, {''id'': ''v2'', ''vector'':
+      [0.0, 1.0]}], k = 2, metric = ''cosine'''
+    output: '[{''id'': ''v1'', ''score'': 1.0}, {''id'': ''v2'', ''score'': 0.0}]'
+    explanation: v1 is parallel to query with cosine similarity 1.0; v2 is orthogonal with similarity 0.0.
+  constraints:
+  - 0 <= len(candidates) <= 500
+  - 1 <= len(query_vector) <= 1536
+  - metric in ['cosine', 'dot_product']
+constraint_quiz:
+  prompt: Under what condition is dot product mathematically identical to cosine similarity?
+  options:
+  - When both vectors have an L2 norm equal to 1.0 (unit length / L2-normalized)
+  - When all vector components are positive integers
+  - When the vector dimensionality is exactly 128
+  - When the metric is run on an Apple Silicon M-series chip
+  answer: 0
+  explanation: Because cos(u, v) = (u . v) / (||u|| * ||v||), when ||u|| = 1 and ||v|| = 1, the denominator equals 1 and cos(u,
+    v) = u . v.
+pattern_quiz:
+  prompt: Why is dot product computationally faster than cosine similarity on modern hardware?
+  options:
+  - It requires only multiply-accumulate (MAC) SIMD instructions without square root or division operations
+  - It bypasses the L1 cache
+  - It uses quantum computing gates
+  - It does not require floating point numbers
+  answer: 0
+  explanation: Dot products map directly to hardware Fused Multiply-Add (FMA) vector instructions, avoiding non-linear square
+    root and division bottlenecks.
+function:
+  name: find_nearest_neighbors
+  params:
+  - name: query_vector
+    type: any
+  - name: candidates
+    type: any
+  - name: k
+    type: any
+  - name: metric
+    type: any
+  returns: any
+starter_code: "class Solution:\n    def find_nearest_neighbors(self, query_vector: list[float], candidates: list[dict], k:\
+  \ int = 3, metric: str = \"cosine\") -> list[dict]:\n        pass\n"
+tests:
+- args:
+  - - 1.0
+    - 0.0
+  - - id: v1
+      vector:
+      - 1.0
+      - 0.0
+    - id: v2
+      vector:
+      - 0.0
+      - 1.0
+    - id: v3
+      vector:
+      - 0.70711
+      - 0.70711
+  - 2
+  - cosine
+  expected:
+  - id: v1
+    score: 1.0
+  - id: v3
+    score: 0.70711
+  note: Cosine similarity ranking
+- args:
+  - - 1.0
+    - 1.0
+  - - id: vA
+      vector:
+      - 2.0
+      - 2.0
+    - id: vB
+      vector:
+      - 0.0
+      - 1.0
+  - 2
+  - dot_product
+  expected:
+  - id: vA
+    score: 4.0
+  - id: vB
+    score: 1.0
+  note: Dot product metric calculation
+- args:
+  - - 1.0
+  - []
+  - 3
+  - cosine
+  expected: []
+  note: Empty candidates edge case
+visualize_test: 0
+drills:
+- title: Compute Dot Product
+  skill: setup
+  goal: Calculate sum of element-wise products.
+  instructions: Return sum(x * y for x, y in zip(u, v)).
+  function:
+    name: calc_dot
+    params:
+    - name: u
+      type: any
+    - name: v
+      type: any
+  starter_code: "class Solution:\n    def calc_dot(self, u: list, v: list) -> float:\n        pass\n"
+  tests:
+  - args:
+    - - 1.0
+      - 2.0
+    - - 3.0
+      - 4.0
+    expected: 11.0
+  solution: "class Solution:\n    def calc_dot(self, u: list, v: list) -> float:\n        return sum(x * y for x, y in zip(u,\
+    \ v))\n"
+  hint: Use sum with zip.
+- title: Compute L2 Norm
+  skill: core
+  goal: Calculate Euclidean magnitude of vector.
+  instructions: Return math.sqrt(sum(x * x for x in v)).
+  function:
+    name: calc_norm
+    params:
+    - name: v
+      type: any
+  starter_code: "class Solution:\n    def calc_norm(self, v: list) -> float:\n        pass\n"
+  tests:
+  - args:
+    - - 3.0
+      - 4.0
+    expected: 5.0
+  solution: "import math\nclass Solution:\n    def calc_norm(self, v: list) -> float:\n        return math.sqrt(sum(x * x\
+    \ for x in v))\n"
+  hint: Return math.sqrt of sum of squares.
+- title: Compute Cosine Similarity
+  skill: edge
+  goal: Safely compute cosine similarity avoiding division by zero.
+  instructions: Return dot / (norm_u * norm_v) if norm_u * norm_v > 0 else 0.0.
+  function:
+    name: calc_cosine
+    params:
+    - name: dot
+      type: any
+    - name: nu
+      type: any
+    - name: nv
+      type: any
+  starter_code: "class Solution:\n    def calc_cosine(self, dot: float, nu: float, nv: float) -> float:\n        pass\n"
+  tests:
+  - args:
+    - 5.0
+    - 2.0
+    - 5.0
+    expected: 0.5
+  - args:
+    - 0.0
+    - 0.0
+    - 5.0
+    expected: 0.0
+  solution: "class Solution:\n    def calc_cosine(self, dot: float, nu: float, nv: float) -> float:\n        denom = nu *\
+    \ nv\n        return (dot / denom) if denom > 0 else 0.0\n"
+  hint: Check if nu * nv > 0.
+hints:
+- Compute query norm if metric == 'cosine'.
+- Iterate candidates, computing dot product and optionally candidate norm.
+- Sort by (-score, id) and slice top k.
+solution:
+  code: "import math\n\nclass Solution:\n    def find_nearest_neighbors(self, query_vector: list[float], candidates: list[dict],\
+    \ k: int = 3, metric: str = \"cosine\") -> list[dict]:\n        if not candidates:\n            return []\n          \
+    \  \n        def dot(u, v):\n            return sum(x * y for x, y in zip(u, v))\n            \n        def norm(v):\n\
+    \            return math.sqrt(sum(x * x for x in v))\n            \n        q_norm = norm(query_vector)\n        scored\
+    \ = []\n        \n        for cand in candidates:\n            c_id = cand[\"id\"]\n            c_vec = cand[\"vector\"\
+    ]\n            d = dot(query_vector, c_vec)\n            \n            if metric == \"cosine\":\n                c_norm\
+    \ = norm(c_vec)\n                denom = q_norm * c_norm\n                score = (d / denom) if denom > 0 else 0.0\n\
+    \            else:\n                score = d\n                \n            scored.append({\n                \"id\":\
+    \ c_id,\n                \"score\": round(score, 5),\n            })\n            \n        scored.sort(key=lambda x:\
+    \ (-x[\"score\"], x[\"id\"]))\n        return scored[:k]\n"
+  explanation: Calculates cosine or dot product distance for each candidate, returning top-k nearest vector neighbors sorted
+    by similarity score.
+  time: O(N * D + N log N) where N is candidate count and D is vector dimension
+  space: O(N) for candidate scores
+pitch_script: '**(Clarify)** "We need to perform vector nearest neighbor retrieval, supporting both cosine similarity and
+  dot product metrics with tie-breaking."
+
+
+  **(Basement Insight)** "Computing cosine similarity on every search requires square root operations to calculate vector
+  norms. Normalizing vectors at ingestion converts cosine similarity to a pure dot product, enabling SIMD hardware acceleration."
+
+
+  **(Solution)** "We compute the dot product and optionally vector norms depending on the requested metric. We round the similarity
+  score and return the top-k highest scoring candidates."
+
+
+  **(Complexity)** "Runs in O(N * D) time and O(N) space."
+
+  '
+twist:
+  lc: 9608
+  title: GEPA Evolutionary Prompt Optimizer with Elitism
+  why: Combine vector similarity evaluation with evolutionary search to optimize prompt templates automatically.
+viz:
+  title: Vector Similarity Metric Geometric Comparison

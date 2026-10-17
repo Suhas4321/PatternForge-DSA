@@ -1,0 +1,266 @@
+slug: pandas-groupby-aggregations
+lc: 9233
+citadel_id: python_data
+brick_layer: 3
+runner_type: python_practical
+
+concept:
+  problem_it_solves: >-
+    "How do we generate an aggregated A/B testing benchmark leaderboard across multiple LLMs from 500,000 raw API execution logs?"
+    Writing manual nested dictionaries with sums and counts in pure Python is verbose and slow.
+    Pandas's Split-Apply-Combine pattern (`df.groupby().agg()`) vectorizes multi-metric reductions across categories simultaneously.
+  brute_force: >-
+    Looping over all rows, using a `defaultdict(list)` to store latencies and success booleans per model,
+    then running secondary loops to compute means and rates.
+  brute_force_complexity: O(N) operations, but multiple intermediate list allocations and high memory churn.
+  key_insight: >-
+    `.groupby('model').agg(...)` splits the underlying columnar index into group buckets, applies C-optimized reduction kernels
+    (`count`, `mean`, `quantile`), and recombines the results into a unified summary DataFrame.
+    Boolean columns cast to integers (`df['success'].astype(int)`) allow computing percentage success rates via a simple mean.
+  real_world: >-
+    Generating model performance leaderboards (GEPA and Drizz test metrics), cloud service SLA tracking, and financial risk dashboards.
+
+statement:
+  clean: |
+    Implement an automated model performance aggregator using split-apply-combine agg:
+    `compute_model_leaderboard(records: list[dict]) -> list[dict]`.
+    
+    Given a list of LLM test execution logs where each dictionary contains:
+    `model` (str), `latency_ms` (float), and `success` (bool).
+    
+    Aggregation requirements:
+    1. If `records` is empty, return `[]`.
+    2. Convert `records` into a `pandas.DataFrame`.
+    3. Group rows by `model` and compute the following metrics for each model:
+       - `run_count`: total number of test runs for this model (int).
+       - `avg_latency`: arithmetic mean of `latency_ms`, rounded to 1 decimal place (float).
+       - `success_rate`: percentage of runs where `success == True` (i.e. `mean(success) * 100`), rounded to 1 decimal place (float).
+    4. Sort the summary DataFrame:
+       - Primarily by `success_rate` in **descending** order (higher reliability first).
+       - Secondarily by `avg_latency` in **ascending** order (faster speed first on ties).
+    5. Return the resulting leaderboard as a list of dictionaries with keys `model`, `run_count`, `avg_latency`, and `success_rate`.
+  oa_story: |
+    **GEPA Optimization Platform — Model Leaderboard Rollup**
+    
+    During genetic prompt mutation experiments, candidate prompts are tested across OpenAI, Anthropic, and open-source models.
+    The evaluation engine logs each API response. To determine which model variant graduates to production, the analytics
+    team requires a unified leaderboard sorting candidate models by highest success rate and lowest latency.
+    
+    Build a vectorized Pandas aggregation pipeline that computes group metrics and outputs the sorted leaderboard.
+  trigger_keywords: ["split-apply-combine agg", "compute_model_leaderboard", "records"]
+  examples:
+    - input: "records = [{'model': 'gpt-4o', 'latency_ms': 200, 'success': True}, {'model': 'gpt-4o', 'latency_ms': 300, 'success': False}]"
+      output: "[{'model': 'gpt-4o', 'run_count': 2, 'avg_latency': 250.0, 'success_rate': 50.0}]"
+      explanation: "Computes count 2, mean latency 250.0, and 50.0% success rate."
+  constraints:
+    - "records contains between 0 and 20,000 items"
+    - "latency_ms is a positive float"
+
+constraint_quiz:
+  prompt: >-
+    How can the percentage of `True` values in a boolean column be computed directly using Pandas aggregation?
+  options:
+    - "df['success'].astype(int).mean() * 100"
+    - "df['success'].sum() * 100"
+    - "df['success'].count()"
+    - "df['success'].std()"
+  answer: 0
+  explanation: >-
+    Casting booleans to 1s and 0s means the mean equals the proportion of True values; multiplying by 100 yields the percentage.
+
+pattern_quiz:
+  prompt: What are the three phases of the Split-Apply-Combine mental model in Pandas?
+  options:
+    - "Split into groups -> Apply a function/reduction to each group -> Combine into a new DataFrame"
+    - "Sort -> Filter -> Slice"
+    - "Load -> Serialize -> Save"
+    - "Index -> Map -> Reduce"
+  answer: 0
+  explanation: >-
+    Hadley Wickham's Split-Apply-Combine paradigm divides data into subsets, executes independent functions, and combines results.
+
+function:
+  name: compute_model_leaderboard
+  params:
+    - {name: records}
+
+starter_code: |
+  class Solution:
+      def compute_model_leaderboard(self, records: list[dict]) -> list[dict]:
+          pass
+
+tests:
+  - args:
+      - [
+          {"model": "gpt-4o", "latency_ms": 200.0, "success": true},
+          {"model": "gpt-4o", "latency_ms": 100.0, "success": true},
+          {"model": "claude-3-5", "latency_ms": 150.0, "success": true},
+          {"model": "claude-3-5", "latency_ms": 250.0, "success": false}
+        ]
+    expected:
+      - {"model": "gpt-4o", "run_count": 2, "avg_latency": 150.0, "success_rate": 100.0}
+      - {"model": "claude-3-5", "run_count": 2, "avg_latency": 200.0, "success_rate": 50.0}
+  - args:
+      - [
+          {"model": "Model-A", "latency_ms": 300.0, "success": true},
+          {"model": "Model-B", "latency_ms": 100.0, "success": true}
+        ]
+    expected:
+      - {"model": "Model-B", "run_count": 1, "avg_latency": 100.0, "success_rate": 100.0}
+      - {"model": "Model-A", "run_count": 1, "avg_latency": 300.0, "success_rate": 100.0}
+  - args:
+      - []
+    expected: []
+  - args:
+      - [
+          {"model": "Solo", "latency_ms": 45.5, "success": false}
+        ]
+    expected:
+      - {"model": "Solo", "run_count": 1, "avg_latency": 45.5, "success_rate": 0.0}
+
+visualize_test: 0
+
+drills:
+  - title: GroupBy count aggregation
+    skill: setup
+    goal: Count rows per group.
+    instructions: |
+      Group `records` by `team` and return total count per team.
+    function:
+      name: count_per_team
+      params: [{name: records}]
+    starter_code: |
+      class Solution:
+          def count_per_team(self, records: list[dict]) -> list[dict]:
+              pass
+    tests:
+      - {args: [[{"team": "Blue"}, {"team": "Blue"}, {"team": "Red"}]], expected: [{"team": "Blue", "count": 2}, {"team": "Red", "count": 1}]}
+      - {args: [[]], expected: []}
+    solution: |
+      import pandas as pd
+
+      class Solution:
+          def count_per_team(self, records: list[dict]) -> list[dict]:
+              if not records:
+                  return []
+              df = pd.DataFrame(records)
+              grouped = df.groupby("team").size().reset_index(name="count")
+              return grouped.to_dict(orient="records")
+    hint: "Use `df.groupby('team').size().reset_index(name='count')`."
+
+  - title: GroupBy mean calculation
+    skill: core
+    goal: Compute group average.
+    instructions: |
+      Compute mean of `score` per `dept`, rounded to 1 decimal place.
+    function:
+      name: avg_score_per_dept
+      params: [{name: records}]
+    starter_code: |
+      class Solution:
+          def avg_score_per_dept(self, records: list[dict]) -> list[dict]:
+              pass
+    tests:
+      - {args: [[{"dept": "Eng", "score": 80.0}, {"dept": "Eng", "score": 90.0}]], expected: [{"dept": "Eng", "avg": 85.0}]}
+      - {args: [[]], expected: []}
+    solution: |
+      import pandas as pd
+
+      class Solution:
+          def avg_score_per_dept(self, records: list[dict]) -> list[dict]:
+              if not records:
+                  return []
+              df = pd.DataFrame(records)
+              grouped = df.groupby("dept")["score"].mean().round(1).reset_index(name="avg")
+              return grouped.to_dict(orient="records")
+    hint: "Use `df.groupby('dept')['score'].mean().round(1).reset_index(name='avg')`."
+
+  - title: Two-tier sort_values
+    skill: edge
+    goal: Sort by two columns in different directions.
+    instructions: |
+      Sort by `score` descending, then `id` ascending.
+    function:
+      name: sort_two_tier
+      params: [{name: records}]
+    starter_code: |
+      class Solution:
+          def sort_two_tier(self, records: list[dict]) -> list[dict]:
+              pass
+    tests:
+      - {args: [[{"id": 2, "score": 90}, {"id": 1, "score": 90}, {"id": 3, "score": 95}]], expected: [{"id": 3, "score": 95}, {"id": 1, "score": 90}, {"id": 2, "score": 90}]}
+      - {args: [[]], expected: []}
+    solution: |
+      import pandas as pd
+
+      class Solution:
+          def sort_two_tier(self, records: list[dict]) -> list[dict]:
+              if not records:
+                  return []
+              df = pd.DataFrame(records)
+              sorted_df = df.sort_values(by=["score", "id"], ascending=[False, True])
+              return sorted_df.to_dict(orient="records")
+    hint: "Use `df.sort_values(by=['score', 'id'], ascending=[False, True])`."
+
+hints:
+  - "If `records` is empty, return `[]`."
+  - "Add a helper column `success_int = df['success'].astype(int) * 100`."
+  - "Group by `model` and call `.agg(run_count=('latency_ms', 'count'), avg_latency=('latency_ms', 'mean'), success_rate=('success_int', 'mean'))`."
+
+solution:
+  code: |
+    import pandas as pd
+
+    class Solution:
+        def compute_model_leaderboard(self, records: list[dict]) -> list[dict]:
+            if not records:
+                return []
+            df = pd.DataFrame(records)
+
+            df["success_val"] = df["success"].astype(int) * 100.0
+
+            grouped = df.groupby("model").agg(
+                run_count=("latency_ms", "count"),
+                avg_latency=("latency_ms", "mean"),
+                success_rate=("success_val", "mean"),
+            ).reset_index()
+
+            grouped["run_count"] = grouped["run_count"].astype(int)
+            grouped["avg_latency"] = grouped["avg_latency"].round(1)
+            grouped["success_rate"] = grouped["success_rate"].round(1)
+
+            # Sort: primary success_rate DESC, secondary avg_latency ASC
+            sorted_df = grouped.sort_values(
+                by=["success_rate", "avg_latency"],
+                ascending=[False, True]
+            )
+
+            return sorted_df.to_dict(orient="records")
+  explanation: |
+    We convert the `success` boolean series to float percentages (`0.0` or `100.0`).
+    Using named aggregation inside `.groupby('model').agg(...)` calculates the sample count,
+    mean latency, and success percentage in a single vectorized pass.
+    
+    Rounding normalizes decimal precision, and `sort_values` organizes models by highest reliability
+    and lowest latency.
+  time: O(N log K) where N is records and K is distinct models
+  space: O(N) for DataFrame structures
+
+pitch_script: |
+  **(Clarify)** "We need to aggregate raw execution logs by model, computing total test count, average latency, and percentage success rate, sorted by reliability descending and latency ascending."
+
+  **(Basement Insight)** "Pandas `.groupby().agg()` implements the Split-Apply-Combine pattern in compiled C code. Computing named aggregations simultaneously avoids multiple scans over the dataset and yields a compact summary table."
+
+  **(Solution)** "We build a DataFrame, multiply the boolean `success` mask by 100, and group by `model`. Using named aggregation, we calculate `count` and `mean` metrics. We round the results and sort with `ascending=[False, True]`."
+
+  **(Complexity)** "Runs in O(N + K log K) time where N is records and K is unique models, with O(N) space."
+
+twist:
+  lc: 9234
+  title: Quantile p95 Latency Reduction in Named Aggregation
+  why: >-
+    In real SLA monitoring, average latency hides tail latency spikes.
+    Use custom quantile aggregation: p95=('latency_ms', lambda x: x.quantile(0.95)).
+
+viz:
+  title: "Pandas GroupBy Aggregation"

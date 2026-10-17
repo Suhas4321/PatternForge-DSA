@@ -1,0 +1,261 @@
+slug: pandas-window-ranking
+lc: 9235
+citadel_id: python_data
+brick_layer: 5
+runner_type: python_practical
+
+concept:
+  problem_it_solves: >-
+    "How do we solve the classic 'Nth Highest Salary per Department' question purely in Python using Pandas without writing custom nested loops?"
+    SQL analytical window functions (`DENSE_RANK() OVER (PARTITION BY dept ORDER BY salary DESC)`) have a direct, high-performance
+    equivalent in Pandas: `df.groupby('dept')['salary'].rank(method='dense', ascending=False)`.
+  brute_force: >-
+    Looping through departments, converting salaries into sets to eliminate duplicates, sorting, finding the second element,
+    and running another loop to find which employees match that salary.
+  brute_force_complexity: O(D * N log N) manual Python loops and sets.
+  key_insight: >-
+    `method='dense'` assigns consecutive integer ranks without gaps when values tie.
+    For example, if salaries are `[120k, 120k, 95k]`, standard `rank(method='min')` assigns ranks `[1, 1, 3]`, completely skipping rank 2!
+    `method='dense'` assigns ranks `[1, 1, 2]`, correctly identifying 95k as the 2nd highest salary.
+  real_world: >-
+    Payroll analytics, identifying top-performing sales regions, and calculating tier-2 latency percentiles across microservices.
+
+statement:
+  clean: |
+    Implement department-level rank filtering using dense rank window:
+    `get_second_highest_salaries(employees: list[dict]) -> list[dict]`.
+    
+    Given a list of employee records with keys:
+    `emp_id` (int), `name` (str), `department` (str), and `salary` (int).
+    
+    Requirements:
+    1. If `employees` is empty, return `[]`.
+    2. Convert `employees` into a `pandas.DataFrame`.
+    3. Calculate the dense rank of `salary` within each `department` in descending order:
+       `df["rank"] = df.groupby("department")["salary"].rank(method="dense", ascending=False)`.
+    4. Filter for employees who have `rank == 2` (the 2nd highest salary in their department).
+       If a department has no 2nd highest salary (e.g. only 1 distinct salary exists), that department produces no output rows.
+    5. Project columns: `["department", "name", "salary"]`.
+    6. Sort the final DataFrame by `department` ascending, then `salary` descending, then `name` ascending.
+    7. Return the result as a list of dictionaries via `.to_dict(orient='records')`.
+  oa_story: |
+    **Drizz Compensation Analytics — Department Benchmarks**
+    
+    During annual engineering compensation leveling across global engineering hubs, HR needed to identify
+    the second-highest compensation band in each engineering department. If two senior staff engineers tied for the top salary,
+    the next distinct salary tier must still be correctly recognized as Rank 2.
+    
+    Implement this analytical calculation using vectorized Pandas window ranking.
+  trigger_keywords: ["dense rank window", "get_second_highest_salaries", "employees"]
+  examples:
+    - input: "employees = [{'emp_id': 1, 'name': 'Alice', 'department': 'Eng', 'salary': 100}, {'emp_id': 2, 'name': 'Bob', 'department': 'Eng', 'salary': 90}]"
+      output: "[{'department': 'Eng', 'name': 'Bob', 'salary': 90}]"
+      explanation: "Bob has rank 2 in Eng with salary 90."
+    - input: "employees = [{'emp_id': 1, 'name': 'A', 'department': 'HR', 'salary': 50}]"
+      output: "[]"
+      explanation: "Only 1 salary exists, so no rank 2 employee."
+  constraints:
+    - "employees contains between 0 and 20,000 items"
+    - "salary is a positive integer"
+
+constraint_quiz:
+  prompt: >-
+    Given salaries `[100, 100, 90]`, what rank will `salary = 90` receive under `rank(method='dense', ascending=False)`?
+  options:
+    - "Rank 1"
+    - "Rank 2"
+    - "Rank 3"
+    - "Rank 0"
+  answer: 1
+  explanation: >-
+    Dense ranking does not skip numbers on ties; the two 100s both receive Rank 1, so 90 receives Rank 2.
+
+pattern_quiz:
+  prompt: Which argument in Pandas `.rank()` groups tied values without skipping rank numbers?
+  options:
+    - "method='dense'"
+    - "method='average'"
+    - "method='min'"
+    - "method='first'"
+  answer: 0
+  explanation: >-
+    `method='dense'` produces consecutive ranks without gaps (1, 1, 2 rather than 1, 1, 3).
+
+function:
+  name: get_second_highest_salaries
+  params:
+    - {name: employees}
+
+starter_code: |
+  class Solution:
+      def get_second_highest_salaries(self, employees: list[dict]) -> list[dict]:
+          pass
+
+tests:
+  - args:
+      - [
+          {"emp_id": 101, "name": "Alex", "department": "AI", "salary": 120000},
+          {"emp_id": 102, "name": "Priya", "department": "AI", "salary": 120000},
+          {"emp_id": 103, "name": "David", "department": "AI", "salary": 95000},
+          {"emp_id": 104, "name": "Elena", "department": "Cloud", "salary": 110000},
+          {"emp_id": 105, "name": "Siddharth", "department": "Cloud", "salary": 85000}
+        ]
+    expected:
+      - {"department": "AI", "name": "David", "salary": 95000}
+      - {"department": "Cloud", "name": "Siddharth", "salary": 85000}
+  - args:
+      - [
+          {"emp_id": 201, "name": "Solo", "department": "Sales", "salary": 50000}
+        ]
+    expected: []
+  - args:
+      - []
+    expected: []
+  - args:
+      - [
+          {"emp_id": 301, "name": "Tied1", "department": "Ops", "salary": 70000},
+          {"emp_id": 302, "name": "Tied2", "department": "Ops", "salary": 70000}
+        ]
+    expected: []
+
+visualize_test: 0
+
+drills:
+  - title: Dense rank calculation on series
+    skill: setup
+    goal: Apply dense rank to a Pandas series.
+    instructions: |
+      Return the dense rank of `[100, 100, 90]` ascending=False.
+    function:
+      name: test_dense_rank
+      params: [{name: values}]
+    starter_code: |
+      class Solution:
+          def test_dense_rank(self, values: list[int]) -> list[int]:
+              pass
+    tests:
+      - {args: [[100, 100, 90]], expected: [1, 1, 2]}
+      - {args: [[50, 70, 60]], expected: [3, 1, 2]}
+    solution: |
+      import pandas as pd
+
+      class Solution:
+          def test_dense_rank(self, values: list[int]) -> list[int]:
+              s = pd.Series(values)
+              ranks = s.rank(method="dense", ascending=False).astype(int)
+              return ranks.tolist()
+    hint: "Use `s.rank(method='dense', ascending=False).astype(int)`."
+
+  - title: GroupBy partition ranking
+    skill: core
+    goal: Rank values within groups.
+    instructions: |
+      Compute rank of `val` per `group` with `method='dense', ascending=False`.
+    function:
+      name: group_rank
+      params: [{name: records}]
+    starter_code: |
+      class Solution:
+          def group_rank(self, records: list[dict]) -> list[dict]:
+              pass
+    tests:
+      - {args: [[{"g": "A", "val": 10}, {"g": "A", "val": 20}]], expected: [{"g": "A", "val": 10, "rk": 2}, {"g": "A", "val": 20, "rk": 1}]}
+      - {args: [[]], expected: []}
+    solution: |
+      import pandas as pd
+
+      class Solution:
+          def group_rank(self, records: list[dict]) -> list[dict]:
+              if not records:
+                  return []
+              df = pd.DataFrame(records)
+              df["rk"] = df.groupby("g")["val"].rank(method="dense", ascending=False).astype(int)
+              return df.to_dict(orient="records")
+    hint: "Use `df.groupby('g')['val'].rank(method='dense', ascending=False)`."
+
+  - title: Filter rank 2 rows
+    skill: edge
+    goal: Isolate rows where rank == 2.
+    instructions: |
+      Return only rows where `rank == 2`.
+    function:
+      name: filter_rank_2
+      params: [{name: records}]
+    starter_code: |
+      class Solution:
+          def filter_rank_2(self, records: list[dict]) -> list[dict]:
+              pass
+    tests:
+      - {args: [[{"name": "A", "rank": 1}, {"name": "B", "rank": 2}]], expected: [{"name": "B", "rank": 2}]}
+      - {args: [[]], expected: []}
+    solution: |
+      import pandas as pd
+
+      class Solution:
+          def filter_rank_2(self, records: list[dict]) -> list[dict]:
+              if not records:
+                  return []
+              df = pd.DataFrame(records)
+              return df.loc[df["rank"] == 2].to_dict(orient="records")
+    hint: "Use `df.loc[df['rank'] == 2]`."
+
+hints:
+  - "If `employees` is empty, return `[]`."
+  - "Compute dense rank: `df['rank'] = df.groupby('department')['salary'].rank(method='dense', ascending=False)`."
+  - "Filter with `df.loc[df['rank'] == 2]`, project `['department', 'name', 'salary']`, and sort by `['department', 'salary', 'name']` with `ascending=[True, False, True]`."
+
+solution:
+  code: |
+    import pandas as pd
+
+    class Solution:
+        def get_second_highest_salaries(self, employees: list[dict]) -> list[dict]:
+            if not employees:
+                return []
+            df = pd.DataFrame(employees)
+
+            # Step 1: Calculate dense rank partitioned by department
+            df["rank"] = df.groupby("department")["salary"].rank(method="dense", ascending=False)
+
+            # Step 2: Filter for 2nd highest salary
+            second_df = df.loc[df["rank"] == 2]
+
+            if second_df.empty:
+                return []
+
+            # Step 3: Select columns and sort
+            cols = ["department", "name", "salary"]
+            sorted_df = second_df[cols].sort_values(
+                by=["department", "salary", "name"],
+                ascending=[True, False, True]
+            )
+
+            return sorted_df.to_dict(orient="records")
+  explanation: |
+    We utilize Pandas's `.groupby('department')['salary'].rank(method='dense', ascending=False)`.
+    Because `method='dense'` does not leave gaps after tied values, any salary that is immediately below
+    the department's top salary receives `rank == 2`.
+    
+    Filtering by `rank == 2` isolates the target employees across all departments simultaneously.
+    Sorting with `ascending=[True, False, True]` produces deterministic, ordered results.
+  time: O(N log N) dominated by sorting
+  space: O(N) for DataFrame memory
+
+pitch_script: |
+  **(Clarify)** "We need to identify employees earning the second-highest salary within each department, correctly handling ties using dense ranking."
+
+  **(Basement Insight)** "Standard ranking algorithms like `method='min'` or `method='average'` skip rank numbers when ties occur (e.g. two #1 ranks result in the next being #3). `method='dense'` produces consecutive ranks without gaps (1, 1, 2), matching SQL's `DENSE_RANK()`."
+
+  **(Solution)** "We build a DataFrame and compute `df.groupby('department')['salary'].rank(method='dense', ascending=False)`. We slice with `.loc[df['rank'] == 2]`, project `[department, name, salary]`, and sort by department ascending, salary descending, and name ascending."
+
+  **(Complexity)** "Executes in O(N log N) time due to sorting, using O(N) auxiliary space for the DataFrame."
+
+twist:
+  lc: 9236
+  title: Department Top-N Salaried Employees with Tie Handling
+  why: >-
+    Generalizing from 2nd highest to Top-N highest per department:
+    filter where df['rank'] <= N, capturing all employees within the top N distinct salary tiers.
+
+viz:
+  title: "Pandas Window Dense Ranking"

@@ -10,7 +10,7 @@ import {
   type ScopedValue,
 } from '../../lib/trace'
 
-const POINTER_COLORS = ['#00F0FF', '#818CF8', '#C084FC', '#10B981', '#F59E0B', '#E8EAF2']
+const POINTER_COLORS = ['#00F0FF', '#38BDF8', '#94A3B8', '#10B981', '#F59E0B', '#F8FAFC']
 const RANGE_PAIRS: [string, string][] = [
   ['l', 'r'], ['left', 'right'], ['lo', 'hi'], ['low', 'high'], ['start', 'end'],
 ]

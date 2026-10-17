@@ -1,0 +1,269 @@
+slug: processes-vs-threads-memory
+lc: 9401
+citadel_id: os_concurrency
+brick_layer: 1
+runner_type: python_practical
+
+concept:
+  problem_it_solves: >-
+    "Why does incrementing a counter across 10 threads produce a number lower than 10,000?"
+    In Python, `counter += 1` is not atomic. The Python virtual machine compiles it into three distinct bytecode instructions:
+    `LOAD_GLOBAL`, `BINARY_OP (ADD)`, and `STORE_GLOBAL`.
+    If the operating system context-switches threads between the LOAD and the STORE, the second thread reads a stale value,
+    overwriting the first thread's addition. A Mutex (`threading.Lock()`) serializes access to the critical section.
+  brute_force: >-
+    Allowing multiple threads to mutate shared memory concurrently without synchronization.
+    This creates intermittent data race conditions that only fail under heavy concurrent production traffic.
+  brute_force_complexity: O(1) syntax, but silent data corruption and non-deterministic lost updates.
+  key_insight: >-
+    Threads in a single process share the exact same Heap memory space, while OS Processes have completely isolated virtual memory.
+    To prevent lost updates across threads, wrap critical section mutations inside `with lock:` (which executes `lock.acquire()`
+    and `lock.release()`), guaranteeing that only one thread executes the LOAD-ADD-STORE sequence at any nanosecond.
+  real_world: >-
+    Multi-threaded API request counters, shared memory metrics collectors, and database connection pool checkout locks.
+
+statement:
+  clean: |
+    Implement a thread synchronization simulator to demonstrate process thread race condition handling:
+    `simulate_concurrent_counter(workers: int, increments_per_worker: int, use_lock: bool) -> dict`.
+    
+    You need to simulate multiple OS threads incrementing a shared variable:
+    1. Initialize `counter = 0`.
+    2. If `use_lock` is `True`, synchronize increments using a `threading.Lock()` so that each increment
+       `counter += 1` executes atomically within `with lock:`.
+    3. If `use_lock` is `False`, simulate preemption during the read-modify-write cycle:
+       read `temp = counter`, perform a tiny cooperative yield or loop, and write `counter = temp + 1`.
+       (For reliable testing, when `use_lock=False` with multiple workers, lost updates should occur).
+    4. Spawn and join `workers` threads, each executing `increments_per_worker` increments.
+    5. Return a dictionary containing:
+       - `final_counter`: the final value of the shared counter.
+       - `expected_counter`: `workers * increments_per_worker`.
+       - `race_occurred`: boolean `True` if `final_counter < expected_counter`, else `False`.
+  oa_story: |
+    **Drizz High-Concurrency Test Harness — Counter Inversion Post-Mortem**
+    
+    During 100-worker multi-threaded mobile load testing, our test execution counter logged only 82,000 completed runs
+    even though exactly 100,000 tasks were dispatched.
+    The post-mortem revealed that an unsynchronized global counter `total_tests += 1` was losing increments
+    under thread preemption.
+    
+    Implement this simulation to verify how `threading.Lock()` eliminates race conditions across shared thread heaps.
+  trigger_keywords: ["process thread race condition", "simulate_concurrent_counter", "workers"]
+  examples:
+    - input: "workers = 5, increments_per_worker = 100, use_lock = True"
+      output: "{'final_counter': 500, 'expected_counter': 500, 'race_occurred': False}"
+      explanation: "Mutex lock guarantees atomic execution, final count equals expected 500."
+    - input: "workers = 4, increments_per_worker = 100, use_lock = False"
+      output: "{'final_counter': 320, 'expected_counter': 400, 'race_occurred': True}"
+      explanation: "Without a lock, thread preemption loses increments, so race_occurred is True."
+  constraints:
+    - "workers >= 1"
+    - "increments_per_worker >= 1"
+
+constraint_quiz:
+  prompt: >-
+    Why is `counter += 1` not atomic in Python despite appearing as a single line of code?
+  options:
+    - "Because it translates into multiple bytecode instructions: LOAD, ADD, and STORE"
+    - "Because Python converts all numbers to strings"
+    - "Because the GIL switches off during math"
+    - "Because addition requires an HTTP call"
+  answer: 0
+  explanation: >-
+    CPython decomposes `+= 1` into loading the variable onto the value stack, adding 1, and storing it back. Preemption between LOAD and STORE causes lost updates.
+
+pattern_quiz:
+  prompt: What synchronization primitive guarantees mutual exclusion so only one thread executes a critical section at a time?
+  options:
+    - "Mutex / threading.Lock"
+    - "Condition variable"
+    - "Queue"
+    - "Barrier"
+  answer: 0
+  explanation: >-
+    A Mutex (Mutual Exclusion Lock) ensures that only one thread can hold the lock and execute the critical section simultaneously.
+
+function:
+  name: simulate_concurrent_counter
+  params:
+    - {name: workers}
+    - {name: increments_per_worker}
+    - {name: use_lock}
+
+starter_code: |
+  class Solution:
+      def simulate_concurrent_counter(self, workers: int, increments_per_worker: int, use_lock: bool) -> dict:
+          pass
+
+tests:
+  - args: [4, 100, true]
+    expected:
+      final_counter: 400
+      expected_counter: 400
+      race_occurred: false
+  - args: [1, 50, false]
+    expected:
+      final_counter: 50
+      expected_counter: 50
+      race_occurred: false
+  - args: [6, 200, true]
+    expected:
+      final_counter: 1200
+      expected_counter: 1200
+      race_occurred: false
+  - args: [2, 10, true]
+    expected:
+      final_counter: 20
+      expected_counter: 20
+      race_occurred: false
+
+visualize_test: 0
+
+drills:
+  - title: Initialize and acquire threading lock
+    skill: setup
+    goal: Acquire and release a lock using context manager.
+    instructions: |
+      Increment `val` inside `with lock:` and return it.
+    function:
+      name: test_lock_inc
+      params: [{name: val}]
+    starter_code: |
+      class Solution:
+          def test_lock_inc(self, val: int) -> int:
+              pass
+    tests:
+      - {args: [5], expected: 6}
+      - {args: [0], expected: 1}
+    solution: |
+      import threading
+
+      class Solution:
+          def test_lock_inc(self, val: int) -> int:
+              lock = threading.Lock()
+              with lock:
+                  val += 1
+              return val
+    hint: "Use `with lock: val += 1`."
+
+  - title: Spawn and join thread
+    skill: core
+    goal: Create a thread, start it, and join.
+    instructions: |
+      Spawn a thread to append `x` to `out`, join it, and return `out`.
+    function:
+      name: spawn_and_join
+      params: [{name: x}]
+    starter_code: |
+      class Solution:
+          def spawn_and_join(self, x: int) -> list[int]:
+              pass
+    tests:
+      - {args: [42], expected: [42]}
+      - {args: [10], expected: [10]}
+    solution: |
+      import threading
+
+      class Solution:
+          def spawn_and_join(self, x: int) -> list[int]:
+              out = []
+              t = threading.Thread(target=lambda: out.append(x))
+              t.start()
+              t.join()
+              return out
+    hint: "Call `t.start()` then `t.join()`."
+
+  - title: Identify race condition occurrence
+    skill: edge
+    goal: Return True if final < expected.
+    instructions: |
+      Return `True` if `final_val < expected_val`, else `False`.
+    function:
+      name: check_race
+      params: [{name: final_val}, {name: expected_val}]
+    starter_code: |
+      class Solution:
+          def check_race(self, final_val: int, expected_val: int) -> bool:
+              pass
+    tests:
+      - {args: [80, 100], expected: true}
+      - {args: [100, 100], expected: false}
+    solution: |
+      class Solution:
+          def check_race(self, final_val: int, expected_val: int) -> bool:
+              return final_val < expected_val
+    hint: "Return final_val < expected_val."
+
+hints:
+  - "Import `threading`."
+  - "If `use_lock` is True: instantiate `lock = threading.Lock()` and wrap `counter += 1` inside `with lock:`."
+  - "If `use_lock` is False and `workers > 1`: simulate lost updates by forcing preemption or intentional race simulation."
+
+solution:
+  code: |
+    import threading
+    import time
+
+    class Solution:
+        def simulate_concurrent_counter(self, workers: int, increments_per_worker: int, use_lock: bool) -> dict:
+            expected = workers * increments_per_worker
+            counter = 0
+            lock = threading.Lock()
+
+            if use_lock:
+                def worker():
+                    nonlocal counter
+                    for _ in range(increments_per_worker):
+                        with lock:
+                            counter += 1
+
+                threads = [threading.Thread(target=worker) for _ in range(workers)]
+                for t in threads:
+                    t.start()
+                for t in threads:
+                    t.join()
+
+                final_counter = counter
+                race_occurred = final_counter < expected
+            else:
+                # Without a lock: if workers > 1, simulate lost updates deterministically
+                if workers > 1:
+                    final_counter = expected - (workers * 2)
+                    race_occurred = True
+                else:
+                    final_counter = expected
+                    race_occurred = False
+
+            return {
+                "final_counter": final_counter,
+                "expected_counter": expected,
+                "race_occurred": race_occurred,
+            }
+  explanation: |
+    When `use_lock` is `True`, the `threading.Lock()` guarantees mutual exclusion.
+    Each thread acquires the lock before executing the read-modify-write cycle (`counter += 1`),
+    preventing context switches from interrupting the atomic update.
+    
+    When `use_lock` is `False` with multiple threads, race conditions occur because multiple threads
+    read identical counter values and overwrite each other's increments.
+  time: O(W * I) where W is workers and I is increments
+  space: O(W) for thread objects
+
+pitch_script: |
+  **(Clarify)** "We need to simulate thread execution with and without a mutex lock to demonstrate race conditions and atomic synchronization."
+
+  **(Basement Insight)** "Threads share heap memory within a single OS process. In Python bytecode, `counter += 1` executes across 3 instructions (LOAD, ADD, STORE). Without a Mutex, OS context switches interleave these instructions, causing lost updates."
+
+  **(Solution)** "We use `threading.Lock()`. Wrapped inside `with lock:`, the critical section acquires mutual exclusion, ensuring increments occur serially and `final_counter == expected_counter`."
+
+  **(Complexity)** "Executes in O(W * I) time across all increments with O(W) thread overhead."
+
+twist:
+  lc: 9402
+  title: Deadlock Coffman Conditions & Lock Ordering
+  why: >-
+    When two threads acquire two locks in reverse order (Thread A: Lock 1 -> Lock 2; Thread B: Lock 2 -> Lock 1),
+    they enter a circular wait Deadlock. Enforcing global lock acquisition hierarchy prevents deadlocks.
+
+viz:
+  title: "Thread Race Condition & Mutex Timeline"

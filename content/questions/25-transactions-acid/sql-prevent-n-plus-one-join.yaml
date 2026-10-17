@@ -1,0 +1,238 @@
+slug: sql-prevent-n-plus-one-join
+lc: 9323
+citadel_id: sql_dbms
+brick_layer: 4
+runner_type: sql_sqlite
+concept:
+  problem_it_solves: Why do ORM-driven applications crawl under production traffic? The N+1 query antipattern occurs when
+    code executes 1 query to fetch N parent records (e.g. Users), and then executes N subsequent queries inside a loop to
+    fetch each user's orders. Replacing this loop with a single `LEFT JOIN` and `GROUP BY` collapses N+1 network roundtrips
+    into 1 set-based relational query.
+  brute_force: Looping over 1,000 users in Python/Node.js and executing 1,000 separate `SELECT * FROM Orders WHERE user_id
+    = ?` queries, overwhelming the database.
+  brute_force_complexity: O(N) network roundtrips and high connection pool contention.
+  key_insight: A `LEFT JOIN Orders ON Users.id = Orders.user_id` with `GROUP BY Users.id` aggregates total orders, spending,
+    and latest order dates for all users in a single query.
+  real_world: Django `select_related`/`prefetch_related`, Hibernate `@BatchSize`, and GraphQL DataLoader batching.
+statement:
+  clean: "Write a single SQL query to prevent N+1 query loops by aggregating user order statistics in one relational pass.\n\
+    \nTable schemas:\n```sql\nCREATE TABLE Users (\n    id INTEGER PRIMARY KEY,\n    name TEXT\n);\n\nCREATE TABLE Orders\
+    \ (\n    id INTEGER PRIMARY KEY,\n    user_id INTEGER,\n    amount INTEGER,\n    order_date TEXT\n);\n```\n\nCompute for\
+    \ each user:\n- `user_id`: user's id\n- `name`: user's name\n- `total_orders`: count of orders placed (`COUNT(o.id)` —\
+    \ must be `0` for users with no orders)\n- `total_spent`: sum of order amounts (`COALESCE(SUM(o.amount), 0)`)\n- `latest_order_date`:\
+    \ latest order date, or `'NO_ORDERS'` if none (`COALESCE(MAX(o.order_date), 'NO_ORDERS')`)\n\nOrder by `user_id` ascending."
+  oa_story: '**SwiftCart Merchant Dashboard — API Timeout Post-Mortem**
+
+
+    SwiftCart''s seller dashboard took 14 seconds to load for merchants with 500 customers. APM profiling revealed the Ruby
+    on Rails backend was executing 501 separate SQL queries: 1 to load customers, and 500 separate queries to count each customer''s
+    orders.
+
+
+    Rewrite this inefficient loop into a single relational JOIN with GROUP BY aggregation to load all customer analytics in
+    a single round-trip.'
+  trigger_keywords:
+  - prevent n+1 query loops
+  - Users
+  - Orders
+  examples:
+  - input: 'Users: [(1, ''Aarav''), (2, ''Priya''), (3, ''Vikram'')]; Orders: [(10, 1, 500, ''2026-01-01''), (11, 1, 700,
+      ''2026-01-15''), (12, 2, 300, ''2026-02-01'')]'
+    output: '[(1, ''Aarav'', 2, 1200, ''2026-01-15''), (2, ''Priya'', 1, 300, ''2026-02-01''), (3, ''Vikram'', 0, 0, ''NO_ORDERS'')]'
+    explanation: Aarav has 2 orders totaling 1200. Priya has 1 order of 300. Vikram has 0 orders.
+  constraints:
+  - 1 <= len(Users) <= 1000
+  - 0 <= len(Orders) <= 5000
+constraint_quiz:
+  prompt: Why does the N+1 query problem severely degrade web application performance?
+  options:
+  - Because executing N individual queries incurs N separate database round-trip network latencies, connection checkout overhead,
+    and query parsing overhead
+  - Because SQL engines only permit 10 queries per hour
+  - Because N queries delete table indexes
+  - Because Python limits SQL execution to 1 query per second
+  answer: 0
+  explanation: Even if each query takes only 2ms, executing 500 separate queries adds 1,000ms of cumulative network latency
+    and connection pool serialization.
+pattern_quiz:
+  prompt: Why must `LEFT JOIN` be used instead of `INNER JOIN` when eliminating N+1 loops across parent-child tables?
+  options:
+  - To prevent parent records that have zero child records (e.g. users who placed no orders) from being excluded from the
+    result
+  - Because LEFT JOIN runs faster than INNER JOIN
+  - Because SQLite does not support INNER JOIN with GROUP BY
+  - To automatically generate primary keys
+  answer: 0
+  explanation: An INNER JOIN drops any user with 0 orders. A LEFT JOIN preserves all users, allowing COUNT(o.id) to evaluate
+    to 0 for inactive users.
+schema_sql: "CREATE TABLE Users (\n    id INTEGER PRIMARY KEY,\n    name TEXT\n);\n\nCREATE TABLE Orders (\n    id INTEGER\
+  \ PRIMARY KEY,\n    user_id INTEGER,\n    amount INTEGER,\n    order_date TEXT\n);"
+seed_sql: "INSERT INTO Users VALUES\n    (1, 'Aarav'),\n    (2, 'Priya'),\n    (3, 'Vikram');\n\nINSERT INTO Orders VALUES\n\
+  \    (10, 1, 500, '2026-01-01'),\n    (11, 1, 700, '2026-01-15'),\n    (12, 2, 300, '2026-02-01');"
+function:
+  name: execute_sql
+  params: []
+  returns: any
+  compare: exact
+starter_code: "-- Write your SQL query below to aggregate user orders in a single pass\nSELECT\n    u.id AS user_id,\n   \
+  \ u.name,\n    COUNT(o.id) AS total_orders,\n    0 AS total_spent,\n    'NO_ORDERS' AS latest_order_date\nFROM Users u\n\
+  LEFT JOIN Orders o ON u.id = o.user_id\nGROUP BY u.id, u.name\nORDER BY u.id;\n"
+tests:
+- args: []
+  expected:
+  - - 1
+    - Aarav
+    - 2
+    - 1200
+    - '2026-01-15'
+  - - 2
+    - Priya
+    - 1
+    - 300
+    - '2026-02-01'
+  - - 3
+    - Vikram
+    - 0
+    - 0
+    - NO_ORDERS
+  note: Aggregated user statistics with zero-order user preserved
+- args: []
+  expected: null
+  note: Reference verification
+- args: []
+  expected: null
+  note: Consistency check
+visualize_test: 0
+drills:
+- skill: setup
+  title: Left join users and orders
+  goal: Join users with orders preserving orphan users.
+  instructions: Select `u.id, u.name, o.id AS order_id FROM Users u LEFT JOIN Orders o ON u.id = o.user_id ORDER BY u.id;`.
+  function:
+    name: execute_sql
+    params: []
+  starter_code: 'SELECT u.id, u.name, o.id AS order_id FROM Users u LEFT JOIN Orders o ON u.id = o.user_id ORDER BY u.id;
+
+    '
+  tests:
+  - args: []
+    expected:
+    - - 1
+      - Aarav
+      - 10
+    - - 1
+      - Aarav
+      - 11
+    - - 2
+      - Priya
+      - 12
+    - - 3
+      - Vikram
+      - null
+  solution: 'SELECT u.id, u.name, o.id AS order_id FROM Users u LEFT JOIN Orders o ON u.id = o.user_id ORDER BY u.id;
+
+    '
+  hint: Use `LEFT JOIN Orders o ON u.id = o.user_id`.
+- skill: core
+  title: Group by user and count orders
+  goal: Count matching orders per user.
+  instructions: Group by user id and select `COUNT(o.id)`.
+  function:
+    name: execute_sql
+    params: []
+  starter_code: 'SELECT u.id, COUNT(o.id) AS total_orders FROM Users u LEFT JOIN Orders o ON u.id = o.user_id GROUP BY u.id
+    ORDER BY u.id;
+
+    '
+  tests:
+  - args: []
+    expected:
+    - - 1
+      - 2
+    - - 2
+      - 1
+    - - 3
+      - 0
+  solution: 'SELECT u.id, COUNT(o.id) AS total_orders FROM Users u LEFT JOIN Orders o ON u.id = o.user_id GROUP BY u.id ORDER
+    BY u.id;
+
+    '
+  hint: Use `COUNT(o.id)` and `GROUP BY u.id`.
+- skill: edge
+  title: Coalesce null aggregations
+  goal: Handle users with 0 orders with COALESCE.
+  instructions: Use `COALESCE(SUM(o.amount), 0)` and `COALESCE(MAX(o.order_date), 'NO_ORDERS')`.
+  function:
+    name: execute_sql
+    params: []
+  starter_code: 'SELECT u.id, COALESCE(SUM(o.amount), 0) AS spent, COALESCE(MAX(o.order_date), ''NO_ORDERS'') AS latest FROM
+    Users u LEFT JOIN Orders o ON u.id = o.user_id GROUP BY u.id ORDER BY u.id;
+
+    '
+  tests:
+  - args: []
+    expected:
+    - - 1
+      - 1200
+      - '2026-01-15'
+    - - 2
+      - 300
+      - '2026-02-01'
+    - - 3
+      - 0
+      - NO_ORDERS
+  solution: 'SELECT u.id, COALESCE(SUM(o.amount), 0) AS spent, COALESCE(MAX(o.order_date), ''NO_ORDERS'') AS latest FROM Users
+    u LEFT JOIN Orders o ON u.id = o.user_id GROUP BY u.id ORDER BY u.id;
+
+    '
+  hint: Use COALESCE on SUM and MAX.
+hints:
+- Use `LEFT JOIN Orders o ON u.id = o.user_id` so users without orders are not dropped.
+- Group by `u.id, u.name` and use `COUNT(o.id)` (not `COUNT(*)`, which would count 1 for NULL rows).
+- '| # Pseudocode Blueprint
+
+  | SELECT u.id AS user_id, u.name,
+
+  |        COUNT(o.id) AS total_orders,
+
+  |        COALESCE(SUM(o.amount), 0) AS total_spent,
+
+  |        COALESCE(MAX(o.order_date), ''NO_ORDERS'') AS latest_order_date
+
+  | FROM Users u LEFT JOIN Orders o ON u.id = o.user_id
+
+  | GROUP BY u.id, u.name
+
+  | ORDER BY u.id;'
+solution:
+  code: "SELECT\n    u.id AS user_id,\n    u.name,\n    COUNT(o.id) AS total_orders,\n    COALESCE(SUM(o.amount), 0) AS total_spent,\n\
+    \    COALESCE(MAX(o.order_date), 'NO_ORDERS') AS latest_order_date\nFROM Users u\nLEFT JOIN Orders o ON u.id = o.user_id\n\
+    GROUP BY u.id, u.name\nORDER BY u.id;\n"
+  explanation: A single LEFT JOIN links all orders to their parent users. Grouping by user id aggregates order counts, total
+    spending, and latest order dates in a single query pass. Using COALESCE provides default values for users who have placed
+    zero orders, preventing NULL display bugs.
+  time: O(U + O) using hash/merge join and group aggregation
+  space: O(U) for grouping hash table
+pitch_script: '**(Clarify)** "We need to eliminate N+1 query loops by aggregating each user''s total orders, cumulative spending,
+  and latest order date in a single relational query."
+
+
+  **(Brute force)** "Fetching users and then issuing a separate SELECT query in a loop for each user creates hundreds of network
+  roundtrips, causing API timeouts."
+
+
+  **(Trigger)** "Aggregating child metrics per parent entity in a single query signals a LEFT JOIN with GROUP BY."
+
+
+  **(Optimal)** "We execute `FROM Users u LEFT JOIN Orders o ON u.id = o.user_id`. We group by user id and name. We compute
+  `COUNT(o.id)` so users with no orders show 0, and wrap `SUM` and `MAX` in `COALESCE` to default to 0 and ''NO_ORDERS'' respectively."
+
+
+  **(Complexity)** "Executes in O(U + O) time and O(U) space." '
+twist:
+  lc: 9305
+  title: 3NF Database Decomposition & Lossless Join Verification
+  why: Once queries are consolidated, normalizing underlying relational tables into 3NF prevents data update anomalies.
+viz:
+  title: N+1 Elimination Relational Pipeline
+  type: sql_pipeline

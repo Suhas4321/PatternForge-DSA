@@ -1,0 +1,258 @@
+slug: dependency-injection-resolver
+lc: 9512
+citadel_id: backend_apis
+brick_layer: 2
+runner_type: python_practical
+concept:
+  problem_it_solves: How does FastAPI instantiate complex request contexts without instantiating duplicate database sessions
+    or re-verifying auth tokens multiple times in a single request? FastAPI's `Depends()` framework models dependencies as
+    a Directed Acyclic Graph (DAG). It resolves sub-dependencies in topological post-order and caches resolved instances within
+    the request scope.
+  brute_force: Instantiating database connections inside every helper function, exhausting connection pools.
+  brute_force_complexity: O(N) connection allocations per API request.
+  key_insight: Topological post-order depth-first traversal resolves child dependencies first, while a request-scoped cache
+    returns existing instances on duplicate references.
+  real_world: FastAPI `Depends(get_db)` session scoping, NestJS dependency injection, and Spring Boot request-scoped beans.
+statement:
+  clean: "Implement a dependency injection graph resolver modeling FastAPI's `Depends()` mechanism:\n`resolve_dependencies(endpoint:\
+    \ str, dependency_graph: dict[str, list[str]], providers: dict[str, str]) -> dict`.\n\nInputs:\n- `endpoint`: name of\
+    \ the root endpoint function to resolve.\n- `dependency_graph`: dictionary mapping each function name to its list of direct\
+    \ dependencies (e.g. `{\"checkout\": [\"get_auth\", \"get_db\"]}`).\n- `providers`: dictionary mapping dependency function\
+    \ names to their mock returned value (e.g. `{\"get_db\": \"session_pgsql_1\"}`).\n\nRules:\n1. Post-order DFS Resolution:\n\
+    \   - For any node, resolve all of its dependencies first before appending the node itself to `resolution_order`.\n2.\
+    \ Request-Scope Caching:\n   - Maintain `resolved_values = {}` mapping node name to its resolved provider value.\n   -\
+    \ If a dependency node is already in `resolved_values`, do NOT re-resolve it or re-visit its sub-dependencies. Increment\
+    \ `cached_hits` by 1 and return.\n   - If a node is not in `providers`, fallback to `f\"mock_{node}\"`.\n\nReturn a dictionary\
+    \ containing:\n- `\"resolution_order\"`: `list[str]` (exact order nodes were resolved)\n- `\"resolved_values\"`: `dict[str,\
+    \ str]` (mapping of node to provider value)\n- `\"cached_hits\"`: `int` (number of times a cached dependency was reused)"
+  oa_story: '**KiranaKart Checkout Pipeline — Duplicate DB Session Leak**
+
+
+    KiranaKart''s checkout endpoint called `get_current_user`, `get_wallet_balance`, and `validate_cart`. Each function independently
+    called `get_db()`, creating 3 separate PostgreSQL database connections per user checkout. Under flash-sale concurrency,
+    PgBouncer ran out of server connections.
+
+
+    Implement this dependency graph resolver to prove how FastAPI''s request-scoped dependency cache reuses single instances
+    across shared dependency sub-trees.'
+  trigger_keywords:
+  - dependency injection graph resolver
+  - resolve_dependencies
+  - cached_hits
+  examples:
+  - input: 'endpoint = "checkout_endpoint", dependency_graph = {"checkout_endpoint": ["get_auth", "get_db"], "get_auth": ["get_db"],
+      "get_db": []}, providers = {"get_db": "session_pgsql_1", "get_auth": "user_id_42"}'
+    output: '{"resolution_order": ["get_db", "get_auth", "checkout_endpoint"], "resolved_values": {"get_db": "session_pgsql_1",
+      "get_auth": "user_id_42", "checkout_endpoint": "mock_checkout_endpoint"}, "cached_hits": 1}'
+    explanation: '`get_db` is resolved once for `get_auth`. When `checkout_endpoint` requests `get_db`, it reuses the cached
+      value (1 cache hit).'
+  constraints:
+  - 1 <= len(dependency_graph) <= 100
+  - Graph is a guaranteed Directed Acyclic Graph (DAG)
+constraint_quiz:
+  prompt: Why must dependencies be resolved in topological post-order rather than pre-order?
+  options:
+  - Because a parent function cannot execute until all of its argument dependencies are already instantiated
+  - Because pre-order requires multi-threading
+  - Because post-order reduces memory allocation by 50%
+  - Because HTTP headers arrive after the request body
+  answer: 0
+  explanation: If function `A` depends on `B` and `C`, `B` and `C` must be fully instantiated and evaluated so their return
+    values can be passed into `A`.
+pattern_quiz:
+  prompt: What design pattern does FastAPI's Depends() implement?
+  options:
+  - Inversion of Control (IoC) / Dependency Injection
+  - Abstract Factory without parameters
+  - Observer Pattern with publish-subscribe
+  - Decorator Pattern for route registering
+  answer: 0
+  explanation: 'Dependency Injection inverts control: rather than functions instantiating their own resources, the framework
+    injects them from an external configuration.'
+function:
+  name: resolve_dependencies
+  params:
+  - name: endpoint
+  - name: dependency_graph
+  - name: providers
+  returns: any
+  compare: exact
+starter_code: "class Solution:\n    def resolve_dependencies(self, endpoint: str, dependency_graph: dict[str, list[str]],\
+  \ providers: dict[str, str]) -> dict:\n        pass\n"
+tests:
+- args:
+  - checkout_endpoint
+  - checkout_endpoint:
+    - get_auth
+    - get_db
+    get_auth:
+    - get_db
+    get_db: []
+  - get_db: session_pgsql_1
+    get_auth: user_id_42
+  expected:
+    resolution_order:
+    - get_db
+    - get_auth
+    - checkout_endpoint
+    resolved_values:
+      get_db: session_pgsql_1
+      get_auth: user_id_42
+      checkout_endpoint: mock_checkout_endpoint
+    cached_hits: 1
+  note: Diamond dependency sharing DB session
+- args:
+  - root
+  - root:
+    - a
+    - b
+    a: []
+    b: []
+  - a: val_a
+    b: val_b
+  expected:
+    resolution_order:
+    - a
+    - b
+    - root
+    resolved_values:
+      a: val_a
+      b: val_b
+      root: mock_root
+    cached_hits: 0
+  note: Independent sub-dependencies with zero hits
+- args:
+  - leaf
+  - leaf: []
+  - leaf: leaf_val
+  expected:
+    resolution_order:
+    - leaf
+    resolved_values:
+      leaf: leaf_val
+    cached_hits: 0
+  note: Single leaf endpoint
+visualize_test: 0
+drills:
+- skill: setup
+  title: Check resolved cache
+  goal: Verify if dependency is already cached.
+  instructions: Return `True` if `node in cache`, else `False`.
+  function:
+    name: drill_is_cached
+    params:
+    - name: cache
+    - name: node
+  starter_code: "class Solution:\n    def drill_is_cached(self, cache: dict, node: str) -> bool:\n        pass\n"
+  tests:
+  - args:
+    - get_db: db1
+    - get_db
+    expected: true
+  - args:
+    - {}
+    - get_auth
+    expected: false
+  solution: "class Solution:\n    def drill_is_cached(self, cache: dict, node: str) -> bool:\n        return node in cache\n"
+  hint: Return `node in cache`.
+- skill: core
+  title: Post-order recursive visit
+  goal: Visit children before adding parent to order.
+  instructions: Append all dependencies to order before appending parent.
+  function:
+    name: drill_post_order
+    params:
+    - name: node
+    - name: graph
+  starter_code: "class Solution:\n    def drill_post_order(self, node: str, graph: dict) -> list[str]:\n        pass\n"
+  tests:
+  - args:
+    - a
+    - a:
+      - b
+      b: []
+    expected:
+    - b
+    - a
+  solution: "class Solution:\n    def drill_post_order(self, node: str, graph: dict) -> list[str]:\n        order = []\n \
+    \       for dep in graph.get(node, []):\n            order.append(dep)\n        order.append(node)\n        return order\n"
+  hint: Iterate dependencies, append them, then append node.
+- skill: edge
+  title: Get provider fallback
+  goal: Return provider value or default mock string.
+  instructions: Return `providers.get(node, f'mock_{node}')`.
+  function:
+    name: drill_provider_val
+    params:
+    - name: providers
+    - name: node
+  starter_code: "class Solution:\n    def drill_provider_val(self, providers: dict, node: str) -> str:\n        pass\n"
+  tests:
+  - args:
+    - a: real_a
+    - a
+    expected: real_a
+  - args:
+    - {}
+    - b
+    expected: mock_b
+  solution: "class Solution:\n    def drill_provider_val(self, providers: dict, node: str) -> str:\n        return providers.get(node,\
+    \ f\"mock_{node}\")\n"
+  hint: Use providers.get with mock fallback.
+hints:
+- Use a recursive DFS helper function `resolve(node)`.
+- 'If `node in resolved_values`: increment `cached_hits` and return immediately.'
+- '| # Pseudocode Blueprint
+
+  | def resolve(node):
+
+  |     if node in resolved: cached_hits += 1; return
+
+  |     for dep in graph.get(node, []): resolve(dep)
+
+  |     order.append(node)
+
+  |     resolved[node] = providers.get(node, f"mock_{node}")
+
+  | resolve(endpoint)
+
+  | return order, resolved, cached_hits'
+solution:
+  code: "class Solution:\n    def resolve_dependencies(self, endpoint: str, dependency_graph: dict[str, list[str]], providers:\
+    \ dict[str, str]) -> dict:\n        resolution_order: list[str] = []\n        resolved_values: dict[str, str] = {}\n \
+    \       cached_hits = 0\n\n        def resolve(node: str):\n            nonlocal cached_hits\n            if node in resolved_values:\n\
+    \                cached_hits += 1\n                return\n            for dep in dependency_graph.get(node, []):\n  \
+    \              resolve(dep)\n            resolution_order.append(node)\n            resolved_values[node] = providers.get(node,\
+    \ f\"mock_{node}\")\n\n        resolve(endpoint)\n        return {\n            \"resolution_order\": resolution_order,\n\
+    \            \"resolved_values\": resolved_values,\n            \"cached_hits\": cached_hits,\n        }\n"
+  explanation: A recursive post-order traversal traverses child dependencies first, ensuring dependencies are fully resolved
+    before their dependents execute. Caching resolved values in `resolved_values` ensures shared dependencies like database
+    connections are instantiated exactly once per request.
+  time: O(V + E) where V is dependency nodes and E is dependency edges
+  space: O(V) for the resolved values cache and recursion stack
+pitch_script: '**(Clarify)** "We need to resolve a dependency DAG for a FastAPI endpoint, ordering resolutions in topological
+  post-order and caching shared dependencies."
+
+
+  **(Brute force)** "Instantiating dependencies eagerly without a cache creates duplicate database connections and repeats
+  authentication computations."
+
+
+  **(Trigger)** "Resolving a hierarchy of dependent components with sub-tree sharing triggers topological post-order traversal
+  with memoization."
+
+
+  **(Optimal)** "We define a recursive resolver. If a node is already in the resolution cache, we increment cached hits and
+  return immediately. Otherwise, we recursively resolve each dependency before appending the current node to the resolution
+  order and caching its value."
+
+
+  **(Complexity)** "Executes in O(V + E) time and O(V) space." '
+twist:
+  lc: 9513
+  title: Sync vs Async Def Event Loop Starvation Simulation
+  why: Once dependencies are injected, route handler throughput depends heavily on whether `def` or `async def` is chosen
+    when executing blocking operations.
+viz:
+  title: Dependency Injection DAG Resolution
+  type: http_lifecycle

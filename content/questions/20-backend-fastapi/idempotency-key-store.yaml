@@ -1,0 +1,299 @@
+slug: idempotency-key-store
+lc: 9505
+citadel_id: backend_apis
+brick_layer: 1
+runner_type: python_practical
+concept:
+  problem_it_solves: When a network drop occurs right after a customer clicks 'Pay Rs 5,000', the client retries the request.
+    How does a payment gateway ensure the customer is charged exactly once? In HTTP RFC 9110, GET, PUT, and DELETE are idempotent
+    by definition. Non-idempotent methods (POST, PATCH) use an `Idempotency-Key` header. If a key is presented again with
+    the exact same payload, the server returns the cached response with HTTP 200 without re-executing the charge.
+  brute_force: Processing every incoming POST request unconditionally, causing duplicate financial debits and double-ordered
+    inventory.
+  brute_force_complexity: Critical data corruption and revenue loss.
+  key_insight: Map idempotency keys to their original request payload and response. Identical retries return cached responses,
+    payload mismatches trigger 422 conflicts, and first-time keys execute and return 201 Created.
+  real_world: Stripe `Idempotency-Key` header, Razorpay order deduplication, and AWS API Gateway request caching.
+statement:
+  clean: "Implement an HTTP request handler with an idempotency key store:\n`handle_idempotent_request(method: str, idempotency_key:\
+    \ str | None, payload: dict, store: dict) -> dict`.\n\nInputs:\n- `method`: HTTP method string (e.g. `\"GET\"`, `\"POST\"\
+    `, `\"PUT\"`).\n- `idempotency_key`: optional string header value, or `None`.\n- `payload`: client request payload dictionary.\n\
+    - `store`: in-memory storage dictionary tracking processed keys.\n\nProtocol Rules:\n1. Idempotent Methods (`GET`, `HEAD`,\
+    \ `PUT`, `DELETE`):\n   - Inherently idempotent: return `{\"status_code\": 200, \"cached\": False, \"idempotent\": True,\
+    \ \"response\": {\"action\": f\"{method}_success\"}}`.\n2. Non-Idempotent Methods (`POST`, `PATCH`):\n   - Missing Header:\
+    \ if `not idempotency_key`, return `{\"status_code\": 400, \"cached\": False, \"idempotent\": False, \"error\": \"Missing\
+    \ Idempotency-Key header\"}`.\n   - Key Exists in Store:\n     - If `store[key][\"payload\"] == payload`: return `{\"\
+    status_code\": 200, \"cached\": True, \"idempotent\": True, \"response\": store[key][\"response\"]}`.\n     - If `store[key][\"\
+    payload\"] != payload`: return `{\"status_code\": 422, \"cached\": False, \"idempotent\": False, \"error\": \"Idempotency\
+    \ key payload mismatch conflict\"}`.\n   - New Key:\n     - Generate response: `{\"order_id\": f\"ORD_{idempotency_key[:6]}\"\
+    , \"status\": \"CONFIRMED\"}`.\n     - Save to store: `store[idempotency_key] = {\"payload\": payload, \"response\": response}`.\n\
+    \     - Return `{\"status_code\": 201, \"cached\": False, \"idempotent\": True, \"response\": response}`.\n3. Unsupported\
+    \ Methods: return `{\"status_code\": 405, \"cached\": False, \"idempotent\": False, \"error\": \"Method Not Allowed\"\
+    }`."
+  oa_story: '**PayLoop Merchant Checkout — Double Charge Disaster**
+
+
+    During a mobile app network glitch, a PayLoop customer''s UPI payment timed out. The user tapped ''Retry'' 3 times in
+    4 seconds. The backend processed 3 separate debit transactions of Rs 2,500 each, triggering customer complaints and regulatory
+    fines.
+
+
+    The engineering lead mandated idempotency keys on all payment endpoints. Implement this idempotency store to prevent duplicate
+    transactions on network retries.'
+  trigger_keywords:
+  - idempotency key store
+  - handle_idempotent_request
+  - idempotency_key
+  examples:
+  - input: 'method = "POST", idempotency_key = "key_abc_123", payload = {"amount": 500}, store = {}'
+    output: '{"status_code": 201, "cached": False, "idempotent": True, "response": {"order_id": "ORD_key_ab", "status": "CONFIRMED"}}'
+    explanation: First request creates the order and caches the response under the key.
+  - input: 'method = "POST", idempotency_key = "key_abc_123", payload = {"amount": 500}, store = {"key_abc_123": {"payload":
+      {"amount": 500}, "response": {"order_id": "ORD_key_ab", "status": "CONFIRMED"}}}'
+    output: '{"status_code": 200, "cached": True, "idempotent": True, "response": {"order_id": "ORD_key_ab", "status": "CONFIRMED"}}'
+    explanation: Repeated request with identical payload returns cached response with HTTP 200.
+  constraints:
+  - method is a valid HTTP verb
+  - store is a mutable dictionary
+constraint_quiz:
+  prompt: According to RFC 9110, which HTTP methods are idempotent by specification?
+  options:
+  - GET, HEAD, PUT, DELETE
+  - POST, PATCH, CONNECT
+  - Only GET
+  - All HTTP methods are idempotent
+  answer: 0
+  explanation: RFC 9110 defines GET, HEAD, PUT, and DELETE as idempotent, meaning making multiple identical requests has the
+    same intended effect as making one single request.
+pattern_quiz:
+  prompt: What should an API return if a client sends an existing Idempotency-Key with a different payload body?
+  options:
+  - HTTP 422 Unprocessable Entity or HTTP 409 Conflict indicating a payload mismatch for that key
+  - HTTP 200 with the original payload
+  - HTTP 500 Internal Server Error
+  - HTTP 301 Moved Permanently
+  answer: 0
+  explanation: Reusing an idempotency key with conflicting payload parameters represents a client bug or race condition and
+    must be rejected with 422 or 409.
+function:
+  name: handle_idempotent_request
+  params:
+  - name: method
+  - name: idempotency_key
+  - name: payload
+  - name: store
+  returns: any
+  compare: exact
+starter_code: "class Solution:\n    def handle_idempotent_request(self, method: str, idempotency_key: str | None, payload:\
+  \ dict, store: dict) -> dict:\n        pass\n"
+tests:
+- args:
+  - POST
+  - key_abc_123
+  - amount: 500
+  - {}
+  expected:
+    status_code: 201
+    cached: false
+    idempotent: true
+    response:
+      order_id: ORD_key_ab
+      status: CONFIRMED
+  note: New transaction created
+- args:
+  - POST
+  - key_abc_123
+  - amount: 500
+  - key_abc_123:
+      payload:
+        amount: 500
+      response:
+        order_id: ORD_key_ab
+        status: CONFIRMED
+  expected:
+    status_code: 200
+    cached: true
+    idempotent: true
+    response:
+      order_id: ORD_key_ab
+      status: CONFIRMED
+  note: Cached response replay
+- args:
+  - POST
+  - key_abc_123
+  - amount: 999
+  - key_abc_123:
+      payload:
+        amount: 500
+      response:
+        order_id: ORD_key_ab
+        status: CONFIRMED
+  expected:
+    status_code: 422
+    cached: false
+    idempotent: false
+    error: Idempotency key payload mismatch conflict
+  note: Payload mismatch conflict
+- args:
+  - POST
+  - null
+  - amount: 100
+  - {}
+  expected:
+    status_code: 400
+    cached: false
+    idempotent: false
+    error: Missing Idempotency-Key header
+  note: Missing key header
+- args:
+  - GET
+  - null
+  - {}
+  - {}
+  expected:
+    status_code: 200
+    cached: false
+    idempotent: true
+    response:
+      action: GET_success
+  note: Inherent idempotent method
+visualize_test: 0
+drills:
+- skill: setup
+  title: Check method idempotency
+  goal: Verify if an HTTP method is inherently idempotent.
+  instructions: Return `True` if method is in GET, HEAD, PUT, DELETE.
+  function:
+    name: drill_is_idempotent_verb
+    params:
+    - name: method
+  starter_code: "class Solution:\n    def drill_is_idempotent_verb(self, method: str) -> bool:\n        pass\n"
+  tests:
+  - args:
+    - GET
+    expected: true
+  - args:
+    - POST
+    expected: false
+  solution: "class Solution:\n    def drill_is_idempotent_verb(self, method: str) -> bool:\n        return method.upper()\
+    \ in [\"GET\", \"HEAD\", \"PUT\", \"DELETE\"]\n"
+  hint: Check `method.upper() in ['GET', 'HEAD', 'PUT', 'DELETE']`.
+- skill: core
+  title: Detect payload conflict
+  goal: Compare incoming payload with stored payload.
+  instructions: Return `True` if stored != incoming, else `False`.
+  function:
+    name: drill_is_mismatch
+    params:
+    - name: stored
+    - name: incoming
+  starter_code: "class Solution:\n    def drill_is_mismatch(self, stored: dict, incoming: dict) -> bool:\n        pass\n"
+  tests:
+  - args:
+    - a: 1
+    - a: 2
+    expected: true
+  - args:
+    - a: 1
+    - a: 1
+    expected: false
+  solution: "class Solution:\n    def drill_is_mismatch(self, stored: dict, incoming: dict) -> bool:\n        return stored\
+    \ != incoming\n"
+  hint: Return stored != incoming.
+- skill: edge
+  title: Cache new order response
+  goal: Write payload and response to key store.
+  instructions: 'Set `store[key] = {''payload'': payload, ''response'': resp}` and return `store`.'
+  function:
+    name: drill_save_key
+    params:
+    - name: store
+    - name: key
+    - name: payload
+    - name: resp
+  starter_code: "class Solution:\n    def drill_save_key(self, store: dict, key: str, payload: dict, resp: dict) -> dict:\n\
+    \        pass\n"
+  tests:
+  - args:
+    - {}
+    - k1
+    - x: 1
+    - ok: true
+    expected:
+      k1:
+        payload:
+          x: 1
+        response:
+          ok: true
+  solution: "class Solution:\n    def drill_save_key(self, store: dict, key: str, payload: dict, resp: dict) -> dict:\n  \
+    \      store[key] = {\"payload\": payload, \"response\": resp}\n        return store\n"
+  hint: Assign to store[key].
+hints:
+- Check inherently idempotent methods (`GET`, `PUT`, `DELETE`) first.
+- For `POST`/`PATCH`, check for `None` key, then lookup in `store` to compare payloads.
+- '| # Pseudocode Blueprint
+
+  | if method in [GET, HEAD, PUT, DELETE]: return 200, idempotent = True
+
+  | if not key: return 400 missing header
+
+  | if key in store:
+
+  |     if store[key].payload == payload: return 200, cached = True
+
+  |     else: return 422 conflict
+
+  | resp = {"order_id": ...}
+
+  | store[key] = {payload, resp}
+
+  | return 201, cached = False'
+solution:
+  code: "class Solution:\n    def handle_idempotent_request(self, method: str, idempotency_key: str | None, payload: dict,\
+    \ store: dict) -> dict:\n        method = method.upper()\n        if method in [\"GET\", \"HEAD\", \"PUT\", \"DELETE\"\
+    ]:\n            return {\n                \"status_code\": 200,\n                \"cached\": False,\n                \"\
+    idempotent\": True,\n                \"response\": {\"action\": f\"{method}_success\"},\n            }\n\n        if method\
+    \ in [\"POST\", \"PATCH\"]:\n            if not idempotency_key:\n                return {\n                    \"status_code\"\
+    : 400,\n                    \"cached\": False,\n                    \"idempotent\": False,\n                    \"error\"\
+    : \"Missing Idempotency-Key header\",\n                }\n\n            if idempotency_key in store:\n               \
+    \ entry = store[idempotency_key]\n                if entry[\"payload\"] == payload:\n                    return {\n  \
+    \                      \"status_code\": 200,\n                        \"cached\": True,\n                        \"idempotent\"\
+    : True,\n                        \"response\": entry[\"response\"],\n                    }\n                else:\n  \
+    \                  return {\n                        \"status_code\": 422,\n                        \"cached\": False,\n\
+    \                        \"idempotent\": False,\n                        \"error\": \"Idempotency key payload mismatch\
+    \ conflict\",\n                    }\n\n            created_response = {\"order_id\": f\"ORD_{idempotency_key[:6]}\",\
+    \ \"status\": \"CONFIRMED\"}\n            store[idempotency_key] = {\"payload\": payload, \"response\": created_response}\n\
+    \            return {\n                \"status_code\": 201,\n                \"cached\": False,\n                \"idempotent\"\
+    : True,\n                \"response\": created_response,\n            }\n\n        return {\"status_code\": 405, \"cached\"\
+    : False, \"idempotent\": False, \"error\": \"Method Not Allowed\"}\n"
+  explanation: 'Idempotent HTTP methods return immediately without side effects. For mutating requests, checking the idempotency
+    key in an atomic store enables safe deduplication: identical requests return the cached HTTP 200 response, conflicting
+    payloads are rejected with HTTP 422, and first-time requests commit with HTTP 201.'
+  time: O(1) dictionary key lookup and payload comparison
+  space: O(K) where K is the number of stored idempotency keys
+pitch_script: '**(Clarify)** "We need to design an idempotency store that safely executes non-idempotent HTTP methods (POST,
+  PATCH) while replaying cached responses on identical retries."
+
+
+  **(Brute force)** "Executing every request directly causes double charges and duplicate resource creation when network retries
+  occur."
+
+
+  **(Trigger)** "Distinguishing HTTP method idempotency and matching Idempotency-Key headers signals an idempotent request
+  router."
+
+
+  **(Optimal)** "GET, PUT, and DELETE return immediately as inherently idempotent. For POST and PATCH, we require an Idempotency-Key
+  header. If the key exists with an identical payload, we return the cached response with 200 OK. If the payload differs,
+  we reject with 422 Unprocessable Entity. A new key records the transaction and returns 201 Created."
+
+
+  **(Complexity)** "Executes in O(1) time and O(K) storage space." '
+twist:
+  lc: 9506
+  title: CORS Preflight OPTIONS Decision Engine
+  why: Before a browser sends cross-origin requests with custom headers like Idempotency-Key, it issues an HTTP OPTIONS preflight
+    check.
+viz:
+  title: Idempotency Key Deduplication Lifecycle
+  type: http_lifecycle

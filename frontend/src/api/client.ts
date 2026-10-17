@@ -1,4 +1,4 @@
-import type { ActivityEvent, CheatSheet, CoachReply, CoachStatus, Pitch, Progress, QuestionDetail, ReviewQueue, RunResult, World } from './types'
+import type { ActivityEvent, CheatSheet, CoachReply, CoachStatus, Pitch, Progress, QuestionDetail, ReviewQueue, RunResult, StatsResponse, World } from './types'
 
 export class ApiError extends Error {
   status: number
@@ -60,4 +60,5 @@ export const api = {
   askCoach: (slug: string, body: { mode: 'hint' | 'pitch'; code: string; pitch?: Pitch }) =>
     request<CoachReply>(`/api/questions/${slug}/ask-coach`, { method: 'POST', body: json(body) }),
   backupRestore: () => request<{ restored: Record<string, number> }>('/api/backup/restore', { method: 'POST' }),
+  stats: () => request<StatsResponse>('/api/stats'),
 }

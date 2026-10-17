@@ -1,0 +1,276 @@
+slug: http-status-code-diagnostics
+lc: 9501
+citadel_id: backend_apis
+brick_layer: 1
+runner_type: python_practical
+
+concept:
+  problem_it_solves: >-
+    "When an API call fails in production, how do clients know whether to retry immediately, retry with backoff, or abort?"
+    Standardizing error responses using RFC 9110 status codes allows client SDKs and upstream API gateways (Envoy, Kong)
+    to automatically distinguish transient network/rate-limiting faults (429, 502, 504) from permanent client bugs (400, 401, 403, 422).
+  brute_force: >-
+    Catching all Python exceptions in a top-level `except Exception:` block and returning `HTTP 500 Internal Server Error`
+    with a generic JSON payload. This blinds downstream microservices and breaks automated retry pipelines.
+  brute_force_complexity: O(1) error classification that destroys system observability.
+  key_insight: >-
+    HTTP status codes fall into deterministic semantic tiers:
+    - 401 Unauthorized: Client did not provide valid authentication credentials (e.g., missing or expired JWT Bearer token).
+    - 403 Forbidden: Client is authenticated, but lacks the RBAC permission scope for the requested resource.
+    - 422 Unprocessable Entity: Request format is valid JSON, but payload violates Pydantic schema constraints.
+    - 429 Too Many Requests: Rate limit exceeded (transient, retryable with exponential backoff).
+    - 502 Bad Gateway: Upstream dependency crashed or dropped socket connection.
+    - 504 Gateway Timeout: Upstream worker exceeded reverse-proxy timeout window.
+  real_world: >-
+    FastAPI global exception handlers, AWS API Gateway response mapping, and Drizz automated test runner retry engines.
+
+statement:
+  clean: |
+    Implement an HTTP status diagnostics classifier for API failures:
+    `def classify_http_error(self, scenario: dict) -> dict`.
+    
+    Given a `scenario` dictionary describing an API failure scenario:
+    1. If `scenario.get("rate_limit_exceeded")` is True:
+       return `{"status_code": 429, "reason": "Too Many Requests", "retryable": True}`
+    2. If `scenario.get("upstream_timeout")` is True:
+       return `{"status_code": 504, "reason": "Gateway Timeout", "retryable": True}`
+    3. If `scenario.get("downstream_offline")` is True:
+       return `{"status_code": 502, "reason": "Bad Gateway", "retryable": True}`
+    4. If `scenario.get("validation_errors")`:
+       return `{"status_code": 422, "reason": "Unprocessable Entity", "retryable": False}`
+    5. If `scenario.get("error_type") == "auth"`:
+       - If not `scenario.get("authenticated", False)`:
+         return `{"status_code": 401, "reason": "Unauthorized", "retryable": False}`
+       - If `scenario.get("authenticated", False)` and not `scenario.get("has_role", False)`:
+         return `{"status_code": 403, "reason": "Forbidden", "retryable": False}`
+    6. If `scenario.get("error_type") == "conflict"`:
+       return `{"status_code": 409, "reason": "Conflict", "retryable": False}`
+    7. If `scenario.get("error_type") == "not_found"`:
+       return `{"status_code": 404, "reason": "Not Found", "retryable": False}`
+    8. Otherwise (unhandled runtime crash):
+       return `{"status_code": 500, "reason": "Internal Server Error", "retryable": False}`
+  oa_story: |
+    **Drizz Egress Gateway Diagnostics — Automated Test Runner**
+    
+    During automated mobile app test execution, microservice calls intermittently failed.
+    Without proper status classification, our test harness failed builds on transient 504 gateway timeouts
+    while endlessly retrying 401 unauthorized errors.
+    
+    Implement this diagnostic classifier to establish clear retry vs. abort semantics across all backend services.
+  trigger_keywords: ["http status diagnostics", "classify_http_error", "scenario"]
+  examples:
+    - input: 'scenario = {"rate_limit_exceeded": True}'
+      output: '{"status_code": 429, "reason": "Too Many Requests", "retryable": True}'
+      explanation: "Rate limits are transient: client can retry after backoff."
+    - input: 'scenario = {"error_type": "auth", "authenticated": True, "has_role": False}'
+      output: '{"status_code": 403, "reason": "Forbidden", "retryable": False}'
+      explanation: "Caller has valid token but lacks role permissions (Forbidden)."
+    - input: 'scenario = {"validation_errors": ["missing email field"]}'
+      output: '{"status_code": 422, "reason": "Unprocessable Entity", "retryable": False}'
+      explanation: "Pydantic validation failure returns HTTP 422."
+  constraints:
+    - "scenario is a valid dictionary"
+    - "Keys in scenario may be missing or None"
+
+constraint_quiz:
+  prompt: "What is the key technical difference between HTTP 401 and HTTP 403?"
+  options:
+    - "401 means unauthenticated (who are you?), while 403 means unauthorized/forbidden (I know who you are, but you do not have permission)"
+    - "401 is for GET requests, 403 is for POST requests"
+    - "401 is returned by the client, 403 is returned by the server"
+    - "401 is retryable, 403 is never retryable"
+  answer: 0
+  explanation: "401 Unauthorized indicates missing or invalid credentials (authentication failure). 403 Forbidden indicates the caller is recognized, but lacks sufficient permissions (authorization failure)."
+
+pattern_quiz:
+  prompt: "Why should upstream reverse proxy timeouts return 504 Gateway Timeout instead of 500 Internal Server Error?"
+  options:
+    - "Because 504 informs client SDKs that the failure is upstream and transient, making safe exponential-backoff retries possible"
+    - "Because 504 compresses HTTP response headers better than 500"
+    - "Because HTTP 500 is deprecated in HTTP/2"
+    - "Because 504 automatically restarts the backend container"
+  answer: 0
+  explanation: "504 indicates an upstream worker deadline exceeded. Automated client SDKs safely retry idempotent 504 requests, whereas a generic 500 may indicate a permanent database mutation bug."
+
+function:
+  name: classify_http_error
+  params:
+    - name: scenario
+      type: any
+  returns: any
+
+starter_code: |
+  class Solution:
+      def classify_http_error(self, scenario: dict) -> dict:
+          pass
+
+tests:
+  - args: [{"rate_limit_exceeded": true}]
+    expected:
+      status_code: 429
+      reason: "Too Many Requests"
+      retryable: true
+    note: "Transient rate limit returns 429"
+
+  - args: [{"upstream_timeout": true}]
+    expected:
+      status_code: 504
+      reason: "Gateway Timeout"
+      retryable: true
+    note: "Timeout returns 504"
+
+  - args: [{"error_type": "auth", "authenticated": true, "has_role": false}]
+    expected:
+      status_code: 403
+      reason: "Forbidden"
+      retryable: false
+    note: "Role forbidden returns 403"
+
+  - args: [{"error_type": "auth", "authenticated": false}]
+    expected:
+      status_code: 401
+      reason: "Unauthorized"
+      retryable: false
+    note: "Unauthenticated returns 401"
+
+  - args: [{"validation_errors": ["field missing"]}]
+    expected:
+      status_code: 422
+      reason: "Unprocessable Entity"
+      retryable: false
+    note: "Pydantic validation returns 422"
+
+  - args: [{}]
+    expected:
+      status_code: 500
+      reason: "Internal Server Error"
+      retryable: false
+    note: "Unknown crash defaults to 500"
+
+visualize_test: 0
+
+drills:
+  - title: Detect retryable status
+    skill: setup
+    goal: Check if an HTTP code is retryable.
+    instructions: |
+      Return `code in (429, 502, 503, 504)`.
+    function:
+      name: is_retryable_code
+      params: [{name: code}]
+    starter_code: |
+      class Solution:
+          def is_retryable_code(self, code: int) -> bool:
+              pass
+    tests:
+      - {args: [429], expected: true}
+      - {args: [404], expected: false}
+    solution: |
+      class Solution:
+          def is_retryable_code(self, code: int) -> bool:
+              return code in (429, 502, 503, 504)
+    hint: "Use `return code in (429, 502, 503, 504)`."
+
+  - title: Auth vs Forbidden distinction
+    skill: core
+    goal: Return 401 if not authed, else 403 if no role.
+    instructions: |
+      Implement `auth_code(authed: bool, has_role: bool) -> int`.
+    function:
+      name: auth_code
+      params: [{name: authed}, {name: has_role}]
+    starter_code: |
+      class Solution:
+          def auth_code(self, authed: bool, has_role: bool) -> int:
+              pass
+    tests:
+      - {args: [false, false], expected: 401}
+      - {args: [true, false], expected: 403}
+    solution: |
+      class Solution:
+          def auth_code(self, authed: bool, has_role: bool) -> int:
+              return 401 if not authed else (403 if not has_role else 200)
+    hint: "If not authed return 401, else if not has_role return 403."
+
+  - title: Safe dictionary lookup
+    skill: edge
+    goal: Safely get boolean key with default False.
+    instructions: |
+      Return `bool(d.get(k, False))`.
+    function:
+      name: safe_bool
+      params: [{name: d}, {name: k}]
+    starter_code: |
+      class Solution:
+          def safe_bool(self, d: dict, k: str) -> bool:
+              pass
+    tests:
+      - {args: [{"ok": true}, "ok"], expected: true}
+      - {args: [{}, "missing"], expected: false}
+    solution: |
+      class Solution:
+          def safe_bool(self, d: dict, k: str) -> bool:
+              return bool(d.get(k, False))
+    hint: "Return bool(d.get(k, False))."
+
+hints:
+  - "Check transient network and rate limit flags first: `rate_limit_exceeded` (429), `upstream_timeout` (504), and `downstream_offline` (502) all set `retryable: True`."
+  - "Check client payload errors: `validation_errors` returns 422, `conflict` returns 409, `not_found` returns 404, all with `retryable: False`."
+  - "For auth errors, check `authenticated`: if False return 401 Unauthorized; if True but `has_role` is False return 403 Forbidden. Default to 500."
+
+solution:
+  code: |
+    class Solution:
+        def classify_http_error(self, scenario: dict) -> dict:
+            if scenario.get("rate_limit_exceeded"):
+                return {"status_code": 429, "reason": "Too Many Requests", "retryable": True}
+
+            if scenario.get("upstream_timeout"):
+                return {"status_code": 504, "reason": "Gateway Timeout", "retryable": True}
+
+            if scenario.get("downstream_offline"):
+                return {"status_code": 502, "reason": "Bad Gateway", "retryable": True}
+
+            if scenario.get("validation_errors"):
+                return {"status_code": 422, "reason": "Unprocessable Entity", "retryable": False}
+
+            err_type = scenario.get("error_type")
+            if err_type == "auth":
+                if not scenario.get("authenticated", False):
+                    return {"status_code": 401, "reason": "Unauthorized", "retryable": False}
+                if not scenario.get("has_role", False):
+                    return {"status_code": 403, "reason": "Forbidden", "retryable": False}
+
+            if err_type == "conflict":
+                return {"status_code": 409, "reason": "Conflict", "retryable": False}
+
+            if err_type == "not_found":
+                return {"status_code": 404, "reason": "Not Found", "retryable": False}
+
+            return {"status_code": 500, "reason": "Internal Server Error", "retryable": False}
+  explanation: |
+    Evaluating error scenarios in priority order guarantees accurate RFC status codes.
+    Transient rate-limiting and gateway connection timeouts are tagged `retryable: True`, allowing
+    downstream proxies or clients to execute exponential-backoff retries.
+    Client-side syntax, validation, and authorization errors are strictly `retryable: False`.
+  time: O(1) dictionary key lookups
+  space: O(1) returned dictionary
+
+pitch_script: |
+  **(Clarify)** "We need to classify API execution scenarios into exact HTTP status codes and determine whether the error is retryable."
+
+  **(Basement Insight)** "Conflating client-side bugs with upstream timeouts by throwing generic HTTP 500s prevents client SDKs from executing automated retries and pollutes production alerts. 4xx codes mean client must fix their payload; 5xx codes mean the server or downstream gateway failed."
+
+  **(Solution)** "We check transient gateway flags (429, 504, 502) first and mark them retryable. Next, we validate client payload errors (422 validation, 401 missing credentials, 403 insufficient permissions, 404 not found, 409 conflict). Any unmatched exception safely falls back to 500."
+
+  **(Complexity)** "Executes in O(1) time and space."
+
+twist:
+  lc: 9502
+  title: Problem Details RFC 7807 Payload Standardization
+  why: >-
+    In enterprise APIs, instead of a plain error message, format responses into the RFC 7807 schema
+    containing `type`, `title`, `status`, `detail`, and `instance` URIs for standardized error tracking.
+
+viz:
+  title: "HTTP Status Code & Lifecycle Classifier"

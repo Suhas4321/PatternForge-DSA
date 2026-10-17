@@ -1,0 +1,298 @@
+slug: pydantic-payload-validator
+lc: 9511
+citadel_id: backend_apis
+brick_layer: 2
+runner_type: python_practical
+concept:
+  problem_it_solves: How does FastAPI prevent corrupt or malformed client payloads from crashing backend services? FastAPI
+    uses Pydantic to validate request bodies against Python type annotations and field constraints before business logic runs.
+    When a payload is missing required fields, has invalid types, or violates constraints, the framework rejects it with HTTP
+    422 Unprocessable Entity and detailed error locators.
+  brute_force: 'Writing manual `if not data.get(''x''): return 400` checks in every route handler, leading to inconsistent
+    error responses and runtime bugs.'
+  brute_force_complexity: High developer toil and brittle validation logic.
+  key_insight: A declarative schema definition validates field presence, data type, and boundary constraints in a single pass,
+    returning structured 422 error objects.
+  real_world: FastAPI request body validation, Stripe API parameter verification, and JSON schema gateway filters.
+statement:
+  clean: "Implement a Pydantic-style schema validation engine for incoming API request bodies:\n`validate_payload(schema:\
+    \ dict, payload: dict) -> dict`.\n\nInput:\n- `schema`: dictionary mapping field names to rules:\n  `{\"type\": \"str\"\
+    \ | \"int\" | \"float\" | \"bool\", \"required\": bool, \"min\": optional_num, \"max\": optional_num}`.\n- `payload`:\
+    \ dictionary of client-submitted JSON data.\n\nValidation Rules:\n1. Missing Fields:\n   - If a field is `required: True`\
+    \ in `schema` but not in `payload`:\n     error: `{\"loc\": [\"body\", field], \"msg\": \"Field required\", \"type\":\
+    \ \"missing\"}`.\n2. Type Mismatch:\n   - If present, verify data types:\n     - `\"bool\"`: must be `isinstance(val,\
+    \ bool)`.\n     - `\"int\"`: must be `isinstance(val, int)` and `not isinstance(val, bool)` (in Python bool is an int\
+    \ subclass).\n     - `\"float\"`: must be `isinstance(val, (int, float))` and `not isinstance(val, bool)`.\n     - `\"\
+    str\"`: must be `isinstance(val, str)`.\n   - On type failure:\n     error: `{\"loc\": [\"body\", field], \"msg\": f\"\
+    Input should be a valid {expected_type}\", \"type\": f\"{expected_type}_type\"}`.\n3. Constraint Bounds:\n   - If `min`\
+    \ is specified and `val < min`:\n     error: `{\"loc\": [\"body\", field], \"msg\": f\"Input should be greater than or\
+    \ equal to {min}\", \"type\": \"greater_than_equal\"}`.\n   - If `max` is specified and `val > max`:\n     error: `{\"\
+    loc\": [\"body\", field], \"msg\": f\"Input should be less than or equal to {max}\", \"type\": \"less_than_equal\"}`.\n\
+    \nOutput Format:\n- If errors exist:\n  return `{\"status_code\": 422, \"detail\": errors, \"valid\": False}`.\n- If no\
+    \ errors:\n  return `{\"status_code\": 200, \"data\": payload, \"valid\": True}`."
+  oa_story: '**UrbanFix Service Booking — Request Validation Failure**
+
+
+    UrbanFix customers booking home maintenance entered string values for technician counts and negative quantities for spare
+    parts. The legacy Flask API crashed with unhandled 500 exceptions, polluting Sentry alert logs.
+
+
+    The team migrated the booking endpoint to FastAPI. Implement this Pydantic-style validation engine to reject invalid payloads
+    with clean HTTP 422 Unprocessable Entity responses before database queries execute.'
+  trigger_keywords:
+  - pydantic-style schema validation
+  - validate_payload
+  - status_code
+  examples:
+  - input: 'schema = {"name": {"type": "str", "required": True}, "age": {"type": "int", "required": True, "min": 18}}, payload
+      = {"name": "Aarav", "age": 16}'
+    output: '{"status_code": 422, "detail": [{"loc": ["body", "age"], "msg": "Input should be greater than or equal to 18",
+      "type": "greater_than_equal"}], "valid": False}'
+    explanation: Age 16 violates the min constraint of 18, returning HTTP 422.
+  - input: 'schema = {"name": {"type": "str", "required": True}}, payload = {"name": "Priya"}'
+    output: '{"status_code": 200, "data": {"name": "Priya"}, "valid": True}'
+    explanation: Payload passes all schema rules, returning HTTP 200.
+  constraints:
+  - 0 <= len(schema) <= 50
+  - 0 <= len(payload) <= 50
+constraint_quiz:
+  prompt: Why does FastAPI return HTTP 422 Unprocessable Entity instead of HTTP 400 Bad Request for schema errors?
+  options:
+  - 422 signifies the JSON syntax is well-formed, but the semantic data violates model domain constraints
+  - 422 is faster to serialize over HTTP/2
+  - HTTP 400 is not supported in Python
+  - 422 instructs browsers to automatically reload the page
+  answer: 0
+  explanation: RFC 4918 / RFC 9110 define 422 Unprocessable Entity for requests that are syntactically correct JSON but contain
+    semantic validation or business constraint errors.
+pattern_quiz:
+  prompt: Why is `isinstance(val, bool)` a critical check when validating integer types in Python?
+  options:
+  - In Python, bool is a subclass of int (True == 1, False == 0), so isinstance(True, int) returns True without explicit checking
+  - Python booleans occupy 64 bits
+  - Integer types cannot be serialized to JSON
+  - Pydantic prohibits boolean fields
+  answer: 0
+  explanation: Because `bool` inherits from `int` in Python, validating `isinstance(True, int)` evaluates to True. Validators
+    must guard against bool inputs when expecting integer numbers.
+function:
+  name: validate_payload
+  params:
+  - name: schema
+  - name: payload
+  returns: any
+  compare: exact
+starter_code: "class Solution:\n    def validate_payload(self, schema: dict, payload: dict) -> dict:\n        pass\n"
+tests:
+- args:
+  - name:
+      type: str
+      required: true
+    age:
+      type: int
+      required: true
+      min: 18
+  - name: Aarav
+    age: 16
+  expected:
+    status_code: 422
+    detail:
+    - loc:
+      - body
+      - age
+      msg: Input should be greater than or equal to 18
+      type: greater_than_equal
+    valid: false
+  note: Min age constraint failure
+- args:
+  - email:
+      type: str
+      required: true
+  - {}
+  expected:
+    status_code: 422
+    detail:
+    - loc:
+      - body
+      - email
+      msg: Field required
+      type: missing
+    valid: false
+  note: Missing required field
+- args:
+  - active:
+      type: bool
+      required: true
+  - active: 'yes'
+  expected:
+    status_code: 422
+    detail:
+    - loc:
+      - body
+      - active
+      msg: Input should be a valid boolean
+      type: bool_type
+    valid: false
+  note: Type mismatch for boolean
+- args:
+  - title:
+      type: str
+      required: true
+  - title: Senior Engineer
+  expected:
+    status_code: 200
+    data:
+      title: Senior Engineer
+    valid: true
+  note: Valid payload passes
+visualize_test: 0
+drills:
+- skill: setup
+  title: Check missing required field
+  goal: Identify if a required field is missing from payload.
+  instructions: Return `True` if `required and field not in payload`, else `False`.
+  function:
+    name: drill_is_missing
+    params:
+    - name: field
+    - name: required
+    - name: payload
+  starter_code: "class Solution:\n    def drill_is_missing(self, field: str, required: bool, payload: dict) -> bool:\n   \
+    \     pass\n"
+  tests:
+  - args:
+    - email
+    - true
+    - {}
+    expected: true
+  - args:
+    - email
+    - true
+    - email: test@test.com
+    expected: false
+  solution: "class Solution:\n    def drill_is_missing(self, field: str, required: bool, payload: dict) -> bool:\n       \
+    \ return required and (field not in payload)\n"
+  hint: Check `required and (field not in payload)`.
+- skill: core
+  title: Validate strict integer type
+  goal: Verify value is integer and not boolean.
+  instructions: Return `True` if `isinstance(val, int) and not isinstance(val, bool)`.
+  function:
+    name: drill_strict_int
+    params:
+    - name: val
+  starter_code: "class Solution:\n    def drill_strict_int(self, val: any) -> bool:\n        pass\n"
+  tests:
+  - args:
+    - 42
+    expected: true
+  - args:
+    - true
+    expected: false
+  - args:
+    - '42'
+    expected: false
+  solution: "class Solution:\n    def drill_strict_int(self, val: any) -> bool:\n        return isinstance(val, int) and not\
+    \ isinstance(val, bool)\n"
+  hint: Return `isinstance(val, int) and not isinstance(val, bool)`.
+- skill: edge
+  title: Format 422 error object
+  goal: Build standard Pydantic error dictionary.
+  instructions: 'Return `{''loc'': [''body'', field], ''msg'': msg, ''type'': err_type}`.'
+  function:
+    name: drill_err_dict
+    params:
+    - name: field
+    - name: msg
+    - name: err_type
+  starter_code: "class Solution:\n    def drill_err_dict(self, field: str, msg: str, err_type: str) -> dict:\n        pass\n"
+  tests:
+  - args:
+    - age
+    - Too young
+    - value_error
+    expected:
+      loc:
+      - body
+      - age
+      msg: Too young
+      type: value_error
+  solution: "class Solution:\n    def drill_err_dict(self, field: str, msg: str, err_type: str) -> dict:\n        return {\"\
+    loc\": [\"body\", field], \"msg\": msg, \"type\": err_type}\n"
+  hint: Construct the dictionary with loc, msg, and type.
+hints:
+- Iterate through `schema.items()`. First check if required fields are present in payload.
+- Verify type matching strictly, taking special care that booleans are not treated as ints.
+- '| # Pseudocode Blueprint
+
+  | errors = []
+
+  | for field, rules in schema.items():
+
+  |     if field not in payload:
+
+  |         if rules.required: errors.append(missing_error)
+
+  |     else:
+
+  |         val = payload[field]
+
+  |         if not valid_type(val, rules.type): errors.append(type_error)
+
+  |         if min and val < min: errors.append(min_error)
+
+  |         if max and val > max: errors.append(max_error)
+
+  | if errors: return 422, errors, False
+
+  | return 200, payload, True'
+solution:
+  code: "class Solution:\n    def validate_payload(self, schema: dict, payload: dict) -> dict:\n        errors = []\n    \
+    \    type_map = {\"str\": str, \"int\": int, \"float\": (int, float), \"bool\": bool}\n\n        for field, rules in schema.items():\n\
+    \            if field not in payload:\n                if rules.get(\"required\", False):\n                    errors.append({\"\
+    loc\": [\"body\", field], \"msg\": \"Field required\", \"type\": \"missing\"})\n                continue\n\n         \
+    \   val = payload[field]\n            expected_type_name = rules.get(\"type\", \"str\")\n            expected_type = type_map.get(expected_type_name,\
+    \ str)\n\n            if expected_type_name == \"bool\" and not isinstance(val, bool):\n                errors.append({\"\
+    loc\": [\"body\", field], \"msg\": \"Input should be a valid boolean\", \"type\": \"bool_type\"})\n                continue\n\
+    \            elif expected_type_name == \"int\" and (isinstance(val, bool) or not isinstance(val, int)):\n           \
+    \     errors.append({\"loc\": [\"body\", field], \"msg\": \"Input should be a valid integer\", \"type\": \"int_type\"\
+    })\n                continue\n            elif not isinstance(val, expected_type):\n                errors.append({\"\
+    loc\": [\"body\", field], \"msg\": f\"Input should be a valid {expected_type_name}\", \"type\": f\"{expected_type_name}_type\"\
+    })\n                continue\n\n            min_val = rules.get(\"min\")\n            max_val = rules.get(\"max\")\n \
+    \           if min_val is not None and val < min_val:\n                errors.append({\"loc\": [\"body\", field], \"msg\"\
+    : f\"Input should be greater than or equal to {min_val}\", \"type\": \"greater_than_equal\"})\n            if max_val\
+    \ is not None and val > max_val:\n                errors.append({\"loc\": [\"body\", field], \"msg\": f\"Input should\
+    \ be less than or equal to {max_val}\", \"type\": \"less_than_equal\"})\n\n        if errors:\n            return {\"\
+    status_code\": 422, \"detail\": errors, \"valid\": False}\n        return {\"status_code\": 200, \"data\": payload, \"\
+    valid\": True}\n"
+  explanation: Iterating through the schema rules validates field presence, enforces strict type checking (guarding against
+    Python's bool-is-int inheritance), and checks numeric boundaries. Accumulating all errors into an HTTP 422 payload provides
+    granular client feedback in a single round-trip.
+  time: O(S) where S is the number of schema fields
+  space: O(E) for the accumulated errors list
+pitch_script: '**(Clarify)** "We need to build a schema validation engine that checks payload presence, strict types, and
+  boundary constraints, returning an HTTP 422 response with detailed locators on failure."
+
+
+  **(Brute force)** "Scattering ad-hoc `if-else` assertions in handler functions leads to unhandled 500 crashes and fragmented
+  error formats."
+
+
+  **(Trigger)** "Validating request bodies against declarative field rules and returning HTTP 422 signals Pydantic-style model
+  validation."
+
+
+  **(Optimal)** "We iterate through the schema. If a required field is missing, we append a missing error. If present, we
+  strictly validate types, guarding against Python treating booleans as integers. We check min and max constraints. If any
+  errors occurred, we return 422 with the details list; otherwise 200 with the clean data."
+
+
+  **(Complexity)** "Executes in O(S) time where S is schema size and O(E) space for errors." '
+twist:
+  lc: 9512
+  title: FastAPI Dependency Injection Graph Resolver
+  why: Once the request body is validated, FastAPI uses `Depends()` to resolve the dependency injection graph (DB sessions,
+    auth tokens, cache connections).
+viz:
+  title: Pydantic Schema Validation Flow
+  type: http_lifecycle

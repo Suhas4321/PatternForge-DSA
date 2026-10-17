@@ -23,11 +23,12 @@ router = APIRouter(prefix="/api", tags=["worlds"])
 
 
 @router.get("/worlds", response_model=list[WorldOut])
-def list_worlds(session: Session = Depends(get_session)):
+def list_worlds(citadel_id: str | None = None, session: Session = Depends(get_session)):
     now = utcnow()
-    worlds = session.scalars(
-        select(World).options(selectinload(World.questions)).order_by(World.id)
-    ).all()
+    stmt = select(World).options(selectinload(World.questions)).order_by(World.id)
+    if citadel_id:
+        stmt = stmt.where(World.citadel_id == citadel_id)
+    worlds = session.scalars(stmt).all()
     progress = {p.question_slug: p for p in session.scalars(select(Progress))}
 
     out = []
@@ -41,7 +42,8 @@ def list_worlds(session: Session = Depends(get_session)):
         last = max(practiced) if practiced else None
         out.append(
             WorldOut(
-                id=w.id, slug=w.slug, name=w.name, tagline=w.tagline, core_idea=w.core_idea,
+                id=w.id, slug=w.slug, citadel_id=w.citadel_id, status=getattr(w, "status", "live"),
+                name=w.name, tagline=w.tagline, core_idea=w.core_idea,
                 triggers=w.triggers,
                 total=len(summaries),
                 with_content=sum(s.has_content for s in summaries),
@@ -77,7 +79,7 @@ def review_queue(session: Session = Depends(get_session)):
 
     rusting = [
         {"world_id": w.id, "world_name": w.name, "rust": w.rust, "last_practiced_at": w.last_practiced_at}
-        for w in list_worlds(session)
+        for w in list_worlds(citadel_id=None, session=session)
         if w.rust in ("dusty", "rusting", "rusted")
     ]
     return ReviewOut(due=due, upcoming=upcoming[:10], rusting_worlds=rusting)

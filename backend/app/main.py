@@ -10,7 +10,7 @@ from sqlalchemy import func, select
 from app.config import PROJECT_DIR, settings
 from app.db import Base, SessionLocal, engine
 from app.models import Progress
-from app.routers import backup, playground, questions, worlds
+from app.routers import backup, playground, questions, stats, worlds
 from app.services import backup_manager
 from app.services.content_loader import sync_content
 
@@ -22,6 +22,17 @@ FRONTEND_DIST = PROJECT_DIR / "frontend" / "dist"
 
 def startup() -> None:
     Base.metadata.create_all(engine)
+    try:
+        with engine.connect() as conn:
+            cursor = conn.exec_driver_sql("PRAGMA table_info(progress)")
+            cols = {row[1] for row in cursor.fetchall()}
+            if "first_try_pass" not in cols:
+                conn.exec_driver_sql("ALTER TABLE progress ADD COLUMN first_try_pass BOOLEAN")
+            if "time_spent_seconds" not in cols:
+                conn.exec_driver_sql("ALTER TABLE progress ADD COLUMN time_spent_seconds INTEGER")
+            conn.commit()
+    except Exception as e:
+        log.warning("Column migration check: %s", e)
     with SessionLocal() as session:
         sync_content(session, settings.content_dir)
         # Fresh database (new machine, deleted SQLite file, switched to Supabase) but a backup
@@ -49,6 +60,7 @@ app.add_middleware(
 )
 app.include_router(worlds.router)
 app.include_router(questions.router)
+app.include_router(stats.router)
 app.include_router(backup.router)
 app.include_router(playground.router)
 

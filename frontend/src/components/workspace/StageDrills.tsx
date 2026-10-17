@@ -155,7 +155,13 @@ function DrillWorkspace({
 
       <div className="flex flex-col gap-3">
         <div className="stage h-72 overflow-hidden rounded-3xl">
-          <CodeEditor value={code} onChange={setCode} errorLine={errorLine} onRun={run} />
+          <CodeEditor
+            value={code}
+            onChange={setCode}
+            language={question.runner_type === 'sql_sqlite' ? 'sql' : 'python'}
+            errorLine={errorLine}
+            onRun={run}
+          />
         </div>
         <div className="flex items-center gap-2">
           <Button onClick={run} disabled={running}>

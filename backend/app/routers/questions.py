@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 
 from app.db import get_session
 from app.models import Draft, PitchNote, Progress, Question, Submission, World, utcnow
+from app.runner.dispatcher import dispatch_run
 from app.runner.python_runner import run_python
 from app.schemas import (
     CoachIn,
@@ -84,10 +85,19 @@ def run_code(slug: str, body: RunIn, session: Session = Depends(get_session)):
     question = _question(session, slug)
     content = _content(question)
     spec, tests, reference, default_trace = _target_spec(content, body.target)
+    runner_type = question.runner_type or content.get("runner_type", "python_trace")
 
     if body.custom_args is not None:
         # Custom input: get the expected output by running the reference solution first.
-        ref = run_python(reference, spec, [{"args": body.custom_args, "expected": None}])
+        ref = dispatch_run(
+            runner_type=runner_type,
+            code=reference,
+            content=content,
+            spec=spec,
+            tests=[{"args": body.custom_args, "expected": None}],
+            reference_code=reference,
+            visualize=False,
+        )
         first = ref["results"][0] if ref["results"] else None
         if ref.get("compile_error") or first is None or first["error"]:
             err = (first or {}).get("error") or ref.get("compile_error") or {}
@@ -97,7 +107,16 @@ def run_code(slug: str, body: RunIn, session: Session = Depends(get_session)):
     else:
         trace_index = body.trace_test_index if body.trace_test_index is not None else default_trace
 
-    result = run_python(body.code, spec, tests, trace_test_index=trace_index if body.visualize else None)
+    result = dispatch_run(
+        runner_type=runner_type,
+        code=body.code,
+        content=content,
+        spec=spec,
+        tests=tests,
+        reference_code=reference,
+        trace_test_index=trace_index,
+        visualize=body.visualize,
+    )
     results = result["results"]
     passed_count = sum(r["passed"] for r in results)
     passed = result["compile_error"] is None and passed_count == len(results) and bool(results)
@@ -110,6 +129,8 @@ def run_code(slug: str, body: RunIn, session: Session = Depends(get_session)):
             passed=passed, passed_count=passed_count, total_count=len(results),
         ))
         if body.target == "main":
+            if getattr(progress, "first_try_pass", None) is None and not progress.solved:
+                progress.first_try_pass = passed and (progress.attempts or 0) == 0
             progress.attempts = (progress.attempts or 0) + 1
             if passed:
                 now = utcnow()

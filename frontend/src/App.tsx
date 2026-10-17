@@ -1,30 +1,105 @@
-import { BookMarked, Compass, FlaskConical, Map, Search } from 'lucide-react'
-import { motion } from 'motion/react'
+import { BookMarked, ChevronRight, Compass, FlaskConical, Map, Search, ShieldCheck } from 'lucide-react'
+import { motion, useReducedMotion } from 'motion/react'
 import type { ReactNode } from 'react'
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
-import BackupMenu from './components/BackupMenu'
 import CommandPalette, { openCommandPalette } from './components/CommandPalette'
+import MoreMenu from './components/MoreMenu'
+import TopBarHUD from './components/TopBarHUD'
 import { ThemeToggle } from './components/effects'
+import { GlassSurface } from './components/vendor/vsrc/glass-surface'
+import { citadelForWorld, getCitadel } from './lib/citadels'
 import { GrimoireProvider, useGrimoire } from './lib/grimoire'
 
 const itemClass = (active: boolean) =>
-  `relative flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm transition-colors ${
-    active ? 'text-chalk' : 'text-muted hover:text-chalk'
+  `relative z-10 flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
+    active ? 'text-chalk font-semibold' : 'text-muted hover:text-chalk'
   }`
 
 /** Dock item: lifts on hover; the active item gets a sliding pill behind it. */
 function DockItem({ active, children }: { active: boolean; children: ReactNode }) {
+  const reduce = useReducedMotion()
   return (
-    <motion.span whileHover={{ y: -2 }} transition={{ type: 'spring', stiffness: 500, damping: 28 }} className="relative block">
+    <motion.div
+      whileHover={reduce ? undefined : { y: -1 }}
+      transition={{ type: 'spring', stiffness: 500, damping: 28 }}
+      className="relative block"
+    >
       {active && (
         <motion.span
-          layoutId="dock-pill"
-          className="absolute inset-0 rounded-full border border-line bg-panel-2"
+          layoutId={reduce ? undefined : 'dock-pill'}
+          className="absolute inset-0 rounded-lg border border-line bg-panel-2"
           transition={{ type: 'spring', stiffness: 420, damping: 34 }}
         />
       )}
       {children}
-    </motion.span>
+    </motion.div>
+  )
+}
+
+/** Row 2 breadcrumb bar shown only on non-dashboard pages. */
+function BreadcrumbBar() {
+  const { pathname, state } = useLocation()
+  if (pathname === '/') return null
+
+  const crumbs: { label: string; to?: string }[] = [{ label: 'Home', to: '/' }]
+
+  const citadelMatch = /^\/citadel\/([^/]+)/.exec(pathname)
+  const worldMatch = /^\/world\/(\d+)/.exec(pathname)
+  const questionMatch = /^\/q\/([^/]+)/.exec(pathname)
+
+  if (citadelMatch) {
+    const cit = getCitadel(citadelMatch[1])
+    crumbs.push({ label: `Citadel ${cit.numeral}: ${cit.shortName}` })
+  } else if (worldMatch) {
+    const worldId = Number(worldMatch[1])
+    const cit = citadelForWorld(worldId)
+    crumbs.push({
+      label: `Citadel ${cit.numeral}: ${cit.shortName}`,
+      to: cit.id === 'dsa' ? '/' : `/citadel/${cit.id}`,
+    })
+    const stateWorldName = (state as { world?: { name?: string } } | null)?.world?.name
+    const worldName = stateWorldName ? `World ${worldId}: ${stateWorldName.replace(/ — .*/, '')}` : `World ${worldId}`
+    crumbs.push({ label: worldName })
+  } else if (questionMatch) {
+    crumbs.push({ label: 'Question Workspace' })
+  } else if (pathname === '/resume-grill') {
+    const cit = getCitadel('ai_resume')
+    crumbs.push({
+      label: `Citadel ${cit.numeral}: ${cit.shortName}`,
+      to: `/citadel/${cit.id}`,
+    })
+    crumbs.push({ label: 'Resume Grill' })
+  } else if (pathname === '/finder') {
+    crumbs.push({ label: 'Pattern Finder' })
+  } else if (pathname === '/playground') {
+    crumbs.push({ label: 'Playground' })
+  } else if (pathname === '/stats') {
+    crumbs.push({ label: 'Expedition Log' })
+  } else {
+    const seg = pathname.replace(/^\//, '')
+    crumbs.push({ label: seg.charAt(0).toUpperCase() + seg.slice(1) })
+  }
+
+  return (
+    <nav aria-label="Breadcrumb" className="w-full border-b border-line bg-panel-2/70 text-xs text-muted backdrop-blur-md">
+      <div className="shell flex h-9 items-center gap-1.5 overflow-x-auto no-scrollbar">
+        {crumbs.map((c, i) => {
+          const isLast = i === crumbs.length - 1
+          return (
+            <div key={i} className="flex items-center gap-1.5 shrink-0">
+              {i > 0 && <ChevronRight size={12} className="text-faint" />}
+              {c.to && !isLast ? (
+                <Link to={c.to} className="transition-colors hover:text-chalk">
+                  {c.label}
+                </Link>
+              ) : (
+                <span className={isLast ? 'font-medium text-chalk' : ''}>{c.label}</span>
+              )}
+            </div>
+          )
+        })}
+      </div>
+    </nav>
   )
 }
 
@@ -32,55 +107,86 @@ function TopBar() {
   const openGrimoire = useGrimoire()
   const { pathname } = useLocation()
   const worldMatch = /^\/world\/(\d+)/.exec(pathname)
-  const onJourney = pathname === '/' || pathname.startsWith('/world') || pathname.startsWith('/q/')
+  const onJourney = pathname === '/' || pathname.startsWith('/citadel') || pathname.startsWith('/world') || pathname.startsWith('/q/')
+
   return (
-    <header className="no-print sticky top-3 z-40 mx-auto mt-3 flex w-[calc(100%-1.5rem)] max-w-[1500px] justify-center">
-      <div className="liquid-glass flex h-12 w-full max-w-4xl items-center gap-2 rounded-full px-2.5">
-        <Link to="/" className="flex items-center gap-2 rounded-full pr-2 pl-1">
-          <img src="/favicon.svg" alt="" className="h-7 w-7" />
-          <span className="hidden font-plate text-lg font-semibold tracking-tight text-chalk min-[420px]:inline">PatternForge</span>
-        </Link>
-        <nav className="flex items-center gap-0.5">
-          <DockItem active={onJourney}>
-            <NavLink to="/" aria-label="Journey" className={() => itemClass(onJourney)}>
-              <Map size={15} /> <span className="hidden md:inline">Journey</span>
-            </NavLink>
-          </DockItem>
-          <DockItem active={false}>
+    <GlassSurface
+      asChild
+      glass={{
+        scale: -48,
+        chroma: 2,
+        border: 0.1,
+        mapBlur: 10,
+        blur: 16,
+        saturate: 1.25,
+        fallbackBlur: 12,
+      }}
+    >
+      <header className="no-print sticky top-0 z-40 w-full border-b border-line bg-panel/80 shadow-sm backdrop-blur-xl">
+        {/* Row 1: Primary bar */}
+        <div className="shell flex h-14 items-center justify-between gap-3">
+          {/* Left: Brand */}
+          <Link to="/" className="flex items-center gap-2.5 shrink-0">
+            <img src="/favicon.svg" alt="" className="h-7 w-7" />
+            <span className="font-plate text-lg font-semibold tracking-tight text-chalk">
+              PatternForge
+            </span>
+          </Link>
+
+          {/* Center: Navigation (collapses on <1024px) */}
+          <nav className="hidden lg:flex items-center gap-1">
+            <DockItem active={onJourney}>
+              <NavLink to="/" aria-label="Journey" className={() => itemClass(onJourney)}>
+                <Map size={14} /> <span>Journey</span>
+              </NavLink>
+            </DockItem>
+            <DockItem active={pathname === '/resume-grill'}>
+              <NavLink to="/resume-grill" aria-label="Resume Grill" className={({ isActive }) => itemClass(isActive)}>
+                <ShieldCheck size={14} className="text-[var(--accent-ai-resume,#38BDF8)]" /> <span>Resume Grill</span>
+              </NavLink>
+            </DockItem>
+            <DockItem active={false}>
+              <button
+                aria-label="Open the Grimoire"
+                className={itemClass(false)}
+                onClick={() => openGrimoire(worldMatch ? Number(worldMatch[1]) : undefined)}
+              >
+                <BookMarked size={14} /> <span>Grimoire</span>
+              </button>
+            </DockItem>
+            <DockItem active={pathname === '/finder'}>
+              <NavLink to="/finder" aria-label="Pattern Finder" className={({ isActive }) => itemClass(isActive)}>
+                <Compass size={14} /> <span>Finder</span>
+              </NavLink>
+            </DockItem>
+            <DockItem active={pathname === '/playground'}>
+              <NavLink to="/playground" aria-label="Playground" className={({ isActive }) => itemClass(isActive)}>
+                <FlaskConical size={14} /> <span>Playground</span>
+              </NavLink>
+            </DockItem>
+          </nav>
+
+          {/* Right: Actions */}
+          <div className="flex items-center gap-2 shrink-0">
+            <TopBarHUD />
             <button
-              aria-label="Open the Grimoire"
-              className={itemClass(false)}
-              onClick={() => openGrimoire(worldMatch ? Number(worldMatch[1]) : undefined)}
+              onClick={openCommandPalette}
+              aria-label="Search (Ctrl+K)"
+              className="flex h-8 items-center gap-2 rounded-lg border border-line bg-panel-2 px-2.5 text-xs text-muted transition-colors hover:border-line-strong hover:text-chalk"
             >
-              <BookMarked size={15} /> <span className="hidden md:inline">Grimoire</span>
+              <Search size={14} />
+              <span className="hidden sm:inline">Search</span>
+              <kbd className="keycap hidden sm:inline-flex">Ctrl K</kbd>
             </button>
-          </DockItem>
-          <DockItem active={pathname === '/finder'}>
-            <NavLink to="/finder" aria-label="Pattern Finder" className={({ isActive }) => itemClass(isActive)}>
-              <Compass size={15} /> <span className="hidden md:inline">Finder</span>
-            </NavLink>
-          </DockItem>
-          <DockItem active={pathname === '/playground'}>
-            <NavLink to="/playground" aria-label="Playground" className={({ isActive }) => itemClass(isActive)}>
-              <FlaskConical size={15} /> <span className="hidden md:inline">Playground</span>
-            </NavLink>
-          </DockItem>
-        </nav>
-        <div className="ml-auto flex items-center gap-1.5">
-          <button
-            onClick={openCommandPalette}
-            aria-label="Search (Ctrl+K)"
-            className="flex h-8 items-center gap-2 rounded-full border border-line bg-panel-2 px-2.5 text-xs text-muted transition-colors hover:text-chalk"
-          >
-            <Search size={14} />
-            <span className="hidden lg:inline">Search</span>
-            <kbd className="keycap hidden lg:inline-flex">Ctrl K</kbd>
-          </button>
-          <BackupMenu />
-          <ThemeToggle />
+            <ThemeToggle />
+            <MoreMenu onOpenGrimoire={() => openGrimoire(worldMatch ? Number(worldMatch[1]) : undefined)} />
+          </div>
         </div>
-      </div>
-    </header>
+
+        {/* Row 2: Breadcrumbs on non-dashboard pages */}
+        <BreadcrumbBar />
+      </header>
+    </GlassSurface>
   )
 }
 

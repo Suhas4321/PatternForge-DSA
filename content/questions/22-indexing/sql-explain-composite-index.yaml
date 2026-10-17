@@ -1,0 +1,209 @@
+slug: sql-explain-composite-index
+lc: 9307
+citadel_id: sql_dbms
+brick_layer: 2
+runner_type: sql_sqlite
+concept:
+  problem_it_solves: 'How do database administrators prove whether the query optimizer actually uses an index or falls back
+    to an expensive full table scan? The `EXPLAIN QUERY PLAN` prefix reveals the execution engine''s physical strategy: `SCAN
+    TABLE` (O(N) sequential page scan) vs `SEARCH TABLE USING INDEX` (O(log N) B-Tree binary search). For composite indexes,
+    the optimizer requires predicates matching the index''s leading left-prefix columns.'
+  brute_force: Guessing index usage and blindly adding single-column indexes, multiplying write overhead without improving
+    query speed.
+  brute_force_complexity: Unnecessary index write amplification and slow query execution.
+  key_insight: Running `EXPLAIN QUERY PLAN` outputs the exact access path. A composite index `(user_id, status, created_at)`
+    enables logarithmic index lookup when equality filters match `user_id` and `status`.
+  real_world: PostgreSQL `EXPLAIN ANALYZE`, MySQL `EXPLAIN`, and SQLite query performance tuning.
+statement:
+  clean: "Write a SQL query using `EXPLAIN QUERY PLAN` to determine which composite index the SQLite optimizer selects for\
+    \ a filtered, sorted transaction query.\n\nTable schema and indexes:\n```sql\nCREATE TABLE Transactions (\n    id INTEGER\
+    \ PRIMARY KEY,\n    user_id INTEGER,\n    status TEXT,\n    created_at TEXT,\n    amount INTEGER\n);\n\nCREATE INDEX idx_user_status_date\
+    \ ON Transactions (user_id, status, created_at);\nCREATE INDEX idx_date_amount ON Transactions (created_at, amount);\n\
+    ```\n\nTarget Query to Evaluate:\n```sql\nSELECT * FROM Transactions\nWHERE user_id = 42 AND status = 'COMPLETED'\nORDER\
+    \ BY created_at;\n```\n\nTask:\nExecute `EXPLAIN QUERY PLAN` on the target query above to inspect the optimizer's access\
+    \ path.\n\nReturn the query plan result."
+  oa_story: '**UrbanFix Payment History — Slow Query Diagnostic**
+
+
+    UrbanFix users opening their order history experienced 8-second page loads. The query fetched transactions for a specific
+    `user_id` with `status = ''COMPLETED''`, ordered by date. Two composite indexes existed, but developers were unsure which
+    one the optimizer was picking.
+
+
+    Use `EXPLAIN QUERY PLAN` to inspect the query execution path and prove whether the optimizer leverages the composite left-prefix
+    B-Tree index.'
+  trigger_keywords:
+  - EXPLAIN QUERY PLAN
+  - idx_user_status_date
+  - Transactions
+  examples:
+  - input: 'Target query: SELECT * FROM Transactions WHERE user_id = 42 AND status = ''COMPLETED'' ORDER BY created_at'
+    output: '[(4, 0, 0, ''SEARCH Transactions USING INDEX idx_user_status_date (user_id=? AND status=?)'')]'
+    explanation: Optimizer uses idx_user_status_date using equality filters on leading columns.
+  constraints:
+  - Index idx_user_status_date is present on (user_id, status, created_at)
+  - Index idx_date_amount is present on (created_at, amount)
+constraint_quiz:
+  prompt: What does `SEARCH TABLE ... USING INDEX` signify in an `EXPLAIN QUERY PLAN` output compared to `SCAN TABLE`?
+  options:
+  - '`SEARCH` uses a B-Tree index to jump directly to matching rows in O(log N) time, whereas `SCAN` reads every page in the
+    table in O(N) time'
+  - '`SEARCH` is used only for text columns'
+  - '`SCAN` is faster than `SEARCH`'
+  - '`SEARCH` deletes rows after reading them'
+  answer: 0
+  explanation: In SQLite, `SEARCH TABLE` indicates an indexed B-Tree point lookup or range seek, whereas `SCAN TABLE` indicates
+    an unindexed full table scan.
+pattern_quiz:
+  prompt: Why did the optimizer pick `idx_user_status_date (user_id, status, created_at)` instead of `idx_date_amount (created_at,
+    amount)`?
+  options:
+  - Because the query filters by `user_id` and `status`, satisfying the left-prefix rule for `idx_user_status_date` and allowing
+    index-ordered retrieval
+  - Because idx_user_status_date has a longer name
+  - Because idx_date_amount is corrupted
+  - Because amount is an integer
+  answer: 0
+  explanation: A composite B-Tree index can only be used if the query predicates constrain the leading columns (left prefix)
+    of the index.
+schema_sql: "CREATE TABLE Transactions (\n    id INTEGER PRIMARY KEY,\n    user_id INTEGER,\n    status TEXT,\n    created_at\
+  \ TEXT,\n    amount INTEGER\n);\n\nCREATE INDEX idx_user_status_date ON Transactions (user_id, status, created_at);\nCREATE\
+  \ INDEX idx_date_amount ON Transactions (created_at, amount);"
+seed_sql: "INSERT INTO Transactions VALUES\n    (1, 42, 'COMPLETED', '2026-01-01', 500),\n    (2, 42, 'PENDING', '2026-01-02',\
+  \ 300),\n    (3, 99, 'COMPLETED', '2026-01-03', 1000);"
+function:
+  name: execute_sql
+  params: []
+  returns: any
+  compare: exact
+starter_code: '-- Write your EXPLAIN QUERY PLAN statement below
+
+  EXPLAIN QUERY PLAN
+
+  SELECT * FROM Transactions
+
+  WHERE user_id = 42 AND status = ''COMPLETED''
+
+  ORDER BY created_at;
+
+  '
+tests:
+- args: []
+  expected:
+  - - 4
+    - 0
+    - 0
+    - SEARCH Transactions USING INDEX idx_user_status_date (user_id=? AND status=?)
+  note: Optimizer selects idx_user_status_date
+- args: []
+  expected: null
+  note: Reference verification
+- args: []
+  expected: null
+  note: Consistency check
+visualize_test: 0
+drills:
+- skill: setup
+  title: Select with equality filter
+  goal: Write target query without explain prefix.
+  instructions: Select `* FROM Transactions WHERE user_id = 42 AND status = 'COMPLETED' ORDER BY created_at;`.
+  function:
+    name: execute_sql
+    params: []
+  starter_code: 'SELECT id, user_id, status FROM Transactions WHERE user_id = 42 AND status = ''COMPLETED'' ORDER BY created_at;
+
+    '
+  tests:
+  - args: []
+    expected:
+    - - 1
+      - 42
+      - COMPLETED
+  solution: 'SELECT id, user_id, status FROM Transactions WHERE user_id = 42 AND status = ''COMPLETED'' ORDER BY created_at;
+
+    '
+  hint: Filter by user_id = 42 AND status = 'COMPLETED'.
+- skill: core
+  title: Add EXPLAIN QUERY PLAN prefix
+  goal: Prepend EXPLAIN QUERY PLAN to inspect index choice.
+  instructions: Prepend `EXPLAIN QUERY PLAN` to the target SELECT query.
+  function:
+    name: execute_sql
+    params: []
+  starter_code: 'EXPLAIN QUERY PLAN SELECT id FROM Transactions WHERE user_id = 42 AND status = ''COMPLETED'' ORDER BY created_at;
+
+    '
+  tests:
+  - args: []
+    expected: null
+  solution: 'EXPLAIN QUERY PLAN SELECT id FROM Transactions WHERE user_id = 42 AND status = ''COMPLETED'' ORDER BY created_at;
+
+    '
+  hint: Prepend EXPLAIN QUERY PLAN.
+- skill: edge
+  title: Verify index name in plan
+  goal: Confirm idx_user_status_date appears in detail.
+  instructions: Run explain query plan on full SELECT.
+  function:
+    name: execute_sql
+    params: []
+  starter_code: 'EXPLAIN QUERY PLAN SELECT * FROM Transactions WHERE user_id = 42 AND status = ''COMPLETED'' ORDER BY created_at;
+
+    '
+  tests:
+  - args: []
+    expected: null
+  solution: 'EXPLAIN QUERY PLAN SELECT * FROM Transactions WHERE user_id = 42 AND status = ''COMPLETED'' ORDER BY created_at;
+
+    '
+  hint: Execute full EXPLAIN QUERY PLAN query.
+hints:
+- Write `EXPLAIN QUERY PLAN` before the `SELECT` query.
+- The query filters `WHERE user_id = 42 AND status = 'COMPLETED'` and orders by `created_at`.
+- '| # Pseudocode Blueprint
+
+  | EXPLAIN QUERY PLAN
+
+  | SELECT * FROM Transactions
+
+  | WHERE user_id = 42 AND status = ''COMPLETED''
+
+  | ORDER BY created_at;'
+solution:
+  code: 'EXPLAIN QUERY PLAN
+
+    SELECT * FROM Transactions
+
+    WHERE user_id = 42 AND status = ''COMPLETED''
+
+    ORDER BY created_at;
+
+    '
+  explanation: The optimizer selects `idx_user_status_date` because the equality conditions match the first two columns of
+    the composite index (`user_id` and `status`). Since the third column is `created_at`, the index directly satisfies the
+    `ORDER BY created_at` clause without requiring an in-memory temporary sort B-Tree.
+  time: O(1) plan inspection
+  space: O(1) memory overhead
+pitch_script: '**(Clarify)** "We need to run `EXPLAIN QUERY PLAN` on a filtered and sorted query to prove whether the optimizer
+  leverages the composite index."
+
+
+  **(Brute force)** "Assuming an index is used without verifying the execution plan often masks silent full table scans in
+  production."
+
+
+  **(Trigger)** "Diagnosing index access paths and verifying left-prefix matching signals EXPLAIN QUERY PLAN."
+
+
+  **(Optimal)** "We prepend `EXPLAIN QUERY PLAN` to the query. The output confirms that SQLite selects `idx_user_status_date
+  (user_id=? AND status=?)`, proving that the B-Tree handles both filtering and sorting in logarithmic time."
+
+
+  **(Complexity)** "Executes in O(1) plan inspection time and space." '
+twist:
+  lc: 9317
+  title: Running Total & Month-over-Month Growth with LAG
+  why: Indexed tables enable high-speed reads; analytical reporting queries leverage window functions over these indexed columns.
+viz:
+  title: EXPLAIN QUERY PLAN Index Search
+  type: sql_pipeline

@@ -1,0 +1,233 @@
+slug: oop-llm-provider-strategy
+lc: 9215
+citadel_id: python_data
+brick_layer: 2
+runner_type: python_practical
+concept:
+  problem_it_solves: How do enterprise AI backends support multiple LLM vendors (OpenAI, Anthropic, Ollama) without cluttering
+    every API endpoint with massive if-elif-else statements? The Strategy pattern defines a common interface for model execution.
+    Concrete strategy classes encapsulate vendor-specific payloads, while a context gateway dynamically dispatches calls at
+    runtime following the Open-Closed Principle.
+  brute_force: Scattering vendor-specific payload logic throughout route handlers, making adding new models risky and messy.
+  brute_force_complexity: High code coupling that violates SOLID design principles.
+  key_insight: Encapsulating model invocation behind a uniform generate() strategy method allows swapping providers with zero
+    client code modification.
+  real_world: LangChain ChatModel abstraction, LiteLLM client routing, and Amazon Bedrock multi-model SDK.
+statement:
+  clean: "Implement the Strategy design pattern for multiple LLM inference providers:\n`dispatch_llm_strategy(self, provider:\
+    \ str, prompt: str, model_config: dict = None) -> dict`.\n\nAbstract Strategy Interface:\n- `LLMProviderStrategy(ABC)`\
+    \ with `@abstractmethod def generate(self, prompt: str, config: dict) -> dict`.\n\nConcrete Strategy Classes:\n1. `OpenAIStrategy`:\n\
+    \   - `model = config.get('model', 'gpt-4o')`\n   - `tokens = len(prompt.split()) + 20`\n   - Returns: `{'provider': 'openai',\
+    \ 'model': model, 'tokens': tokens, 'response': f'OpenAI: {prompt}'}`\n2. `AnthropicStrategy`:\n   - `model = config.get('model',\
+    \ 'claude-3-5-sonnet')`\n   - `tokens = len(prompt.split()) + 25`\n   - Returns: `{'provider': 'anthropic', 'model': model,\
+    \ 'tokens': tokens, 'response': f'Anthropic: {prompt}'}`\n3. `OllamaStrategy`:\n   - `model = config.get('model', 'llama3')`\n\
+    \   - `tokens = len(prompt.split()) + 15`\n   - Returns: `{'provider': 'ollama', 'model': model, 'tokens': tokens, 'response':\
+    \ f'Ollama: {prompt}'}`\n\nDispatcher Context:\n- Look up provider (case-insensitive) in strategy registry.\n- If provider\
+    \ is not recognized, return `{'error': f'Unsupported provider: {provider}'}`.\n- Otherwise, execute the matching strategy's\
+    \ `generate(prompt, config)` and return its dictionary."
+  oa_story: '**SwiftCart Customer Assistant — Multi-Model AI Routing Hub**
+
+
+    SwiftCart''s customer chat backend uses OpenAI for real-time recommendations, Anthropic Claude for dispute resolution,
+    and on-premise Ollama for internal employee queries. The early prototype used a 500-line `if vendor == ''openai''` dispatcher
+    that broke whenever parameter names differed.
+
+
+    The staff engineer instructed the team to refactor the inference tier using the Gang of Four Strategy pattern. Implement
+    this extensible LLM provider strategy dispatcher.'
+  trigger_keywords:
+  - Strategy design pattern for multiple LLM inference providers
+  - dispatch_llm_strategy
+  - OpenAIStrategy
+  examples:
+  - input: 'provider = ''openai'', prompt = ''Analyze sentiment'', model_config = {''model'': ''gpt-4o-mini''}'
+    output: '{''provider'': ''openai'', ''model'': ''gpt-4o-mini'', ''tokens'': 22, ''response'': ''OpenAI: Analyze sentiment''}'
+    explanation: OpenAI strategy formats tokens (2 words + 20) and returns standardized payload.
+  constraints:
+  - provider is a string
+  - prompt is a non-empty string
+constraint_quiz:
+  prompt: Which SOLID design principle does the Strategy pattern directly satisfy?
+  options:
+  - 'Open-Closed Principle: software entities should be open for extension (adding new strategies), but closed for modification
+    (existing context remains untouched)'
+  - Single Responsibility Principle only
+  - Liskov Substitution Principle only
+  - Interface Segregation Principle only
+  answer: 0
+  explanation: New model providers can be introduced simply by creating a new Strategy class without editing the dispatcher
+    or calling code.
+pattern_quiz:
+  prompt: What role does the context class play in the Strategy pattern?
+  options:
+  - It maintains a reference to a Strategy object and delegates the algorithmic task to it
+  - It compiles the code to machine instructions
+  - It handles database migrations
+  - It creates thread pools
+  answer: 0
+  explanation: The context interacts with the client and delegates computation to the active Strategy implementation.
+function:
+  name: dispatch_llm_strategy
+  params:
+  - name: provider
+    type: any
+  - name: prompt
+    type: any
+  - name: model_config
+    type: any
+  returns: any
+starter_code: "class Solution:\n    def dispatch_llm_strategy(self, provider: str, prompt: str, model_config: dict = None)\
+  \ -> dict:\n        pass\n"
+tests:
+- args:
+  - openai
+  - Analyze sentiment
+  - model: gpt-4o-mini
+  expected:
+    provider: openai
+    model: gpt-4o-mini
+    tokens: 22
+    response: 'OpenAI: Analyze sentiment'
+  note: OpenAI strategy execution
+- args:
+  - anthropic
+  - Draft query
+  - {}
+  expected:
+    provider: anthropic
+    model: claude-3-5-sonnet
+    tokens: 27
+    response: 'Anthropic: Draft query'
+  note: Anthropic strategy default model execution
+- args:
+  - ollama
+  - Summarize text
+  - model: mistral
+  expected:
+    provider: ollama
+    model: mistral
+    tokens: 17
+    response: 'Ollama: Summarize text'
+  note: Ollama strategy execution
+- args:
+  - unknown_ai
+  - test
+  - {}
+  expected:
+    error: 'Unsupported provider: unknown_ai'
+  note: Unsupported provider error guard
+visualize_test: 0
+drills:
+- title: Strategy Token Counter
+  skill: setup
+  goal: Calculate mock token estimate.
+  instructions: Return len(prompt.split()) + overhead.
+  function:
+    name: calc_tokens
+    params:
+    - name: prompt
+      type: any
+    - name: overhead
+      type: any
+  starter_code: "class Solution:\n    def calc_tokens(self, prompt: str, overhead: int) -> int:\n        pass\n"
+  tests:
+  - args:
+    - hello world
+    - 20
+    expected: 22
+  solution: "class Solution:\n    def calc_tokens(self, prompt: str, overhead: int) -> int:\n        return len(prompt.split())\
+    \ + overhead\n"
+  hint: Return len(prompt.split()) + overhead.
+- title: Lookup Provider Strategy
+  skill: core
+  goal: Fetch strategy from dictionary by name.
+  instructions: Return registry.get(name.lower()).
+  function:
+    name: get_strategy
+    params:
+    - name: registry
+      type: any
+    - name: name
+      type: any
+  starter_code: "class Solution:\n    def get_strategy(self, registry: dict, name: str) -> any:\n        pass\n"
+  tests:
+  - args:
+    - openai: OpenAIObj
+    - OPENAI
+    expected: OpenAIObj
+  solution: "class Solution:\n    def get_strategy(self, registry: dict, name: str) -> any:\n        return registry.get(name.lower())\n"
+  hint: Use registry.get(name.lower()).
+- title: Format Strategy Result
+  skill: edge
+  goal: Build standard inference response dictionary.
+  instructions: Return dict with provider, model, tokens, response.
+  function:
+    name: format_strategy_resp
+    params:
+    - name: p
+      type: any
+    - name: m
+      type: any
+    - name: t
+      type: any
+    - name: r
+      type: any
+  starter_code: "class Solution:\n    def format_strategy_resp(self, p: str, m: str, t: int, r: str) -> dict:\n        pass\n"
+  tests:
+  - args:
+    - openai
+    - gpt-4o
+    - 25
+    - resp
+    expected:
+      provider: openai
+      model: gpt-4o
+      tokens: 25
+      response: resp
+  solution: "class Solution:\n    def format_strategy_resp(self, p: str, m: str, t: int, r: str) -> dict:\n        return\
+    \ {\"provider\": p, \"model\": m, \"tokens\": t, \"response\": r}\n"
+  hint: Return dict with the 4 keys.
+hints:
+- Define concrete strategy classes implementing generate(prompt, config).
+- Store strategy instances in a dictionary keyed by lowercase provider name.
+- 'If provider not in dict, return {''error'': f''Unsupported provider: {provider}''}.'
+solution:
+  code: "from abc import ABC, abstractmethod\n\nclass LLMProviderStrategy(ABC):\n    @abstractmethod\n    def generate(self,\
+    \ prompt: str, config: dict) -> dict:\n        pass\n\nclass OpenAIStrategy(LLMProviderStrategy):\n    def generate(self,\
+    \ prompt: str, config: dict) -> dict:\n        model = config.get(\"model\", \"gpt-4o\")\n        return {\n         \
+    \   \"provider\": \"openai\",\n            \"model\": model,\n            \"tokens\": len(prompt.split()) + 20,\n    \
+    \        \"response\": f\"OpenAI: {prompt}\",\n        }\n\nclass AnthropicStrategy(LLMProviderStrategy):\n    def generate(self,\
+    \ prompt: str, config: dict) -> dict:\n        model = config.get(\"model\", \"claude-3-5-sonnet\")\n        return {\n\
+    \            \"provider\": \"anthropic\",\n            \"model\": model,\n            \"tokens\": len(prompt.split())\
+    \ + 25,\n            \"response\": f\"Anthropic: {prompt}\",\n        }\n\nclass OllamaStrategy(LLMProviderStrategy):\n\
+    \    def generate(self, prompt: str, config: dict) -> dict:\n        model = config.get(\"model\", \"llama3\")\n     \
+    \   return {\n            \"provider\": \"ollama\",\n            \"model\": model,\n            \"tokens\": len(prompt.split())\
+    \ + 15,\n            \"response\": f\"Ollama: {prompt}\",\n        }\n\nclass Solution:\n    def dispatch_llm_strategy(self,\
+    \ provider: str, prompt: str, model_config: dict = None) -> dict:\n        config = model_config or {}\n        strategies\
+    \ = {\n            \"openai\": OpenAIStrategy(),\n            \"anthropic\": AnthropicStrategy(),\n            \"ollama\"\
+    : OllamaStrategy(),\n        }\n        strat = strategies.get(provider.lower())\n        if not strat:\n            return\
+    \ {\"error\": f\"Unsupported provider: {provider}\"}\n        return strat.generate(prompt, config)\n"
+  explanation: Decouples provider-specific request formats into isolated Strategy classes behind a uniform generate() interface.
+  time: O(W) where W is the word count of the prompt
+  space: O(1) constant auxiliary space
+pitch_script: '**(Clarify)** "We need to structure an LLM inference dispatcher using the Strategy design pattern to support
+  multiple AI vendors."
+
+
+  **(Basement Insight)** "Embedding provider-specific logic directly in controllers violates the Open-Closed Principle. The
+  Strategy pattern encapsulates each vendor into its own class behind a common contract."
+
+
+  **(Solution)** "We define an abstract base strategy with a generate method. Concrete classes implement OpenAI, Anthropic,
+  and Ollama execution. A dictionary dispatcher resolves the provider at runtime."
+
+
+  **(Complexity)** "Executes in O(W) time for string tokenization and O(1) space."
+
+  '
+twist:
+  lc: 9216
+  title: Observer Pattern Decoupled Event Bus
+  why: Once the LLM strategy completes, notify multiple downstream monitoring and billing services via an Observer event bus.
+viz:
+  title: Strategy Pattern Class Diagram & Dispatch Flow

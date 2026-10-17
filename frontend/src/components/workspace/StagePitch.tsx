@@ -1,21 +1,110 @@
-import { Bot, CalendarClock } from 'lucide-react'
+import {
+  Bot,
+  Calendar,
+  CalendarClock,
+  Check,
+  CheckCircle2,
+  Clock,
+  Columns2,
+  Cpu,
+  Eye,
+  FileText,
+  Mic,
+  Radio,
+  RotateCcw,
+  ShieldCheck,
+  Sparkles,
+  Zap,
+} from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { api } from '../../api/client'
 import type { Pitch, Progress, QuestionDetail } from '../../api/types'
 import { useCoachStatus } from '../../lib/useCoach'
-import { Button, LeetCodeLink, Markdown, Panel, formatRelative } from '../ui'
+import { Button, LeetCodeLink, Markdown, formatRelative } from '../ui'
 
-const FIELDS: { key: keyof Omit<Pitch, 'updated_at'>; label: string; placeholder: string }[] = [
-  { key: 'brute_force', label: 'Brute force, and why it is too slow', placeholder: 'Two nested loops over every pair: O(N²)…' },
-  { key: 'trigger', label: 'The trigger I spotted', placeholder: '"Return indices" on unsorted data, so…' },
-  { key: 'intuition', label: 'The optimal idea in two plain sentences', placeholder: 'For each x I already know what I need…' },
-  { key: 'complexity', label: 'Exact time and space complexity, and why', placeholder: 'O(N) time because… O(N) space because…' },
+const FIELDS: {
+  key: keyof Omit<Pitch, 'updated_at'>
+  stepNum: number
+  label: string
+  sublabel: string
+  placeholder: string
+  guidance: string
+}[] = [
+  {
+    key: 'brute_force',
+    stepNum: 1,
+    label: 'Brute Force & Algorithmic Bottleneck',
+    sublabel: 'Identify the naive approach and explain why it violates the time budget',
+    placeholder: 'Two nested loops scanning every pair: O(N²) time, which exceeds 10⁸ ops for N > 5,000…',
+    guidance: 'State the naive solution clearly so the interviewer knows you understand the baseline.',
+  },
+  {
+    key: 'trigger',
+    stepNum: 2,
+    label: 'The Trigger Signal Spotted',
+    sublabel: 'Pinpoint the exact phrasing or constraint that unlocked the pattern',
+    placeholder: '"Find pair summing to target in unsorted array" → Direct signal for complement lookup via Hash Map…',
+    guidance: 'Mention the exact trigger word from the problem statement.',
+  },
+  {
+    key: 'intuition',
+    stepNum: 3,
+    label: 'Optimal 60-Second Spoken Intuition',
+    sublabel: 'Explain the core idea out loud as if speaking directly to a Staff Engineer',
+    placeholder: 'Maintain a hash table of visited values. For each number x, check if (target - x) was already seen in O(1)…',
+    guidance: 'Keep it to 2 concise sentences. Focus on the core invariant.',
+  },
+  {
+    key: 'complexity',
+    stepNum: 4,
+    label: 'Space & Time Complexity Invariants',
+    sublabel: 'State the exact bounds and justify them using hardware memory and loop invariants',
+    placeholder: 'O(N) time for a single pass through the array; O(N) space in the worst case to store complements in the hash map.',
+    guidance: 'Always justify both time and space without waiting to be asked.',
+  },
 ]
 
-const CONFIDENCE = [
-  { value: 1, label: 'Struggled', detail: 'Review in 3 days' },
-  { value: 2, label: 'Needed hints', detail: 'Review in 7 days' },
-  { value: 3, label: 'Crushed it', detail: 'Review in 21 days' },
+const CONFIDENCE_LEVELS = [
+  {
+    value: 1,
+    label: 'Struggled',
+    sub: 'Severe difficulty / blanked',
+    intervalDays: 3,
+    badgeClass: 'border-crimson/50 bg-crimson/15 text-crimson hover:bg-crimson/25',
+    activeClass: 'border-crimson bg-crimson/20 text-crimson shadow-[0_0_16px_rgba(251,113,133,0.35)] ring-1 ring-crimson',
+  },
+  {
+    value: 2,
+    label: 'Needed Hints',
+    sub: 'Required hint / hesitation',
+    intervalDays: 7,
+    badgeClass: 'border-oxide/50 bg-oxide/15 text-oxide hover:bg-oxide/25',
+    activeClass: 'border-oxide bg-oxide/20 text-oxide shadow-[0_0_16px_rgba(251,113,133,0.3)] ring-1 ring-oxide',
+  },
+  {
+    value: 3,
+    label: 'Moderate',
+    sub: 'Solved with slight friction',
+    intervalDays: 21,
+    badgeClass: 'border-amber/50 bg-amber/15 text-amber hover:bg-amber/25',
+    activeClass: 'border-amber bg-amber/20 text-amber shadow-[0_0_16px_rgba(242,184,102,0.35)] ring-1 ring-amber',
+  },
+  {
+    value: 4,
+    label: 'Confident',
+    sub: 'Clean solve & crisp pitch',
+    intervalDays: 42,
+    badgeClass: 'border-cyan/50 bg-cyan/15 text-cyan hover:bg-cyan/25',
+    activeClass: 'border-cyan bg-cyan/20 text-cyan shadow-[0_0_16px_rgba(103,232,249,0.35)] ring-1 ring-cyan',
+  },
+  {
+    value: 5,
+    label: 'Mastered',
+    sub: 'Flawless recall & optimal code',
+    intervalDays: 84,
+    badgeClass: 'border-emerald/50 bg-emerald/15 text-emerald hover:bg-emerald/25',
+    activeClass: 'border-emerald bg-emerald/20 text-emerald shadow-[0_0_16px_rgba(16,185,129,0.35)] ring-1 ring-emerald',
+  },
 ]
 
 const leetcodeUrl = (title: string) =>
@@ -31,7 +120,7 @@ export default function StagePitch({ question, progress, onProgress }: Props) {
   const content = question.content!
   const [pitch, setPitch] = useState<Pitch>(question.pitch)
   const [saved, setSaved] = useState(true)
-  const [showScript, setShowScript] = useState(Boolean(question.pitch.updated_at))
+  const [viewMode, setViewMode] = useState<'sideBySide' | 'teleprompter' | 'seniorOnly'>('sideBySide')
   const [showSolution, setShowSolution] = useState(false)
   const firstRender = useRef(true)
   const coach = useCoachStatus()
@@ -41,9 +130,12 @@ export default function StagePitch({ question, progress, onProgress }: Props) {
   const polishPitch = async () => {
     setPolishing(true)
     try {
-      const r = await api.askCoach(question.slug, { mode: 'pitch', code: question.drafts.main ?? '', pitch })
+      const r = await api.askCoach(question.slug, {
+        mode: 'pitch',
+        code: question.drafts.main ?? '',
+        pitch,
+      })
       setPolish({ text: r.reply, error: r.error })
-      if (!r.reply) setShowScript(true)
     } catch (e) {
       setPolish({ text: null, error: (e as Error).message })
     } finally {
@@ -64,135 +156,425 @@ export default function StagePitch({ question, progress, onProgress }: Props) {
     return () => clearTimeout(t)
   }, [pitch, question.slug])
 
-  const filled = FIELDS.filter((f) => pitch[f.key].trim().length > 0).length
+  const filledCount = FIELDS.filter((f) => pitch[f.key].trim().length > 0).length
+  const totalWords = FIELDS.reduce((sum, f) => sum + pitch[f.key].trim().split(/\s+/).filter(Boolean).length, 0)
+  const estimatedSeconds = Math.round((totalWords / 130) * 60) // ~130 words per minute conversational pace
 
   const rate = async (confidence: number) => {
     onProgress(await api.rate(question.slug, confidence))
   }
 
-  return (
-    <div className="flex flex-col gap-5">
-      <div className="grid gap-5 lg:grid-cols-2">
-        <Panel title="Your 4-line interview pitch" aside={<span className="text-xs text-faint">{saved ? 'Saved' : 'Saving'}</span>}>
-          <div className="flex flex-col gap-4">
-            {FIELDS.map((f, i) => (
-              <label key={f.key} className="flex flex-col gap-1.5">
-                <span className="text-sm text-chalk">
-                  {i + 1}. {f.label}
-                </span>
-                <textarea
-                  rows={2}
-                  value={pitch[f.key]}
-                  placeholder={f.placeholder}
-                  onChange={(e) => setPitch({ ...pitch, [f.key]: e.target.value })}
-                  className="resize-y rounded-md border border-line bg-ink px-3 py-2 text-sm text-chalk placeholder:text-faint focus:border-forge focus:outline-none"
-                />
-              </label>
-            ))}
-          </div>
-        </Panel>
+  const isUnlockedForRating = progress.solved || progress.studied_solution
 
-        <Panel
-          title="How a senior engineer would say it"
-          aside={
-            coach?.enabled ? (
-              <Button variant="glass" className="px-2.5 py-1 text-xs" onClick={polishPitch} disabled={polishing || filled === 0}>
-                <Bot size={13} /> {polishing ? 'Polishing' : 'Polish My Pitch'}
-              </Button>
-            ) : null
-          }
-        >
-          {polish && (
-            <div className="mb-4 rounded-lg border border-indigo/30 bg-indigo/[0.06] px-3 py-2.5 text-sm">
-              <div className="mb-1 flex items-center gap-1.5 text-xs text-sky">
-                <Bot size={13} /> Coach feedback on your pitch{coach?.model ? `, ${coach.model}` : ''}
-              </div>
-              {polish.text ? (
-                <Markdown>{polish.text}</Markdown>
-              ) : (
-                <p className="text-muted">{polish.error} Here is the built-in model script instead.</p>
-              )}
+  return (
+    <div className="flex flex-col gap-6 max-w-full">
+      {/* Telemetry Stage 4 Header Strip */}
+      <div className="pf-glass-panel rounded-2xl p-4 sm:p-5 flex flex-wrap items-center justify-between gap-4 border border-line shadow-2xl">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-forge/40 bg-forge/15 text-forge shadow-[0_0_14px_rgba(110,231,183,0.3)]">
+            <Mic size={20} />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h3 className="font-plate text-base font-bold text-chalk">
+                Interview Defense & Executive Speech Studio
+              </h3>
+              <span className="inline-flex items-center gap-1 rounded-full border border-forge/40 bg-forge/10 px-2 py-0.5 text-2xs font-mono font-semibold text-forge">
+                <span className="h-1.5 w-1.5 rounded-full bg-forge pf-beacon" />
+                60-Second Verbal Spoken Drill
+              </span>
             </div>
-          )}
-          {showScript ? (
-            <Markdown className="text-sm leading-relaxed">{content.pitch_script}</Markdown>
-          ) : (
-            <div className="flex flex-col items-start gap-3 text-sm text-muted">
-              <p>Write your own version first. Comparing after you've tried is what makes the explanation stick.</p>
-              <Button variant="outline" onClick={() => setShowScript(true)} disabled={filled < 2}>
-                Compare with the model script
-              </Button>
-              {filled < 2 && <span className="text-xs text-faint">Fill in at least two lines to unlock.</span>}
-            </div>
-          )}
-        </Panel>
+            <p className="text-xs text-muted">
+              Speak your explanation out loud. Senior interviewers evaluate verbal structure, trade-offs, and pacing.
+            </p>
+          </div>
+        </div>
+
+        {/* View mode toggle */}
+        <div className="flex items-center gap-2 text-xs font-mono">
+          <div className="flex items-center rounded-xl border border-line bg-panel p-1">
+            <button
+              type="button"
+              onClick={() => setViewMode('sideBySide')}
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-lg transition-colors ${
+                viewMode === 'sideBySide'
+                  ? 'bg-cyan/20 text-cyan font-bold border border-cyan/40 shadow-xs'
+                  : 'text-muted hover:text-chalk'
+              }`}
+            >
+              <Columns2 size={13} />
+              <span>Side-by-Side Diff</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('teleprompter')}
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-lg transition-colors ${
+                viewMode === 'teleprompter'
+                  ? 'bg-cyan/20 text-cyan font-bold border border-cyan/40 shadow-xs'
+                  : 'text-muted hover:text-chalk'
+              }`}
+            >
+              <FileText size={13} />
+              <span>Your Pitch</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('seniorOnly')}
+              className={`flex items-center gap-1.5 px-3 py-1 rounded-lg transition-colors ${
+                viewMode === 'seniorOnly'
+                  ? 'bg-cyan/20 text-cyan font-bold border border-cyan/40 shadow-xs'
+                  : 'text-muted hover:text-chalk'
+              }`}
+            >
+              <ShieldCheck size={13} />
+              <span>Senior Model Script</span>
+            </button>
+          </div>
+        </div>
       </div>
 
-      <Panel
-        title="Optimal solution"
-        aside={
-          <button className="text-xs text-sky hover:underline" onClick={() => setShowSolution(!showSolution)}>
-            {showSolution ? 'Hide' : 'Show'}
-          </button>
-        }
+      {/* Main Pitch Studio Grid */}
+      <div
+        className={`grid gap-6 ${
+          viewMode === 'sideBySide' ? 'grid-cols-1 xl:grid-cols-12' : 'grid-cols-1'
+        }`}
       >
-        {showSolution ? (
-          <div className="grid gap-4 lg:grid-cols-2">
-            <pre className="overflow-x-auto rounded-md border border-line bg-ink p-3 font-mono text-xs leading-relaxed text-chalk">
-              {content.solution.code}
-            </pre>
-            <div className="flex flex-col gap-3 text-sm">
-              <Markdown>{content.solution.explanation}</Markdown>
-              <dl className="grid grid-cols-[4rem_1fr] gap-1 font-mono text-xs">
-                <dt className="text-muted">Time</dt>
-                <dd>{content.solution.time}</dd>
-                <dt className="text-muted">Space</dt>
-                <dd>{content.solution.space}</dd>
-              </dl>
+        {/* Left Column: Teleprompter Pitch Field */}
+        {(viewMode === 'sideBySide' || viewMode === 'teleprompter') && (
+          <div className={viewMode === 'sideBySide' ? 'xl:col-span-6 flex flex-col gap-4' : 'flex flex-col gap-4'}>
+            <div className="pf-glass-panel rounded-2xl border border-line p-5 shadow-2xl flex flex-col gap-5">
+              {/* Teleprompter Header Bar */}
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line pb-3.5">
+                <div className="flex items-center gap-2">
+                  <span className="font-plate text-sm font-bold uppercase tracking-wider text-chalk">
+                    Your 4-Line Verbal Script
+                  </span>
+                  <span className="font-mono text-2xs px-2 py-0.5 rounded-full border border-line bg-panel-2 text-cyan">
+                    {filledCount} / 4 Sections Complete
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-3 text-2xs font-mono">
+                  {/* Pacing Telemetry */}
+                  <span className="flex items-center gap-1.5 text-muted">
+                    <Clock size={12} className="text-cyan" />
+                    <span className="text-chalk font-semibold">{totalWords} words</span>
+                    <span className="text-faint">(~{estimatedSeconds}s spoken)</span>
+                  </span>
+
+                  {/* Auto-save status */}
+                  <span
+                    className={`flex items-center gap-1 font-semibold ${
+                      saved ? 'text-emerald' : 'text-amber animate-pulse'
+                    }`}
+                  >
+                    {saved ? <Check size={12} strokeWidth={3} /> : <RotateCcw size={12} className="animate-spin" />}
+                    <span>{saved ? 'Saved to Grimoire' : 'Saving draft…'}</span>
+                  </span>
+                </div>
+              </div>
+
+              {/* 4 Line Input Teleprompter Fields */}
+              <div className="space-y-4">
+                {FIELDS.map((f) => {
+                  const val = pitch[f.key]
+                  const hasContent = val.trim().length > 0
+                  return (
+                    <div
+                      key={f.key}
+                      className={`rounded-xl border p-3.5 transition-all ${
+                        hasContent
+                          ? 'border-line-strong bg-panel-2/90 shadow-xs'
+                          : 'border-line/70 bg-panel-2/40'
+                      }`}
+                    >
+                      <div className="flex items-baseline justify-between gap-2 mb-1.5">
+                        <label className="flex items-center gap-2 text-xs font-semibold text-chalk cursor-pointer">
+                          <span className="flex h-5 w-5 items-center justify-center rounded-md border border-cyan/40 bg-cyan/15 font-mono text-2xs font-bold text-cyan">
+                            {f.stepNum}
+                          </span>
+                          <span>{f.label}</span>
+                        </label>
+                        <span className="hidden sm:inline font-sans text-caption text-faint italic">
+                          {f.guidance}
+                        </span>
+                      </div>
+
+                      <p className="text-2xs text-muted mb-2 font-sans">{f.sublabel}</p>
+
+                      <textarea
+                        rows={2}
+                        value={val}
+                        placeholder={f.placeholder}
+                        onChange={(e) => setPitch({ ...pitch, [f.key]: e.target.value })}
+                        className="w-full resize-y rounded-lg border border-line bg-ink/90 px-3 py-2 font-sans text-xs leading-relaxed text-chalk placeholder:text-faint focus:border-cyan focus:outline-none focus:ring-1 focus:ring-cyan/30"
+                      />
+                    </div>
+                  )
+                })}
+              </div>
+
+              {/* Pacing Advice footer */}
+              <div className="rounded-xl border border-line/70 bg-panel-2/50 p-3 text-2xs text-muted flex items-start gap-2.5">
+                <Sparkles size={14} className="text-amber shrink-0 mt-0.5" />
+                <p className="leading-relaxed">
+                  <strong className="text-chalk">Senior Engineer Rule of Thumb:</strong> Aim for 40 to 65 total words. Explain the baseline brute-force, why it breaks at the problem constraint, your trigger recognition, and the optimal complexity in one smooth breath.
+                </p>
+              </div>
             </div>
           </div>
-        ) : (
-          <p className="text-sm text-muted">Compare the reference with your own code once you've written your pitch.</p>
         )}
-      </Panel>
 
-      <div className="grid gap-5 lg:grid-cols-2">
-        <Panel title="The twist: same pattern, new wrapper">
-          <div className="flex flex-col gap-2">
-            <div className="flex items-center gap-2">
-              <LeetCodeLink lc={content.twist.lc} url={leetcodeUrl(content.twist.title)} />
-              <span className="font-semibold text-chalk">{content.twist.title}</span>
+        {/* Right Column: Model Senior Script Diff & Architectural Trade-offs */}
+        {(viewMode === 'sideBySide' || viewMode === 'seniorOnly') && (
+          <div className={viewMode === 'sideBySide' ? 'xl:col-span-6 flex flex-col gap-4' : 'flex flex-col gap-4'}>
+            <div className="pf-glass-panel rounded-2xl border border-line p-5 shadow-2xl flex flex-col gap-5">
+              {/* Senior Script Header Bar */}
+              <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line pb-3.5">
+                <div className="flex items-center gap-2">
+                  <div className="flex h-6 w-6 items-center justify-center rounded-md border border-cyan/40 bg-cyan/15 text-cyan">
+                    <ShieldCheck size={14} />
+                  </div>
+                  <span className="font-plate text-sm font-bold uppercase tracking-wider text-chalk">
+                    Senior Engineer Model Script Diff
+                  </span>
+                </div>
+
+                {coach?.enabled && (
+                  <Button
+                    variant="glass"
+                    onClick={polishPitch}
+                    disabled={polishing || filledCount === 0}
+                    className="h-7 text-xs px-2.5 border-sky-500/40 text-sky-400 hover:bg-sky-500/10"
+                  >
+                    <Bot size={13} className="mr-1 text-cyan" />
+                    <span>{polishing ? 'Analyzing pitch…' : 'Polish My Pitch (AI)'}</span>
+                  </Button>
+                )}
+              </div>
+
+              {/* Coach Feedback Box if activated */}
+              {polish && (
+                <div className="rounded-xl border border-sky-500/30 bg-sky-500/[0.05] p-4 text-xs">
+                  <div className="mb-2 flex items-center gap-1.5 font-mono text-2xs font-semibold text-cyan">
+                    <Bot size={13} />
+                    <span>STAFF COACH CRITIQUE {coach?.model ? `(${coach.model})` : ''}</span>
+                  </div>
+                  {polish.text ? (
+                    <div className="prose-forge text-chalk text-xs leading-relaxed">
+                      <Markdown>{polish.text}</Markdown>
+                    </div>
+                  ) : (
+                    <p className="text-muted">{polish.error} Standard model comparison rendered below.</p>
+                  )}
+                </div>
+              )}
+
+              {/* Architectural Trade-offs Callouts */}
+              <div className="rounded-xl border border-line/80 bg-panel-2/60 p-3.5 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="font-mono text-2xs uppercase tracking-wider text-faint font-semibold">
+                    Key Architectural Trade-offs to Articulate
+                  </span>
+                  <span className="font-mono text-2xs text-cyan font-bold">4 Verified Invariants</span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-2xs font-mono">
+                  <div className="rounded-lg border border-line bg-panel p-2 flex items-center gap-2">
+                    <span className="h-2 w-2 rounded-full bg-emerald shrink-0" />
+                    <span className="text-muted">Time Bound:</span>
+                    <strong className="text-chalk">{content.solution.time}</strong>
+                  </div>
+                  <div className="rounded-lg border border-line bg-panel p-2 flex items-center gap-2">
+                    <span className="h-2 w-2 rounded-full bg-cyan shrink-0" />
+                    <span className="text-muted">Space Bound:</span>
+                    <strong className="text-chalk">{content.solution.space}</strong>
+                  </div>
+                  <div className="rounded-lg border border-line bg-panel p-2 flex items-center gap-2">
+                    <span className="h-2 w-2 rounded-full bg-amber shrink-0" />
+                    <span className="text-muted">Brute-Force:</span>
+                    <strong className="text-chalk truncate">{content.pitch_script.split('\n')[0]?.slice(0, 22) || 'O(N²) quadratic'}…</strong>
+                  </div>
+                  <div className="rounded-lg border border-line bg-panel p-2 flex items-center gap-2">
+                    <span className="h-2 w-2 rounded-full bg-forge shrink-0" />
+                    <span className="text-muted">Core Primitive:</span>
+                    <strong className="text-chalk">{question.patterns[0] || 'Optimal State'}</strong>
+                  </div>
+                </div>
+              </div>
+
+              {/* Spoken Senior Script Breakdown */}
+              <div className="rounded-xl border border-line bg-panel p-4 space-y-3">
+                <div className="flex items-center justify-between border-b border-line pb-2">
+                  <h4 className="font-mono text-2xs uppercase tracking-wider text-faint font-semibold">
+                    Target Spoken Formulation
+                  </h4>
+                  <span className="text-2xs font-mono text-emerald font-semibold">Senior Baseline</span>
+                </div>
+
+                <div className="prose-forge text-xs leading-relaxed text-chalk space-y-2 font-sans">
+                  <Markdown>{content.pitch_script}</Markdown>
+                </div>
+              </div>
+
+              {/* Pitch Comparison Insight */}
+              <div className="rounded-xl border border-line/60 bg-panel-2/40 p-3 text-2xs text-muted flex items-center gap-2">
+                <Radio size={13} className="text-cyan shrink-0" />
+                <span>
+                  Comparing your pitch against the model script trains you to speak without defensive rambling or hedging.
+                </span>
+              </div>
             </div>
-            <Markdown className="text-sm text-muted">{content.twist.why}</Markdown>
-            <p className="text-xs text-faint">No drills, no hints. Solve it on LeetCode to prove the pattern transferred.</p>
           </div>
-        </Panel>
+        )}
+      </div>
 
-        <Panel title="How confident are you?">
-          <div className="flex flex-col gap-3">
-            <div className="grid grid-cols-3 gap-2">
-              {CONFIDENCE.map((c) => (
-                <button
-                  key={c.value}
-                  onClick={() => rate(c.value)}
-                  disabled={!(progress.solved || progress.studied_solution)}
-                  className={`rounded-md border px-3 py-2 text-left transition-colors disabled:opacity-40 ${
-                    progress.confidence === c.value ? 'border-forge bg-forge/10' : 'border-line hover:border-muted'
-                  }`}
-                >
-                  <span className="block text-sm text-chalk">{c.label}</span>
-                  <span className="block text-xs text-muted">{c.detail}</span>
-                </button>
-              ))}
+      {/* Spaced Repetition & Confidence Rating Studio */}
+      <div className="pf-glass-panel rounded-2xl border border-line p-5 shadow-2xl flex flex-col gap-4">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line pb-3">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-7 w-7 items-center justify-center rounded-lg border border-cyan/40 bg-cyan/15 text-cyan shadow-sm">
+              <CalendarClock size={15} />
             </div>
-            {progress.next_review_at && (
-              <p className="flex items-center gap-2 text-sm text-muted">
-                <CalendarClock size={15} className="text-sky" />
-                Next blind re-solve {formatRelative(progress.next_review_at)}
+            <div>
+              <h4 className="font-plate text-sm font-bold text-chalk">
+                SM-2 Spaced Repetition & Confidence Rating
+              </h4>
+              <p className="text-2xs text-muted">
+                Select your recall confidence to schedule this problem's next blind re-solve and prevent knowledge decay.
               </p>
-            )}
+            </div>
           </div>
-        </Panel>
+
+          {progress.next_review_at && (
+            <div className="flex items-center gap-2 font-mono text-2xs rounded-lg border border-line bg-panel px-3 py-1 text-muted">
+              <Calendar size={12} className="text-cyan" />
+              <span>Next Review:</span>
+              <strong className="text-chalk font-semibold">
+                {formatRelative(progress.next_review_at)}
+              </strong>
+              <span className="text-faint">
+                ({new Date(progress.next_review_at).toLocaleDateString(undefined, {
+                  month: 'short',
+                  day: 'numeric',
+                })})
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* 5 Confidence Rating Pills */}
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
+          {CONFIDENCE_LEVELS.map((lvl) => {
+            const isSelected = progress.confidence === lvl.value
+            return (
+              <button
+                key={lvl.value}
+                type="button"
+                onClick={() => rate(lvl.value)}
+                disabled={!isUnlockedForRating}
+                title={
+                  isUnlockedForRating
+                    ? `Rate ${lvl.label}: next review in ${lvl.intervalDays} days`
+                    : 'Solve or study solution before rating'
+                }
+                className={`relative flex flex-col items-start gap-1 p-3 rounded-xl border text-left transition-all ${
+                  isSelected
+                    ? lvl.activeClass
+                    : `${lvl.badgeClass} opacity-85 hover:opacity-100`
+                } ${!isUnlockedForRating ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}
+              >
+                <div className="flex items-center justify-between w-full">
+                  <span className="font-mono text-2xs font-bold uppercase tracking-wider">
+                    {lvl.value}. {lvl.label}
+                  </span>
+                  {isSelected && <CheckCircle2 size={13} className="shrink-0" />}
+                </div>
+
+                <span className="text-2xs text-muted font-sans line-clamp-1">{lvl.sub}</span>
+
+                <div className="mt-1 flex items-center gap-1 font-mono text-caption text-faint">
+                  <Clock size={10} />
+                  <span>+{lvl.intervalDays} days</span>
+                </div>
+              </button>
+            )
+          })}
+        </div>
+
+        {!isUnlockedForRating && (
+          <p className="text-2xs text-faint italic font-mono">
+            Solve the Arena problem or inspect the reference solution to unlock confidence rating.
+          </p>
+        )}
+      </div>
+
+      {/* Bottom Accordion: Reference Solution & LeetCode Twist */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        {/* Reference Solution Accordion */}
+        <div className="rounded-2xl border border-line bg-panel p-4 sm:p-5">
+          <div className="flex items-center justify-between mb-3 border-b border-line pb-2.5">
+            <div className="flex items-center gap-2">
+              <Cpu size={15} className="text-cyan" />
+              <h4 className="font-plate text-xs font-bold uppercase tracking-wider text-chalk">
+                Optimal Reference Solution
+              </h4>
+            </div>
+            <button
+              type="button"
+              className="text-2xs font-semibold text-cyan hover:underline flex items-center gap-1"
+              onClick={() => setShowSolution(!showSolution)}
+            >
+              <Eye size={12} />
+              <span>{showSolution ? 'Hide Code' : 'Show Code'}</span>
+            </button>
+          </div>
+
+          {showSolution ? (
+            <div className="flex flex-col gap-3">
+              <pre className="overflow-x-auto rounded-xl border border-line bg-ink p-3 font-mono text-xs leading-relaxed text-chalk max-h-[300px]">
+                {content.solution.code}
+              </pre>
+              <div className="prose-forge text-xs text-muted leading-relaxed">
+                <Markdown>{content.solution.explanation}</Markdown>
+              </div>
+              <div className="flex items-center gap-4 text-2xs font-mono border-t border-line/60 pt-2 text-muted">
+                <span>Time: <strong className="text-chalk">{content.solution.time}</strong></span>
+                <span>Space: <strong className="text-chalk">{content.solution.space}</strong></span>
+              </div>
+            </div>
+          ) : (
+            <p className="text-xs text-muted">
+              Review your working code first. The reference solution is available to compare idioms and space optimizations.
+            </p>
+          )}
+        </div>
+
+        {/* Transfer Twist Challenge */}
+        <div className="rounded-2xl border border-line bg-panel p-4 sm:p-5 flex flex-col justify-between gap-3">
+          <div>
+            <div className="flex items-center justify-between mb-3 border-b border-line pb-2.5">
+              <div className="flex items-center gap-2">
+                <Zap size={15} className="text-amber" />
+                <h4 className="font-plate text-xs font-bold uppercase tracking-wider text-chalk">
+                  Transfer Twist: Same Pattern, New Wrapper
+                </h4>
+              </div>
+              <LeetCodeLink lc={content.twist.lc} url={leetcodeUrl(content.twist.title)} showLabel />
+            </div>
+
+            <div className="space-y-2">
+              <h5 className="font-plate text-sm font-semibold text-chalk">{content.twist.title}</h5>
+              <div className="prose-forge text-xs text-muted leading-relaxed">
+                <Markdown>{content.twist.why}</Markdown>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-line/60 bg-panel-2/50 p-2.5 text-2xs text-faint">
+            Solve this twist on LeetCode without hints to prove the mental model has permanently transferred.
+          </div>
+        </div>
       </div>
     </div>
   )

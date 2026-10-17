@@ -17,8 +17,13 @@ SOLUTION = (
 
 def test_worlds_index_has_all_115(client):
     worlds = client.get("/api/worlds").json()
-    assert len(worlds) == 12
-    assert sum(w["total"] for w in worlds) == 115
+    assert len(worlds) == 38
+    assert sum(w["total"] for w in worlds) == 192
+
+    dsa_worlds = client.get("/api/worlds?citadel_id=dsa").json()
+    assert len(dsa_worlds) == 12
+    assert sum(w["total"] for w in dsa_worlds) == 115
+
     two_sum = next(q for q in worlds[0]["questions"] if q["slug"] == "two-sum")
     assert two_sum["has_content"]
     assert two_sum["leetcode_url"] == "https://leetcode.com/problems/two-sum/"

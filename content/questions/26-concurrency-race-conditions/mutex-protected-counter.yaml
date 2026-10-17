@@ -1,0 +1,295 @@
+slug: mutex-protected-counter
+lc: 9412
+citadel_id: os_concurrency
+brick_layer: 2
+runner_type: python_practical
+concept:
+  problem_it_solves: How does a mutual exclusion lock (Mutex) eliminate race conditions and guarantee atomic updates? By requiring
+    threads to acquire a lock before entering the critical section and release it upon exit, the OS guarantees that only one
+    thread executes the read-modify-write cycle at any given moment.
+  brute_force: Relying on cooperative yielding or hoping operations complete before context switches occur.
+  brute_force_complexity: O(1) syntax, but silent data corruption in multi-core environments.
+  key_insight: A mutex tracks a single owner thread. Any thread attempting an operation without holding the lock causes an
+    unprotected operation violation, while acquire attempts on a held lock are blocked.
+  real_world: Thread-safe connection pooling, banking balance transfers, and shared metrics counters in production services.
+statement:
+  clean: "Implement a mutex-protected counter to verify mutual exclusion over critical sections:\n`simulate_locked_counter(steps:\
+    \ list[list[str]]) -> dict`.\n\nEach step is a list `[thread_id, operation]` where operation is one of `\"ACQUIRE\"`,\
+    \ `\"RELEASE\"`, `\"READ\"`, `\"ADD\"`, `\"WRITE\"`.\n\nRules:\n1. `lock_holder` is initially `None`.\n2. `\"ACQUIRE\"\
+    `:\n   - If `lock_holder is None`: `lock_holder = thread_id`.\n   - If `lock_holder != thread_id`: the thread is blocked,\
+    \ increment `blocked_acquires`.\n3. `\"RELEASE\"`:\n   - If `lock_holder == thread_id`: release the lock (`lock_holder\
+    \ = None`).\n4. `\"READ\"`, `\"ADD\"`, `\"WRITE\"`:\n   - If `lock_holder != thread_id`: the thread attempted unprotected\
+    \ operations outside a held lock, increment `unprotected_operations`.\n   - If `lock_holder == thread_id`: execute the\
+    \ operation safely using thread-local registers and shared counter.\n\nReturn a dictionary containing:\n- `\"final_counter\"\
+    `: `int`\n- `\"total_writes\"`: `int`\n- `\"unprotected_operations\"`: `int`\n- `\"blocked_acquires\"`: `int`\n- `\"safe_execution\"\
+    `: `bool` (`True` if `unprotected_operations == 0` and `blocked_acquires == 0`)"
+  oa_story: '**PayLoop Wallet Transfer Engine — Concurrency Audit**
+
+
+    During high-throughput UPI transactions, PayLoop engineers noticed balance discrepancies when multiple services credited
+    the same merchant wallet simultaneously. A junior developer forgot to wrap the balance calculation inside a mutex lock.
+
+
+    Implement this lock-verified execution engine to prove that properly acquiring and releasing mutexes enforces safe critical
+    section execution with zero unprotected operations.'
+  trigger_keywords:
+  - mutex-protected counter
+  - unprotected operations
+  - blocked_acquires
+  examples:
+  - input: steps = [["T1", "ACQUIRE"], ["T1", "READ"], ["T1", "ADD"], ["T1", "WRITE"], ["T1", "RELEASE"], ["T2", "ACQUIRE"],
+      ["T2", "READ"], ["T2", "ADD"], ["T2", "WRITE"], ["T2", "RELEASE"]]
+    output: '{"final_counter": 2, "total_writes": 2, "unprotected_operations": 0, "blocked_acquires": 0, "safe_execution":
+      True}'
+    explanation: Both threads acquire and release properly, yielding 0 violations.
+  - input: steps = [["T1", "READ"], ["T1", "WRITE"]]
+    output: '{"final_counter": 0, "total_writes": 0, "unprotected_operations": 2, "blocked_acquires": 0, "safe_execution":
+      False}'
+    explanation: Operations executed without acquiring lock count as unprotected operations.
+  constraints:
+  - 0 <= len(steps) <= 1000
+  - Operations are strictly ACQUIRE, RELEASE, READ, ADD, WRITE
+constraint_quiz:
+  prompt: What happens if a thread tries to acquire a mutex that is already held by another thread?
+  options:
+  - The thread is blocked from entering the critical section until the holder releases the lock
+  - The operating system terminates the process with SIGSEGV
+  - The lock is automatically cloned into a distributed semaphore
+  - The second thread executes in parallel without waiting
+  answer: 0
+  explanation: Mutual exclusion specifies that an acquired mutex blocks any subsequent thread until released by the current
+    holder.
+pattern_quiz:
+  prompt: What constitutes an 'unprotected operation' in this critical section simulation?
+  options:
+  - A READ, ADD, or WRITE operation executed by a thread that does not currently hold the mutex
+  - An ACQUIRE called when the lock is free
+  - A RELEASE called by the lock holder
+  - Reading a counter whose value is 0
+  answer: 0
+  explanation: A critical section operation is unprotected whenever it executes without the executing thread holding the mutex.
+function:
+  name: simulate_locked_counter
+  params:
+  - name: steps
+  returns: any
+  compare: exact
+starter_code: "class Solution:\n    def simulate_locked_counter(self, steps: list[list[str]]) -> dict:\n        pass\n"
+tests:
+- args:
+  - - - T1
+      - ACQUIRE
+    - - T1
+      - READ
+    - - T1
+      - ADD
+    - - T1
+      - WRITE
+    - - T1
+      - RELEASE
+    - - T2
+      - ACQUIRE
+    - - T2
+      - READ
+    - - T2
+      - ADD
+    - - T2
+      - WRITE
+    - - T2
+      - RELEASE
+  expected:
+    final_counter: 2
+    total_writes: 2
+    unprotected_operations: 0
+    blocked_acquires: 0
+    safe_execution: true
+  note: Fully synchronized execution
+- args:
+  - - - T1
+      - ACQUIRE
+    - - T2
+      - ACQUIRE
+    - - T1
+      - READ
+    - - T1
+      - ADD
+    - - T1
+      - WRITE
+    - - T1
+      - RELEASE
+  expected:
+    final_counter: 1
+    total_writes: 1
+    unprotected_operations: 0
+    blocked_acquires: 1
+    safe_execution: false
+  note: Blocked acquire detected
+- args:
+  - - - T1
+      - READ
+    - - T1
+      - ADD
+    - - T1
+      - WRITE
+  expected:
+    final_counter: 0
+    total_writes: 0
+    unprotected_operations: 3
+    blocked_acquires: 0
+    safe_execution: false
+  note: Unprotected operations outside lock
+- args:
+  - []
+  expected:
+    final_counter: 0
+    total_writes: 0
+    unprotected_operations: 0
+    blocked_acquires: 0
+    safe_execution: true
+  note: Empty schedule
+visualize_test: 0
+drills:
+- skill: setup
+  title: Lock acquire and release
+  goal: Track the single lock holder thread.
+  instructions: If action is 'ACQUIRE' and holder is None, set holder to thread_id. If 'RELEASE' and holder matches thread_id,
+    set holder to None. Return holder.
+  function:
+    name: drill_mutex_toggle
+    params:
+    - name: holder
+    - name: thread_id
+    - name: action
+  starter_code: "class Solution:\n    def drill_mutex_toggle(self, holder: str, thread_id: str, action: str) -> str:\n   \
+    \     pass\n"
+  tests:
+  - args:
+    - null
+    - T1
+    - ACQUIRE
+    expected: T1
+  - args:
+    - T1
+    - T1
+    - RELEASE
+    expected: null
+  solution: "class Solution:\n    def drill_mutex_toggle(self, holder: str, thread_id: str, action: str) -> str:\n       \
+    \ if action == \"ACQUIRE\" and holder is None:\n            return thread_id\n        if action == \"RELEASE\" and holder\
+    \ == thread_id:\n            return None\n        return holder\n"
+  hint: Check action string and update holder accordingly.
+- skill: core
+  title: Check lock ownership
+  goal: Verify whether current thread owns the lock.
+  instructions: Return `True` if `holder == thread_id`, else `False`.
+  function:
+    name: drill_is_holder
+    params:
+    - name: holder
+    - name: thread_id
+  starter_code: "class Solution:\n    def drill_is_holder(self, holder: str, thread_id: str) -> bool:\n        pass\n"
+  tests:
+  - args:
+    - T1
+    - T1
+    expected: true
+  - args:
+    - T1
+    - T2
+    expected: false
+  - args:
+    - null
+    - T1
+    expected: false
+  solution: "class Solution:\n    def drill_is_holder(self, holder: str, thread_id: str) -> bool:\n        return holder ==\
+    \ thread_id\n"
+  hint: Return `holder == thread_id`.
+- skill: edge
+  title: Assess execution safety
+  goal: Confirm no blocked acquires or unprotected ops occurred.
+  instructions: Return `True` if `unprotected == 0 and blocked == 0`, else `False`.
+  function:
+    name: drill_check_safe
+    params:
+    - name: unprotected
+    - name: blocked
+  starter_code: "class Solution:\n    def drill_check_safe(self, unprotected: int, blocked: int) -> bool:\n        pass\n"
+  tests:
+  - args:
+    - 0
+    - 0
+    expected: true
+  - args:
+    - 1
+    - 0
+    expected: false
+  - args:
+    - 0
+    - 2
+    expected: false
+  solution: "class Solution:\n    def drill_check_safe(self, unprotected: int, blocked: int) -> bool:\n        return unprotected\
+    \ == 0 and blocked == 0\n"
+  hint: Return True only when both counts are 0.
+hints:
+- Track `lock_holder` initialized to `None`.
+- Only permit READ, ADD, and WRITE if `lock_holder == thread_id`. Otherwise increment `unprotected_operations`.
+- '| # Pseudocode Blueprint
+
+  | lock_holder = None, counter = 0
+
+  | for thread_id, op in steps:
+
+  |     if op == "ACQUIRE":
+
+  |         if lock_holder is None: lock_holder = thread_id
+
+  |         elif lock_holder != thread_id: blocked += 1
+
+  |     elif op == "RELEASE":
+
+  |         if lock_holder == thread_id: lock_holder = None
+
+  |     elif lock_holder != thread_id: unprotected += 1
+
+  |     else: execute read/add/write'
+solution:
+  code: "class Solution:\n    def simulate_locked_counter(self, steps: list[list[str]]) -> dict:\n        counter = 0\n  \
+    \      registers: dict[str, int] = {}\n        lock_holder = None\n        total_writes = 0\n        unprotected_ops =\
+    \ 0\n        blocked_acquires = 0\n\n        for thread_id, op in steps:\n            if op == \"ACQUIRE\":\n        \
+    \        if lock_holder is None:\n                    lock_holder = thread_id\n                elif lock_holder != thread_id:\n\
+    \                    blocked_acquires += 1\n            elif op == \"RELEASE\":\n                if lock_holder == thread_id:\n\
+    \                    lock_holder = None\n            else:\n                if lock_holder != thread_id:\n           \
+    \         unprotected_ops += 1\n                else:\n                    if op == \"READ\":\n                      \
+    \  registers[thread_id] = counter\n                    elif op == \"ADD\":\n                        registers[thread_id]\
+    \ = registers.get(thread_id, 0) + 1\n                    elif op == \"WRITE\":\n                        counter = registers.get(thread_id,\
+    \ 0)\n                        total_writes += 1\n\n        return {\n            \"final_counter\": counter,\n       \
+    \     \"total_writes\": total_writes,\n            \"unprotected_operations\": unprotected_ops,\n            \"blocked_acquires\"\
+    : blocked_acquires,\n            \"safe_execution\": unprotected_ops == 0 and blocked_acquires == 0,\n        }\n"
+  explanation: A Mutex enforces mutual exclusion over the critical section. Any thread attempting to read or write without
+    acquiring the lock triggers an unprotected operation violation, while acquire requests while the lock is held register
+    as blocked acquires.
+  time: O(N) where N is the total number of operations
+  space: O(T) for registers and lock state
+pitch_script: '**(Clarify)** "We need to simulate a mutex lock guarding shared counter increments, detecting any unprotected
+  critical section access and blocked acquire attempts."
+
+
+  **(Brute force)** "Allowing threads to execute read-modify-write steps freely leads to data corruption under context switches."
+
+
+  **(Trigger)** "The problem introduces ACQUIRE and RELEASE lifecycle events alongside memory mutations, signaling a mutual
+  exclusion state simulator."
+
+
+  **(Optimal)** "We track `lock_holder`. During ACQUIRE, if the lock is held by another thread, we record a blocked acquire.
+  If memory operations occur without holding the lock, we record an unprotected operation. Otherwise, we execute the increment
+  cleanly."
+
+
+  **(Complexity)** "Runs in O(N) time with O(T) space for thread registers." '
+twist:
+  lc: 9421
+  title: Bounded Semaphore Permit Management
+  why: A mutex allows only 1 holder; a semaphore expands this to N permits with a FIFO waiting queue and bounded release limits.
+viz:
+  title: Mutex Lock Critical Section Timeline
+  type: concurrency_timeline

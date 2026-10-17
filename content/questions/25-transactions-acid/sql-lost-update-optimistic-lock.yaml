@@ -1,0 +1,230 @@
+slug: sql-lost-update-optimistic-lock
+lc: 9322
+citadel_id: sql_dbms
+brick_layer: 4
+runner_type: sql_sqlite
+concept:
+  problem_it_solves: When two concurrent transactions read the same inventory item at stock = 10, both subtract 1 and write
+    stock = 9 back, losing one update! Optimistic Concurrency Control (OCC) solves this by appending a `version` column to
+    the record. When updating, the client specifies the version it read (`WHERE id = 1 AND version = client_version`). If
+    another transaction incremented the version first, the update affects 0 rows, preventing the lost update.
+  brute_force: Pessimistic table locking (`LOCK TABLES Inventory WRITE`), serializing all reads and crippling database throughput.
+  brute_force_complexity: High lock contention and severe latency bottlenecks under concurrent traffic.
+  key_insight: Checking `client_version = current_version` verifies that no intervening transaction modified the row since
+    it was read, allowing safe commits while rejecting stale versions.
+  real_world: E-commerce checkout stock decrements, flight seat reservation, and Google Docs collaborative editing.
+statement:
+  clean: "Write a SQL query to simulate optimistic locking and lost update detection on inventory purchase orders.\n\nTable\
+    \ schemas:\n```sql\nCREATE TABLE Inventory (\n    id INTEGER PRIMARY KEY,\n    product TEXT,\n    stock INTEGER,\n   \
+    \ version INTEGER\n);\n\nCREATE TABLE PurchaseOrders (\n    order_id INTEGER PRIMARY KEY,\n    product_id INTEGER,\n \
+    \   quantity INTEGER,\n    client_version INTEGER\n);\n```\n\nEvaluation Rules:\n1. Join `PurchaseOrders po` with `Inventory\
+    \ i` on `po.product_id = i.id`.\n2. Compare `po.client_version` against `i.version`:\n   - If `po.client_version = i.version`:\
+    \ update is safe, `outcome = 'SUCCESS_COMMITTED'`.\n   - If `po.client_version != i.version`: lost update collision detected,\
+    \ `outcome = 'REJECTED_STALE_VERSION'`.\n3. Return columns:\n   - `order_id`\n   - `product`\n   - `quantity`\n   - `client_version`\n\
+    \   - `current_version`: aliased from `i.version`\n   - `outcome`\n\nOrder by `po.order_id` ascending."
+  oa_story: '**KiranaKart Flash Sale — Concurrency Collision Audit**
+
+
+    During a 60-second flash sale for 10 flagship smartphones, 5,000 customers checked out simultaneously. Two users both
+    submitted order forms showing stock version 1. The database processed both requests, selling 11 units when only 10 existed
+    in the warehouse.
+
+
+    Implement this optimistic locking query to reject stale versions and prove how version-checked updates prevent lost updates
+    under concurrency.'
+  trigger_keywords:
+  - optimistic locking and lost update
+  - Inventory
+  - PurchaseOrders
+  examples:
+  - input: 'Inventory: [(1, ''Laptop'', 10, 1)]; PurchaseOrders: [(101, 1, 1, 1), (102, 1, 1, 2)]'
+    output: '[(101, ''Laptop'', 1, 1, 1, ''SUCCESS_COMMITTED''), (102, ''Laptop'', 1, 1, 2, ''REJECTED_STALE_VERSION'')]'
+    explanation: Order 101 matches current version 1 (committed). Order 102 expects version 2 when current is 1 (rejected).
+  constraints:
+  - 1 <= len(Inventory) <= 1000
+  - 1 <= len(PurchaseOrders) <= 1000
+constraint_quiz:
+  prompt: How does Optimistic Concurrency Control (OCC) prevent the Lost Update anomaly without holding long database locks?
+  options:
+  - By verifying that the row's version number in the database has not changed since the client read it
+  - By forcing all database clients to disconnect during writes
+  - By making the database read-only
+  - By using Redis instead of SQL
+  answer: 0
+  explanation: Optimistic locking checks `WHERE id = ? AND version = ?`. If another transaction already committed and bumped
+    the version, the update affects 0 rows, signaling a collision.
+pattern_quiz:
+  prompt: When is Optimistic Locking preferred over Pessimistic Locking (`SELECT FOR UPDATE`)?
+  options:
+  - When read operations far outnumber write operations and lock conflicts are infrequent
+  - When write conflicts occur on 99% of transactions
+  - Only when tables have fewer than 10 rows
+  - When tables lack primary keys
+  answer: 0
+  explanation: Optimistic locking avoids locking overhead during reads, making it ideal for high-read, low-contention workloads.
+schema_sql: "CREATE TABLE Inventory (\n    id INTEGER PRIMARY KEY,\n    product TEXT,\n    stock INTEGER,\n    version INTEGER\n\
+  );\n\nCREATE TABLE PurchaseOrders (\n    order_id INTEGER PRIMARY KEY,\n    product_id INTEGER,\n    quantity INTEGER,\n\
+  \    client_version INTEGER\n);"
+seed_sql: "INSERT INTO Inventory VALUES\n    (1, 'Laptop', 10, 1),\n    (2, 'Monitor', 5, 2);\n\nINSERT INTO PurchaseOrders\
+  \ VALUES\n    (101, 1, 1, 1),\n    (102, 1, 2, 0),\n    (103, 2, 1, 2);"
+function:
+  name: execute_sql
+  params: []
+  returns: any
+  compare: exact
+starter_code: "-- Write your SQL query below to evaluate purchase orders against inventory version\nSELECT\n    po.order_id,\n\
+  \    i.product,\n    po.quantity,\n    po.client_version,\n    i.version AS current_version,\n    'SUCCESS_COMMITTED' AS\
+  \ outcome\nFROM PurchaseOrders po\nJOIN Inventory i ON po.product_id = i.id\nORDER BY po.order_id;\n"
+tests:
+- args: []
+  expected:
+  - - 101
+    - Laptop
+    - 1
+    - 1
+    - 1
+    - SUCCESS_COMMITTED
+  - - 102
+    - Laptop
+    - 2
+    - 0
+    - 1
+    - REJECTED_STALE_VERSION
+  - - 103
+    - Monitor
+    - 1
+    - 2
+    - 2
+    - SUCCESS_COMMITTED
+  note: Version match committed, stale version rejected
+- args: []
+  expected: null
+  note: Reference verification
+- args: []
+  expected: null
+  note: Consistency check
+visualize_test: 0
+drills:
+- skill: setup
+  title: Join purchase orders with inventory
+  goal: Join orders to inventory on product_id.
+  instructions: Select `po.order_id, i.product FROM PurchaseOrders po JOIN Inventory i ON po.product_id = i.id ORDER BY po.order_id;`.
+  function:
+    name: execute_sql
+    params: []
+  starter_code: 'SELECT po.order_id, i.product FROM PurchaseOrders po JOIN Inventory i ON po.product_id = i.id ORDER BY po.order_id;
+
+    '
+  tests:
+  - args: []
+    expected:
+    - - 101
+      - Laptop
+    - - 102
+      - Laptop
+    - - 103
+      - Monitor
+  solution: 'SELECT po.order_id, i.product FROM PurchaseOrders po JOIN Inventory i ON po.product_id = i.id ORDER BY po.order_id;
+
+    '
+  hint: Join on po.product_id = i.id.
+- skill: core
+  title: Evaluate version match outcome
+  goal: Output SUCCESS_COMMITTED or REJECTED_STALE_VERSION.
+  instructions: Write CASE comparing `po.client_version = i.version`.
+  function:
+    name: execute_sql
+    params: []
+  starter_code: 'SELECT po.order_id, CASE WHEN po.client_version = i.version THEN ''SUCCESS_COMMITTED'' ELSE ''REJECTED_STALE_VERSION''
+    END AS outcome FROM PurchaseOrders po JOIN Inventory i ON po.product_id = i.id ORDER BY po.order_id;
+
+    '
+  tests:
+  - args: []
+    expected:
+    - - 101
+      - SUCCESS_COMMITTED
+    - - 102
+      - REJECTED_STALE_VERSION
+    - - 103
+      - SUCCESS_COMMITTED
+  solution: 'SELECT po.order_id, CASE WHEN po.client_version = i.version THEN ''SUCCESS_COMMITTED'' ELSE ''REJECTED_STALE_VERSION''
+    END AS outcome FROM PurchaseOrders po JOIN Inventory i ON po.product_id = i.id ORDER BY po.order_id;
+
+    '
+  hint: Use CASE WHEN po.client_version = i.version.
+- skill: edge
+  title: Alias current version column
+  goal: Alias `i.version AS current_version`.
+  instructions: Select order_id and `i.version AS current_version`.
+  function:
+    name: execute_sql
+    params: []
+  starter_code: 'SELECT po.order_id, i.version AS current_version FROM PurchaseOrders po JOIN Inventory i ON po.product_id
+    = i.id ORDER BY po.order_id;
+
+    '
+  tests:
+  - args: []
+    expected:
+    - - 101
+      - 1
+    - - 102
+      - 1
+    - - 103
+      - 2
+  solution: 'SELECT po.order_id, i.version AS current_version FROM PurchaseOrders po JOIN Inventory i ON po.product_id = i.id
+    ORDER BY po.order_id;
+
+    '
+  hint: Alias `i.version AS current_version`.
+hints:
+- Join `PurchaseOrders po` to `Inventory i` on `po.product_id = i.id`.
+- 'Use a CASE statement: `WHEN po.client_version = i.version THEN ''SUCCESS_COMMITTED'' ELSE ''REJECTED_STALE_VERSION''`.'
+- '| # Pseudocode Blueprint
+
+  | SELECT po.order_id, i.product, po.quantity, po.client_version,
+
+  |        i.version AS current_version,
+
+  |        CASE WHEN po.client_version = i.version THEN ''SUCCESS_COMMITTED''
+
+  |             ELSE ''REJECTED_STALE_VERSION'' END AS outcome
+
+  | FROM PurchaseOrders po JOIN Inventory i ON po.product_id = i.id
+
+  | ORDER BY po.order_id;'
+solution:
+  code: "SELECT\n    po.order_id,\n    i.product,\n    po.quantity,\n    po.client_version,\n    i.version AS current_version,\n\
+    \    CASE\n        WHEN po.client_version = i.version THEN 'SUCCESS_COMMITTED'\n        ELSE 'REJECTED_STALE_VERSION'\n\
+    \    END AS outcome\nFROM PurchaseOrders po\nJOIN Inventory i ON po.product_id = i.id\nORDER BY po.order_id;\n"
+  explanation: Joining the purchase orders with the inventory records compares the client's cached version against the live
+    row version. Orders matching the current database version commit safely, while orders carrying stale versions are flagged
+    as concurrency conflicts, preventing lost updates.
+  time: O(P + I) hash join
+  space: O(I) for in-memory inventory hash table
+pitch_script: '**(Clarify)** "We need to evaluate incoming purchase orders against live inventory versions to identify which
+  orders commit safely versus which collide due to stale version numbers."
+
+
+  **(Brute force)** "Blindly updating stock without version checks causes lost updates where concurrent writes clobber each
+  other."
+
+
+  **(Trigger)** "Comparing expected client version with current database version signals Optimistic Concurrency Control (OCC)."
+
+
+  **(Optimal)** "We join PurchaseOrders with Inventory on product_id. We check `po.client_version = i.version`. Matching versions
+  receive ''SUCCESS_COMMITTED'', while mismatched versions receive ''REJECTED_STALE_VERSION''. We project the order details
+  and order by order_id."
+
+
+  **(Complexity)** "Executes in O(P + I) time and O(I) space." '
+twist:
+  lc: 9323
+  title: Preventing N+1 Queries with Relational Aggregation Join
+  why: Optimistic locking protects write concurrency; on read paths, replacing N+1 query loops with relational joins prevents
+    database saturation.
+viz:
+  title: Optimistic Locking Version Pipeline
+  type: sql_pipeline

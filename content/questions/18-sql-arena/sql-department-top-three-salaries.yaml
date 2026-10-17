@@ -1,0 +1,264 @@
+slug: sql-department-top-three-salaries
+lc: 9312
+citadel_id: sql_dbms
+brick_layer: 2
+runner_type: sql_sqlite
+
+concept:
+  problem_it_solves: >-
+    "How do we query the top 3 highest unique earners in every department when salaries can have ties?"
+    Standard RANK() or ROW_NUMBER() skips rank numbers on ties (e.g. if two engineers earn $120k, ROW_NUMBER assigns 1 and 2,
+    while RANK assigns 1, 1, 3).
+    DENSE_RANK() ensures tied salaries share the same tier (1, 1, 2) without skipping numbers,
+    ensuring all top-3 salary bands and all employees in those bands are captured.
+  brute_force: >-
+    Correlated subqueries counting how many distinct salaries in the same department are strictly greater than the current employee:
+    `WHERE (SELECT COUNT(DISTINCT e2.salary) FROM Employee e2 WHERE e2.departmentId = e1.departmentId AND e2.salary > e1.salary) < 3`.
+    This executes an O(N) subquery for every single row in the table, resulting in quadratic O(N^2) complexity.
+  brute_force_complexity: O(N^2) time due to correlated subquery scans per row.
+  key_insight: >-
+    Using a Common Table Expression (CTE) with `DENSE_RANK() OVER (PARTITION BY departmentId ORDER BY salary DESC)`
+    partitions the dataset by department and ranks rows in a single sorted pass. Slicing with `WHERE rk <= 3`
+    filters the top 3 tiers in linearithmic O(N log N) time.
+  real_world: >-
+    LeetCode 185 (Department Top Three Salaries), sales leaderboard generation, and cloud resource consumption top-talker reports.
+
+statement:
+  clean: |
+    Write a SQL query to find the department top salaries for the top three unique earners in each department.
+    
+    A company's executives want to see who earns the most money in each of the company's departments.
+    A high earner in a department is an employee who has a salary in the **top three unique salaries** for that department.
+    
+    Return the result table with columns: `Department`, `Employee`, `Salary`.
+    
+    Table schemas:
+    ```sql
+    CREATE TABLE Department (
+      id INTEGER PRIMARY KEY,
+      name TEXT
+    );
+    
+    CREATE TABLE Employee (
+      id INTEGER PRIMARY KEY,
+      name TEXT,
+      salary INTEGER,
+      departmentId INTEGER
+    );
+    ```
+  oa_story: |
+    **Compensation & Engineering Leadership — Executive Review**
+    
+    Before quarterly promotions, engineering leadership requires an automated report of the top 3 compensation bands
+    in each department. Because staff engineers frequently share identical base salary benchmarks,
+    naive subqueries dropped valid high-performers.
+    
+    Write an optimal window query that uses `DENSE_RANK` to capture all employees earning within the top 3 unique salary tiers per department.
+  trigger_keywords: ["department top salaries", "Department", "Employee", "Salary"]
+  examples:
+    - input: "Employee table has IT employees [Max: 90k, Joe: 85k, Randy: 85k, Will: 70k, Janet: 69k]"
+      output: "IT high earners are Max (90k, rank 1), Joe & Randy (85k, rank 2), and Will (70k, rank 3)"
+      explanation: "Max is rank 1. Joe and Randy tie for rank 2. Will is rank 3. Janet is rank 4 and excluded."
+  constraints:
+    - "Employee table contains between 0 and 10^5 rows"
+    - "Department table contains between 1 and 100 rows"
+
+constraint_quiz:
+  prompt: >-
+    If three employees in the same department earn [100k, 100k, 90k], what rank does `salary = 90k` receive under `DENSE_RANK()` vs `RANK()`?
+  options:
+    - "DENSE_RANK gives 2; RANK gives 3"
+    - "DENSE_RANK gives 3; RANK gives 2"
+    - "Both give 3"
+    - "Both give 2"
+  answer: 0
+  explanation: >-
+    RANK skips rank numbers to reflect the count of preceding rows (1, 1, 3), whereas DENSE_RANK assigns consecutive tiers (1, 1, 2).
+
+pattern_quiz:
+  prompt: What window clause partitions the calculation by department and orders by salary descending?
+  options:
+    - "OVER (PARTITION BY departmentId ORDER BY salary DESC)"
+    - "GROUP BY departmentId ORDER BY salary DESC"
+    - "HAVING departmentId ORDER BY salary"
+    - "CLUSTER BY departmentId"
+  answer: 0
+  explanation: >-
+    `OVER (PARTITION BY departmentId ORDER BY salary DESC)` establishes the departmental window partition.
+
+schema_sql: |
+  CREATE TABLE Department (
+    id INTEGER PRIMARY KEY,
+    name TEXT
+  );
+
+  CREATE TABLE Employee (
+    id INTEGER PRIMARY KEY,
+    name TEXT,
+    salary INTEGER,
+    departmentId INTEGER
+  );
+
+seed_sql: |
+  INSERT INTO Department (id, name) VALUES
+    (1, 'IT'),
+    (2, 'Sales');
+
+  INSERT INTO Employee (id, name, salary, departmentId) VALUES
+    (1, 'Joe', 85000, 1),
+    (2, 'Henry', 80000, 2),
+    (3, 'Sam', 60000, 2),
+    (4, 'Max', 90000, 1),
+    (5, 'Janet', 69000, 1),
+    (6, 'Randy', 85000, 1),
+    (7, 'Will', 70000, 1);
+
+function:
+  name: execute_sql
+  params: []
+
+starter_code: |
+  -- Write your SQL query below
+  WITH Ranked AS (
+    SELECT
+      d.name AS Department,
+      e.name AS Employee,
+      e.salary AS Salary,
+      DENSE_RANK() OVER (PARTITION BY e.departmentId ORDER BY e.salary DESC) AS rk
+    FROM Employee e
+    JOIN Department d ON e.departmentId = d.id
+  )
+  SELECT Department, Employee, Salary
+  FROM Ranked
+  WHERE rk <= 3;
+
+tests:
+  - args: []
+    expected:
+      - ["IT", "Max", 90000]
+      - ["IT", "Joe", 85000]
+      - ["IT", "Randy", 85000]
+      - ["IT", "Will", 70000]
+      - ["Sales", "Henry", 80000]
+      - ["Sales", "Sam", 60000]
+    note: "All employees in top 3 salary tiers per department"
+  - args: []
+    expected: null
+    note: "Self verification"
+  - args: []
+    expected: null
+    note: "Consistency check"
+
+visualize_test: 0
+
+drills:
+  - title: Inner join employee with department
+    skill: setup
+    goal: Join employees with their department names.
+    instructions: |
+      Select `d.name AS Department, e.name AS Employee, e.salary AS Salary` from `Employee e JOIN Department d ON e.departmentId = d.id`.
+    function:
+      name: execute_sql
+      params: []
+    starter_code: |
+      SELECT d.name AS Department, e.name AS Employee, e.salary AS Salary
+      FROM Employee e
+      JOIN Department d ON e.departmentId = d.id;
+    tests:
+      - args: []
+        expected: null
+    solution: |
+      SELECT d.name AS Department, e.name AS Employee, e.salary AS Salary
+      FROM Employee e
+      JOIN Department d ON e.departmentId = d.id;
+    hint: "Use `JOIN Department d ON e.departmentId = d.id`."
+
+  - title: Dense rank window clause
+    skill: core
+    goal: Apply DENSE_RANK partitioned by department.
+    instructions: |
+      Select `e.name, DENSE_RANK() OVER (PARTITION BY e.departmentId ORDER BY e.salary DESC) AS rk FROM Employee e`.
+    function:
+      name: execute_sql
+      params: []
+    starter_code: |
+      SELECT e.name, DENSE_RANK() OVER (PARTITION BY e.departmentId ORDER BY e.salary DESC) AS rk FROM Employee e;
+    tests:
+      - args: []
+        expected: null
+    solution: |
+      SELECT e.name, DENSE_RANK() OVER (PARTITION BY e.departmentId ORDER BY e.salary DESC) AS rk FROM Employee e;
+    hint: "Use `DENSE_RANK() OVER (PARTITION BY e.departmentId ORDER BY e.salary DESC)`."
+
+  - title: Common table expression filtering
+    skill: edge
+    goal: Filter CTE rows where rank <= 3.
+    instructions: |
+      Wrap ranked query in `WITH Ranked AS (...) SELECT Department, Employee, Salary FROM Ranked WHERE rk <= 3;`.
+    function:
+      name: execute_sql
+      params: []
+    starter_code: |
+      WITH Ranked AS (
+        SELECT d.name AS Department, e.name AS Employee, e.salary AS Salary,
+               DENSE_RANK() OVER (PARTITION BY e.departmentId ORDER BY e.salary DESC) AS rk
+        FROM Employee e JOIN Department d ON e.departmentId = d.id
+      )
+      SELECT Department, Employee, Salary FROM Ranked WHERE rk <= 3;
+    tests:
+      - args: []
+        expected: null
+    solution: |
+      WITH Ranked AS (
+        SELECT d.name AS Department, e.name AS Employee, e.salary AS Salary,
+               DENSE_RANK() OVER (PARTITION BY e.departmentId ORDER BY e.salary DESC) AS rk
+        FROM Employee e JOIN Department d ON e.departmentId = d.id
+      )
+      SELECT Department, Employee, Salary FROM Ranked WHERE rk <= 3;
+    hint: "Filter with `WHERE rk <= 3` in the outer query."
+
+hints:
+  - "Join `Employee e` with `Department d` on `e.departmentId = d.id`."
+  - "Use `DENSE_RANK() OVER (PARTITION BY e.departmentId ORDER BY e.salary DESC) AS rk` inside a CTE."
+  - "In the outer SELECT query, filter `WHERE rk <= 3`."
+
+solution:
+  code: |
+    WITH Ranked AS (
+      SELECT
+        d.name AS Department,
+        e.name AS Employee,
+        e.salary AS Salary,
+        DENSE_RANK() OVER (PARTITION BY e.departmentId ORDER BY e.salary DESC) AS rk
+      FROM Employee e
+      JOIN Department d ON e.departmentId = d.id
+    )
+    SELECT Department, Employee, Salary
+    FROM Ranked
+    WHERE rk <= 3;
+  explanation: |
+    1. The CTE `Ranked` performs an inner join between `Employee` and `Department`.
+    2. `DENSE_RANK() OVER (PARTITION BY e.departmentId ORDER BY e.salary DESC)` partitions calculations by department.
+       Because it uses dense ranking, employees with identical salaries share the exact same rank tier without creating gaps.
+    3. The outer query filters `WHERE rk <= 3`, capturing all employees whose salary falls within the top three unique tiers.
+  time: O(N log N) for sorting partitioned windows
+  space: O(N) for CTE intermediate table state
+
+pitch_script: |
+  **(Clarify)** "We need to identify all employees who earn in the top three unique salaries for each department, correctly handling tied earnings."
+
+  **(Basement Insight)** "Correlated subqueries that count distinct higher salaries run in O(N^2) quadratic time. Using the window function `DENSE_RANK() OVER (PARTITION BY dept ORDER BY salary DESC)` partitions and ranks rows in a single O(N log N) sorted pass."
+
+  **(Solution)** "We join Employee with Department inside a CTE and compute `DENSE_RANK()`. In the outer query, we filter `WHERE rk <= 3` and project `Department`, `Employee`, and `Salary`."
+
+  **(Complexity)** "Runs in O(N log N) time, with O(N) space for the CTE materialization."
+
+twist:
+  lc: 9313
+  title: Top 1 Earner with Subquery vs DENSE_RANK
+  why: >-
+    For Top 1 earner (LeetCode 184), WHERE (departmentId, salary) IN (SELECT departmentId, MAX(salary) FROM Employee GROUP BY departmentId)
+    is also a popular alternative to window functions.
+
+viz:
+  title: "Partition By Dense Rank Visualization"

@@ -4,7 +4,7 @@ import { useEffect, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import { Button, ConfidenceStars, formatRelative } from './ui'
 
-const CONFETTI_COLORS = ['#00F0FF', '#6366F1', '#34D399', '#FBBF24', '#C084FC', '#F43F5E']
+const CONFETTI_COLORS = ['#00F0FF', '#38BDF8', '#34D399', '#FBBF24', '#F8FAFC', '#F43F5E']
 
 function Confetti({ boss }: { boss: boolean }) {
   const pieces = useMemo(

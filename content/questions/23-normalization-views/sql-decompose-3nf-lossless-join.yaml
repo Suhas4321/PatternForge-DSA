@@ -1,0 +1,241 @@
+slug: sql-decompose-3nf-lossless-join
+lc: 9305
+citadel_id: sql_dbms
+brick_layer: 2
+runner_type: sql_sqlite
+concept:
+  problem_it_solves: Why does storing customer addresses and product prices repeatedly inside an order item row cause data
+    corruption? In an unnormalized flat table, updating a product price requires updating thousands of historical rows, risking
+    inconsistent data. Decomposing into Third Normal Form (3NF) isolates distinct entities (Customers, Products, OrderItems),
+    removing transitive dependencies and guaranteeing the Lossless Join property.
+  brute_force: Keeping a single wide table with 40 columns, leading to update anomalies, deletion anomalies, and severe storage
+    bloat.
+  brute_force_complexity: O(N) redundant data storage and prone to data inconsistency.
+  key_insight: A 3NF decomposition is validated by performing an INNER JOIN across the normalized tables. If the joined output
+    reconstructs the exact original line items without spurious tuples, the decomposition is mathematically lossless.
+  real_world: Relational schema design for ERPs, e-commerce order databases, and microservice domain entities.
+statement:
+  clean: "Write a SQL query to verify a 3NF database decomposition by reconstructing order line items through a lossless join.\n\
+    \nNormalized Table Schemas:\n```sql\nCREATE TABLE Customers (\n    customer_id INTEGER PRIMARY KEY,\n    customer_name\
+    \ TEXT,\n    customer_email TEXT\n);\n\nCREATE TABLE Products (\n    product_id INTEGER PRIMARY KEY,\n    product_name\
+    \ TEXT,\n    category TEXT,\n    price INTEGER\n);\n\nCREATE TABLE OrderItems (\n    order_id INTEGER,\n    customer_id\
+    \ INTEGER,\n    product_id INTEGER,\n    quantity INTEGER,\n    PRIMARY KEY(order_id, product_id)\n);\n```\n\nTask:\n\
+    Reconstruct the complete order item records by joining `OrderItems`, `Customers`, and `Products`.\n\nReturn columns:\n\
+    - `order_id`: from `OrderItems`\n- `customer_name`: from `Customers`\n- `product_name`: from `Products`\n- `price`: unit\
+    \ price from `Products`\n- `quantity`: order quantity from `OrderItems`\n- `item_total`: computed as `price * quantity`\n\
+    \nOrder by `order_id` ascending, then `product_name` ascending."
+  oa_story: '**BlinkFast Inventory Architecture — Normalization Migration**
+
+
+    BlinkFast''s quick-commerce orders were initially dumped into a single denormalized table. When brand names were updated,
+    old orders retained stale manufacturer names, creating tax reporting discrepancies.
+
+
+    The database architect decomposed the schema into 3NF (`Customers`, `Products`, and `OrderItems`). Write the verification
+    query to prove that joining these normalized tables losslessly reconstructs complete order details.'
+  trigger_keywords:
+  - 3nf database decomposition
+  - OrderItems
+  - lossless join
+  examples:
+  - input: 'OrderItems: [(1001, 1, 101, 1), (1001, 1, 102, 2)]; Customers: [(1, ''Aarav'')]; Products: [(101, ''Headphones'',
+      4000), (102, ''Keyboard'', 3000)]'
+    output: '[(1001, ''Aarav'', ''Headphones'', 4000, 1, 4000), (1001, ''Aarav'', ''Keyboard'', 3000, 2, 6000)]'
+    explanation: 3NF normalized tables join losslessly to reconstruct line item totals.
+  constraints:
+  - Primary keys are strictly enforced
+  - Foreign keys match valid parent entity IDs
+constraint_quiz:
+  prompt: What mathematical property ensures that decomposing a table into multiple normalized tables does not lose information
+    or introduce phantom rows?
+  options:
+  - Lossless-Join Property (Lossless Decomposition)
+  - B-Tree index rebalancing
+  - ACID Durability
+  - UTF-8 character collation
+  answer: 0
+  explanation: A decomposition is lossless if and only if natural joining the decomposed tables produces exactly the original
+    relation with no missing or spurious records.
+pattern_quiz:
+  prompt: What functional dependency defines Third Normal Form (3NF)?
+  options:
+  - Every non-key attribute must be non-transitively dependent on the primary key ('The key, the whole key, and nothing but
+    the key, so help me Codd')
+  - All column names must start with a vowel
+  - Every table must have exactly 3 columns
+  - Tables must be stored in separate database files
+  answer: 0
+  explanation: '3NF requires a table to be in 2NF with no transitive dependencies: non-key columns cannot depend on other
+    non-key columns.'
+schema_sql: "CREATE TABLE Customers (\n    customer_id INTEGER PRIMARY KEY,\n    customer_name TEXT,\n    customer_email TEXT\n\
+  );\n\nCREATE TABLE Products (\n    product_id INTEGER PRIMARY KEY,\n    product_name TEXT,\n    category TEXT,\n    price\
+  \ INTEGER\n);\n\nCREATE TABLE OrderItems (\n    order_id INTEGER,\n    customer_id INTEGER,\n    product_id INTEGER,\n \
+  \   quantity INTEGER,\n    PRIMARY KEY(order_id, product_id)\n);"
+seed_sql: "INSERT INTO Customers VALUES\n    (1, 'Aarav', 'aarav@tech.in'),\n    (2, 'Priya', 'priya@tech.in');\n\nINSERT\
+  \ INTO Products VALUES\n    (101, 'Noise-Cancelling Headphones', 'Audio', 4000),\n    (102, 'Mechanical Keyboard', 'Hardware',\
+  \ 3000);\n\nINSERT INTO OrderItems VALUES\n    (1001, 1, 101, 1),\n    (1001, 1, 102, 2),\n    (1002, 2, 101, 1);"
+function:
+  name: execute_sql
+  params: []
+  returns: any
+  compare: exact
+starter_code: "-- Write your SQL query below to verify lossless join reconstruction\nSELECT\n    oi.order_id,\n    c.customer_name,\n\
+  \    p.product_name,\n    p.price,\n    oi.quantity,\n    (p.price * oi.quantity) AS item_total\nFROM OrderItems oi\nJOIN\
+  \ Customers c ON oi.customer_id = c.customer_id\nJOIN Products p ON oi.product_id = p.product_id\nORDER BY oi.order_id,\
+  \ p.product_name;\n"
+tests:
+- args: []
+  expected:
+  - - 1001
+    - Aarav
+    - Mechanical Keyboard
+    - 3000
+    - 2
+    - 6000
+  - - 1001
+    - Aarav
+    - Noise-Cancelling Headphones
+    - 4000
+    - 1
+    - 4000
+  - - 1002
+    - Priya
+    - Noise-Cancelling Headphones
+    - 4000
+    - 1
+    - 4000
+  note: Reconstructed 3NF order details
+- args: []
+  expected: null
+  note: Reference verification
+- args: []
+  expected: null
+  note: Consistency check
+visualize_test: 0
+drills:
+- skill: setup
+  title: Join OrderItems with Customers
+  goal: Join OrderItems to Customers on customer_id.
+  instructions: Select `oi.order_id, c.customer_name FROM OrderItems oi JOIN Customers c ON oi.customer_id = c.customer_id
+    ORDER BY oi.order_id;`.
+  function:
+    name: execute_sql
+    params: []
+  starter_code: 'SELECT oi.order_id, c.customer_name FROM OrderItems oi JOIN Customers c ON oi.customer_id = c.customer_id
+    ORDER BY oi.order_id;
+
+    '
+  tests:
+  - args: []
+    expected:
+    - - 1001
+      - Aarav
+    - - 1001
+      - Aarav
+    - - 1002
+      - Priya
+  solution: 'SELECT oi.order_id, c.customer_name FROM OrderItems oi JOIN Customers c ON oi.customer_id = c.customer_id ORDER
+    BY oi.order_id;
+
+    '
+  hint: Join on customer_id.
+- skill: core
+  title: Join with Products and compute item total
+  goal: Multiply price by quantity.
+  instructions: Select `p.product_name, (p.price * oi.quantity) AS item_total FROM OrderItems oi JOIN Products p ON oi.product_id
+    = p.product_id ORDER BY p.product_name;`.
+  function:
+    name: execute_sql
+    params: []
+  starter_code: 'SELECT p.product_name, (p.price * oi.quantity) AS item_total FROM OrderItems oi JOIN Products p ON oi.product_id
+    = p.product_id ORDER BY p.product_name;
+
+    '
+  tests:
+  - args: []
+    expected:
+    - - Mechanical Keyboard
+      - 6000
+    - - Noise-Cancelling Headphones
+      - 4000
+    - - Noise-Cancelling Headphones
+      - 4000
+  solution: 'SELECT p.product_name, (p.price * oi.quantity) AS item_total FROM OrderItems oi JOIN Products p ON oi.product_id
+    = p.product_id ORDER BY p.product_name;
+
+    '
+  hint: Multiply price by quantity.
+- skill: edge
+  title: Order by order_id and product_name
+  goal: Apply deterministic two-column ordering.
+  instructions: Add `ORDER BY oi.order_id, p.product_name;`.
+  function:
+    name: execute_sql
+    params: []
+  starter_code: 'SELECT oi.order_id, p.product_name FROM OrderItems oi JOIN Products p ON oi.product_id = p.product_id ORDER
+    BY oi.order_id, p.product_name;
+
+    '
+  tests:
+  - args: []
+    expected:
+    - - 1001
+      - Mechanical Keyboard
+    - - 1001
+      - Noise-Cancelling Headphones
+    - - 1002
+      - Noise-Cancelling Headphones
+  solution: 'SELECT oi.order_id, p.product_name FROM OrderItems oi JOIN Products p ON oi.product_id = p.product_id ORDER BY
+    oi.order_id, p.product_name;
+
+    '
+  hint: Order by order_id, product_name.
+hints:
+- Join `OrderItems oi` with `Customers c` on `oi.customer_id = c.customer_id`.
+- Join with `Products p` on `oi.product_id = p.product_id` and compute `p.price * oi.quantity AS item_total`.
+- '| # Pseudocode Blueprint
+
+  | SELECT oi.order_id, c.customer_name, p.product_name, p.price, oi.quantity,
+
+  |        (p.price * oi.quantity) AS item_total
+
+  | FROM OrderItems oi
+
+  | JOIN Customers c ON oi.customer_id = c.customer_id
+
+  | JOIN Products p ON oi.product_id = p.product_id
+
+  | ORDER BY oi.order_id, p.product_name;'
+solution:
+  code: "SELECT\n    oi.order_id,\n    c.customer_name,\n    p.product_name,\n    p.price,\n    oi.quantity,\n    (p.price\
+    \ * oi.quantity) AS item_total\nFROM OrderItems oi\nJOIN Customers c ON oi.customer_id = c.customer_id\nJOIN Products\
+    \ p ON oi.product_id = p.product_id\nORDER BY oi.order_id, p.product_name;\n"
+  explanation: Joining the normalized entities across their foreign keys reconstructs the original order line items without
+    data loss or spurious combinations. This verifies the Lossless Join property of Third Normal Form (3NF) while ensuring
+    zero redundant customer or product data is stored in OrderItems.
+  time: O(O + C + P) linear hash join
+  space: O(C + P) for in-memory entity lookup tables
+pitch_script: '**(Clarify)** "We need to verify that our 3NF decomposition of customer and product entities reconstructs the
+  complete order details losslessly."
+
+
+  **(Brute force)** "Storing customer contact information and product descriptions repeatedly in every order line item creates
+  update and deletion anomalies."
+
+
+  **(Trigger)** "Reconstructing normalized entities across primary-foreign key relationships signals a lossless join verification
+  query."
+
+
+  **(Optimal)** "We start from the bridge table `OrderItems oi`. We join `Customers c` on `customer_id` and `Products p` on
+  `product_id`. We compute `p.price * oi.quantity` as item total and order by order_id and product_name."
+
+
+  **(Complexity)** "Executes in O(O + C + P) time with O(C + P) space." '
+twist:
+  lc: 9306
+  title: Database View & Audit Trigger Verification
+  why: Once tables are normalized, creating views provides clean virtual abstractions, and triggers automate compliance auditing.
+viz:
+  title: 3NF Lossless Join Pipeline
+  type: sql_pipeline

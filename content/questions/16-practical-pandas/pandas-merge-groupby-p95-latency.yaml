@@ -1,0 +1,249 @@
+slug: pandas-merge-groupby-p95-latency
+lc: 9236
+citadel_id: python_data
+brick_layer: 4
+runner_type: python_practical
+concept:
+  problem_it_solves: Why do average response times hide critical production service slowdowns? In LLM inference serving, 95%
+    of queries may complete in 200ms while the slowest 5% stall for 12 seconds due to queue queuing and model timeouts. Mean
+    metrics completely mask this tail latency. Production telemetry analysis requires calculating the 95th percentile (P95)
+    latency per model provider using Pandas relational joins and group-by quantiles.
+  brute_force: Writing custom Python nested loops with sorting to manually compute quantiles across disparate relational lists.
+  brute_force_complexity: High memory consumption and slow non-vectorized Python execution.
+  key_insight: Combining pd.merge with groupby(['model_name', 'provider']).apply(quantile(0.95)) computes vectorized statistical
+    percentiles at C-speed.
+  real_world: Datadog APM metrics, Langfuse LLM observability dashboards, and Arize AI model monitoring.
+statement:
+  clean: "Implement Pandas relational merge and group-by percentile latency aggregation:\n`compute_model_p95_latencies(self,\
+    \ requests_data: list[dict], models_data: list[dict]) -> list[dict]`.\n\nInputs:\n- `requests_data`: list of inference\
+    \ request records:\n  `[{'request_id': str, 'model_id': str, 'latency_ms': float}, ...]`\n- `models_data`: list of model\
+    \ metadata records:\n  `[{'model_id': str, 'model_name': str, 'provider': str}, ...]`\n\nAnalytics Workflow:\n1. If either\
+    \ `requests_data` or `models_data` is empty, return `[]`.\n2. Convert records into Pandas DataFrames `req_df` and `mod_df`.\n\
+    3. Perform an inner merge on `'model_id'`. If merged result is empty, return `[]`.\n4. Group by `['model_name', 'provider']`.\n\
+    5. Aggregate metrics for each group:\n   - `'request_count'`: total request count (`int`)\n   - `'p95_latency'`: 95th\
+    \ percentile of `latency_ms` using `quantile(0.95)`, rounded to 2 decimal places (`float`)\n   - `'mean_latency'`: average\
+    \ of `latency_ms`, rounded to 2 decimal places (`float`)\n6. Sort result DataFrame:\n   - Primary: `'p95_latency'` descending\n\
+    \   - Secondary (tie-breaker): `'model_name'` alphabetically ascending\n7. Return records as list of dicts:\n   `[{'model_name':\
+    \ ..., 'provider': ..., 'request_count': ..., 'p95_latency': ..., 'mean_latency': ...}, ...]`."
+  oa_story: '**Drizz Vision AI — Mobile Farm Inference Latency Analytics**
+
+
+    Drizz runs automated mobile device test suites backed by multiple vision LLMs (Claude-Sonnet, GPT-4o, and Gemini Flash).
+    During automated test bursts across 100 Android devices in Bengaluru, users reported intermittent UI assertion timeouts.
+
+
+    While average latency showed 185ms, P95 tail latency exceeded 2,400ms on specific models due to GPU cold starts. The infrastructure
+    engineer wrote a Pandas pipeline to merge request telemetry with model metadata and calculate P95 latencies. Implement
+    this analytical pipeline.'
+  trigger_keywords:
+  - Pandas relational merge and group-by percentile latency aggregation
+  - compute_model_p95_latencies
+  - requests_data
+  examples:
+  - input: 'requests_data = [{''request_id'': ''r1'', ''model_id'': ''m1'', ''latency_ms'': 120.0}, {''request_id'': ''r2'',
+      ''model_id'': ''m1'', ''latency_ms'': 250.0}], models_data = [{''model_id'': ''m1'', ''model_name'': ''Claude-Sonnet'',
+      ''provider'': ''Anthropic''}]'
+    output: '[{''model_name'': ''Claude-Sonnet'', ''provider'': ''Anthropic'', ''request_count'': 2, ''p95_latency'': 243.5,
+      ''mean_latency'': 185.0}]'
+    explanation: Calculates 2 requests, 95th percentile 243.5ms, and mean 185.0ms.
+  constraints:
+  - 0 <= len(requests_data) <= 10^4
+  - 0 <= len(models_data) <= 100
+  - latency_ms > 0
+constraint_quiz:
+  prompt: Why is P95 latency a better reliability metric than mean latency for web APIs?
+  options:
+  - Mean latency averages out extreme spikes; P95 directly measures the degraded experience encountered by the slowest 5%
+    of requests
+  - P95 latency is always smaller than the mean
+  - P95 can only be calculated on binary numbers
+  - P95 requires zero RAM
+  answer: 0
+  explanation: Mean metrics are skewed by normal fast responses. Percentiles (P95/P99) expose real-world tail latencies caused
+    by garbage collection, throttling, or cold starts.
+pattern_quiz:
+  prompt: In Pandas, which method computes arbitrary percentile thresholds on a Series or GroupBy object?
+  options:
+  - .quantile(q) where q is between 0.0 and 1.0 (e.g. 0.95 for P95)
+  - .percentile()
+  - .median_high()
+  - .sample_tail()
+  answer: 0
+  explanation: pd.Series.quantile(0.95) computes the 95th percentile value using linear interpolation.
+function:
+  name: compute_model_p95_latencies
+  params:
+  - name: requests_data
+    type: any
+  - name: models_data
+    type: any
+  returns: any
+starter_code: "class Solution:\n    def compute_model_p95_latencies(self, requests_data: list[dict], models_data: list[dict])\
+  \ -> list[dict]:\n        pass\n"
+tests:
+- args:
+  - - request_id: r1
+      model_id: m1
+      latency_ms: 120.0
+    - request_id: r2
+      model_id: m1
+      latency_ms: 250.0
+    - request_id: r3
+      model_id: m2
+      latency_ms: 80.0
+    - request_id: r4
+      model_id: m2
+      latency_ms: 95.0
+  - - model_id: m1
+      model_name: Claude-Sonnet
+      provider: Anthropic
+    - model_id: m2
+      model_name: GPT-4o
+      provider: OpenAI
+  expected:
+  - model_name: Claude-Sonnet
+    provider: Anthropic
+    request_count: 2
+    p95_latency: 243.5
+    mean_latency: 185.0
+  - model_name: GPT-4o
+    provider: OpenAI
+    request_count: 2
+    p95_latency: 94.25
+    mean_latency: 87.5
+  note: Multi-model merge and P95 aggregation
+- args:
+  - []
+  - - model_id: m1
+      model_name: GPT
+      provider: OpenAI
+  expected: []
+  note: Empty requests returns empty list
+- args:
+  - - request_id: r1
+      model_id: m1
+      latency_ms: 100.0
+  - - model_id: m1
+      model_name: Llama-3
+      provider: Meta
+  expected:
+  - model_name: Llama-3
+    provider: Meta
+    request_count: 1
+    p95_latency: 100.0
+    mean_latency: 100.0
+  note: Single request computes exact latency as P95 and mean
+visualize_test: 0
+drills:
+- title: Inner Merge DataFrames
+  skill: setup
+  goal: Join two record lists on model_id key.
+  instructions: Convert lists to DataFrames, merge on 'model_id', and return records.
+  function:
+    name: merge_frames
+    params:
+    - name: df1
+      type: any
+    - name: df2
+      type: any
+  starter_code: "import pandas as pd\nclass Solution:\n    def merge_frames(self, df1: list, df2: list) -> list:\n       \
+    \ pass\n"
+  tests:
+  - args:
+    - - model_id: m1
+        val: 10
+    - - model_id: m1
+        name: M1
+    expected:
+    - model_id: m1
+      val: 10
+      name: M1
+  solution: "import pandas as pd\nclass Solution:\n    def merge_frames(self, df1: list, df2: list) -> list:\n        d1 =\
+    \ pd.DataFrame(df1)\n        d2 = pd.DataFrame(df2)\n        merged = pd.merge(d1, d2, on=\"model_id\", how=\"inner\"\
+    )\n        return merged.to_dict(orient=\"records\")\n"
+  hint: Convert to DataFrames, pd.merge on model_id, return to_dict('records').
+- title: Compute Series Quantile
+  skill: core
+  goal: Calculate 95th percentile of numeric series.
+  instructions: Return round(float(series.quantile(0.95)), 2).
+  function:
+    name: calc_p95
+    params:
+    - name: vals
+      type: any
+  starter_code: "import pandas as pd\nclass Solution:\n    def calc_p95(self, vals: list) -> float:\n        pass\n"
+  tests:
+  - args:
+    - - 100.0
+      - 200.0
+    expected: 195.0
+  solution: "import pandas as pd\nclass Solution:\n    def calc_p95(self, vals: list) -> float:\n        return round(float(pd.Series(vals).quantile(0.95)),\
+    \ 2)\n"
+  hint: Use pd.Series(vals).quantile(0.95).
+- title: Sort Aggregated DataFrame
+  skill: edge
+  goal: Sort by p95_latency descending, model_name ascending.
+  instructions: Use sort_values(by=['p95_latency', 'model_name'], ascending=[False, True]).
+  function:
+    name: sort_metrics
+    params:
+    - name: records
+      type: any
+  starter_code: "import pandas as pd\nclass Solution:\n    def sort_metrics(self, records: list) -> list:\n        pass\n"
+  tests:
+  - args:
+    - - model_name: B
+        p95_latency: 100.0
+      - model_name: A
+        p95_latency: 200.0
+    expected:
+    - model_name: A
+      p95_latency: 200.0
+    - model_name: B
+      p95_latency: 100.0
+  solution: "import pandas as pd\nclass Solution:\n    def sort_metrics(self, records: list) -> list:\n        df = pd.DataFrame(records)\n\
+    \        df.sort_values(by=[\"p95_latency\", \"model_name\"], ascending=[False, True], inplace=True)\n        return df.to_dict(orient=\"\
+    records\")\n"
+  hint: Sort by p95_latency desc, model_name asc.
+hints:
+- Check for empty inputs and return [] immediately.
+- Convert to DataFrames and merge on 'model_id'.
+- Group by ['model_name', 'provider'] and compute count, quantile(0.95), and mean.
+solution:
+  code: "import pandas as pd\n\nclass Solution:\n    def compute_model_p95_latencies(self, requests_data: list[dict], models_data:\
+    \ list[dict]) -> list[dict]:\n        if not requests_data or not models_data:\n            return []\n            \n\
+    \        req_df = pd.DataFrame(requests_data)\n        mod_df = pd.DataFrame(models_data)\n        \n        merged =\
+    \ pd.merge(req_df, mod_df, on=\"model_id\", how=\"inner\")\n        if merged.empty:\n            return []\n        \
+    \    \n        def agg_stats(group):\n            return pd.Series({\n                \"request_count\": int(len(group)),\n\
+    \                \"p95_latency\": round(float(group[\"latency_ms\"].quantile(0.95)), 2),\n                \"mean_latency\"\
+    : round(float(group[\"latency_ms\"].mean()), 2),\n            })\n            \n        grouped = merged.groupby([\"model_name\"\
+    , \"provider\"], as_index=False).apply(agg_stats)\n        grouped.sort_values(by=[\"p95_latency\", \"model_name\"], ascending=[False,\
+    \ True], inplace=True)\n        \n        result = []\n        for _, row in grouped.iterrows():\n            result.append({\n\
+    \                \"model_name\": str(row[\"model_name\"]),\n                \"provider\": str(row[\"provider\"]),\n  \
+    \              \"request_count\": int(row[\"request_count\"]),\n                \"p95_latency\": float(row[\"p95_latency\"\
+    ]),\n                \"mean_latency\": float(row[\"mean_latency\"]),\n            })\n        return result\n"
+  explanation: Merges request telemetry with metadata in Pandas, grouping by model and provider to compute statistical tail
+    latency percentiles.
+  time: O(N + M + G log G) where N is requests, M is models, and G is grouped models
+  space: O(N + M) for dataframes and grouped aggregations
+pitch_script: '**(Clarify)** "We need to analyze AI inference request telemetry by merging it with model metadata and calculating
+  P95 tail latency along with average and volume metrics."
+
+
+  **(Basement Insight)** "Average latency masks severe tail latency degradation. Grouping requests and computing quantile(0.95)
+  exposes the experience of the slowest 5% of users."
+
+
+  **(Solution)** "We load requests and models into Pandas DataFrames, inner-merge on model_id, and group by model_name and
+  provider. We calculate count, P95 quantile, and mean, sorting by P95 descending."
+
+
+  **(Complexity)** "Executes in O(N + M) vectorized time and O(N + M) space."
+
+  '
+twist:
+  lc: 9235
+  title: Pandas Dense Ranking and Window Rolling Averages
+  why: Instead of static aggregations, calculate rolling 1-hour window quantiles over time-series telemetry streams.
+viz:
+  title: Pandas Relational Merge & P95 Quantile Grouping Pipeline

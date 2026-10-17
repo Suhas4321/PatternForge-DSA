@@ -20,7 +20,7 @@ const VALUE_STYLES: Record<string, string> = {
   '0': 'bg-ink border-line',
   '2': 'bg-rust/45 border-rust',
   '#': 'bg-ochre/35 border-ochre/70',
-  X: 'bg-orchid/30 border-orchid/60',
+  X: 'bg-sky-500/30 border-sky-500/60',
   O: 'bg-sky/25 border-sky/50',
 }
 

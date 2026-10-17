@@ -108,7 +108,7 @@ export default function PracticeCard() {
         </div>
         <div className="overflow-x-auto pb-1">
           <div className="inline-flex flex-col gap-1">
-            <div className="flex gap-[3px] pl-0 text-[10px] text-faint">
+            <div className="flex gap-[3px] pl-0 text-caption text-faint">
               {monthLabels.map((label, i) => (
                 <span key={i} className="w-[11px] overflow-visible whitespace-nowrap">
                   {label}
@@ -138,7 +138,7 @@ export default function PracticeCard() {
             </div>
           </div>
         </div>
-        <div className="mt-1 flex items-center justify-end gap-1 text-[10px] text-faint">
+        <div className="mt-1 flex items-center justify-end gap-1 text-caption text-faint">
           Less
           {LEVEL_BG.map((c) => (
             <span key={c} className={`h-[9px] w-[9px] rounded-[2px] ${c}`} />

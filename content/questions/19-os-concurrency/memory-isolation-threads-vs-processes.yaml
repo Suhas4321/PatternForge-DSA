@@ -1,0 +1,247 @@
+slug: memory-isolation-threads-vs-processes
+lc: 9405
+citadel_id: os_concurrency
+brick_layer: 1
+runner_type: python_practical
+concept:
+  problem_it_solves: Why do threads mutate each other's state while child processes do not affect their parent? In the OS
+    virtual memory architecture, threads within a process share the exact same address space (Heap, Data, BSS segments). Processes,
+    created via `fork()`, receive isolated page tables with Copy-on-Write (CoW). A mutation by a process creates a private
+    memory page, leaving the parent untouched.
+  brute_force: Assuming processes share memory like threads and wondering why child process state changes vanish in the parent
+    process.
+  brute_force_complexity: Fundamental misunderstanding of OS process address spaces.
+  key_insight: Simulating thread execution applies all mutations to one shared dictionary, whereas process execution applies
+    mutations to isolated deep copies.
+  real_world: Gunicorn / Uvicorn worker process isolation vs Celery thread worker memory leaks.
+statement:
+  clean: "Implement a memory isolation simulator comparing threads vs processes:\n`simulate_memory_isolation(initial_state:\
+    \ dict, thread_mutations: list[dict], process_mutations: list[dict]) -> dict`.\n\nInput:\n- `initial_state`: baseline\
+    \ key-value dictionary.\n- `thread_mutations`: list of `{\"key\": str, \"val\": any}` applied by concurrent threads.\n\
+    - `process_mutations`: list of `{\"key\": str, \"val\": any}` applied by spawned processes.\n\nRules:\n1. Thread Model\
+    \ (Shared Heap):\n   - Threads operate on a single shared memory state initialized as a copy of `initial_state`.\n   -\
+    \ Apply all `thread_mutations` sequentially to this shared state.\n2. Process Model (Copy-on-Write Virtual Memory Isolation):\n\
+    \   - Each process receives an isolated copy of `initial_state`.\n   - Apply each process mutation to its own isolated\
+    \ copy.\n3. Verification:\n   - `isolation_verified` is `True` if every process isolated state is distinct from the thread\
+    \ shared state (or if no process mutations).\n\nReturn a dictionary containing:\n- `\"thread_shared_memory\"`: `dict`\n\
+    - `\"process_isolated_memories\"`: `list[dict]`\n- `\"isolation_verified\"`: `bool`"
+  oa_story: '**Zepto Dark-Store Cache Worker — Fork vs Thread Inconsistency**
+
+
+    Zepto backend services spawned worker routines to update dark-store inventory caches. When running under multi-processing,
+    inventory updates were missing in the parent server, but under multi-threading, workers silently corrupted each other''s
+    session state.
+
+
+    Implement this memory isolation simulator to teach engineers how the OS kernel manages thread heap sharing versus process
+    virtual memory isolation.'
+  trigger_keywords:
+  - memory isolation
+  - simulate_memory_isolation
+  - thread_shared_memory
+  examples:
+  - input: 'initial_state = {"count": 0}, thread_mutations = [{"key": "count", "val": 1}], process_mutations = [{"key": "count",
+      "val": 99}]'
+    output: '{"thread_shared_memory": {"count": 1}, "process_isolated_memories": [{"count": 99}], "isolation_verified": True}'
+    explanation: Threads share memory, while the process receives an isolated copy.
+  constraints:
+  - 0 <= len(initial_state) <= 50
+  - 0 <= len(thread_mutations) <= 100
+  - 0 <= len(process_mutations) <= 100
+constraint_quiz:
+  prompt: What OS mechanism ensures a child process initially shares memory pages with the parent without duplicating RAM
+    until a write occurs?
+  options:
+  - Copy-on-Write (CoW) page fault handling
+  - Hardware Mutex register locking
+  - CPython Global Interpreter Lock
+  - Direct Memory Access (DMA) channel transfer
+  answer: 0
+  explanation: Copy-on-Write marks shared pages read-only; when either process writes, the MMU triggers a page fault and duplicates
+    only that 4KB page.
+pattern_quiz:
+  prompt: Why do threads share variables without needing IPC (Inter-Process Communication)?
+  options:
+  - All threads in a process share the same virtual memory page directory and Heap segment
+  - Threads use network sockets internally
+  - The kernel copies thread data every clock cycle
+  - Threads have no memory registers
+  answer: 0
+  explanation: Threads created via `clone()` or `pthread_create()` share the same page tables, giving them direct access to
+    the same heap address space.
+function:
+  name: simulate_memory_isolation
+  params:
+  - name: initial_state
+  - name: thread_mutations
+  - name: process_mutations
+  returns: any
+  compare: exact
+starter_code: "class Solution:\n    def simulate_memory_isolation(self, initial_state: dict, thread_mutations: list[dict],\
+  \ process_mutations: list[dict]) -> dict:\n        pass\n"
+tests:
+- args:
+  - session: INIT
+    count: 0
+  - - key: count
+      val: 1
+    - key: session
+      val: THREAD_ACTIVE
+  - - key: count
+      val: 99
+    - key: session
+      val: PROC_B
+  expected:
+    thread_shared_memory:
+      session: THREAD_ACTIVE
+      count: 1
+    process_isolated_memories:
+    - session: INIT
+      count: 99
+    - session: PROC_B
+      count: 0
+    isolation_verified: true
+  note: Standard thread sharing vs process isolation
+- args:
+  - val: 10
+  - []
+  - - key: val
+      val: 20
+  expected:
+    thread_shared_memory:
+      val: 10
+    process_isolated_memories:
+    - val: 20
+    isolation_verified: true
+  note: Process mutations only
+- args:
+  - status: READY
+  - - key: status
+      val: DONE
+  - []
+  expected:
+    thread_shared_memory:
+      status: DONE
+    process_isolated_memories: []
+    isolation_verified: true
+  note: Thread mutations only
+visualize_test: 0
+drills:
+- skill: setup
+  title: Deep copy dictionary state
+  goal: Create independent memory clone of a dictionary.
+  instructions: Return a deep copy of `d` using `copy.deepcopy`.
+  function:
+    name: drill_clone_dict
+    params:
+    - name: d
+  starter_code: "class Solution:\n    def drill_clone_dict(self, d: dict) -> dict:\n        pass\n"
+  tests:
+  - args:
+    - a: 1
+      b: 2
+    expected:
+      a: 1
+      b: 2
+  solution: "import copy\n\nclass Solution:\n    def drill_clone_dict(self, d: dict) -> dict:\n        return copy.deepcopy(d)\n"
+  hint: Use copy.deepcopy(d).
+- skill: core
+  title: Apply mutations to dictionary
+  goal: Mutate dictionary keys in-place.
+  instructions: For each item in mutations, set `d[item['key']] = item['val']` and return `d`.
+  function:
+    name: drill_apply_muts
+    params:
+    - name: d
+    - name: muts
+  starter_code: "class Solution:\n    def drill_apply_muts(self, d: dict, muts: list[dict]) -> dict:\n        pass\n"
+  tests:
+  - args:
+    - x: 0
+    - - key: x
+        val: 5
+    expected:
+      x: 5
+  solution: "class Solution:\n    def drill_apply_muts(self, d: dict, muts: list[dict]) -> dict:\n        for m in muts:\n\
+    \            d[m[\"key\"]] = m[\"val\"]\n        return d\n"
+  hint: Loop through muts and update keys.
+- skill: edge
+  title: Verify memory isolation
+  goal: Check that process copies differ from shared memory.
+  instructions: Return True if all copies differ from shared, or if copies is empty.
+  function:
+    name: drill_check_iso
+    params:
+    - name: shared
+    - name: copies
+  starter_code: "class Solution:\n    def drill_check_iso(self, shared: dict, copies: list[dict]) -> bool:\n        pass\n"
+  tests:
+  - args:
+    - a: 1
+    - - a: 2
+    expected: true
+  - args:
+    - a: 1
+    - - a: 1
+    expected: false
+  solution: "class Solution:\n    def drill_check_iso(self, shared: dict, copies: list[dict]) -> bool:\n        return all(p\
+    \ != shared for p in copies) if copies else True\n"
+  hint: Check `all(p != shared for p in copies)`.
+hints:
+- Use `copy.deepcopy` to replicate OS Copy-on-Write page duplication.
+- Apply thread mutations onto one shared dictionary, and process mutations onto separate clones.
+- '| # Pseudocode Blueprint
+
+  | thread_shared = deepcopy(initial_state)
+
+  | for m in thread_mutations: thread_shared[m.key] = m.val
+
+  | process_copies = []
+
+  | for m in process_mutations:
+
+  |     p_copy = deepcopy(initial_state)
+
+  |     p_copy[m.key] = m.val
+
+  |     process_copies.append(p_copy)
+
+  | return thread_shared, process_copies, verified'
+solution:
+  code: "import copy\n\nclass Solution:\n    def simulate_memory_isolation(self, initial_state: dict, thread_mutations: list[dict],\
+    \ process_mutations: list[dict]) -> dict:\n        thread_shared = copy.deepcopy(initial_state)\n        for mut in thread_mutations:\n\
+    \            thread_shared[mut[\"key\"]] = mut[\"val\"]\n\n        process_copies = []\n        for mut in process_mutations:\n\
+    \            p_copy = copy.deepcopy(initial_state)\n            p_copy[mut[\"key\"]] = mut[\"val\"]\n            process_copies.append(p_copy)\n\
+    \n        return {\n            \"thread_shared_memory\": thread_shared,\n            \"process_isolated_memories\": process_copies,\n\
+    \            \"isolation_verified\": all(p != thread_shared for p in process_copies) if process_copies else True,\n  \
+    \      }\n"
+  explanation: Threads share heap memory within the same process address space, causing all thread mutations to accumulate
+    in the shared dictionary. Processes run in isolated virtual memory address spaces, so mutations apply only to each process's
+    private Copy-on-Write page copy.
+  time: O(T + P * M) where T is thread mutations, P is process mutations, and M is state size
+  space: O(P * M) for the isolated process memory snapshots
+pitch_script: '**(Clarify)** "We need to simulate memory mutation behaviors between OS threads that share a heap versus OS
+  processes that operate on isolated Copy-on-Write memory."
+
+
+  **(Brute force)** "Confusing process isolation with thread heap sharing leads to non-deterministic race conditions or lost
+  process state in production."
+
+
+  **(Trigger)** "Simulating thread memory sharing alongside process snapshotting signals virtual address space modeling."
+
+
+  **(Optimal)** "We initialize a single shared state for threads and apply all thread mutations sequentially. For processes,
+  we deep-copy the initial state for each process, applying mutations in isolation. We verify that process states do not bleed
+  into the thread heap."
+
+
+  **(Complexity)** "Executes in O(T + P * M) time and O(P * M) space." '
+twist:
+  lc: 9406
+  title: Context-Switch Cost Model Comparison
+  why: 'Process memory isolation comes with a trade-off: process context switches require flushing the TLB and page directory,
+    which is much more expensive than a thread context switch.'
+viz:
+  title: Thread vs Process Memory Map
+  type: concurrency_timeline

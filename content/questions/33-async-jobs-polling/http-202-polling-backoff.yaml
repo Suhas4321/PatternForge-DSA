@@ -1,0 +1,277 @@
+slug: http-202-polling-backoff
+lc: 9531
+citadel_id: backend_apis
+brick_layer: 3
+runner_type: python_practical
+concept:
+  problem_it_solves: Why must long-running background tasks (PDF generation, bulk CSV exports, ML inference) respond with
+    HTTP 202 Accepted instead of keeping the connection open? HTTP connections through reverse proxies (Nginx, ALB) time out
+    after 60 seconds (HTTP 504 Gateway Timeout). The server acknowledges task ingestion with `202 Accepted` and returns a
+    job status URL. The client polls the status using exponential backoff to minimize database load.
+  brute_force: Holding HTTP sockets open for 5 minutes, leading to proxy gateway timeouts and dropped client connections.
+  brute_force_complexity: High socket resource exhaustion and fragile network connections.
+  key_insight: Simulating a polling loop that queries status at increasing intervals (`min(int(interval * multiplier), max_interval)`)
+    models real-world backoff without polling stampedes.
+  real_world: AWS S3 batch export status polling, OpenAI fine-tuning job status checks, and Stripe bulk transfer jobs.
+statement:
+  clean: "Implement an HTTP 202 polling loop with exponential backoff for asynchronous jobs:\n`simulate_job_polling(job_timeline:\
+    \ dict, initial_interval_ms: int, backoff_multiplier: float, max_interval_ms: int, max_attempts: int) -> dict`.\n\nInputs:\n\
+    - `job_timeline`: dictionary mapping elapsed simulation time `ms` (as int or str) to job status (`\"PENDING\"`, `\"PROCESSING\"\
+    `, `\"SUCCESS\"`, or `\"FAILED\"`).\n- `initial_interval_ms`: initial delay before the next poll.\n- `backoff_multiplier`:\
+    \ factor to increase interval after non-terminal poll (e.g. `1.5`).\n- `max_interval_ms`: ceiling cap on polling interval.\n\
+    - `max_attempts`: maximum poll iterations before timing out.\n\nPolling Simulation Rules:\n1. Start at `current_time =\
+    \ 0`, `interval = initial_interval_ms`, `attempts = 0`.\n2. Loop while `attempts < max_attempts`:\n   - Increment `attempts\
+    \ += 1`.\n   - Query job status at `current_time`: lookup the latest milestone in `job_timeline` whose time is `<= current_time`.\
+    \ If none, status is `\"PENDING\"`.\n   - If status is `\"SUCCESS\"` or `\"FAILED\"`:\n     return `{\"completed\": True,\
+    \ \"status\": status, \"attempts\": attempts, \"total_time_ms\": current_time}`.\n   - If status is `\"PENDING\"` or `\"\
+    PROCESSING\"`:\n     Advance time: `current_time += interval`.\n     Update interval: `interval = min(int(interval * backoff_multiplier),\
+    \ max_interval_ms)`.\n3. If loop exits after exhausting `max_attempts`:\n   return `{\"completed\": False, \"status\"\
+    : \"TIMEOUT\", \"attempts\": attempts, \"total_time_ms\": current_time}`."
+  oa_story: '**SwiftCart GST Invoice Generator — Polling Thundering Herd**
+
+
+    SwiftCart generated monthly tax invoices for 200,000 sellers. When sellers clicked ''Generate Report'', the client frontend
+    polled `/api/v1/jobs/{id}` every 100 milliseconds in a tight `while` loop. 200,000 clients polling 10 times a second flooded
+    PostgreSQL with 2 million queries per second, crashing the database.
+
+
+    Implement this exponential backoff polling simulator to ensure client SDKs back off exponentially and cap polling frequency.'
+  trigger_keywords:
+  - http 202 polling loop
+  - simulate_job_polling
+  - max_interval_ms
+  examples:
+  - input: 'job_timeline = {"0": "PENDING", "300": "PROCESSING", "700": "SUCCESS"}, initial_interval_ms = 200, backoff_multiplier
+      = 1.5, max_interval_ms = 1000, max_attempts = 10'
+    output: '{"completed": True, "status": "SUCCESS", "attempts": 4, "total_time_ms": 950}'
+    explanation: Poll 1 at 0ms (PENDING, next +200ms -> 200ms). Poll 2 at 200ms (PENDING, next +300ms -> 500ms). Poll 3 at
+      500ms (PROCESSING, next +450ms -> 950ms). Poll 4 at 950ms sees SUCCESS. Completed in 4 attempts.
+  - input: 'job_timeline = {"0": "PENDING"}, initial_interval_ms = 100, backoff_multiplier = 2.0, max_interval_ms = 500, max_attempts
+      = 3'
+    output: '{"completed": False, "status": "TIMEOUT", "attempts": 3, "total_time_ms": 700}'
+    explanation: Job never finishes. Polls at 0, 100, 300, advancing to 700ms and timing out after 3 attempts.
+  constraints:
+  - 1 <= max_attempts <= 100
+  - 1 <= initial_interval_ms <= 10000
+  - 1.0 <= backoff_multiplier <= 5.0
+constraint_quiz:
+  prompt: Why should background job status polling use exponential backoff rather than fixed 100ms intervals?
+  options:
+  - To reduce database and API gateway load as the job takes longer, preventing a polling stampede ('thundering herd')
+  - To speed up job processing in Celery workers
+  - Because HTTP does not allow fixed intervals
+  - Exponential backoff is required by HTTPS encryption
+  answer: 0
+  explanation: If thousands of clients poll at fixed high frequencies, they overwhelm backend databases. Exponential backoff
+    increases delay as time passes, dramatically reducing request volume.
+pattern_quiz:
+  prompt: What HTTP response header should a server return with HTTP 202 Accepted to instruct the client where to poll for
+    status?
+  options:
+  - '`Location: /api/jobs/{job_id}`'
+  - '`Content-Encoding: gzip`'
+  - '`Set-Cookie: user_id`'
+  - '`Server: nginx`'
+  answer: 0
+  explanation: RFC 9110 states that an HTTP 202 Accepted response SHOULD return a `Location` header pointing to a status monitor
+    resource where the job progress can be inspected.
+function:
+  name: simulate_job_polling
+  params:
+  - name: job_timeline
+  - name: initial_interval_ms
+  - name: backoff_multiplier
+  - name: max_interval_ms
+  - name: max_attempts
+  returns: any
+  compare: exact
+starter_code: "class Solution:\n    def simulate_job_polling(self, job_timeline: dict, initial_interval_ms: int, backoff_multiplier:\
+  \ float, max_interval_ms: int, max_attempts: int) -> dict:\n        pass\n"
+tests:
+- args:
+  - '0': PENDING
+    '300': PROCESSING
+    '700': SUCCESS
+  - 200
+  - 1.5
+  - 1000
+  - 10
+  expected:
+    completed: true
+    status: SUCCESS
+    attempts: 4
+    total_time_ms: 950
+  note: Job succeeds on 4th poll
+- args:
+  - '0': PENDING
+    '200': FAILED
+  - 100
+  - 2.0
+  - 500
+  - 5
+  expected:
+    completed: true
+    status: FAILED
+    attempts: 3
+    total_time_ms: 300
+  note: Job fails on 3rd poll (time 300)
+- args:
+  - '0': PENDING
+  - 100
+  - 2.0
+  - 500
+  - 3
+  expected:
+    completed: false
+    status: TIMEOUT
+    attempts: 3
+    total_time_ms: 700
+  note: Job times out after max attempts
+- args:
+  - '0': SUCCESS
+  - 100
+  - 2.0
+  - 500
+  - 5
+  expected:
+    completed: true
+    status: SUCCESS
+    attempts: 1
+    total_time_ms: 0
+  note: Immediate completion at time 0
+visualize_test: 0
+drills:
+- skill: setup
+  title: Calculate backoff interval
+  goal: Compute next interval capped at max_interval.
+  instructions: Return `min(int(interval * mult), max_interval)`.
+  function:
+    name: drill_next_interval
+    params:
+    - name: interval
+    - name: mult
+    - name: max_interval
+  starter_code: "class Solution:\n    def drill_next_interval(self, interval: int, mult: float, max_interval: int) -> int:\n\
+    \        pass\n"
+  tests:
+  - args:
+    - 200
+    - 1.5
+    - 1000
+    expected: 300
+  - args:
+    - 800
+    - 2.0
+    - 1000
+    expected: 1000
+  solution: "class Solution:\n    def drill_next_interval(self, interval: int, mult: float, max_interval: int) -> int:\n \
+    \       return min(int(interval * mult), max_interval)\n"
+  hint: Multiply interval by mult, convert to int, and take min with max_interval.
+- skill: core
+  title: Get timeline status
+  goal: Lookup latest milestone state <= current_time.
+  instructions: Find the highest milestone time <= current_time and return its status.
+  function:
+    name: drill_get_status
+    params:
+    - name: timeline
+    - name: current_time
+  starter_code: "class Solution:\n    def drill_get_status(self, timeline: dict, current_time: int) -> str:\n        pass\n"
+  tests:
+  - args:
+    - '0': PENDING
+      '500': SUCCESS
+    - 600
+    expected: SUCCESS
+  - args:
+    - '0': PENDING
+      '500': SUCCESS
+    - 200
+    expected: PENDING
+  solution: "class Solution:\n    def drill_get_status(self, timeline: dict, current_time: int) -> str:\n        status =\
+    \ \"PENDING\"\n        for k in sorted(int(x) for x in timeline.keys()):\n            if k <= current_time:\n        \
+    \        status = timeline.get(str(k), timeline.get(k))\n            else:\n                break\n        return status\n"
+  hint: Iterate sorted milestone times.
+- skill: edge
+  title: Check terminal status
+  goal: Return True if status is SUCCESS or FAILED.
+  instructions: Return `status in ('SUCCESS', 'FAILED')`.
+  function:
+    name: drill_is_terminal
+    params:
+    - name: status
+  starter_code: "class Solution:\n    def drill_is_terminal(self, status: str) -> bool:\n        pass\n"
+  tests:
+  - args:
+    - SUCCESS
+    expected: true
+  - args:
+    - PROCESSING
+    expected: false
+  solution: "class Solution:\n    def drill_is_terminal(self, status: str) -> bool:\n        return status in (\"SUCCESS\"\
+    , \"FAILED\")\n"
+  hint: Check status in ('SUCCESS', 'FAILED').
+hints:
+- Sort timeline milestones by integer timestamp.
+- In each attempt, lookup the status for `current_time`. If terminal, return immediately; otherwise add interval and multiply
+  interval by backoff factor.
+- '| # Pseudocode Blueprint
+
+  | current_time = 0, interval = initial_interval, attempts = 0
+
+  | while attempts < max_attempts:
+
+  |     attempts += 1
+
+  |     st = lookup_status(current_time)
+
+  |     if st in ["SUCCESS", "FAILED"]: return True, st, attempts, current_time
+
+  |     current_time += interval
+
+  |     interval = min(int(interval * multiplier), max_interval)
+
+  | return False, "TIMEOUT", attempts, current_time'
+solution:
+  code: "class Solution:\n    def simulate_job_polling(self, job_timeline: dict, initial_interval_ms: int, backoff_multiplier:\
+    \ float, max_interval_ms: int, max_attempts: int) -> dict:\n        current_time = 0\n        interval = initial_interval_ms\n\
+    \        attempts = 0\n        sorted_milestones = sorted(int(k) for k in job_timeline.keys())\n\n        def get_status(t:\
+    \ int) -> str:\n            current_status = \"PENDING\"\n            for m in sorted_milestones:\n                if\
+    \ m <= t:\n                    current_status = job_timeline.get(str(m), job_timeline.get(m))\n                else:\n\
+    \                    break\n            return current_status\n\n        while attempts < max_attempts:\n            attempts\
+    \ += 1\n            st = get_status(current_time)\n            if st in [\"SUCCESS\", \"FAILED\"]:\n                return\
+    \ {\n                    \"completed\": True,\n                    \"status\": st,\n                    \"attempts\":\
+    \ attempts,\n                    \"total_time_ms\": current_time,\n                }\n            current_time += interval\n\
+    \            interval = min(int(interval * backoff_multiplier), max_interval_ms)\n\n        return {\n            \"completed\"\
+    : False,\n            \"status\": \"TIMEOUT\",\n            \"attempts\": attempts,\n            \"total_time_ms\": current_time,\n\
+    \        }\n"
+  explanation: Simulating the polling client tracks time progression and polls status at each interval. Multiplying the interval
+    by the backoff multiplier while capping at `max_interval_ms` prevents client polling storms while ensuring timely detection
+    of terminal states.
+  time: O(A * M) where A is max_attempts and M is milestone count
+  space: O(M) for sorted timeline milestones
+pitch_script: '**(Clarify)** "We need to simulate an asynchronous job polling loop with exponential backoff and a maximum
+  interval cap, checking status progression until a terminal state or timeout occurs."
+
+
+  **(Brute force)** "Polling in a tight fixed-interval loop floods backend services with millions of unnecessary database
+  queries."
+
+
+  **(Trigger)** "Tracking long-running job status transitions using expanding time intervals signals exponential backoff polling."
+
+
+  **(Optimal)** "We start at time 0. For each attempt, we lookup the latest status on the timeline. If the job reached SUCCESS
+  or FAILED, we return completion immediately. Otherwise, we increment time by the current interval and scale the interval
+  by the multiplier, capped by `max_interval_ms`."
+
+
+  **(Complexity)** "Executes in O(A * M) time for A attempts and M milestones with O(M) space." '
+twist:
+  lc: 9504
+  title: Redis Sliding Window Rate Limiter
+  why: To protect polling endpoints from rogue clients that ignore backoff rules, backends deploy Redis sliding window rate
+    limiters.
+viz:
+  title: HTTP 202 Accepted Polling Timeline
+  type: http_lifecycle

@@ -1,0 +1,216 @@
+slug: sql-view-and-audit-trigger
+lc: 9306
+citadel_id: sql_dbms
+brick_layer: 2
+runner_type: sql_sqlite
+concept:
+  problem_it_solves: How can an engineering platform track sensitive salary adjustments without relying on application-level
+    code that might be bypassed? Database triggers execute automatically inside the DBMS engine whenever an UPDATE fires,
+    recording OLD and NEW values to an append-only audit table. Concurrently, SQL Views provide aggregated or security-filtered
+    lenses over underlying tables without altering physical storage.
+  brute_force: Relying on developers to write manual audit log insertions in application backend handlers.
+  brute_force_complexity: Vulnerable to bypass via direct DB connections and human oversight.
+  key_insight: Database triggers run atomically within the transaction context of the UPDATE. Querying summary views alongside
+    audit tables verifies that updates reflect in aggregations while preserving immutable audit logs.
+  real_world: SOX financial audit compliance, employee compensation tracking, and healthcare data access auditing.
+statement:
+  clean: "Write a SQL query to inspect a database view and audit trigger log after an employee salary update.\n\nDatabase\
+    \ Objects (configured in schema):\n```sql\nCREATE TABLE Employees (\n    id INTEGER PRIMARY KEY,\n    name TEXT,\n   \
+    \ department TEXT,\n    salary INTEGER\n);\n\nCREATE TABLE SalaryAuditLog (\n    log_id INTEGER PRIMARY KEY AUTOINCREMENT,\n\
+    \    emp_id INTEGER,\n    old_salary INTEGER,\n    new_salary INTEGER\n);\n\nCREATE TRIGGER trg_salary_update AFTER UPDATE\
+    \ OF salary ON Employees\nBEGIN\n    INSERT INTO SalaryAuditLog (emp_id, old_salary, new_salary)\n    VALUES (OLD.id,\
+    \ OLD.salary, NEW.salary);\nEND;\n\nCREATE VIEW DepartmentSalarySummary AS\nSELECT department, COUNT(*) AS emp_count,\
+    \ AVG(salary) AS avg_salary\nFROM Employees\nGROUP BY department;\n```\n\nTask:\nQuery the `DepartmentSalarySummary` view\
+    \ joined with `Employees` and `SalaryAuditLog` to inspect the updated department metrics and the audit log entry.\n\n\
+    Return columns:\n- `department`: from `DepartmentSalarySummary`\n- `emp_count`: from `DepartmentSalarySummary`\n- `avg_salary`:\
+    \ `ROUND(v.avg_salary, 2)` from `DepartmentSalarySummary`\n- `emp_id`: from `SalaryAuditLog`\n- `old_salary`: from `SalaryAuditLog`\n\
+    - `new_salary`: from `SalaryAuditLog`\n\nOrder by `department` ascending, then `log_id` ascending."
+  oa_story: '**PayLoop Payroll Compliance — Automated Audit Trail**
+
+
+    During an internal financial audit, PayLoop discovered that an unauthorized manager changed an engineer''s salary directly
+    in production using the database CLI, bypassing application logging.
+
+
+    To enforce SOX compliance, the database architect implemented database-level triggers and summary views. Query the view
+    and audit log to verify that the salary modification was captured.'
+  trigger_keywords:
+  - database view and audit trigger
+  - DepartmentSalarySummary
+  - SalaryAuditLog
+  examples:
+  - input: 'Employees updated: Aarav from 80000 to 90000 in Engineering'
+    output: '[(''Engineering'', 2, 105000.0, 1, 80000, 90000)]'
+    explanation: Audit trigger logged old salary 80000 and new salary 90000; view shows updated average salary 105000.
+  constraints:
+  - Trigger executes automatically on salary updates
+  - DepartmentSalarySummary updates dynamically
+constraint_quiz:
+  prompt: When does an `AFTER UPDATE OF salary` trigger execute in SQLite?
+  options:
+  - Automatically inside the database engine immediately after a row's salary column is modified
+  - Only when invoked explicitly by a cron job
+  - Before the query parser executes
+  - Once every 24 hours at midnight
+  answer: 0
+  explanation: An AFTER UPDATE trigger fires automatically as part of the transaction when the specified column is modified,
+    capturing `OLD` and `NEW` row values.
+pattern_quiz:
+  prompt: What is the primary architectural benefit of a SQL View?
+  options:
+  - It provides a reusable, virtual query abstraction that encapsulates complex joins or aggregations without duplicating
+    underlying storage
+  - It compresses table columns on disk
+  - It converts SQL tables into NoSQL collections
+  - It disables table locking
+  answer: 0
+  explanation: A View is a stored query that presents dynamic data as if it were a physical table, simplifying reporting and
+    enforcing security boundaries.
+schema_sql: "CREATE TABLE Employees (\n    id INTEGER PRIMARY KEY,\n    name TEXT,\n    department TEXT,\n    salary INTEGER\n\
+  );\n\nCREATE TABLE SalaryAuditLog (\n    log_id INTEGER PRIMARY KEY AUTOINCREMENT,\n    emp_id INTEGER,\n    old_salary\
+  \ INTEGER,\n    new_salary INTEGER\n);\n\nCREATE TRIGGER trg_salary_update AFTER UPDATE OF salary ON Employees\nBEGIN\n\
+  \    INSERT INTO SalaryAuditLog (emp_id, old_salary, new_salary)\n    VALUES (OLD.id, OLD.salary, NEW.salary);\nEND;\n\n\
+  CREATE VIEW DepartmentSalarySummary AS\nSELECT department, COUNT(*) AS emp_count, AVG(salary) AS avg_salary\nFROM Employees\n\
+  GROUP BY department;"
+seed_sql: "INSERT INTO Employees VALUES\n    (1, 'Aarav', 'Engineering', 80000),\n    (2, 'Vikram', 'Engineering', 120000),\n\
+  \    (3, 'Priya', 'Product', 90000);\n\nUPDATE Employees SET salary = 90000 WHERE id = 1;"
+function:
+  name: execute_sql
+  params: []
+  returns: any
+  compare: exact
+starter_code: "-- Write your SQL query below to inspect DepartmentSalarySummary and SalaryAuditLog\nSELECT\n    v.department,\n\
+  \    v.emp_count,\n    ROUND(v.avg_salary, 2) AS avg_salary,\n    l.emp_id,\n    l.old_salary,\n    l.new_salary\nFROM DepartmentSalarySummary\
+  \ v\nJOIN Employees e ON v.department = e.department\nJOIN SalaryAuditLog l ON e.id = l.emp_id\nORDER BY v.department, l.log_id;\n"
+tests:
+- args: []
+  expected:
+  - - Engineering
+    - 2
+    - 105000.0
+    - 1
+    - 80000
+    - 90000
+  note: Audit log and updated department view
+- args: []
+  expected: null
+  note: Reference verification
+- args: []
+  expected: null
+  note: Consistency check
+visualize_test: 0
+drills:
+- skill: setup
+  title: Query DepartmentSalarySummary view
+  goal: Select department and avg salary from view.
+  instructions: Select `department, emp_count, ROUND(avg_salary, 2) AS avg_salary FROM DepartmentSalarySummary ORDER BY department;`.
+  function:
+    name: execute_sql
+    params: []
+  starter_code: 'SELECT department, emp_count, ROUND(avg_salary, 2) AS avg_salary FROM DepartmentSalarySummary ORDER BY department;
+
+    '
+  tests:
+  - args: []
+    expected:
+    - - Engineering
+      - 2
+      - 105000.0
+    - - Product
+      - 1
+      - 90000.0
+  solution: 'SELECT department, emp_count, ROUND(avg_salary, 2) AS avg_salary FROM DepartmentSalarySummary ORDER BY department;
+
+    '
+  hint: Query DepartmentSalarySummary directly.
+- skill: core
+  title: Query SalaryAuditLog entries
+  goal: Inspect logged old and new salary.
+  instructions: Select `emp_id, old_salary, new_salary FROM SalaryAuditLog;`.
+  function:
+    name: execute_sql
+    params: []
+  starter_code: 'SELECT emp_id, old_salary, new_salary FROM SalaryAuditLog;
+
+    '
+  tests:
+  - args: []
+    expected:
+    - - 1
+      - 80000
+      - 90000
+  solution: 'SELECT emp_id, old_salary, new_salary FROM SalaryAuditLog;
+
+    '
+  hint: Query SalaryAuditLog.
+- skill: edge
+  title: Join view with audit log
+  goal: Link department summary with employee audit log.
+  instructions: Join DepartmentSalarySummary with Employees and SalaryAuditLog.
+  function:
+    name: execute_sql
+    params: []
+  starter_code: 'SELECT v.department, l.emp_id FROM DepartmentSalarySummary v JOIN Employees e ON v.department = e.department
+    JOIN SalaryAuditLog l ON e.id = l.emp_id;
+
+    '
+  tests:
+  - args: []
+    expected:
+    - - Engineering
+      - 1
+  solution: 'SELECT v.department, l.emp_id FROM DepartmentSalarySummary v JOIN Employees e ON v.department = e.department
+    JOIN SalaryAuditLog l ON e.id = l.emp_id;
+
+    '
+  hint: Join through Employees.
+hints:
+- Select from `DepartmentSalarySummary v`.
+- Join `Employees e ON v.department = e.department` and `SalaryAuditLog l ON e.id = l.emp_id`.
+- '| # Pseudocode Blueprint
+
+  | SELECT v.department, v.emp_count, ROUND(v.avg_salary, 2) AS avg_salary,
+
+  |        l.emp_id, l.old_salary, l.new_salary
+
+  | FROM DepartmentSalarySummary v
+
+  | JOIN Employees e ON v.department = e.department
+
+  | JOIN SalaryAuditLog l ON e.id = l.emp_id
+
+  | ORDER BY v.department, l.log_id;'
+solution:
+  code: "SELECT\n    v.department,\n    v.emp_count,\n    ROUND(v.avg_salary, 2) AS avg_salary,\n    l.emp_id,\n    l.old_salary,\n\
+    \    l.new_salary\nFROM DepartmentSalarySummary v\nJOIN Employees e ON v.department = e.department\nJOIN SalaryAuditLog\
+    \ l ON e.id = l.emp_id\nORDER BY v.department, l.log_id;\n"
+  explanation: The trigger automatically records previous and updated salary values into `SalaryAuditLog` during the UPDATE
+    statement. Joining the view with the audit log confirms that the view dynamically computes the updated department average
+    while the audit table stores an immutable log of the modification.
+  time: O(E + L) join over filtered employees
+  space: O(1) memory overhead
+pitch_script: '**(Clarify)** "We need to query a dynamic summary view joined with an audit log table populated by an internal
+  database trigger."
+
+
+  **(Brute force)** "Relying on application-level logging risks unlogged changes when database records are modified via admin
+  consoles or background maintenance scripts."
+
+
+  **(Trigger)** "Verifying automated trigger history alongside virtual aggregations signals database view and audit trigger
+  verification."
+
+
+  **(Optimal)** "We select from `DepartmentSalarySummary v`, joining `Employees e` on department and `SalaryAuditLog l` on
+  employee id. We format the average salary with `ROUND(..., 2)` and project the old and new salaries captured by the trigger."
+
+
+  **(Complexity)** "Executes in O(E + L) time and O(1) space." '
+twist:
+  lc: 9307
+  title: EXPLAIN QUERY PLAN & Composite Index Evaluation
+  why: Once views and triggers are configured, complex queries over large tables require composite B-Tree indexes to remain
+    performant.
+viz:
+  title: View & Trigger Audit Pipeline
+  type: sql_pipeline

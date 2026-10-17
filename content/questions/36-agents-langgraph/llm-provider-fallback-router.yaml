@@ -1,0 +1,284 @@
+slug: llm-provider-fallback-router
+lc: 9633
+citadel_id: ai_resume
+brick_layer: 5
+runner_type: python_practical
+concept:
+  problem_it_solves: How do production AI applications maintain 99.99% uptime when upstream LLM APIs suffer rate limits (429),
+    capacity overload (503), or network timeouts? A resilient gateway attempts the primary provider with retries, and upon
+    repeated failure, automatically falls back to an alternate provider (e.g., Anthropic -> Gemini or OpenAI -> Local Llama).
+  brute_force: Failing user requests immediately upon receiving a single 429 or 503 response from the primary vendor.
+  brute_force_complexity: High error rates during upstream provider brownouts.
+  key_insight: Layering retry attempts on the primary provider with an automatic secondary fallback trigger isolates applications
+    from single-vendor outages.
+  real_world: Portkey AI Gateway, LiteLLM proxy, and enterprise LangChain multi-provider routers.
+statement:
+  clean: "Implement a multi-provider gateway with retry and fallback routing:\n`route_request(self, prompt: str, primary_provider:\
+    \ str, secondary_provider: str, mock_responses: dict, max_retries: int = 2) -> dict`.\n\nInputs:\n- `prompt`: request\
+    \ string\n- `primary_provider`: name of primary LLM vendor (e.g. `'anthropic'`)\n- `secondary_provider`: name of fallback\
+    \ LLM vendor (e.g. `'gemini'`)\n- `mock_responses`: dict mapping provider name to a list of sequential response dicts:\n\
+    \  `{'status_code': int, 'text': str | None, 'error': str | None}`\n- `max_retries`: maximum retry attempts on primary\
+    \ provider (`max_retries >= 0`). Total attempts allowed on primary is `1 + max_retries`.\n\nRouting Rules:\n1. Attempt\
+    \ `primary_provider` up to `1 + max_retries` times.\n2. If primary returns `status_code == 200`:\n   return immediately:\n\
+    \   `{'status': 'success', 'provider_used': primary_provider, 'attempts': total_attempts, 'response': text, 'fallback_triggered':\
+    \ False}`.\n3. If primary fails across all attempts (all non-200 status codes):\n   trigger fallback to `secondary_provider`.\n\
+    4. Attempt `secondary_provider` (1 attempt).\n   - If secondary succeeds (`status_code == 200`):\n     return:\n     `{'status':\
+    \ 'success', 'provider_used': secondary_provider, 'attempts': total_attempts, 'response': text, 'fallback_triggered':\
+    \ True}`.\n   - If secondary also fails (non-200):\n     return:\n     `{'status': 'failed', 'provider_used': None, 'attempts':\
+    \ total_attempts, 'response': None, 'fallback_triggered': True}`."
+  oa_story: '**KiranaKart AI Catalog — High-Availability LLM Ingestion Gateway**
+
+
+    During grocery inventory onboarding, KiranaKart''s catalog enrichment pipeline sent 500,000 product descriptions to Anthropic
+    Claude for attribute extraction. Periodic 429 rate limits caused batch jobs to fail, halting supplier listings.
+
+
+    The infra team implemented an automated gateway: transient 429s trigger retries on the primary model, while persistent
+    503 outages seamlessly fall back to Google Gemini. Implement this gateway routing logic.'
+  trigger_keywords:
+  - multi-provider gateway with retry and fallback routing
+  - mock_responses
+  - fallback_triggered
+  examples:
+  - input: 'prompt = ''Translate hello'', primary = ''anthropic'', secondary = ''gemini'', mock_responses = {''anthropic'':
+      [{''status_code'': 200, ''text'': ''Bonjour''}]}, max_retries = 2'
+    output: '{''status'': ''success'', ''provider_used'': ''anthropic'', ''attempts'': 1, ''response'': ''Bonjour'', ''fallback_triggered'':
+      False}'
+    explanation: Primary succeeds on attempt 1 with zero retries.
+  - input: 'prompt = ''Analyze text'', primary = ''anthropic'', secondary = ''gemini'', mock_responses = {''anthropic'': [{''status_code'':
+      503}, {''status_code'': 503}, {''status_code'': 503}], ''gemini'': [{''status_code'': 200, ''text'': ''Summary''}]},
+      max_retries = 2'
+    output: '{''status'': ''success'', ''provider_used'': ''gemini'', ''attempts'': 4, ''response'': ''Summary'', ''fallback_triggered'':
+      True}'
+    explanation: Primary fails 3 times (1 initial + 2 retries), triggering fallback to Gemini which succeeds.
+  constraints:
+  - 0 <= max_retries <= 5
+  - mock_responses contains list of dicts with status_code
+constraint_quiz:
+  prompt: Why should an LLM gateway fail over to a secondary provider only after exhausting primary retries?
+  options:
+  - To preserve quality consistency and negotiated prompt optimizations on the primary model before accepting potential behavioral
+    discrepancies on a secondary model
+  - Because secondary models are always free of charge
+  - To avoid running Python garbage collection
+  - Because DNS resolution takes 5 minutes per provider
+  answer: 0
+  explanation: Different LLMs exhibit subtle prompt sensitivities and output formats. Retrying the primary model first preserves
+    consistency; falling back is reserved for actual vendor outages.
+pattern_quiz:
+  prompt: Which resilience pattern describes switching to an alternative provider when the primary provider encounters repeated
+    errors?
+  options:
+  - Fallback / Hedged Request pattern
+  - Singleton pattern
+  - Flyweight pattern
+  - Two-Phase Commit pattern
+  answer: 0
+  explanation: The Fallback pattern gracefully degrades or reroutes failed upstream operations to a standby provider.
+function:
+  name: route_request
+  params:
+  - name: prompt
+    type: any
+  - name: primary_provider
+    type: any
+  - name: secondary_provider
+    type: any
+  - name: mock_responses
+    type: any
+  - name: max_retries
+    type: any
+  returns: any
+starter_code: "class Solution:\n    def route_request(self, prompt: str, primary_provider: str, secondary_provider: str, mock_responses:\
+  \ dict, max_retries: int = 2) -> dict:\n        pass\n"
+tests:
+- args:
+  - Translate hello
+  - anthropic
+  - gemini
+  - anthropic:
+    - status_code: 200
+      text: Bonjour
+  - 2
+  expected:
+    status: success
+    provider_used: anthropic
+    attempts: 1
+    response: Bonjour
+    fallback_triggered: false
+  note: Primary succeeds on first attempt
+- args:
+  - Summarize report
+  - anthropic
+  - gemini
+  - anthropic:
+    - status_code: 429
+    - status_code: 200
+      text: Summary
+  - 2
+  expected:
+    status: success
+    provider_used: anthropic
+    attempts: 2
+    response: Summary
+    fallback_triggered: false
+  note: Primary retries after 429 and succeeds
+- args:
+  - Code review
+  - anthropic
+  - gemini
+  - anthropic:
+    - status_code: 503
+    - status_code: 503
+    - status_code: 503
+    gemini:
+    - status_code: 200
+      text: Looks good
+  - 2
+  expected:
+    status: success
+    provider_used: gemini
+    attempts: 4
+    response: Looks good
+    fallback_triggered: true
+  note: Primary exhausted after 3 attempts, secondary succeeds
+- args:
+  - Draft email
+  - anthropic
+  - gemini
+  - anthropic:
+    - status_code: 500
+    - status_code: 500
+    gemini:
+    - status_code: 500
+  - 1
+  expected:
+    status: failed
+    provider_used: null
+    attempts: 3
+    response: null
+    fallback_triggered: true
+  note: Both primary and secondary fail
+visualize_test: 0
+drills:
+- title: Evaluate HTTP Status
+  skill: setup
+  goal: Check if upstream response is successful.
+  instructions: Return True if resp.get('status_code') == 200 else False.
+  function:
+    name: is_success
+    params:
+    - name: resp
+      type: any
+  starter_code: "class Solution:\n    def is_success(self, resp: dict) -> bool:\n        pass\n"
+  tests:
+  - args:
+    - status_code: 200
+    expected: true
+  - args:
+    - status_code: 429
+    expected: false
+  solution: "class Solution:\n    def is_success(self, resp: dict) -> bool:\n        return resp.get(\"status_code\") == 200\n"
+  hint: Check if status_code equals 200.
+- title: Calculate Maximum Primary Attempts
+  skill: core
+  goal: Compute total primary attempt budget.
+  instructions: Return 1 + max_retries.
+  function:
+    name: calc_attempts
+    params:
+    - name: max_retries
+      type: any
+  starter_code: "class Solution:\n    def calc_attempts(self, max_retries: int) -> int:\n        pass\n"
+  tests:
+  - args:
+    - 2
+    expected: 3
+  - args:
+    - 0
+    expected: 1
+  solution: "class Solution:\n    def calc_attempts(self, max_retries: int) -> int:\n        return 1 + max_retries\n"
+  hint: Return 1 + max_retries.
+- title: Construct Gateway Response
+  skill: edge
+  goal: Format standardized gateway response dictionary.
+  instructions: Return dict with status, provider_used, attempts, response, fallback_triggered.
+  function:
+    name: build_gateway_result
+    params:
+    - name: status
+      type: any
+    - name: provider
+      type: any
+    - name: attempts
+      type: any
+    - name: text
+      type: any
+    - name: fallback
+      type: any
+  starter_code: "class Solution:\n    def build_gateway_result(self, status: str, provider: str, attempts: int, text: str,\
+    \ fallback: bool) -> dict:\n        pass\n"
+  tests:
+  - args:
+    - success
+    - openai
+    - 1
+    - hi
+    - false
+    expected:
+      status: success
+      provider_used: openai
+      attempts: 1
+      response: hi
+      fallback_triggered: false
+  solution: "class Solution:\n    def build_gateway_result(self, status: str, provider: str, attempts: int, text: str, fallback:\
+    \ bool) -> dict:\n        return {\n            \"status\": status,\n            \"provider_used\": provider,\n      \
+    \      \"attempts\": attempts,\n            \"response\": text,\n            \"fallback_triggered\": fallback,\n     \
+    \   }\n"
+  hint: Assemble the 5 gateway response keys.
+hints:
+- Calculate max primary attempts as 1 + max_retries.
+- Iterate through primary responses; return immediately if status_code == 200.
+- If all primary attempts fail, attempt secondary once and format fallback_triggered = True.
+solution:
+  code: "class Solution:\n    def route_request(self, prompt: str, primary_provider: str, secondary_provider: str, mock_responses:\
+    \ dict, max_retries: int = 2) -> dict:\n        total_attempts = 0\n        primary_list = mock_responses.get(primary_provider,\
+    \ [])\n        secondary_list = mock_responses.get(secondary_provider, [])\n        \n        # Primary attempts (1 initial\
+    \ + up to max_retries)\n        max_primary = 1 + max_retries\n        for i in range(max_primary):\n            total_attempts\
+    \ += 1\n            resp = primary_list[i] if i < len(primary_list) else {\"status_code\": 500, \"error\": \"No response\"\
+    }\n            if resp.get(\"status_code\") == 200:\n                return {\n                    \"status\": \"success\"\
+    ,\n                    \"provider_used\": primary_provider,\n                    \"attempts\": total_attempts,\n     \
+    \               \"response\": resp.get(\"text\"),\n                    \"fallback_triggered\": False,\n              \
+    \  }\n        \n        # Fallback to secondary\n        total_attempts += 1\n        sec_resp = secondary_list[0] if\
+    \ len(secondary_list) > 0 else {\"status_code\": 500, \"error\": \"No response\"}\n        if sec_resp.get(\"status_code\"\
+    ) == 200:\n            return {\n                \"status\": \"success\",\n                \"provider_used\": secondary_provider,\n\
+    \                \"attempts\": total_attempts,\n                \"response\": sec_resp.get(\"text\"),\n              \
+    \  \"fallback_triggered\": True,\n            }\n        \n        return {\n            \"status\": \"failed\",\n   \
+    \         \"provider_used\": None,\n            \"attempts\": total_attempts,\n            \"response\": None,\n     \
+    \       \"fallback_triggered\": True,\n        }\n"
+  explanation: Executes bounded retries on the primary vendor before falling back to the backup provider, returning a normalized
+    response payload.
+  time: O(R) where R is max_retries (typically <= 5 attempts)
+  space: O(1) constant memory for tracking attempt counters
+pitch_script: '**(Clarify)** "We need to design a multi-provider gateway routing engine that retries the primary LLM vendor
+  upon failure and falls back to a secondary provider if retries are exhausted."
+
+
+  **(Basement Insight)** "Relying on a single AI provider invites downtime whenever rate limits or capacity constraints trigger
+  429 or 503 errors. A multi-vendor routing gateway provides immediate failover protection."
+
+
+  **(Solution)** "We attempt the primary model up to 1 + max_retries times. If any call succeeds with 200 OK, we return. If
+  all primary attempts fail, we immediately dispatch the request to the secondary provider."
+
+
+  **(Complexity)** "Executes in O(R) time bounded by retries, using O(1) space."
+
+  '
+twist:
+  lc: 9602
+  title: Reciprocal Rank Fusion Hybrid Search
+  why: Once the LLM gateway succeeds, fuse sparse and dense search outputs to supply accurate context for retrieval-augmented
+    generation.
+viz:
+  title: Resilient Multi-Provider LLM Gateway Architecture

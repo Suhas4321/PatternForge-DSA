@@ -1,0 +1,289 @@
+slug: resilient-csv-stream-pipeline
+lc: 9224
+citadel_id: python_data
+brick_layer: 4
+runner_type: python_practical
+
+concept:
+  problem_it_solves: >-
+    "What happens when a 50GB telemetry CSV dump contains random corrupted rows, extra commas, or malformed numbers?"
+    Standard parsers crash the entire batch halfway through with `ValueError` or `IndexError`, aborting hours of ETL progress.
+    A resilient streaming CSV pipeline parses records sequentially, casts types safely, and drops malformed records into a dead-letter log.
+  brute_force: >-
+    Using `csv.reader` without defensive schema validation. A single misplaced comma or missing integer field halts the entire pipeline.
+  brute_force_complexity: O(N) operations, but zero error tolerance.
+  key_insight: >-
+    Read the header row first to establish the expected column count and names. For each subsequent row, verify that the column
+    count matches exactly before attempting type casting. Use safe scalar conversion helpers (`try int -> try float -> bool -> str`)
+    so valid rows are ingested cleanly even if corrupted lines are present.
+  real_world: >-
+    Data warehouse ingestion (Snowflake Snowpipe, BigQuery CSV imports), telemetry log ETL, and Stripe transaction exports.
+
+statement:
+  clean: |
+    Implement a fault-tolerant CSV log parser using csv streaming:
+    `ingest_csv_stream(csv_lines: list[str]) -> list[dict]`.
+    
+    Given a list of strings representing lines from an incoming CSV stream:
+    1. The first non-empty line represents the header row containing comma-separated column names.
+       Strip whitespace from each column name.
+    2. If `csv_lines` is empty or contains no valid header, return `[]`.
+    3. For each subsequent line:
+       - Strip leading and trailing whitespace. If the line is empty, skip it.
+       - Split the line by commas `,` and strip whitespace from each value.
+       - If the number of values does NOT match the number of header columns, skip the row as corrupted.
+       - Convert each value to its appropriate Python type:
+         - If value lowercased is `"true"`, cast to `True`.
+         - If value lowercased is `"false"`, cast to `False`.
+         - Otherwise, try casting to `int`.
+         - If that fails, try casting to `float`.
+         - If all numeric casts fail, retain the value as a trimmed `str`.
+       - Create a dictionary mapping header names to the parsed typed values.
+    4. Return the list of valid, typed row dictionaries in order.
+  oa_story: |
+    **Drizz Device Farm — Telemetry CSV Ingestion**
+    
+    During 24-hour stability testing on mobile device clusters, device logs are written to rotating CSV files.
+    When a device loses power or disconnects mid-write, partial corrupted lines are flushed to disk.
+    The daily analytics ingestion job crashed every morning on these truncated lines.
+    
+    Build a resilient streaming parser that validates row schemas and gracefully filters out corrupted records.
+  trigger_keywords: ["csv streaming", "ingest_csv_stream", "csv_lines"]
+  examples:
+    - input: "csv_lines = ['id, device, latency, success', '101, Pixel 8, 320, true', '102, S23, invalid_line', '103, iPhone 15, 210, false']"
+      output: "[{'id': 101, 'device': 'Pixel 8', 'latency': 320, 'success': True}, {'id': 103, 'device': 'iPhone 15', 'latency': 210, 'success': False}]"
+      explanation: "Row 102 has only 3 values instead of 4, so it is filtered out as corrupted."
+  constraints:
+    - "csv_lines contains between 0 and 1000 lines"
+    - "column names are non-empty strings"
+
+constraint_quiz:
+  prompt: >-
+    What is the safest way to convert a string to int/float while allowing non-numeric strings to remain strings?
+  options:
+    - "Check s.isdigit() and then int(s)"
+    - "Use a try/except ValueError block falling through from int -> float -> str"
+    - "Use eval(s)"
+    - "Cast directly with float(s)"
+  answer: 1
+  explanation: >-
+    A try/except block cleanly handles negative numbers, floats, and strings without brittle regex checks or dangerous eval().
+
+pattern_quiz:
+  prompt: What should a robust data engineering ingestion pipeline do when encountering a corrupted row in a massive file?
+  options:
+    - "Crash immediately and abort the entire job"
+    - "Log the corrupted row to a dead-letter queue and continue processing valid rows"
+    - "Fill all missing values with random numbers"
+    - "Delete the entire file from disk"
+  answer: 1
+  explanation: >-
+    Skipping corrupted rows (or sending them to a Dead-Letter Queue / DLQ) prevents localized glitches from halting entire data pipelines.
+
+function:
+  name: ingest_csv_stream
+  params:
+    - {name: csv_lines}
+
+starter_code: |
+  class Solution:
+      def ingest_csv_stream(self, csv_lines: list[str]) -> list[dict]:
+          pass
+
+tests:
+  - args:
+      - [
+          "id, device, latency, success",
+          "101, Pixel 8, 320, true",
+          "corrupted, row",
+          "102, Galaxy S23, 450, false"
+        ]
+    expected:
+      - {"id": 101, "device": "Pixel 8", "latency": 320, "success": true}
+      - {"id": 102, "device": "Galaxy S23", "latency": 450, "success": false}
+  - args:
+      - [
+          "name, score, ratio",
+          "Alice, 95, 0.95",
+          "Bob, 88, 0.88"
+        ]
+    expected:
+      - {"name": "Alice", "score": 95, "ratio": 0.95}
+      - {"name": "Bob", "score": 88, "ratio": 0.88}
+  - args:
+      - []
+    expected: []
+  - args:
+      - [
+          "key, val",
+          "",
+          "   ",
+          "alpha, 10"
+        ]
+    expected:
+      - {"key": "alpha", "val": 10}
+
+visualize_test: 0
+
+drills:
+  - title: Parse CSV header
+    skill: setup
+    goal: Extract trimmed column headers.
+    instructions: |
+      Given a header line `"col1, col2 , col3"`, return `["col1", "col2", "col3"]`.
+    function:
+      name: parse_headers
+      params: [{name: line}]
+    starter_code: |
+      class Solution:
+          def parse_headers(self, line: str) -> list[str]:
+              pass
+    tests:
+      - {args: ["id, name, age"], expected: ["id", "name", "age"]}
+      - {args: ["status"], expected: ["status"]}
+    solution: |
+      class Solution:
+          def parse_headers(self, line: str) -> list[str]:
+              return [col.strip() for col in line.split(",") if col.strip()]
+    hint: "Use `[col.strip() for col in line.split(',') if col.strip()]`."
+
+  - title: Safe scalar type casting
+    skill: core
+    goal: Convert string to bool, int, float, or str.
+    instructions: |
+      Cast `"true"`/`"false"` to bool, integer strings to int, decimal strings to float, otherwise str.
+    function:
+      name: cast_scalar
+      params: [{name: val}]
+    starter_code: |
+      class Solution:
+          def cast_scalar(self, val: str):
+              pass
+    tests:
+      - {args: ["42"], expected: 42}
+      - {args: ["3.14"], expected: 3.14}
+      - {args: ["true"], expected: true}
+      - {args: ["hello"], expected: "hello"}
+    solution: |
+      class Solution:
+          def cast_scalar(self, val: str):
+              v = val.strip()
+              if v.lower() == "true":
+                  return True
+              if v.lower() == "false":
+                  return False
+              try:
+                  return int(v)
+              except ValueError:
+                  pass
+              try:
+                  return float(v)
+              except ValueError:
+                  pass
+              return v
+    hint: "Check bool first, then try int, then try float, else return trimmed string."
+
+  - title: Match row length against header
+    skill: edge
+    goal: Verify row column count.
+    instructions: |
+      Return `True` if `len(row_tokens) == header_count`, else `False`.
+    function:
+      name: is_valid_row_len
+      params: [{name: tokens}, {name: expected_len}]
+    starter_code: |
+      class Solution:
+          def is_valid_row_len(self, tokens: list, expected_len: int) -> bool:
+              pass
+    tests:
+      - {args: [["a", "b"], 2], expected: true}
+      - {args: [["a"], 3], expected: false}
+    solution: |
+      class Solution:
+          def is_valid_row_len(self, tokens: list, expected_len: int) -> bool:
+              return len(tokens) == expected_len
+    hint: "Return len(tokens) == expected_len."
+
+hints:
+  - "Find the first non-empty line and split by `,` to establish the header names."
+  - "Write a helper `_cast(val)` that checks bool, then `int()`, then `float()`, else `str`."
+  - "Iterate over remaining lines: split, strip, verify length equals `len(headers)`, and build dictionary."
+
+solution:
+  code: |
+    class Solution:
+        def ingest_csv_stream(self, csv_lines: list[str]) -> list[dict]:
+            # Step 1: Locate header row
+            headers = None
+            data_start = 0
+            for idx, raw in enumerate(csv_lines):
+                line = raw.strip()
+                if line:
+                    headers = [c.strip() for c in line.split(",") if c.strip()]
+                    data_start = idx + 1
+                    break
+
+            if not headers:
+                return []
+
+            def _cast(val: str):
+                v = val.strip()
+                low = v.lower()
+                if low == "true":
+                    return True
+                if low == "false":
+                    return False
+                try:
+                    return int(v)
+                except ValueError:
+                    pass
+                try:
+                    return float(v)
+                except ValueError:
+                    pass
+                return v
+
+            results = []
+            for raw in csv_lines[data_start:]:
+                line = raw.strip()
+                if not line:
+                    continue
+                parts = [p.strip() for p in line.split(",")]
+                if len(parts) != len(headers):
+                    continue  # Skip corrupted row
+
+                row_dict = {}
+                for h, val in zip(headers, parts):
+                    row_dict[h] = _cast(val)
+                results.append(row_dict)
+
+            return results
+  explanation: |
+    The parser safely isolates header extraction from row parsing.
+    Empty lines are ignored. Each subsequent data line is checked for schema conformance:
+    if a line contains more or fewer columns than the header, it is immediately discarded
+    without throwing an unhandled exception.
+    
+    Valid lines have each token cast to `bool`, `int`, `float`, or `str` before being packaged
+    into a typed row record.
+  time: O(N * C) where N is line count and C is column count
+  space: O(N * C) for the resulting row dictionaries
+
+pitch_script: |
+  **(Clarify)** "We need to parse incoming CSV lines, extract the header schema, discard corrupted lines with mismatched column counts, and cast values to native Python types."
+
+  **(Basement Insight)** "In high-throughput ETL pipelines, unhandled parse exceptions on corrupted rows kill long-running jobs. A defensive parser validates row length against the header before type conversion, isolating dirty data from the clean stream."
+
+  **(Solution)** "We parse the header to establish schema arity. For each data line, we verify `len(parts) == len(headers)`. A scalar caster converts `true/false` to booleans, then attempts `int` and `float`, falling back to `str`. Valid rows are mapped to dictionary records."
+
+  **(Complexity)** "Runs in O(N * C) time where N is lines and C is columns, using O(N * C) space for output records."
+
+twist:
+  lc: 9225
+  title: Escaped Quotes and Dialect Sniffing with csv.reader
+  why: >-
+    If cell values contain commas inside double quotes (e.g. "San Francisco, CA"), simple split(',') breaks.
+    Requires io.StringIO and csv.reader or csv.Sniffer for RFC 4180 compliance.
+
+viz:
+  title: "Resilient CSV Stream Pipeline"

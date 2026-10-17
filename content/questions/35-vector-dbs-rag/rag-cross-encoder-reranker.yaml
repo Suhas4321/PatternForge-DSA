@@ -1,0 +1,238 @@
+slug: rag-cross-encoder-reranker
+lc: 9607
+citadel_id: ai_resume
+brick_layer: 2
+runner_type: python_practical
+concept:
+  problem_it_solves: Why is initial vector search often insufficient for precision enterprise RAG? Bi-encoder vector search
+    encodes query and documents independently into fixed-length vectors, losing fine-grained cross-token interactions. A cross-encoder
+    performs joint cross-attention over [CLS] query [SEP] passage, modeling exact term coverage and phrase bonuses to rescore
+    candidates accurately.
+  brute_force: Running heavy cross-encoder neural networks across all 10,000,000 documents in the database for every single
+    user query.
+  brute_force_complexity: O(N * L^2) full self-attention across the entire corpus causing multi-second latency.
+  key_insight: 'Two-stage retrieval: use fast bi-encoder ANN vector search to retrieve the top-50 candidates, then run cross-encoder
+    scoring on only those 50 passages.'
+  real_world: Cohere Rerank API, BGE-Reranker-Large, and WisdomBot aerospace document reranking stage.
+statement:
+  clean: "Implement a deterministic cross-encoder candidate reranker:\n`rerank_passages(self, query: str, candidates: list[dict],\
+    \ top_k: int = 3) -> list[dict]`.\n\nGiven:\n- `query`: search query string\n- `candidates`: list of candidate document\
+    \ dictionaries:\n  `{'doc_id': str, 'text': str, 'biencoder_score': float}`\n- `top_k`: maximum number of reranked passages\
+    \ to return\n\nCross-Encoder Scoring Formula:\n1. Tokenize `query` into lowercase alphanumeric words: `q_words = set(re.findall(r'\\\
+    w+', query.lower().strip()))`.\n2. For each candidate document:\n   - Tokenize `doc['text']` into lowercase words: `d_words\
+    \ = re.findall(r'\\w+', doc['text'].lower())`.\n   - Lexical coverage ratio:\n     `coverage = len(q_words.intersection(set(d_words)))\
+    \ / max(len(q_words), 1)`.\n   - Exact phrase bonus:\n     `phrase_bonus = 1.0 if query.lower().strip() in doc['text'].lower()\
+    \ else 0.0`.\n   - Bi-encoder score:\n     `bi_score = float(doc.get('biencoder_score', 0.0))`.\n   - Cross-encoder composite\
+    \ score:\n     `cross_score = round((0.5 * coverage) + (0.3 * phrase_bonus) + (0.2 * bi_score), 4)`.\n3. Sort candidates:\n\
+    \   - Primary: `cross_score` descending\n   - Secondary (tie-breaker): `doc_id` alphabetically ascending\n4. Take the\
+    \ top `min(top_k, len(candidates))` candidates and assign 1-indexed `'rank'` (1, 2, ...).\n5. Return list of dicts: `[{'doc_id':\
+    \ doc_id, 'cross_score': cross_score, 'rank': rank}, ...]`."
+  oa_story: '**WisdomBot Search Service — Two-Stage Neural Retrieval Pipeline**
+
+
+    During aerospace engine diagnostics, technicians searched for exact error strings like `HPT vane burn through inspection`.
+    While bi-encoder vector embeddings retrieved general turbine blade manuals, they scored passages describing unrelated
+    compressor components higher than the exact vane inspection procedure.
+
+
+    The search team deployed a lightweight cross-encoder reranker to jointly score the top-50 retrieved candidates using lexical
+    coverage and exact phrase match boosts. Implement this reranker.'
+  trigger_keywords:
+  - deterministic cross-encoder candidate reranker
+  - rerank_passages
+  - biencoder_score
+  examples:
+  - input: 'query = ''fast vector search'', candidates = [{''doc_id'': ''docA'', ''text'': ''Fast vector search with HNSW
+      indexes'', ''biencoder_score'': 0.8}, {''doc_id'': ''docB'', ''text'': ''General search algorithms in databases'', ''biencoder_score'':
+      0.9}], top_k = 2'
+    output: '[{''doc_id'': ''docA'', ''cross_score'': 0.96, ''rank'': 1}, {''doc_id'': ''docB'', ''cross_score'': 0.3467,
+      ''rank'': 2}]'
+    explanation: docA contains the exact phrase 'fast vector search' and full keyword coverage, surpassing docB's higher bi-encoder
+      score.
+  constraints:
+  - 0 <= len(candidates) <= 200
+  - 1 <= top_k <= 50
+constraint_quiz:
+  prompt: Why is a Cross-Encoder typically used as a reranker rather than the first-stage retriever?
+  options:
+  - Because computing full cross-attention over query-document token pairs for millions of documents is computationally prohibitive
+  - Because Cross-Encoders can only run on CPU, not GPU
+  - Because Cross-Encoders do not support English text
+  - Because Vector databases forbid Cross-Encoders by law
+  answer: 0
+  explanation: Bi-encoders pre-compute document vectors offline, allowing fast O(log N) ANN index scans. Cross-encoders require
+    computing O(L^2) attention dynamically for every query-document pair, restricting their use to small top-k candidate sets.
+pattern_quiz:
+  prompt: What key architectural distinction separates Bi-Encoders from Cross-Encoders?
+  options:
+  - Bi-Encoders encode query and document in separate forward passes; Cross-Encoders concatenate query and document into a
+    single forward pass with full cross-attention
+  - Bi-Encoders use 2 layers; Cross-Encoders use 100 layers
+  - Bi-Encoders only process numbers; Cross-Encoders only process words
+  - Bi-Encoders run on client mobile devices only
+  answer: 0
+  explanation: Bi-encoders output separate embedding vectors for dot-product comparison. Cross-encoders concatenate `[CLS]
+    Query [SEP] Passage` so every token directly attends to every other token.
+function:
+  name: rerank_passages
+  params:
+  - name: query
+    type: any
+  - name: candidates
+    type: any
+  - name: top_k
+    type: any
+  returns: any
+starter_code: "class Solution:\n    def rerank_passages(self, query: str, candidates: list[dict], top_k: int = 3) -> list[dict]:\n\
+  \        pass\n"
+tests:
+- args:
+  - fast vector search
+  - - doc_id: docA
+      text: Fast vector search with HNSW indexes
+      biencoder_score: 0.8
+    - doc_id: docB
+      text: General search algorithms in databases
+      biencoder_score: 0.9
+    - doc_id: docC
+      text: Python vector embeddings tutorial
+      biencoder_score: 0.75
+  - 2
+  expected:
+  - doc_id: docA
+    cross_score: 0.96
+    rank: 1
+  - doc_id: docB
+    cross_score: 0.3467
+    rank: 2
+  note: Exact phrase match and high coverage ranks docA first
+- args:
+  - database
+  - []
+  - 3
+  expected: []
+  note: Empty candidates edge case
+- args:
+  - neural search
+  - - doc_id: doc1
+      text: Neural search pipelines
+      biencoder_score: 0.5
+  - 1
+  expected:
+  - doc_id: doc1
+    cross_score: 0.9
+    rank: 1
+  note: Single matching passage with full coverage and phrase bonus
+visualize_test: 0
+drills:
+- title: Extract Lowercase Tokens
+  skill: setup
+  goal: Tokenize text into sorted unique lowercase words.
+  instructions: Return sorted(list(set(re.findall(r'\w+', s.lower())))).
+  function:
+    name: extract_tokens
+    params:
+    - name: s
+      type: any
+  starter_code: "class Solution:\n    def extract_tokens(self, s: str) -> list:\n        pass\n"
+  tests:
+  - args:
+    - Fast vector search!
+    expected:
+    - fast
+    - search
+    - vector
+  solution: "import re\nclass Solution:\n    def extract_tokens(self, s: str) -> list:\n        return sorted(list(set(re.findall(r'\\\
+    w+', s.lower()))))\n"
+  hint: Use sorted(list(set(re.findall(r'\w+', s.lower())))).
+- title: Calculate Lexical Coverage
+  skill: core
+  goal: Compute fraction of query words present in document.
+  instructions: Return len(set(q_words) & set(d_words)) / max(len(q_words), 1).
+  function:
+    name: calc_coverage
+    params:
+    - name: q_words
+      type: any
+    - name: d_words
+      type: any
+  starter_code: "class Solution:\n    def calc_coverage(self, q_words: list, d_words: list) -> float:\n        pass\n"
+  tests:
+  - args:
+    - - a
+      - b
+    - - a
+      - c
+    expected: 0.5
+  solution: "class Solution:\n    def calc_coverage(self, q_words: list, d_words: list) -> float:\n        return len(set(q_words)\
+    \ & set(d_words)) / max(len(q_words), 1)\n"
+  hint: Divide intersection size of sets by query word count.
+- title: Sort and Rank Top Candidates
+  skill: edge
+  goal: Sort by -score, id and assign 1-based ranks.
+  instructions: Sort items and assign item['rank'] = i + 1.
+  function:
+    name: rank_top_k
+    params:
+    - name: items
+      type: any
+    - name: k
+      type: any
+  starter_code: "class Solution:\n    def rank_top_k(self, items: list, k: int) -> list:\n        pass\n"
+  tests:
+  - args:
+    - - doc_id: b
+        score: 0.8
+      - doc_id: a
+        score: 0.9
+    - 1
+    expected:
+    - doc_id: a
+      score: 0.9
+      rank: 1
+  solution: "class Solution:\n    def rank_top_k(self, items: list, k: int) -> list:\n        items.sort(key=lambda x: (-x[\"\
+    score\"], x[\"doc_id\"]))\n        top = items[:k]\n        for idx, item in enumerate(top):\n            item[\"rank\"\
+    ] = idx + 1\n        return top\n"
+  hint: Sort by (-score, doc_id) and iterate to set rank.
+hints:
+- Tokenize query words using regex \w+.
+- Compute coverage as len(q_words & d_words) / len(q_words).
+- Calculate cross_score = round(0.5 * coverage + 0.3 * phrase_bonus + 0.2 * bi_score, 4).
+solution:
+  code: "import re\n\nclass Solution:\n    def rerank_passages(self, query: str, candidates: list[dict], top_k: int = 3) ->\
+    \ list[dict]:\n        if not candidates:\n            return []\n        q_clean = query.lower().strip()\n        q_words\
+    \ = set(re.findall(r'\\w+', q_clean))\n        \n        scored = []\n        for doc in candidates:\n            d_id\
+    \ = doc[\"doc_id\"]\n            d_text = doc[\"text\"]\n            d_words = re.findall(r'\\w+', d_text.lower())\n \
+    \           \n            # Coverage\n            matched = q_words.intersection(set(d_words))\n            coverage =\
+    \ len(matched) / max(len(q_words), 1)\n            \n            # Phrase bonus\n            phrase_bonus = 1.0 if q_clean\
+    \ in d_text.lower() else 0.0\n            \n            # Bi-encoder score\n            bi_score = float(doc.get(\"biencoder_score\"\
+    , 0.0))\n            \n            cross_score = round((0.5 * coverage) + (0.3 * phrase_bonus) + (0.2 * bi_score), 4)\n\
+    \            scored.append({\n                \"doc_id\": d_id,\n                \"cross_score\": cross_score,\n     \
+    \       })\n            \n        # Sort desc by cross_score, tie-break doc_id asc\n        scored.sort(key=lambda x:\
+    \ (-x[\"cross_score\"], x[\"doc_id\"]))\n        \n        top = scored[:top_k]\n        for idx, item in enumerate(top):\n\
+    \            item[\"rank\"] = idx + 1\n            \n        return top\n"
+  explanation: Calculates composite relevance combining keyword coverage, exact phrase bonus, and prior bi-encoder signal,
+    outputting ranked passages.
+  time: O(C * L + C log C) where C is candidate count and L is average passage length
+  space: O(C) for scored results
+pitch_script: '**(Clarify)** "We need to rerank candidate passages retrieved by vector search using a deterministic cross-encoder
+  scoring formula that rewards lexical coverage and exact phrase matches."
+
+
+  **(Basement Insight)** "Bi-encoders decouple query and passage encoding, creating semantic blind spots for exact phrasing
+  and terminology. A cross-encoder reranking stage evaluates joint interactions to surface the most relevant text."
+
+
+  **(Solution)** "We extract word sets from the query and each passage. We compute the coverage ratio, check for exact substring
+  matches, and combine them with the prior bi-encoder score, sorting by cross-encoder score descending."
+
+
+  **(Complexity)** "Runs in O(C * L + C log C) time and O(C) space."
+
+  '
+twist:
+  lc: 9605
+  title: Vector Nearest Neighbors with Cosine vs Dot Product
+  why: Explore how vector normalization enables replacing expensive cosine similarity with simple dot products in vector indexes.
+viz:
+  title: Two-Stage Retrieval & Cross-Encoder Architecture

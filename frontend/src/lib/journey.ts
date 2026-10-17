@@ -1,16 +1,13 @@
 import type { Progress, QuestionSummary, World } from '../api/types'
+import { getCitadel } from './citadels'
 
-/** The 12-world skill tree: rows from top (foundation) to bottom (final citadel). */
-export const TIERS: number[][] = [[1], [2, 4], [3, 5, 6], [7, 11], [8, 9, 10], [12]]
+const dsaCitadel = getCitadel('dsa')
+
+/** The 12-world skill tree: rows from Base Camp (index 0) to Summit. */
+export const TIERS: number[][] = dsaCitadel.tiers
 
 /** Parent → child prerequisites drawn as constellation paths. */
-export const EDGES: [number, number][] = [
-  [1, 2], [1, 4],
-  [2, 3], [2, 5], [4, 6],
-  [6, 7], [5, 7], [3, 11], [5, 11],
-  [7, 8], [7, 9], [7, 10], [11, 8],
-  [9, 12], [10, 12],
-]
+export const EDGES: [number, number][] = dsaCitadel.edges
 
 export const RANKS = [
   { min: 0, title: 'Novice Tracer' },
@@ -32,11 +29,11 @@ export type WorldState = 'mastered' | 'active' | 'open' | 'fog'
  * open: a prerequisite world has progress, so it's the natural next step. fog: not reached yet
  * (still clickable — the fog is guidance, not a lock).
  */
-export function worldState(w: World, worlds: World[], questWorldId: number | null): WorldState {
+export function worldState(w: World, worlds: World[], questWorldId: number | null, edges: [number, number][] = EDGES): WorldState {
   if (w.total > 0 && w.solved === w.total) return 'mastered'
   const started = w.questions.some((q) => q.progress.status !== 'new')
   if (started || w.id === questWorldId) return 'active'
-  const parents = EDGES.filter(([, c]) => c === w.id).map(([p]) => p)
+  const parents = edges.filter(([, c]) => c === w.id).map(([p]) => p)
   const parentProgress = parents.some((p) => (worlds.find((x) => x.id === p)?.solved ?? 0) > 0)
   return parents.length === 0 || parentProgress ? 'open' : 'fog'
 }

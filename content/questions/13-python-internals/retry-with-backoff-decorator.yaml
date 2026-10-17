@@ -1,0 +1,264 @@
+slug: retry-with-backoff-decorator
+lc: 9204
+citadel_id: python_data
+brick_layer: 4
+runner_type: python_practical
+
+concept:
+  problem_it_solves: >-
+    "How do we handle transient network glitches when calling external LLMs or third-party APIs without polluting every function with while loops?"
+    Decorators wrap function behavior using lexical closures. An adaptive retry decorator intercepts exceptions, records latency,
+    and applies exponential backoff delays transparently.
+  brute_force: >-
+    Writing an inline `for attempt in range(3): try... except:` loop around every individual API call across the entire codebase.
+    This creates massive code duplication and violates the DRY (Don't Repeat Yourself) principle.
+  brute_force_complexity: O(1) runtime, but extreme boilerplate and inconsistent retry policies across services.
+  key_insight: >-
+    A parameterized decorator is a function that returns a decorator, which in turn returns a wrapper.
+    Using `@functools.wraps(fn)` preserves function docstrings and signatures. The wrapper catches transient exceptions,
+    retries up to `max_attempts`, and computes exponential delays (`base_delay * 2 ** (attempt - 1)`).
+  real_world: >-
+    FitLabs GPU inference cold-start retries, GEPA LLM rate-limit backoffs (HTTP 429), and Stripe/Razorpay webhook delivery retry queues.
+
+statement:
+  clean: |
+    Implement an adaptive retry wrapper using a custom decorator:
+    `execute_resilient_call(attempts_needed: int, max_retries: int) -> dict`.
+    
+    In a distributed microservice architecture, API calls occasionally encounter transient network failures.
+    You need to simulate this behavior:
+    1. Define a flaky worker function that raises `ConnectionError("transient network drop")` for the first
+       `attempts_needed - 1` invocations, and returns `"SUCCESS"` on the `attempts_needed`-th invocation.
+    2. Write a parameterized decorator `@retry(max_attempts=max_retries)` using `@functools.wraps`.
+    3. The decorator must catch `ConnectionError`, record each attempted retry, and compute the cumulative backoff delays
+       where each backoff delay equals `2 ** (attempt - 1)` (e.g. attempt 1 fails -> delay 1s, attempt 2 fails -> delay 2s).
+    4. If the worker succeeds within `max_retries`, return:
+       `{"success": True, "attempts": attempts_taken, "delays": list_of_delays}`.
+    5. If all `max_retries` fail, suppress the final exception and return:
+       `{"success": False, "attempts": max_retries, "delays": list_of_delays}`.
+  oa_story: |
+    **GEPA Optimization Engine — Resilient LLM Invocation**
+    
+    During genetic prompt mutation cycles, our pipeline dispatches thousands of parallel LLM calls to benchmark candidate prompts.
+    Due to provider rate limits (HTTP 429 and transient 503s), up to 4% of calls fail on the first attempt.
+    
+    Build a reusable decorator that encapsulates exponential backoff retry logic, ensuring transient glitches resolve
+    automatically without crashing the long-running optimization run.
+  trigger_keywords: ["custom decorator", "execute_resilient_call", "attempts_needed"]
+  examples:
+    - input: "attempts_needed = 2, max_retries = 3"
+      output: "{'success': True, 'attempts': 2, 'delays': [1]}"
+      explanation: "Attempt 1 fails and backs off by 1s (2^0). Attempt 2 succeeds."
+    - input: "attempts_needed = 4, max_retries = 3"
+      output: "{'success': False, 'attempts': 3, 'delays': [1, 2, 4]}"
+      explanation: "Attempts 1, 2, and 3 all fail with delays [1, 2, 4]. Max retries reached."
+  constraints:
+    - "attempts_needed >= 1"
+    - "max_retries >= 1"
+
+constraint_quiz:
+  prompt: >-
+    Why is `@functools.wraps(func)` considered standard practice when writing Python decorators?
+  options:
+    - "It speeds up Python code by 2x"
+    - "It preserves the original function's name, docstring, and annotations"
+    - "It allows the function to run asynchronously"
+    - "It automatically catches all exceptions"
+  answer: 1
+  explanation: >-
+    Without @functools.wraps, the wrapped function's __name__ becomes 'wrapper' and docstrings are lost,
+    breaking introspection and debuggers.
+
+pattern_quiz:
+  prompt: How many levels of nested functions are required for a decorator that accepts parameters (e.g. @retry(max_attempts=3))?
+  options:
+    - "1 level"
+    - "2 levels"
+    - "3 levels"
+    - "4 levels"
+  answer: 2
+  explanation: >-
+    A parameterized decorator has 3 levels: (1) decorator factory taking parameters, (2) actual decorator taking the function, (3) wrapper executing the call.
+
+function:
+  name: execute_resilient_call
+  params:
+    - {name: attempts_needed}
+    - {name: max_retries}
+
+starter_code: |
+  class Solution:
+      def execute_resilient_call(self, attempts_needed: int, max_retries: int) -> dict:
+          pass
+
+tests:
+  - args: [1, 3]
+    expected: {"success": true, "attempts": 1, "delays": []}
+  - args: [2, 3]
+    expected: {"success": true, "attempts": 2, "delays": [1]}
+  - args: [3, 3]
+    expected: {"success": true, "attempts": 3, "delays": [1, 2]}
+  - args: [5, 3]
+    expected: {"success": false, "attempts": 3, "delays": [1, 2, 4]}
+
+visualize_test: 1
+
+drills:
+  - title: Basic function wrapper
+    skill: setup
+    goal: Wrap a function call with a decorator to double the returned integer.
+    instructions: |
+      Write a decorator `double_result` that doubles the return value of any function returning an integer.
+    function:
+      name: test_double
+      params: [{name: val}]
+    starter_code: |
+      class Solution:
+          def test_double(self, val: int) -> int:
+              pass
+    tests:
+      - {args: [5], expected: 10}
+      - {args: [0], expected: 0}
+      - {args: [-3], expected: -6}
+    solution: |
+      import functools
+
+      def double_result(fn):
+          @functools.wraps(fn)
+          def wrapper(*args, **kwargs):
+              return fn(*args, **kwargs) * 2
+          return wrapper
+
+      class Solution:
+          def test_double(self, val: int) -> int:
+              @double_result
+              def get_num(x):
+                  return x
+              return get_num(val)
+    hint: "Return fn(*args, **kwargs) * 2 from the wrapper."
+
+  - title: Exponential backoff calculation
+    skill: core
+    goal: Calculate backoff delay sequence.
+    instructions: |
+      Given `attempt_count` failures, return the list of delays `[2**(i-1) for i in 1..count]`.
+    function:
+      name: compute_delays
+      params: [{name: count}]
+    starter_code: |
+      class Solution:
+          def compute_delays(self, count: int) -> list[int]:
+              pass
+    tests:
+      - {args: [1], expected: [1]}
+      - {args: [3], expected: [1, 2, 4]}
+      - {args: [0], expected: []}
+    solution: |
+      class Solution:
+          def compute_delays(self, count: int) -> list[int]:
+              return [2 ** i for i in range(count)]
+    hint: "Use [2 ** i for i in range(count)]."
+
+  - title: Exception catching helper
+    skill: edge
+    goal: Catch ConnectionError and record failure.
+    instructions: |
+      Call `fn()`. If it raises ConnectionError, return `"CAUGHT"`, otherwise return its result.
+    function:
+      name: safe_invoke
+      params: [{name: should_fail}]
+    starter_code: |
+      class Solution:
+          def safe_invoke(self, should_fail: bool) -> str:
+              pass
+    tests:
+      - {args: [true], expected: "CAUGHT"}
+      - {args: [false], expected: "OK"}
+    solution: |
+      class Solution:
+          def safe_invoke(self, should_fail: bool) -> str:
+              def worker():
+                  if should_fail:
+                      raise ConnectionError("drop")
+                  return "OK"
+              try:
+                  return worker()
+              except ConnectionError:
+                  return "CAUGHT"
+    hint: "Wrap call in try: ... except ConnectionError: return 'CAUGHT'."
+
+hints:
+  - "Track state: current attempt counter and a list to record delays."
+  - "The worker raises ConnectionError until count reaches attempts_needed."
+  - "Loop up to max_retries: if exception occurs, calculate delay = 2 ** (attempt - 1), append to delays, and continue."
+
+solution:
+  code: |
+    import functools
+
+    class Solution:
+        def execute_resilient_call(self, attempts_needed: int, max_retries: int) -> dict:
+            call_count = 0
+
+            def flaky_worker():
+                nonlocal call_count
+                call_count += 1
+                if call_count < attempts_needed:
+                    raise ConnectionError(f"Transient error on attempt {call_count}")
+                return "SUCCESS"
+
+            def retry(max_attempts):
+                def decorator(fn):
+                    @functools.wraps(fn)
+                    def wrapper():
+                        delays = []
+                        for attempt in range(1, max_attempts + 1):
+                            try:
+                                fn()
+                                return {
+                                    "success": True,
+                                    "attempts": attempt,
+                                    "delays": delays,
+                                }
+                            except ConnectionError:
+                                delay = 2 ** (attempt - 1)
+                                delays.append(delay)
+                        return {
+                            "success": False,
+                            "attempts": max_attempts,
+                            "delays": delays,
+                        }
+                    return wrapper
+                return decorator
+
+            wrapped_call = retry(max_attempts=max_retries)(flaky_worker)
+            return wrapped_call()
+  explanation: |
+    The parameterized decorator `retry(max_attempts)` provides clean encapsulation.
+    The outer factory receives `max_attempts`, the middle decorator takes `fn`, and the inner `wrapper`
+    manages the retry loop.
+    
+    Inside `wrapper`, each failure appends `2 ** (attempt - 1)` to the delay log. If the worker succeeds,
+    it returns immediately with `"success": True`. If the loop finishes without success, it safely returns
+    `"success": False` with all recorded delays.
+  time: O(M) where M is max_retries
+  space: O(M) for the delay history
+
+pitch_script: |
+  **(Clarify)** "We need to construct a parameterized retry decorator that catches transient ConnectionErrors and applies exponential backoff delays."
+
+  **(Basement Insight)** "A parameterized decorator in Python requires 3 closures: the factory that receives configuration, the decorator that receives the target callable, and the wrapper that intercepts runtime calls. Using `@functools.wraps` guarantees metadata preservation."
+
+  **(Solution)** "We build `@retry(max_attempts=K)`. The wrapper runs a loop over attempts. When a `ConnectionError` is caught, we record the exponential backoff `2 ** (attempt - 1)` and retry. If attempts are exhausted, we suppress the failure and return structured telemetry."
+
+  **(Complexity)** "Executes in O(K) where K is the number of attempts, using O(K) auxiliary space to log backoff delays."
+
+twist:
+  lc: 9205
+  title: Jittered Backoff & Circuit Breaker Pattern
+  why: >-
+    In high-concurrency systems, simultaneous retries create a 'thundering herd' spike.
+    Full jitter (randomizing delay between 0 and 2^k) and circuit breaking prevent backend saturation.
+
+viz:
+  title: "Exponential Backoff Timeline"

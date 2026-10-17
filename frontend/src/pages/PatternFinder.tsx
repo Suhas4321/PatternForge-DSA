@@ -29,7 +29,7 @@ export default function PatternFinder() {
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-6 px-4 py-8 sm:px-6">
       <header>
-        <p className="flex items-center gap-2 text-sm font-medium text-indigo">
+        <p className="flex items-center gap-2 text-sm font-medium text-sky-400">
           <Compass size={16} /> Pattern Finder
         </p>
         <h1 className="mt-1 font-plate text-3xl font-semibold text-chalk">Which pattern is this problem?</h1>
@@ -51,7 +51,7 @@ export default function PatternFinder() {
                 disabled={last}
                 onClick={() => go(path.slice(0, i))}
                 className={`max-w-[22ch] truncate rounded-full border px-2.5 py-1 ${
-                  last ? 'border-indigo/40 bg-indigo/10 font-medium text-indigo' : 'border-line bg-panel text-muted hover:text-chalk'
+                  last ? 'border-sky-500/40 bg-sky-500/10 font-medium text-sky-400' : 'border-line bg-panel text-muted hover:text-chalk'
                 }`}
                 title={label}
               >
@@ -91,16 +91,16 @@ function QuestionCard({ id, onPick, onBack }: { id: string; onPick: (next: strin
           <button
             key={c.label}
             onClick={() => onPick(c.next)}
-            className="group flex items-center gap-3 rounded-xl border border-line bg-panel px-4 py-3 text-left transition-[border-color,background-color,transform] duration-150 hover:-translate-y-px hover:border-indigo/50 hover:bg-indigo/[0.04]"
+            className="group flex items-center gap-3 rounded-xl border border-line bg-panel px-4 py-3 text-left transition-[border-color,background-color,transform] duration-150 hover:-translate-y-px hover:border-sky-500/50 hover:bg-sky-500/[0.04]"
           >
-            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-line bg-panel-2 font-mono text-2xs text-muted group-hover:border-indigo/40 group-hover:text-indigo">
+            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-line bg-panel-2 font-mono text-2xs text-muted group-hover:border-sky-500/40 group-hover:text-sky-400">
               {i + 1}
             </span>
             <span className="min-w-0 flex-1">
-              <span className="block text-[15px] text-chalk">{c.label}</span>
+              <span className="block text-ui text-chalk">{c.label}</span>
               {c.hint && <span className="block text-xs text-muted">{c.hint}</span>}
             </span>
-            <ArrowRight size={16} className="shrink-0 text-faint transition-transform group-hover:translate-x-0.5 group-hover:text-indigo" />
+            <ArrowRight size={16} className="shrink-0 text-faint transition-transform group-hover:translate-x-0.5 group-hover:text-sky-400" />
           </button>
         ))}
       </div>
@@ -152,7 +152,7 @@ function ResultCard({ result: r, worlds, onRestart, onBack }: { result: PatternR
         <p className="mt-2 max-w-[62ch] text-chalk">{r.idea}</p>
         <div className="mt-3 flex flex-wrap gap-1.5">
           {r.signals.map((s) => (
-            <span key={s} className="rounded-full border border-indigo/25 bg-indigo/[0.07] px-2.5 py-0.5 text-xs text-indigo">
+            <span key={s} className="rounded-full border border-sky-500/25 bg-sky-500/[0.07] px-2.5 py-0.5 text-xs text-sky-400">
               {s}
             </span>
           ))}
@@ -163,7 +163,7 @@ function ResultCard({ result: r, worlds, onRestart, onBack }: { result: PatternR
       <div className="grid gap-0 md:grid-cols-[1.1fr_1fr]">
         <div className="stage m-4 rounded-2xl p-4 md:mr-2">
           <p className="mb-2 text-2xs text-muted">Template to adapt, not to memorise</p>
-          <pre className="overflow-x-auto font-mono text-[13px] leading-relaxed text-[#E2E8F0]">{r.template}</pre>
+          <pre className="overflow-x-auto font-mono text-caption leading-relaxed text-code">{r.template}</pre>
         </div>
         <div className="p-6 md:pl-4">
           <h3 className="text-sm font-semibold text-chalk">Practise it</h3>
@@ -172,13 +172,13 @@ function ResultCard({ result: r, worlds, onRestart, onBack }: { result: PatternR
               const q = bySlug.get(slug)
               return (
                 <li key={slug}>
-                  <Link to={q ? questUrl(q) : `/q/${slug}`} className="group flex items-center gap-3 rounded-xl border border-line px-3 py-2 hover:border-indigo/40">
+                  <Link to={q ? questUrl(q) : `/q/${slug}`} className="group flex items-center gap-3 rounded-xl border border-line px-3 py-2 hover:border-sky-500/40">
                     <span
                       className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${q?.progress.solved ? 'bg-emerald/15 text-emerald' : 'bg-chalk/[0.06] text-faint'}`}
                     >
                       {q?.progress.solved ? <Check size={12} /> : <span className="h-1.5 w-1.5 rounded-full bg-current" />}
                     </span>
-                    <span className="min-w-0 flex-1 truncate text-sm text-chalk group-hover:text-indigo">{q?.title ?? slug}</span>
+                    <span className="min-w-0 flex-1 truncate text-sm text-chalk group-hover:text-sky-400">{q?.title ?? slug}</span>
                     {q && <DifficultyBadge difficulty={q.difficulty} />}
                     {q && <LeetCodeLink lc={q.lc} url={q.leetcode_url} />}
                   </Link>

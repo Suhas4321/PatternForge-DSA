@@ -7,6 +7,7 @@ type IEditor = Parameters<OnMount>[0]
 interface Props {
   value: string
   onChange?: (value: string) => void
+  language?: string
   height?: string | number
   readOnly?: boolean
   /** Line the trace is currently on (highlighted in amber). */
@@ -16,7 +17,7 @@ interface Props {
   onRun?: () => void
 }
 
-export default function CodeEditor({ value, onChange, height = '100%', readOnly, traceLine, errorLine, onRun }: Props) {
+export default function CodeEditor({ value, onChange, language = 'python', height = '100%', readOnly, traceLine, errorLine, onRun }: Props) {
   const editorRef = useRef<IEditor | null>(null)
   const decorations = useRef<ReturnType<IEditor['createDecorationsCollection']> | null>(null)
   const runRef = useRef(onRun)
@@ -52,7 +53,7 @@ export default function CodeEditor({ value, onChange, height = '100%', readOnly,
   return (
     <Editor
       height={height}
-      language="python"
+      language={language}
       theme="forge"
       value={value}
       onChange={(v) => onChange?.(v ?? '')}

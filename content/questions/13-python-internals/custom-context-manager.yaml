@@ -1,0 +1,259 @@
+slug: custom-context-manager
+lc: 9203
+citadel_id: python_data
+brick_layer: 3
+runner_type: python_practical
+
+concept:
+  problem_it_solves: >-
+    "What happens to database connections, file locks, and state when an exception crashes midway through a function?"
+    Without deterministic cleanup, sockets leak, transactions hang uncommitted, and in-memory caches remain corrupted.
+    Context managers implement the `__enter__` and `__exit__` protocol to guarantee cleanup regardless of unhandled exceptions.
+  brute_force: >-
+    Wrapping every single database write or critical section in repetitive `try...finally` blocks manually.
+    Engineers frequently forget the `finally` block or fail to rollback corrupted intermediate mutations.
+  brute_force_complexity: O(1) runtime, but high maintenance overhead and prone to resource leak bugs.
+  key_insight: >-
+    By implementing `__enter__` to create a snapshot of state and `__exit__(self, exc_type, exc_val, exc_tb)` to inspect
+    whether an exception occurred, the context manager can restore the snapshot on failure and return `True` to suppress
+    or cleanly propagate the error.
+  real_world: >-
+    SQLAlchemy session management (`with session.begin():`), file handling (`with open() as f:`), Redis distributed lock
+    acquisition/release, and PyTorch inference mode (`with torch.no_grad():`).
+
+statement:
+  clean: |
+    Implement a safe in-memory transaction runner `simulate_transaction(initial_state: dict, operations: list[dict]) -> dict`
+    using a custom context manager.
+    
+    You need to manage state mutations against a dictionary.
+    Each operation in `operations` is a dictionary:
+    - `{"op": "set", "key": str, "val": any}`: updates `state[key] = val`
+    - `{"op": "delete", "key": str}`: deletes `key` from `state` if present
+    - `{"op": "abort", "reason": str}`: simulates an unexpected failure by raising a `RuntimeError(reason)`
+    
+    Rules:
+    1. If all operations complete without errors, the transaction commits, and the final mutated dictionary is returned.
+    2. If any operation raises an exception (such as `op == "abort"`), your context manager must automatically rollback
+       all mutations and restore `initial_state` exactly as it was prior to the transaction.
+    3. The function should safely suppress the error and return the restored initial state.
+  oa_story: |
+    **Drizz Billing Engine — Idempotent Credit Ledger**
+    
+    During automated mobile device testing runs, credit balances are deducted from user accounts as virtual devices are booted.
+    If a device allocation times out halfway through provisioning, the billing ledger was left in a half-deducted state because
+    the exception bypassed the balance commit.
+    
+    Build a transactional context manager that creates a snapshot before execution and rolls back all modified keys
+    if any step fails.
+  trigger_keywords: ["context manager", "simulate_transaction", "operations"]
+  examples:
+    - input: "initial_state = {'credits': 100}, operations = [{'op': 'set', 'key': 'credits', 'val': 80}]"
+      output: "{'credits': 80}"
+      explanation: "Transaction succeeded, updated state committed."
+    - input: "initial_state = {'credits': 100}, operations = [{'op': 'set', 'key': 'credits', 'val': 50}, {'op': 'abort', 'reason': 'timeout'}]"
+      output: "{'credits': 100}"
+      explanation: "Transaction aborted midway, state rolled back to original snapshot."
+  constraints:
+    - "initial_state is a valid dictionary"
+    - "operations contains between 0 and 100 operations"
+
+constraint_quiz:
+  prompt: >-
+    What value must __exit__ return in Python to suppress an exception raised within the with block?
+  options:
+    - "None"
+    - "False"
+    - "True"
+    - "0"
+  answer: 2
+  explanation: >-
+    Returning True from __exit__ indicates to the Python interpreter that the exception was handled
+    and should not be re-raised to the outer scope.
+
+pattern_quiz:
+  prompt: What are the two essential dunder methods of a Python context manager?
+  options:
+    - "__init__ and __del__"
+    - "__enter__ and __exit__"
+    - "__start__ and __stop__"
+    - "__call__ and __iter__"
+  answer: 1
+  explanation: >-
+    The context manager protocol requires `__enter__` (setup) and `__exit__` (teardown/cleanup).
+
+function:
+  name: simulate_transaction
+  params:
+    - {name: initial_state}
+    - {name: operations}
+
+starter_code: |
+  class Solution:
+      def simulate_transaction(self, initial_state: dict, operations: list[dict]) -> dict:
+          pass
+
+tests:
+  - args:
+      - {"balance": 1000, "status": "active"}
+      - [{"op": "set", "key": "balance", "val": 850}, {"op": "set", "key": "tier", "val": "gold"}]
+    expected: {"balance": 850, "status": "active", "tier": "gold"}
+  - args:
+      - {"balance": 1000, "status": "active"}
+      - [{"op": "set", "key": "balance", "val": 200}, {"op": "abort", "reason": "insufficient funds"}]
+    expected: {"balance": 1000, "status": "active"}
+  - args:
+      - {"user": "alice", "roles": ["user"]}
+      - [{"op": "delete", "key": "roles"}]
+    expected: {"user": "alice"}
+  - args:
+      - {"x": 10}
+      - []
+    expected: {"x": 10}
+
+visualize_test: 1
+
+drills:
+  - title: Context manager enter and exit basics
+    skill: setup
+    goal: Create a basic class implementing __enter__ and __exit__.
+    instructions: |
+      Implement a class `FlagManager` that sets `flag = True` upon entering and `flag = False` upon exiting.
+      Return the value of flag during the block.
+    function:
+      name: test_flag
+      params: []
+    starter_code: |
+      class Solution:
+          def test_flag(self) -> list[bool]:
+              pass
+    tests:
+      - {args: [], expected: [true, false]}
+    solution: |
+      class FlagManager:
+          def __init__(self):
+              self.flag = False
+          def __enter__(self):
+              self.flag = True
+              return self
+          def __exit__(self, exc_type, exc_val, exc_tb):
+              self.flag = False
+              return False
+
+      class Solution:
+          def test_flag(self) -> list[bool]:
+              mgr = FlagManager()
+              inside = False
+              with mgr:
+                  inside = mgr.flag
+              outside = mgr.flag
+              return [inside, outside]
+    hint: "Set self.flag = True in __enter__ and self.flag = False in __exit__."
+
+  - title: Suppress specific error in exit
+    skill: core
+    goal: Suppress ValueError in __exit__ by returning True.
+    instructions: |
+      Return `True` from `__exit__` if `exc_type` is `ValueError`, else `False`.
+    function:
+      name: should_suppress
+      params: [{name: err_name}]
+    starter_code: |
+      class Solution:
+          def should_suppress(self, err_name: str) -> bool:
+              pass
+    tests:
+      - {args: ["ValueError"], expected: true}
+      - {args: ["RuntimeError"], expected: false}
+      - {args: [null], expected: false}
+    solution: |
+      class Solution:
+          def should_suppress(self, err_name: str) -> bool:
+              return err_name == "ValueError"
+    hint: "Check if err_name == 'ValueError'."
+
+  - title: State snapshot restoration
+    skill: edge
+    goal: Rollback a dictionary to a shallow snapshot.
+    instructions: |
+      Given `current` and `snapshot`, clear `current` and restore all items from `snapshot`.
+    function:
+      name: restore_snapshot
+      params: [{name: current}, {name: snapshot}]
+    starter_code: |
+      class Solution:
+          def restore_snapshot(self, current: dict, snapshot: dict) -> dict:
+              pass
+    tests:
+      - {args: [{"a": 99, "b": 100}, {"a": 1}], expected: {"a": 1}}
+      - {args: [{}, {"k": "v"}], expected: {"k": "v"}}
+    solution: |
+      class Solution:
+          def restore_snapshot(self, current: dict, snapshot: dict) -> dict:
+              current.clear()
+              current.update(snapshot)
+              return current
+    hint: "Use current.clear() then current.update(snapshot)."
+
+hints:
+  - "Take a shallow copy of initial_state before modifying it: snapshot = initial_state.copy()."
+  - "Implement a context manager class with __enter__ returning the state dict."
+  - "In __exit__, if exc_type is not None, clear state and update it with the snapshot, then return True to suppress the exception."
+
+solution:
+  code: |
+    class Transaction:
+        def __init__(self, target_dict: dict):
+            self.target = target_dict
+            self.snapshot = None
+
+        def __enter__(self):
+            self.snapshot = self.target.copy()
+            return self.target
+
+        def __exit__(self, exc_type, exc_val, exc_tb):
+            if exc_type is not None:
+                self.target.clear()
+                self.target.update(self.snapshot)
+                return True
+            return False
+
+    class Solution:
+        def simulate_transaction(self, initial_state: dict, operations: list[dict]) -> dict:
+            state = initial_state.copy()
+            with Transaction(state) as txn:
+                for op in operations:
+                    action = op.get("op")
+                    if action == "set":
+                        txn[op["key"]] = op["val"]
+                    elif action == "delete":
+                        txn.pop(op["key"], None)
+                    elif action == "abort":
+                        raise RuntimeError(op.get("reason", "transaction failed"))
+            return state
+  explanation: |
+    The `Transaction` context manager records `self.snapshot = self.target.copy()` when entering the `with` block.
+    If any operation raises a `RuntimeError`, Python transfers control directly into `__exit__`.
+    `__exit__` detects that `exc_type is not None`, clears the corrupted target dictionary, restores the original
+    snapshot, and returns `True` to prevent the exception from propagating outward.
+  time: O(K) where K is number of operations
+  space: O(S) where S is size of the dictionary snapshot
+
+pitch_script: |
+  **(Clarify)** "We need to execute state mutations inside a transaction. If any error occurs, all intermediate mutations must rollback, and the initial state must be cleanly restored."
+
+  **(Basement Insight)** "In Python, the context manager protocol (`__enter__` and `__exit__`) is the standard pattern for deterministic resource and state lifecycle management. In `__exit__`, the interpreter passes `(exc_type, exc_val, exc_tb)`. If `exc_type` is present, returning `True` suppresses the exception after executing cleanup."
+
+  **(Solution)** "We build a `Transaction` class that snapshots the dictionary upon `__enter__`. If an exception triggers inside the block, `__exit__` reverts the dictionary to the snapshot and returns `True`. If all operations pass, changes commit cleanly."
+
+  **(Complexity)** "Time complexity is O(N) over operations, with O(S) auxiliary space for the snapshot."
+
+twist:
+  lc: 9204
+  title: Nested Savepoints via Generator Context Manager
+  why: >-
+    Support nested transactions (savepoints) where an inner block can rollback without aborting the outer transaction.
+    Can be elegantly implemented using contextlib.contextmanager and a stack of snapshots.
+
+viz:
+  title: "Transaction State Machine"

@@ -1,0 +1,269 @@
+slug: abstract-document-parser
+lc: 9212
+citadel_id: python_data
+brick_layer: 2
+runner_type: python_practical
+
+concept:
+  problem_it_solves: >-
+    "How do we guarantee that every document parser in our pipeline implements the exact same interface?"
+    Without contract enforcement, one engineer writes `def extract()`, another writes `def parse()`, and a third
+    returns a generator instead of a list. Abstract Base Classes (ABCs) enforce strict method signatures at instantiation time.
+  brute_force: >-
+    Writing ad-hoc classes and waiting until runtime in production for an `AttributeError: 'PDFParser' object has no attribute 'parse'`
+    to blow up an ETL pipeline.
+  brute_force_complexity: O(1) runtime, but high probability of runtime crashes due to broken class contracts.
+  key_insight: >-
+    Subclassing `abc.ABC` and decorating abstract methods with `@abstractmethod` prevents instantiation of any subclass
+    that fails to implement required methods. This enables true polymorphism: the calling pipeline can invoke `.parse()`
+    without knowing the concrete parser type.
+  real_world: >-
+    WisdomBot multi-modal document ingestion, LangChain document loaders (`BaseLoader`), and LlamaIndex data connectors.
+
+statement:
+  clean: |
+    Implement an extensible document ingestion pipeline using an abstract base class:
+    `process_corpus(documents: list[dict]) -> list[list[str]]`.
+    
+    Each item in `documents` is a dictionary:
+    `{"type": "markdown" | "csv", "content": str}`.
+    
+    Requirements:
+    1. Define `BaseParser(abc.ABC)` with an abstract method `@abc.abstractmethod def parse(self, raw: str) -> list[str]`.
+    2. Implement concrete subclass `MarkdownParser(BaseParser)`:
+       - Splits `content` by lines.
+       - Returns only lines that start with `#` (after stripping leading/trailing whitespace), with whitespace trimmed.
+    3. Implement concrete subclass `CSVParser(BaseParser)`:
+       - Splits `content` by commas `,`.
+       - Strips whitespace from each token and ignores empty tokens.
+    4. In `process_corpus`:
+       - Route each document to its corresponding parser subclass.
+       - If a document's `type` is neither `"markdown"` nor `"csv"`, return `["UNSUPPORTED"]` for that document.
+       - Return the list of parsed string lists.
+  oa_story: |
+    **WisdomBot RAG Ingestion Pipeline — Polymorphic Parser Contract**
+    
+    Our knowledge ingestion worker reads technical manuals in Markdown and tabular datasets in CSV.
+    The data team previously had ad-hoc parsers with incompatible methods (`.get_lines()`, `.read_csv()`),
+    causing recurring crashes when new document types were added.
+    
+    Establish an `abc.ABC` contract ensuring all parsers conform to a unified `.parse()` signature.
+  trigger_keywords: ["abstract base class", "process_corpus", "documents"]
+  examples:
+    - input: "documents = [{'type': 'markdown', 'content': '# Title\nBody text\n## Subheading'}]"
+      output: "[['# Title', '## Subheading']]"
+      explanation: "MarkdownParser filters only lines starting with '#' heading markers."
+    - input: "documents = [{'type': 'csv', 'content': 'alpha, beta, , gamma'}]"
+      output: "[['alpha', 'beta', 'gamma']]"
+      explanation: "CSVParser splits by comma, trims whitespace, and skips empty tokens."
+  constraints:
+    - "documents contains between 0 and 100 items"
+    - "content is a string of length up to 10^4 characters"
+
+constraint_quiz:
+  prompt: >-
+    What happens if you attempt to instantiate a class that inherits from `abc.ABC` without implementing all `@abstractmethod`s?
+  options:
+    - "It instantiates normally"
+    - "Python raises TypeError: Can't instantiate abstract class with abstract methods"
+    - "Python issues a warning but runs"
+    - "It defaults all missing methods to return None"
+  answer: 1
+  explanation: >-
+    Python strictly blocks instantiation of abstract classes that have unimplemented abstract methods by raising a TypeError.
+
+pattern_quiz:
+  prompt: Which module in Python's standard library provides the Abstract Base Class framework?
+  options:
+    - "typing"
+    - "abc"
+    - "inspect"
+    - "functools"
+  answer: 1
+  explanation: >-
+    The `abc` module provides `ABC` and `@abstractmethod`.
+
+function:
+  name: process_corpus
+  params:
+    - {name: documents}
+
+starter_code: |
+  class Solution:
+      def process_corpus(self, documents: list[dict]) -> list[list[str]]:
+          pass
+
+tests:
+  - args:
+      - [
+          {"type": "markdown", "content": "# Overview\nIntroductory text\n## Details\nPoint 1"},
+          {"type": "csv", "content": "col1, col2 , col3"}
+        ]
+    expected:
+      - ["# Overview", "## Details"]
+      - ["col1", "col2", "col3"]
+  - args:
+      - [
+          {"type": "unknown", "content": "xyz"}
+        ]
+    expected:
+      - ["UNSUPPORTED"]
+  - args:
+      - []
+    expected: []
+  - args:
+      - [
+          {"type": "csv", "content": "   apple, , banana  , orange  "}
+        ]
+    expected:
+      - ["apple", "banana", "orange"]
+
+visualize_test: 0
+
+drills:
+  - title: Enforce abstract method definition
+    skill: setup
+    goal: Define a simple ABC with one abstract method.
+    instructions: |
+      Define `BaseTransformer(abc.ABC)` with abstract method `transform(text: str) -> str`.
+      Implement `UpperTransformer` which returns `text.upper()`.
+    function:
+      name: test_upper
+      params: [{name: s}]
+    starter_code: |
+      class Solution:
+          def test_upper(self, s: str) -> str:
+              pass
+    tests:
+      - {args: ["hello"], expected: "HELLO"}
+      - {args: [""], expected: ""}
+    solution: |
+      import abc
+
+      class BaseTransformer(abc.ABC):
+          @abc.abstractmethod
+          def transform(self, text: str) -> str:
+              pass
+
+      class UpperTransformer(BaseTransformer):
+          def transform(self, text: str) -> str:
+              return text.upper()
+
+      class Solution:
+          def test_upper(self, s: str) -> str:
+              return UpperTransformer().transform(s)
+    hint: "Inherit from abc.ABC and decorate transform with @abc.abstractmethod."
+
+  - title: Markdown header filter
+    skill: core
+    goal: Extract lines starting with '#'.
+    instructions: |
+      Return all lines from `text` that start with `#` after trimming whitespace.
+    function:
+      name: filter_headers
+      params: [{name: text}]
+    starter_code: |
+      class Solution:
+          def filter_headers(self, text: str) -> list[str]:
+              pass
+    tests:
+      - {args: ["# H1\nsome body\n## H2"], expected: ["# H1", "## H2"]}
+      - {args: ["no headers here"], expected: []}
+    solution: |
+      class Solution:
+          def filter_headers(self, text: str) -> list[str]:
+              lines = text.splitlines()
+              return [line.strip() for line in lines if line.strip().startswith("#")]
+    hint: "Use line.strip().startswith('#')."
+
+  - title: CSV line delimiter parser
+    skill: edge
+    goal: Parse comma tokens cleanly.
+    instructions: |
+      Split `raw` by commas, trim whitespace from each piece, and exclude empty strings.
+    function:
+      name: parse_csv_tokens
+      params: [{name: raw}]
+    starter_code: |
+      class Solution:
+          def parse_csv_tokens(self, raw: str) -> list[str]:
+              pass
+    tests:
+      - {args: ["a, b, , c"], expected: ["a", "b", "c"]}
+      - {args: ["   "], expected: []}
+    solution: |
+      class Solution:
+          def parse_csv_tokens(self, raw: str) -> list[str]:
+              tokens = [t.strip() for t in raw.split(",")]
+              return [t for t in tokens if t]
+    hint: "Use [t.strip() for t in raw.split(',')] and filter truthy tokens."
+
+hints:
+  - "Import `abc` and subclass `abc.ABC`."
+  - "Decorate `parse` in `BaseParser` with `@abc.abstractmethod`."
+  - "In `MarkdownParser`, filter lines starting with `#`; in `CSVParser`, split by `,` and discard empty pieces."
+
+solution:
+  code: |
+    import abc
+
+    class BaseParser(abc.ABC):
+        @abc.abstractmethod
+        def parse(self, raw: str) -> list[str]:
+            pass
+
+    class MarkdownParser(BaseParser):
+        def parse(self, raw: str) -> list[str]:
+            result = []
+            for line in raw.splitlines():
+                stripped = line.strip()
+                if stripped.startswith("#"):
+                    result.append(stripped)
+            return result
+
+    class CSVParser(BaseParser):
+        def parse(self, raw: str) -> list[str]:
+            tokens = [t.strip() for t in raw.split(",")]
+            return [t for t in tokens if t]
+
+    class Solution:
+        def process_corpus(self, documents: list[dict]) -> list[list[str]]:
+            parsers = {
+                "markdown": MarkdownParser(),
+                "csv": CSVParser(),
+            }
+            output = []
+            for doc in documents:
+                doc_type = doc.get("type")
+                content = doc.get("content", "")
+                if doc_type in parsers:
+                    output.append(parsers[doc_type].parse(content))
+                else:
+                    output.append(["UNSUPPORTED"])
+            return output
+  explanation: |
+    `BaseParser` establishes the formal interface contract using `abc.ABC`.
+    `MarkdownParser` and `CSVParser` each supply their specialized extraction logic.
+    In `process_corpus`, polymorphism allows callers to dispatch `.parse(content)` uniformly
+    without caring about the internal tokenization mechanics.
+  time: O(N * L) where N is number of documents and L is average length
+  space: O(N * L) for storing parsed string chunks
+
+pitch_script: |
+  **(Clarify)** "We need to build a document processing pipeline using an Abstract Base Class to enforce uniform parsing methods across Markdown and CSV formats."
+
+  **(Basement Insight)** "In Python, `abc.ABC` combined with `@abstractmethod` guarantees that subclasses must implement required methods before instantiation. Attempting to instantiate an incomplete subclass raises a `TypeError` immediately."
+
+  **(Solution)** "We define `BaseParser` with an abstract `.parse(raw)` method. We implement concrete `MarkdownParser` and `CSVParser`. A parser registry maps document types to their singleton parser instance, providing clean polymorphic execution."
+
+  **(Complexity)** "Runs in O(T) where T is total characters across all documents, using O(T) space for the resulting tokens."
+
+twist:
+  lc: 9213
+  title: Streaming Token Generator via Abstract Generator Method
+  why: >-
+    Instead of returning a complete list, abstract methods can yield tokens dynamically.
+    Subclasses must implement generator functions returning an Iterator[str].
+
+viz:
+  title: "Polymorphic Parser Hierarchy"

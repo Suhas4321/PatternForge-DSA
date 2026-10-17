@@ -8,15 +8,15 @@ Rust levels by days since last practice: fresh < 5 <= dusty < 10 <= rusting < 21
 
 from datetime import datetime, timedelta
 
-BASE_INTERVAL_DAYS = {1: 3, 2: 7, 3: 21}
+BASE_INTERVAL_DAYS = {1: 3, 2: 7, 3: 21, 4: 42, 5: 84}
 RUST_THRESHOLDS = [(21, "rusted"), (10, "rusting"), (5, "dusty")]
 
 
 def next_review_interval(confidence: int, review_count: int) -> timedelta:
     if confidence not in BASE_INTERVAL_DAYS:
-        raise ValueError("confidence must be 1, 2 or 3")
+        raise ValueError("confidence must be between 1 and 5")
     days = BASE_INTERVAL_DAYS[confidence]
-    if confidence == 3:
+    if confidence in (3, 4, 5):
         days *= 2 ** min(review_count, 2)
     return timedelta(days=days)
 

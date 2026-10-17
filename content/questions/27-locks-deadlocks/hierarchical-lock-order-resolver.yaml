@@ -1,0 +1,261 @@
+slug: hierarchical-lock-order-resolver
+lc: 9423
+citadel_id: os_concurrency
+brick_layer: 2
+runner_type: python_practical
+concept:
+  problem_it_solves: How can engineers mathematically guarantee that multi-threaded code will never deadlock, without needing
+    runtime deadlock detectors? Havender and Dijkstra proved that by defining a global strict partial order on all lock identifiers
+    (e.g. L1 < L2 < L3) and mandating that all threads acquire locks in strictly ascending order, Circular Wait becomes topologically
+    impossible.
+  brute_force: Acquiring locks in arbitrary order and relying on timeout-based retries, causing lock thrashing.
+  brute_force_complexity: O(1) code complexity, but prone to high-contention livelock.
+  key_insight: Sorting each thread's lock requests according to canonical lexicographical hierarchy resolves order inversions
+    and guarantees deadlock freedom.
+  real_world: Linux VFS inode lock hierarchies, database multi-table transaction locks, and Java/C++ mutex guidelines.
+statement:
+  clean: 'Implement a hierarchical lock ordering optimizer to prevent deadlocks:
+
+    `resolve_lock_order(thread_requests: dict[str, list[str]]) -> dict`.
+
+
+    Input:
+
+    - `thread_requests`: dictionary mapping `thread_id` to its list of requested `lock_id`s in acquisition order (e.g., `{"T1":
+    ["L2", "L1"]}`).
+
+
+    Rules:
+
+    1. Define the canonical global lock hierarchy as alphabetical order: `L1 < L2 < L3 ...`.
+
+    2. Count inversions: for each thread, count every pair `(locks[i], locks[j])` where `i < j` but `locks[i] > locks[j]`.
+
+    3. Sort each thread''s lock list into canonical ascending order: `sorted(locks)`.
+
+    4. With all threads acquiring locks in ascending order, circular wait is mathematically eliminated.
+
+
+    Return a dictionary containing:
+
+    - `"reordered_requests"`: `dict[str, list[str]]`
+
+    - `"inversions_fixed"`: `int` (total inversions corrected across all threads)
+
+    - `"is_deadlock_free"`: `bool` (always `True` after sorting)'
+  oa_story: '**Flipkart Inventory Multi-Warehouse Allocator — Lock Reversal Fix**
+
+
+    During Big Billion Days, Flipkart workers fulfilling orders spanning multiple regional warehouses acquired warehouse inventory
+    locks in random order. Service A acquired Mumbai before Bengaluru, while Service B acquired Bengaluru before Mumbai, triggering
+    deadlock.
+
+
+    Implement this lock order resolver to enforce canonical lock ordering across all checkout services.'
+  trigger_keywords:
+  - hierarchical lock ordering
+  - inversions_fixed
+  - resolve_lock_order
+  examples:
+  - input: 'thread_requests = {"T1": ["L2", "L1"], "T2": ["L1", "L3", "L2"]}'
+    output: '{"reordered_requests": {"T1": ["L1", "L2"], "T2": ["L1", "L2", "L3"]}, "inversions_fixed": 2, "is_deadlock_free":
+      True}'
+    explanation: T1 had 1 inversion (L2 > L1). T2 had 1 inversion (L3 > L2). Total 2 inversions fixed.
+  constraints:
+  - 0 <= len(thread_requests) <= 100
+  - 0 <= len(locks) <= 100 per thread
+constraint_quiz:
+  prompt: Why does acquiring locks in a consistent global order guarantee deadlock prevention?
+  options:
+  - It eliminates the Coffman 'Circular Wait' condition because dependency edges can only point in one direction
+  - It eliminates Mutual Exclusion so locks can be shared
+  - It disables preemption across CPU cores
+  - It speeds up lock acquisition to 0 nanoseconds
+  answer: 0
+  explanation: If all threads acquire locks according to a strict total order, the resource allocation graph is topologically
+    sorted and cannot contain a directed cycle.
+pattern_quiz:
+  prompt: How do you count inversions in an array of lock identifiers?
+  options:
+  - Count pairs (i, j) where i < j and locks[i] > locks[j]
+  - Count the number of duplicate lock strings
+  - Subtract length from capacity
+  - Sum the ASCII values of lock characters
+  answer: 0
+  explanation: An inversion is an out-of-order pair where an earlier index holds a value greater than a later index.
+function:
+  name: resolve_lock_order
+  params:
+  - name: thread_requests
+  returns: any
+  compare: exact
+starter_code: "class Solution:\n    def resolve_lock_order(self, thread_requests: dict[str, list[str]]) -> dict:\n       \
+  \ pass\n"
+tests:
+- args:
+  - T1:
+    - L2
+    - L1
+    T2:
+    - L1
+    - L3
+    - L2
+  expected:
+    reordered_requests:
+      T1:
+      - L1
+      - L2
+      T2:
+      - L1
+      - L2
+      - L3
+    inversions_fixed: 2
+    is_deadlock_free: true
+  note: Standard lock reordering
+- args:
+  - T1:
+    - L1
+    - L2
+    T2:
+    - L1
+    - L2
+  expected:
+    reordered_requests:
+      T1:
+      - L1
+      - L2
+      T2:
+      - L1
+      - L2
+    inversions_fixed: 0
+    is_deadlock_free: true
+  note: Already sorted requests
+- args:
+  - {}
+  expected:
+    reordered_requests: {}
+    inversions_fixed: 0
+    is_deadlock_free: true
+  note: Empty request map
+visualize_test: 0
+drills:
+- skill: setup
+  title: Count lock inversions in a list
+  goal: Count pairs where locks[i] > locks[j] for i < j.
+  instructions: Iterate all pairs (i, j) with i < j and count occurrences where locks[i] > locks[j].
+  function:
+    name: drill_count_inv
+    params:
+    - name: locks
+  starter_code: "class Solution:\n    def drill_count_inv(self, locks: list[str]) -> int:\n        pass\n"
+  tests:
+  - args:
+    - - L2
+      - L1
+    expected: 1
+  - args:
+    - - L1
+      - L2
+      - L3
+    expected: 0
+  solution: "class Solution:\n    def drill_count_inv(self, locks: list[str]) -> int:\n        inv = 0\n        for i in range(len(locks)):\n\
+    \            for j in range(i + 1, len(locks)):\n                if locks[i] > locks[j]:\n                    inv += 1\n\
+    \        return inv\n"
+  hint: Use nested loops to check locks[i] > locks[j].
+- skill: core
+  title: Sort lock sequence
+  goal: Return sorted copy of locks.
+  instructions: Return `sorted(locks)`.
+  function:
+    name: drill_sort_locks
+    params:
+    - name: locks
+  starter_code: "class Solution:\n    def drill_sort_locks(self, locks: list[str]) -> list[str]:\n        pass\n"
+  tests:
+  - args:
+    - - L3
+      - L1
+      - L2
+    expected:
+    - L1
+    - L2
+    - L3
+  solution: "class Solution:\n    def drill_sort_locks(self, locks: list[str]) -> list[str]:\n        return sorted(locks)\n"
+  hint: Return sorted(locks).
+- skill: edge
+  title: Validate deadlock freedom
+  goal: Confirm all lists in dictionary are sorted.
+  instructions: Return `True` if for every list `l`, `l == sorted(l)`.
+  function:
+    name: drill_all_sorted
+    params:
+    - name: reqs
+  starter_code: "class Solution:\n    def drill_all_sorted(self, reqs: dict) -> bool:\n        pass\n"
+  tests:
+  - args:
+    - T1:
+      - L1
+      - L2
+    expected: true
+  - args:
+    - T1:
+      - L2
+      - L1
+    expected: false
+  solution: "class Solution:\n    def drill_all_sorted(self, reqs: dict) -> bool:\n        return all(l == sorted(l) for l\
+    \ in reqs.values())\n"
+  hint: Check `all(l == sorted(l) for l in reqs.values())`.
+hints:
+- Iterate through `thread_requests.items()`.
+- For each thread, count out-of-order pairs and store `sorted(locks)`.
+- '| # Pseudocode Blueprint
+
+  | reordered = {}, total_inversions = 0
+
+  | for t, locks in thread_requests.items():
+
+  |     for i in range(len(locks)):
+
+  |         for j in range(i+1, len(locks)):
+
+  |             if locks[i] > locks[j]: total_inversions += 1
+
+  |     reordered[t] = sorted(locks)
+
+  | return reordered, total_inversions, True'
+solution:
+  code: "class Solution:\n    def resolve_lock_order(self, thread_requests: dict[str, list[str]]) -> dict:\n        reordered:\
+    \ dict[str, list[str]] = {}\n        inversions = 0\n        for thread_id, locks in thread_requests.items():\n      \
+    \      for i in range(len(locks)):\n                for j in range(i + 1, len(locks)):\n                    if locks[i]\
+    \ > locks[j]:\n                        inversions += 1\n            reordered[thread_id] = sorted(locks)\n\n        return\
+    \ {\n            \"reordered_requests\": reordered,\n            \"inversions_fixed\": inversions,\n            \"is_deadlock_free\"\
+    : True,\n        }\n"
+  explanation: Enforcing a global lock acquisition hierarchy by sorting each thread's requested lock list guarantees that
+    locks are acquired in strictly monotonic order. This breaks Coffman's circular wait condition, mathematically eliminating
+    deadlocks.
+  time: O(T * K^2) where T is threads and K is locks per thread
+  space: O(T * K) for the reordered requests dictionary
+pitch_script: '**(Clarify)** "We need to reorder each thread''s lock acquisition sequence according to a canonical global
+  hierarchy to eliminate deadlocks and count fixed inversions."
+
+
+  **(Brute force)** "Relying on deadlock detection after threads freeze incurs high recovery latency and aborts transactions."
+
+
+  **(Trigger)** "Fixing inverted lock sequences across concurrent threads triggers hierarchical lock ordering."
+
+
+  **(Optimal)** "We iterate through each thread''s requested locks. We count inversions where an earlier lock is lexicographically
+  greater than a later lock, and store the sorted list. Because every thread acquires locks in strictly increasing order,
+  the Wait-For Graph is a DAG with zero cycles."
+
+
+  **(Complexity)** "Executes in O(T * K^2) time to detect inversions and O(T * K) space." '
+twist:
+  lc: 9405
+  title: Thread Shared Heap vs Process Copy-on-Write Memory
+  why: Threads require locks because they share memory; processes avoid shared memory races by running in isolated address
+    spaces.
+viz:
+  title: Hierarchical Lock Ordering Timeline
+  type: concurrency_timeline

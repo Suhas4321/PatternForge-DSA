@@ -1,0 +1,234 @@
+slug: flatten-nested-json-telemetry
+lc: 9221
+citadel_id: python_data
+brick_layer: 1
+runner_type: python_practical
+
+concept:
+  problem_it_solves: >-
+    "How do we feed complex, deeply nested JSON API payloads from third-party services into relational tables, Pandas DataFrames, or parquet files?"
+    Hierarchical JSON contains arbitrarily nested sub-dictionaries and lists. Flattening unwraps nested structures into a flat,
+    one-level dictionary using composite dot-separated keys (e.g. `client.device.os: 'iOS'`).
+  brute_force: >-
+    Writing dozens of hardcoded nested dictionary gets: `val = data.get('a', {}).get('b', {}).get('c')`.
+    Any slight variation in schema throws `AttributeError` or produces incomplete columns.
+  brute_force_complexity: O(N) operations, but brittle manual extraction code.
+  key_insight: >-
+    Recursively traverse the dictionary with a running prefix path. When the value is another dictionary,
+    recurse with `f"{prefix}.{key}"`. When the value is a primitive (or empty collection), write the compound key
+    to the output dictionary.
+  real_world: >-
+    OpenTelemetry trace export, Segment/Snowplow event flattening, and BigQuery JSON column ingestion pipelines.
+
+statement:
+  clean: |
+    Implement a hierarchical telemetry flattener to flatten nested json structures:
+    `flatten_telemetry(payload: dict) -> dict`.
+    
+    Given a deeply nested JSON object (dictionary), flatten it so that all values exist in a single flat dictionary.
+    
+    Rules:
+    1. Keys of nested dictionaries must be joined with a period `.` (e.g. `{"meta": {"env": "prod"}}` becomes `{"meta.env": "prod"}`).
+    2. If a dictionary is empty `{}`, it can be omitted from output.
+    3. Primitive values (strings, integers, floats, booleans, and lists) are preserved as terminal values under the flattened key.
+    4. If the input dictionary is empty, return an empty dictionary `{}`.
+  oa_story: |
+    **Drizz Telemetry Collector — Log Normalization Engine**
+    
+    Our mobile app testing agents collect runtime device diagnostics, memory stats, and network telemetry
+    formatted in deeply nested JSON structures from Android ADB and iOS idevicesyslog.
+    To feed these traces into our real-time visualization tables and SQLite database, all nested keys must be
+    flattened into top-level columns.
+    
+    Implement a robust flattening algorithm that transforms arbitrary hierarchical dictionaries into dot-delimited flat records.
+  trigger_keywords: ["flatten nested json", "flatten_telemetry", "payload"]
+  examples:
+    - input: "payload = {'device': {'os': 'Android', 'version': 14}, 'status': 'PASS'}"
+      output: "{'device.os': 'Android', 'device.version': 14, 'status': 'PASS'}"
+      explanation: "Nested keys under 'device' are flattened using dot notation."
+    - input: "payload = {'meta': {'run': {'id': 101, 'agent': {'name': 'BotA'}}}}"
+      output: "{'meta.run.id': 101, 'meta.run.agent.name': 'BotA'}"
+      explanation: "Multiple levels of nesting are flattened into compound keys."
+  constraints:
+    - "payload is a valid JSON dictionary"
+    - "nesting depth is between 1 and 10 levels"
+
+constraint_quiz:
+  prompt: >-
+    What is the time complexity of recursively flattening a nested JSON dictionary with K total leaf values?
+  options:
+    - "O(K) where K is the total number of nodes"
+    - "O(K^2)"
+    - "O(2^K)"
+    - "O(1)"
+  answer: 0
+  explanation: >-
+    Each key and value in the dictionary tree is visited exactly once during recursive traversal, giving O(K) time.
+
+pattern_quiz:
+  prompt: What data structure or technique naturally handles arbitrarily deep nested dictionary traversal?
+  options:
+    - "Recursion / DFS Traversal"
+    - "Binary Search"
+    - "Two Pointers"
+    - "Monotonic Stack"
+  answer: 0
+  explanation: >-
+    Depth-First Search (DFS) via recursion or an explicit stack is the canonical approach to traverse nested trees and dictionaries.
+
+function:
+  name: flatten_telemetry
+  params:
+    - {name: payload}
+
+starter_code: |
+  class Solution:
+      def flatten_telemetry(self, payload: dict) -> dict:
+          pass
+
+tests:
+  - args:
+      - {
+          "device": {"brand": "Google", "model": "Pixel 8"},
+          "run_id": 1001,
+          "metrics": {"latency_ms": 320, "fps": 60}
+        }
+    expected: {
+      "device.brand": "Google",
+      "device.model": "Pixel 8",
+      "run_id": 1001,
+      "metrics.latency_ms": 320,
+      "metrics.fps": 60
+    }
+  - args:
+      - {"level1": {"level2": {"level3": "target"}}}
+    expected: {"level1.level2.level3": "target"}
+  - args:
+      - {}
+    expected: {}
+  - args:
+      - {"simple": 1, "flag": true}
+    expected: {"simple": 1, "flag": true}
+
+visualize_test: 0
+
+drills:
+  - title: Single-level nested dict unwrap
+    skill: setup
+    goal: Flatten a single dictionary with one level of nesting.
+    instructions: |
+      If a value is a dictionary, prepend its key and a period to its inner keys.
+    function:
+      name: flatten_one_level
+      params: [{name: d}]
+    starter_code: |
+      class Solution:
+          def flatten_one_level(self, d: dict) -> dict:
+              pass
+    tests:
+      - {args: [{"a": {"x": 1, "y": 2}}], expected: {"a.x": 1, "a.y": 2}}
+      - {args: [{"b": 10}], expected: {"b": 10}}
+    solution: |
+      class Solution:
+          def flatten_one_level(self, d: dict) -> dict:
+              res = {}
+              for k, v in d.items():
+                  if isinstance(v, dict):
+                      for sub_k, sub_v in v.items():
+                          res[f"{k}.{sub_k}"] = sub_v
+                  else:
+                      res[k] = v
+              return res
+    hint: "Check `if isinstance(v, dict):` and join keys with `f'{k}.{sub_k}'`."
+
+  - title: Build compound prefix key
+    skill: core
+    goal: Create dot-delimited key names.
+    instructions: |
+      Return `f"{prefix}.{key}"` if `prefix` is non-empty, else return `key`.
+    function:
+      name: make_prefix_key
+      params: [{name: prefix}, {name: key}]
+    starter_code: |
+      class Solution:
+          def make_prefix_key(self, prefix: str, key: str) -> str:
+              pass
+    tests:
+      - {args: ["meta", "env"], expected: "meta.env"}
+      - {args: ["", "status"], expected: "status"}
+    solution: |
+      class Solution:
+          def make_prefix_key(self, prefix: str, key: str) -> str:
+              return f"{prefix}.{key}" if prefix else key
+    hint: "Use `f'{prefix}.{key}' if prefix else key`."
+
+  - title: Extract only primitive values
+    skill: edge
+    goal: Filter out nested dictionaries from top-level keys.
+    instructions: |
+      Return a dict containing only keys whose values are not dictionaries.
+    function:
+      name: filter_primitives
+      params: [{name: d}]
+    starter_code: |
+      class Solution:
+          def filter_primitives(self, d: dict) -> dict:
+              pass
+    tests:
+      - {args: [{"a": 1, "b": {"c": 2}}], expected: {"a": 1}}
+      - {args: [{"nested": {}}], expected: {}}
+    solution: |
+      class Solution:
+          def filter_primitives(self, d: dict) -> dict:
+              return {k: v for k, v in d.items() if not isinstance(v, dict)}
+    hint: "Use dict comprehension with `if not isinstance(v, dict)`."
+
+hints:
+  - "Use a recursive helper `_flatten(current_dict, prefix)`."
+  - "If `isinstance(v, dict)`, recurse with the new prefix `f'{prefix}.{k}' if prefix else k`."
+  - "Otherwise, store `flat_dict[new_prefix] = v`."
+
+solution:
+  code: |
+    class Solution:
+        def flatten_telemetry(self, payload: dict) -> dict:
+            flat = {}
+
+            def _recurse(d: dict, prefix: str):
+                for k, v in d.items():
+                    key_name = f"{prefix}.{k}" if prefix else k
+                    if isinstance(v, dict) and v:  # Non-empty dict -> recurse
+                        _recurse(v, key_name)
+                    elif isinstance(v, dict) and not v:
+                        continue  # Skip empty dicts
+                    else:
+                        flat[key_name] = v
+
+            _recurse(payload, "")
+            return flat
+  explanation: |
+    The `_recurse` helper traverses the JSON tree using Depth-First Search.
+    For each key-value pair, it constructs the composite dot-delimited key name.
+    If the value is a nested dictionary, it dives deeper with the new prefix.
+    When a leaf primitive is reached, it assigns the value directly into `flat`.
+  time: O(N) where N is total nodes in the dictionary
+  space: O(D) recursion stack where D is maximum nesting depth
+
+pitch_script: |
+  **(Clarify)** "We need to unwrap a hierarchical nested JSON object into a flat dictionary where compound keys are joined with dots."
+
+  **(Basement Insight)** "Nested JSON payloads are tree structures. A recursive Depth-First Search naturally processes each branch, carrying the prefix accumulator down the call stack until reaching leaf primitive nodes."
+
+  **(Solution)** "We implement `_recurse(d, prefix)`. For each key, we form `f'{prefix}.{k}' if prefix else k`. If the value is a nested dict, we recurse; otherwise we record it into the flattened output map."
+
+  **(Complexity)** "Runs in O(N) time where N is the total number of keys, using O(D) recursion space proportional to nesting depth."
+
+twist:
+  lc: 9222
+  title: Unflattening Dot Notation back into Hierarchical JSON
+  why: >-
+    The inverse operation: taking {'meta.env': 'prod'} and reconstructing the nested dictionary {'meta': {'env': 'prod'}}.
+    Requires splitting keys by dot and setting nested keys with setdefault().
+
+viz:
+  title: "JSON Tree Flattening"

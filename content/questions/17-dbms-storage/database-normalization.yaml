@@ -1,0 +1,262 @@
+slug: database-normalization
+lc: 9304
+citadel_id: sql_dbms
+brick_layer: 4
+runner_type: python_practical
+
+concept:
+  problem_it_solves: >-
+    "Why does storing department names and office locations inside the employee table cause data anomalies?"
+    In an unnormalized table, if an engineering department changes its location, you must update 50,000 employee rows!
+    If one row is missed, data becomes inconsistent (Update Anomaly).
+    If a department has no employees currently hired, you cannot record its existence without creating dummy employees (Insertion Anomaly).
+    If the last employee leaves, the entire department is accidentally deleted (Deletion Anomaly).
+  brute_force: >-
+    Keeping all attributes in a single wide table (denormalization).
+    While fast for simple reads, it creates massive data redundancy, storage bloat, and write anomalies.
+  brute_force_complexity: O(1) reads, but O(N) expensive and risky multi-row updates.
+  key_insight: >-
+    Third Normal Form (3NF) states that every non-key attribute must depend on the primary key, the whole primary key,
+    and nothing but the primary key ("so help me Codd").
+    Because `dept_name` depends on `dept_id` rather than directly on `emp_id` (a Transitive Dependency),
+    the table must be decomposed into two related tables: `employees` and `departments`.
+  real_world: >-
+    Relational database architecture, DynamoDB single-table design vs PostgreSQL schema normalization, and microservice domain modeling.
+
+statement:
+  clean: |
+    Implement a schema decomposition algorithm using database normalization:
+    `decompose_to_3nf(unnormalized: list[dict]) -> dict`.
+    
+    Given a list of unnormalized records containing transitive dependencies:
+    `{"emp_id": int, "emp_name": str, "dept_id": int, "dept_name": str, "dept_location": str}`.
+    
+    Tasks:
+    1. If `unnormalized` is empty, return `{"employees": [], "departments": []}`.
+    2. Decompose the data into two 3NF-compliant relational tables:
+       - `employees`: list of `{"emp_id": int, "emp_name": str, "dept_id": int}`.
+       - `departments`: list of `{"dept_id": int, "dept_name": str, "dept_location": str}`.
+    3. Ensure `departments` is deduplicated on `dept_id` so each department appears exactly once.
+    4. Sort `employees` by `emp_id` ascending.
+    5. Sort `departments` by `dept_id` ascending.
+    6. Return `{"employees": employees_list, "departments": departments_list}`.
+  oa_story: |
+    **DynamoDB to PostgreSQL Migration — Normalizing Legacy Tables**
+    
+    In DynamoDB, we previously dumped raw JSON documents where department metadata was embedded inside employee documents.
+    During our migration to PostgreSQL to eliminate 200ms scan latencies, the schema had to be normalized to 3NF
+    with strict foreign key constraints.
+    
+    Build this decomposition function to extract normalized entities and eliminate transitive update anomalies.
+  trigger_keywords: ["database normalization", "decompose_to_3nf", "unnormalized"]
+  examples:
+    - input: "unnormalized = [{'emp_id': 101, 'emp_name': 'Alex', 'dept_id': 1, 'dept_name': 'AI', 'dept_location': 'BLR'}, {'emp_id': 102, 'emp_name': 'Priya', 'dept_id': 1, 'dept_name': 'AI', 'dept_location': 'BLR'}]"
+      output: "{'employees': [{'emp_id': 101, 'emp_name': 'Alex', 'dept_id': 1}, {'emp_id': 102, 'emp_name': 'Priya', 'dept_id': 1}], 'departments': [{'dept_id': 1, 'dept_name': 'AI', 'dept_location': 'BLR'}]}"
+      explanation: "Department 1 is deduplicated into a single row in departments."
+  constraints:
+    - "unnormalized contains between 0 and 5,000 items"
+    - "emp_id and dept_id are positive integers"
+
+constraint_quiz:
+  prompt: >-
+    What type of dependency is eliminated when converting a table from Second Normal Form (2NF) to Third Normal Form (3NF)?
+  options:
+    - "Partial dependency on a composite key"
+    - "Transitive dependency (where a non-key column depends on another non-key column)"
+    - "Repeating groups / non-atomic values"
+    - "Foreign key constraints"
+  answer: 1
+  explanation: >-
+    3NF eliminates transitive dependencies (e.g. emp_id -> dept_id -> dept_name).
+
+pattern_quiz:
+  prompt: What phrase summarizes the essence of Boyce-Codd / 3NF Normalization?
+  options:
+    - "Every attribute depends on the key, the whole key, and nothing but the key"
+    - "Keep all columns in a single table for maximum performance"
+    - "Always use surrogate integer keys"
+    - "Never use foreign keys"
+  answer: 0
+  explanation: >-
+    This classic mnemonic by Bill Kent captures 1NF (the key), 2NF (the whole key), and 3NF (nothing but the key).
+
+function:
+  name: decompose_to_3nf
+  params:
+    - {name: unnormalized}
+
+starter_code: |
+  class Solution:
+      def decompose_to_3nf(self, unnormalized: list[dict]) -> dict:
+          pass
+
+tests:
+  - args:
+      - [
+          {"emp_id": 101, "emp_name": "Alex", "dept_id": 1, "dept_name": "AI", "dept_location": "BLR"},
+          {"emp_id": 102, "emp_name": "Priya", "dept_id": 1, "dept_name": "AI", "dept_location": "BLR"},
+          {"emp_id": 103, "emp_name": "David", "dept_id": 2, "dept_name": "Cloud", "dept_location": "SFO"}
+        ]
+    expected:
+      employees:
+        - {"emp_id": 101, "emp_name": "Alex", "dept_id": 1}
+        - {"emp_id": 102, "emp_name": "Priya", "dept_id": 1}
+        - {"emp_id": 103, "emp_name": "David", "dept_id": 2}
+      departments:
+        - {"dept_id": 1, "dept_name": "AI", "dept_location": "BLR"}
+        - {"dept_id": 2, "dept_name": "Cloud", "dept_location": "SFO"}
+  - args:
+      - []
+    expected:
+      employees: []
+      departments: []
+  - args:
+      - [
+          {"emp_id": 501, "emp_name": "Solo", "dept_id": 10, "dept_name": "HQ", "dept_location": "NYC"}
+        ]
+    expected:
+      employees:
+        - {"emp_id": 501, "emp_name": "Solo", "dept_id": 10}
+      departments:
+        - {"dept_id": 10, "dept_name": "HQ", "dept_location": "NYC"}
+
+visualize_test: 0
+
+drills:
+  - title: Deduplicate dictionaries by key
+    skill: setup
+    goal: Deduplicate a list of dicts based on a specific key.
+    instructions: |
+      Return unique dicts based on `"dept_id"`.
+    function:
+      name: dedupe_departments
+      params: [{name: depts}]
+    starter_code: |
+      class Solution:
+          def dedupe_departments(self, depts: list[dict]) -> list[dict]:
+              pass
+    tests:
+      - {args: [[{"dept_id": 1, "name": "A"}, {"dept_id": 1, "name": "A"}, {"dept_id": 2, "name": "B"}]], expected: [{"dept_id": 1, "name": "A"}, {"dept_id": 2, "name": "B"}]}
+      - {args: [[]], expected: []}
+    solution: |
+      class Solution:
+          def dedupe_departments(self, depts: list[dict]) -> list[dict]:
+              seen = set()
+              res = []
+              for d in depts:
+                  if d["dept_id"] not in seen:
+                      seen.add(d["dept_id"])
+                      res.append(d)
+              return res
+    hint: "Track seen dept_ids in a set."
+
+  - title: Project subset of keys
+    skill: core
+    goal: Extract a subset of dictionary keys.
+    instructions: |
+      From `rec`, return a dict containing only `"emp_id"`, `"emp_name"`, and `"dept_id"`.
+    function:
+      name: project_employee
+      params: [{name: rec}]
+    starter_code: |
+      class Solution:
+          def project_employee(self, rec: dict) -> dict:
+              pass
+    tests:
+      - {args: [{"emp_id": 1, "emp_name": "Alex", "dept_id": 10, "location": "BLR"}], expected: {"emp_id": 1, "emp_name": "Alex", "dept_id": 10}}
+    solution: |
+      class Solution:
+          def project_employee(self, rec: dict) -> dict:
+              return {
+                  "emp_id": rec["emp_id"],
+                  "emp_name": rec["emp_name"],
+                  "dept_id": rec["dept_id"],
+              }
+    hint: "Extract only the 3 employee keys."
+
+  - title: Sort dictionaries by key
+    skill: edge
+    goal: Sort list of dicts by an integer key.
+    instructions: |
+      Sort `items` by `emp_id` ascending.
+    function:
+      name: sort_by_emp_id
+      params: [{name: items}]
+    starter_code: |
+      class Solution:
+          def sort_by_emp_id(self, items: list[dict]) -> list[dict]:
+              pass
+    tests:
+      - {args: [[{"emp_id": 20}, {"emp_id": 10}]], expected: [{"emp_id": 10}, {"emp_id": 20}]}
+      - {args: [[]], expected: []}
+    solution: |
+      class Solution:
+          def sort_by_emp_id(self, items: list[dict]) -> list[dict]:
+              return sorted(items, key=lambda x: x["emp_id"])
+    hint: "Use `sorted(items, key=lambda x: x['emp_id'])`."
+
+hints:
+  - "If `unnormalized` is empty, return `{'employees': [], 'departments': []}`."
+  - "Extract employees with `emp_id`, `emp_name`, and `dept_id`. Sort by `emp_id`."
+  - "Extract unique departments mapped by `dept_id`, keeping `dept_name` and `dept_location`. Sort by `dept_id`."
+
+solution:
+  code: |
+    class Solution:
+        def decompose_to_3nf(self, unnormalized: list[dict]) -> dict:
+            if not unnormalized:
+                return {"employees": [], "departments": []}
+
+            employees = []
+            dept_map = {}
+
+            for row in unnormalized:
+                emp = {
+                    "emp_id": row["emp_id"],
+                    "emp_name": row["emp_name"],
+                    "dept_id": row["dept_id"],
+                }
+                employees.append(emp)
+
+                d_id = row["dept_id"]
+                if d_id not in dept_map:
+                    dept_map[d_id] = {
+                        "dept_id": d_id,
+                        "dept_name": row["dept_name"],
+                        "dept_location": row["dept_location"],
+                    }
+
+            sorted_employees = sorted(employees, key=lambda x: x["emp_id"])
+            sorted_departments = sorted(dept_map.values(), key=lambda x: x["dept_id"])
+
+            return {
+                "employees": sorted_employees,
+                "departments": sorted_departments,
+            }
+  explanation: |
+    In the unnormalized table, `dept_name` and `dept_location` depend transitively on `emp_id` via `dept_id`.
+    By splitting the data into `employees` (storing the foreign key `dept_id`) and `departments`
+    (storing unique department rows), we satisfy 3NF.
+    
+    This eliminates update, insertion, and deletion anomalies.
+  time: O(N log N) dominated by sorting
+  space: O(N) for output tables
+
+pitch_script: |
+  **(Clarify)** "We need to decompose an unnormalized wide table containing transitive department dependencies into two clean 3NF relational tables: employees and departments."
+
+  **(Basement Insight)** "3NF states that non-key attributes must depend directly on the primary key, not transitively through another non-key attribute. Storing department metadata repeatedly in employee records causes update anomalies and space bloat."
+
+  **(Solution)** "We iterate through the records, mapping each employee to their foreign key `dept_id`. Simultaneously, we deduplicate department rows into a dictionary keyed by `dept_id`. We sort both lists by their respective primary keys."
+
+  **(Complexity)** "Executes in O(N log N) time due to sorting, using O(N) auxiliary space."
+
+twist:
+  lc: 9305
+  title: Many-to-Many Decomposition into Junction Tables
+  why: >-
+    If employees can belong to multiple departments or projects, 3NF requires creating an intermediate
+    junction table: EmployeeProjects(emp_id, project_id, role).
+
+viz:
+  title: "3NF Relational Decomposition"

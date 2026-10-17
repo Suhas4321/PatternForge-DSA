@@ -1,0 +1,236 @@
+slug: safe-nested-json-resolver
+lc: 9225
+citadel_id: python_data
+brick_layer: 3
+runner_type: python_practical
+concept:
+  problem_it_solves: How do backend data ingestion pipelines extract values from deeply nested third-party JSON payloads without
+    crashing on KeyError, IndexError, or TypeError? In production API payloads, intermediate objects are frequently None or
+    missing (e.g. data['user']['billing']['address']['city'] raises KeyError when billing is absent). A safe path resolver
+    navigates dot-delimited paths with default fallback.
+  brute_force: Writing deeply nested try-except KeyError blocks around every dictionary lookup across ETL scripts.
+  brute_force_complexity: Bloated boilerplate code that obscures business transformation logic.
+  key_insight: Tokenizing dot-delimited path expressions and stepping iteratively through dicts and list indices safely returns
+    the default value upon any navigation failure.
+  real_world: Lodash _.get in JavaScript, Glom in Python, and Kafka event stream payload transformations.
+statement:
+  clean: "Implement safe nested JSON navigation without KeyError or IndexError:\n`safe_resolve_path(self, data: dict | list,\
+    \ path: str, default: any = None) -> any`.\n\nInputs:\n- `data`: arbitrary nested dictionary or list\n- `path`: dot-delimited\
+    \ path string, supporting dictionary keys and list index numbers (e.g. `'user.profile.address.city'`, `'orders.0.items.1.name'`)\n\
+    - `default`: value returned if any key or index is missing or non-traversable (default `None`)\n\nNavigation Rules:\n\
+    1. If `path` is empty string `''`, return `data`.\n2. Split `path` by `'.'` to extract `tokens`.\n3. Iterate through `tokens`:\n\
+    \   - If current target is a `dict`:\n     - If `token` in `target`: advance `current = target[token]`.\n     - Otherwise:\
+    \ return `default`.\n   - If current target is a `list`:\n     - If `token.isdigit()`:\n       `idx = int(token)`\n  \
+    \     - If `0 <= idx < len(target)`: advance `current = target[idx]`.\n       - Otherwise: return `default`.\n     - Otherwise:\
+    \ return `default`.\n   - If current target is neither `dict` nor `list` (e.g. `None`, `int`, `str`), and more tokens\
+    \ remain:\n     return `default`.\n4. Return the resolved final value."
+  oa_story: '**PayLoop Merchant Webhook — Polymorphic JSON Telemetry Extractor**
+
+
+    PayLoop receives settlement webhooks from 40 different partner banks across India. Each bank formats payload trees slightly
+    differently: some place terminal coordinates at `event.payload.merchant.terminal_id`, while others omit the `merchant`
+    block entirely when settlements are aborted.
+
+
+    Hardcoded dict lookups triggered frequent `KeyError: ''merchant''` unhandled exceptions in the ingestion worker. The platform
+    team built a safe JSON path resolver to extract fields with fallback defaults. Implement this resolver.'
+  trigger_keywords:
+  - safe nested JSON navigation without KeyError
+  - safe_resolve_path
+  - tokens
+  examples:
+  - input: 'data = {''user'': {''profile'': {''address'': {''city'': ''Bengaluru''}}}}, path = ''user.profile.address.city'',
+      default = ''N/A'''
+    output: '''Bengaluru'''
+    explanation: Traverses 4 nested dictionary levels to retrieve city.
+  - input: 'data = {''items'': [{''id'': ''item1''}, {''id'': ''item2''}]}, path = ''items.1.id'', default = None'
+    output: '''item2'''
+    explanation: Traverses list index 1 and dictionary key id.
+  constraints:
+  - path is a string of dot-separated alphanumeric tokens
+  - default can be any value
+constraint_quiz:
+  prompt: What should the safe path resolver return if an intermediate value in the path is None?
+  options:
+  - The default value, because None is neither a dict nor a list and cannot be traversed further
+  - Raise an unhandled TypeError
+  - Return an empty dictionary
+  - Convert None into string 'null'
+  answer: 0
+  explanation: When an intermediate node is None, attempting key or index lookups would crash with TypeError; returning default
+    provides safe defensive navigation.
+pattern_quiz:
+  prompt: Which common utility function in standard web libraries implements this exact safe navigation pattern?
+  options:
+  - Lodash _.get() in JavaScript and dict.get chained traversal in Python
+  - Binary search
+  - Quicksort partition
+  - Dijkstra's shortest path
+  answer: 0
+  explanation: Lodash _.get(object, path, defaultValue) is the classic JavaScript pattern for safe deep object navigation.
+function:
+  name: safe_resolve_path
+  params:
+  - name: data
+    type: any
+  - name: path
+    type: any
+  - name: default
+    type: any
+  returns: any
+starter_code: "class Solution:\n    def safe_resolve_path(self, data: dict | list, path: str, default: any = None) -> any:\n\
+  \        pass\n"
+tests:
+- args:
+  - user:
+      profile:
+        address:
+          city: Bengaluru
+  - user.profile.address.city
+  - N/A
+  expected: Bengaluru
+  note: Deep dictionary traversal
+- args:
+  - items:
+    - id: item1
+    - id: item2
+  - items.1.id
+  - null
+  expected: item2
+  note: Combined list indexing and dict access
+- args:
+  - user:
+      name: Priya
+  - user.settings.theme
+  - dark
+  expected: dark
+  note: Missing key returns default
+- args:
+  - users:
+    - Aarav
+  - users.5.email
+  - not_found
+  expected: not_found
+  note: Out of range list index returns default
+visualize_test: 0
+drills:
+- title: Split Path Tokens
+  skill: setup
+  goal: Split string by dot delimiter.
+  instructions: Return path.split('.') if path else [].
+  function:
+    name: parse_tokens
+    params:
+    - name: path
+      type: any
+  starter_code: "class Solution:\n    def parse_tokens(self, path: str) -> list:\n        pass\n"
+  tests:
+  - args:
+    - a.b.c
+    expected:
+    - a
+    - b
+    - c
+  - args:
+    - ''
+    expected: []
+  solution: "class Solution:\n    def parse_tokens(self, path: str) -> list:\n        return path.split(\".\") if path else\
+    \ []\n"
+  hint: path.split('.') if path else [].
+- title: Traverse Dictionary Token
+  skill: core
+  goal: Safely advance one dict level.
+  instructions: Return d[token] if isinstance(d, dict) and token in d else default.
+  function:
+    name: step_dict
+    params:
+    - name: d
+      type: any
+    - name: token
+      type: any
+    - name: default
+      type: any
+  starter_code: "class Solution:\n    def step_dict(self, d: dict, token: str, default: any) -> any:\n        pass\n"
+  tests:
+  - args:
+    - a: 1
+    - a
+    - null
+    expected: 1
+  - args:
+    - a: 1
+    - b
+    - missing
+    expected: missing
+  solution: "class Solution:\n    def step_dict(self, d: dict, token: str, default: any) -> any:\n        return d[token]\
+    \ if isinstance(d, dict) and token in d else default\n"
+  hint: Check token in d.
+- title: Traverse List Index
+  skill: edge
+  goal: Safely advance list index.
+  instructions: If token isdigit and 0 <= int(token) < len(lst), return lst[int(token)] else default.
+  function:
+    name: step_list
+    params:
+    - name: lst
+      type: any
+    - name: token
+      type: any
+    - name: default
+      type: any
+  starter_code: "class Solution:\n    def step_list(self, lst: list, token: str, default: any) -> any:\n        pass\n"
+  tests:
+  - args:
+    - - x
+      - y
+    - '1'
+    - null
+    expected: y
+  - args:
+    - - x
+      - y
+    - '5'
+    - out
+    expected: out
+  solution: "class Solution:\n    def step_list(self, lst: list, token: str, default: any) -> any:\n        if isinstance(lst,\
+    \ list) and token.isdigit():\n            idx = int(token)\n            if 0 <= idx < len(lst):\n                return\
+    \ lst[idx]\n        return default\n"
+  hint: Verify token.isdigit() and bound checks.
+hints:
+- Return data immediately if path is empty.
+- Iterate tokens from path.split('.').
+- Handle isinstance(current, dict) and isinstance(current, list); return default on lookup failure.
+solution:
+  code: "class Solution:\n    def safe_resolve_path(self, data: dict | list, path: str, default: any = None) -> any:\n   \
+    \     if not path:\n            return data\n            \n        tokens = path.split(\".\")\n        current = data\n\
+    \        \n        for token in tokens:\n            if isinstance(current, dict):\n                if token in current:\n\
+    \                    current = current[token]\n                else:\n                    return default\n           \
+    \ elif isinstance(current, list):\n                if token.isdigit():\n                    idx = int(token)\n       \
+    \             if 0 <= idx < len(current):\n                        current = current[idx]\n                    else:\n\
+    \                        return default\n                else:\n                    return default\n            else:\n\
+    \                return default\n                \n        return current\n"
+  explanation: Traverses nested collections iteratively, checking types and bounds at every step to prevent KeyError or IndexError
+    crashes.
+  time: O(T) where T is the number of tokens in the path
+  space: O(T) to store parsed path tokens
+pitch_script: '**(Clarify)** "We need to safely navigate deep nested JSON trees supporting dot-separated dictionary keys and
+  list index tokens with fallback defaults."
+
+
+  **(Basement Insight)** "Relying on direct dictionary indexing crashes when payloads are sparse or irregular. A robust path
+  resolver traverses step-by-step with defensive type and boundary checks."
+
+
+  **(Solution)** "We split the path on dots and advance through dicts or lists sequentially. If a key is missing or index
+  out of range, we return the default value safely."
+
+
+  **(Complexity)** "Executes in O(T) time where T is token depth, using O(T) space."
+
+  '
+twist:
+  lc: 9236
+  title: Pandas Merge and GroupBy P95 Latency Aggregation
+  why: Once individual telemetry events are parsed, aggregate high-cardinality metrics in Pandas across model providers.
+viz:
+  title: Nested JSON Path Traversal & Fallback Tree

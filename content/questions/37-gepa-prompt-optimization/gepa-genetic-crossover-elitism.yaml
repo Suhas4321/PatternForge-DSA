@@ -1,0 +1,280 @@
+slug: gepa-genetic-crossover-elitism
+lc: 9608
+citadel_id: ai_resume
+brick_layer: 4
+runner_type: python_practical
+concept:
+  problem_it_solves: How do AI engineers discover optimal prompt templates without spending dozens of hours manually tweaking
+    words? Genetic Pareto Optimization (GEPA) treats prompts as evolutionary individuals. High-performing instructions cross
+    over to produce offspring, while elitism preserves top candidates and mutations introduce creative exploration.
+  brute_force: Manual trial-and-error prompt engineering with human inspection of thousands of LLM completions.
+  brute_force_complexity: High human engineering overhead with non-replicable prompt quality.
+  key_insight: Simulating biological selection (elitism preserves best prompts, crossover combines successful role and instruction
+    pairs) systematically navigates the discrete prompt search space.
+  real_world: GEPA/LLEGO automated prompt optimization engine (achieving 66% API cost reduction in production), DSPy teleprompters,
+    and Microsoft Promptbreeder.
+statement:
+  clean: "Implement one generation of genetic prompt optimization with elitism, crossover, and mutation:\n`evolve_prompt_generation(self,\
+    \ population: list[dict], elite_k: int = 2, crossover_pairs: list[list[int]] = None, mutation_rules: list[dict] = None)\
+    \ -> list[dict]`.\n\nGiven:\n- `population`: list of candidate prompt dicts:\n  `{'id': str, 'role': str, 'instruction':\
+    \ str, 'fitness': float}`\n- `elite_k`: number of top individuals to preserve via elitism (`elite_k >= 0`)\n- `crossover_pairs`:\
+    \ list of index pairs `[parent1_idx, parent2_idx]` into the sorted population\n- `mutation_rules`: list of mutation action\
+    \ dicts:\n  `{'target_id': str, 'mutation_type': 'append_constraint' | 'replace_role', 'value': str}`\n\nEvolutionary\
+    \ Lifecycle:\n1. Sort `population` descending by `fitness` (tie-breaker: `id` alphabetically ascending).\n2. Elitism:\
+    \ Directly copy the top `elite_k` individuals into the new generation.\n3. Crossover: For each `[p1_idx, p2_idx]` in `crossover_pairs`\
+    \ (where indices reference the sorted population):\n   - Parent 1 is `sorted_pop[p1_idx]`, Parent 2 is `sorted_pop[p2_idx]`.\n\
+    \   - Child prompt:\n     `{'id': f'child_{p1[\"id\"]}_{p2[\"id\"]}', 'role': p1['role'], 'instruction': p2['instruction'],\
+    \ 'fitness': round((p1['fitness'] + p2['fitness']) / 2.0, 2)}`\n   - Append child to the new generation.\n4. Mutation:\
+    \ For each rule in `mutation_rules`:\n   - Locate the individual in the new generation with `id == target_id`.\n   - If\
+    \ `mutation_type == 'append_constraint'`:\n     append `f' Constraint: {value}'` to its `instruction`.\n   - If `mutation_type\
+    \ == 'replace_role'`:\n     replace its `role` with `value`.\n   - Deduct `0.05` from its `fitness` (mutation cost) rounded\
+    \ to 2 decimal places: `round(fitness - 0.05, 2)`.\n5. Return the new generation list of candidate prompt dicts."
+  oa_story: '**GEPA Prompt Optimizer — Autonomous LLM Instruction Evolution**
+
+
+    In production at scale, manual prompt engineering could not keep up with model updates and token cost constraints. The
+    GEPA engine was built to automatically evolve prompt architectures through evolutionary hyper-parameter search.
+
+
+    By combining the top 2 elite system instructions with crossover mutations, GEPA discovered compact prompts that reduced
+    API token usage by 66% while improving accuracy. Implement one generation of this evolutionary prompt engine.'
+  trigger_keywords:
+  - genetic prompt optimization with elitism, crossover, and mutation
+  - evolve_prompt_generation
+  - crossover_pairs
+  examples:
+  - input: 'population = [{''id'': ''p1'', ''role'': ''Dev'', ''instruction'': ''Write Python'', ''fitness'': 0.90}, {''id'':
+      ''p2'', ''role'': ''Arch'', ''instruction'': ''Optimize code'', ''fitness'': 0.80}], elite_k = 2, crossover_pairs =
+      [[0, 1]], mutation_rules = []'
+    output: '[{''id'': ''p1'', ''role'': ''Dev'', ''instruction'': ''Write Python'', ''fitness'': 0.90}, {''id'': ''p2'',
+      ''role'': ''Arch'', ''instruction'': ''Optimize code'', ''fitness'': 0.80}, {''id'': ''child_p1_p2'', ''role'': ''Dev'',
+      ''instruction'': ''Optimize code'', ''fitness'': 0.85}]'
+    explanation: Elites p1 and p2 are preserved; child combines role from p1 and instruction from p2.
+  constraints:
+  - 0 <= len(population) <= 100
+  - 0 <= elite_k <= len(population)
+constraint_quiz:
+  prompt: Why is elitism essential in genetic prompt optimization algorithms?
+  options:
+  - It guarantees that the highest-fitness prompt discovered so far is never lost across generations due to destructive mutations
+  - It increases the learning rate of the LLM
+  - It deletes low-performing prompts from disk immediately
+  - It ensures prompts always have fewer than 10 words
+  answer: 0
+  explanation: Without elitism, random crossover or deleterious mutations might degrade the best prompt discovered in earlier
+    iterations.
+pattern_quiz:
+  prompt: In evolutionary prompt synthesis, what does the crossover operator correspond to?
+  options:
+  - Synthesizing a new prompt by combining modular components (e.g. system persona from Prompt A and few-shot examples from
+    Prompt B)
+  - Translating prompts between Python and C++
+  - Sorting prompts by length
+  - Encrypting prompts with RSA keys
+  answer: 0
+  explanation: Crossover takes high-performing building blocks from two fit parent prompts and blends them into an offspring
+    prompt.
+function:
+  name: evolve_prompt_generation
+  params:
+  - name: population
+    type: any
+  - name: elite_k
+    type: any
+  - name: crossover_pairs
+    type: any
+  - name: mutation_rules
+    type: any
+  returns: any
+starter_code: "class Solution:\n    def evolve_prompt_generation(self, population: list[dict], elite_k: int = 2, crossover_pairs:\
+  \ list[list[int]] = None, mutation_rules: list[dict] = None) -> list[dict]:\n        pass\n"
+tests:
+- args:
+  - - id: p1
+      role: Expert Dev
+      instruction: Write clean Python
+      fitness: 0.9
+    - id: p2
+      role: Senior Architect
+      instruction: Optimize for memory
+      fitness: 0.8
+    - id: p3
+      role: Junior Dev
+      instruction: Add comments
+      fitness: 0.5
+  - 2
+  - - - 0
+      - 1
+  - - target_id: child_p1_p2
+      mutation_type: append_constraint
+      value: Be concise
+  expected:
+  - id: p1
+    role: Expert Dev
+    instruction: Write clean Python
+    fitness: 0.9
+  - id: p2
+    role: Senior Architect
+    instruction: Optimize for memory
+    fitness: 0.8
+  - id: child_p1_p2
+    role: Expert Dev
+    instruction: 'Optimize for memory Constraint: Be concise'
+    fitness: 0.8
+  note: Elitism, crossover and mutation pipeline
+- args:
+  - - id: pA
+      role: Bot
+      instruction: Reply
+      fitness: 0.7
+  - 1
+  - []
+  - []
+  expected:
+  - id: pA
+    role: Bot
+    instruction: Reply
+    fitness: 0.7
+  note: Single individual preserved via elitism
+- args:
+  - - id: p1
+      role: Writer
+      instruction: Draft
+      fitness: 0.85
+    - id: p2
+      role: Editor
+      instruction: Revise
+      fitness: 0.75
+  - 1
+  - - - 0
+      - 1
+  - []
+  expected:
+  - id: p1
+    role: Writer
+    instruction: Draft
+    fitness: 0.85
+  - id: child_p1_p2
+    role: Writer
+    instruction: Revise
+    fitness: 0.8
+  note: Crossover without mutation rules
+visualize_test: 0
+drills:
+- title: Select Top Elites
+  skill: setup
+  goal: Preserve top k individuals by fitness.
+  instructions: Sort by -fitness, id and return top k.
+  function:
+    name: get_elites
+    params:
+    - name: pop
+      type: any
+    - name: k
+      type: any
+  starter_code: "class Solution:\n    def get_elites(self, pop: list, k: int) -> list:\n        pass\n"
+  tests:
+  - args:
+    - - id: b
+        fitness: 0.8
+      - id: a
+        fitness: 0.9
+    - 1
+    expected:
+    - id: a
+      fitness: 0.9
+  solution: "class Solution:\n    def get_elites(self, pop: list, k: int) -> list:\n        return sorted(pop, key=lambda\
+    \ x: (-x[\"fitness\"], x[\"id\"]))[:k]\n"
+  hint: Sort by -fitness, id.
+- title: Combine Parent Instructions
+  skill: core
+  goal: Cross over role from p1 and instruction from p2.
+  instructions: Return dict with id, role p1, instruction p2, avg fitness.
+  function:
+    name: combine_parents
+    params:
+    - name: p1
+      type: any
+    - name: p2
+      type: any
+  starter_code: "class Solution:\n    def combine_parents(self, p1: dict, p2: dict) -> dict:\n        pass\n"
+  tests:
+  - args:
+    - id: a
+      role: r1
+      instruction: i1
+      fitness: 0.8
+    - id: b
+      role: r2
+      instruction: i2
+      fitness: 0.6
+    expected:
+      id: child_a_b
+      role: r1
+      instruction: i2
+      fitness: 0.7
+  solution: "class Solution:\n    def combine_parents(self, p1: dict, p2: dict) -> dict:\n        return {\n            \"\
+    id\": f\"child_{p1['id']}_{p2['id']}\",\n            \"role\": p1[\"role\"],\n            \"instruction\": p2[\"instruction\"\
+    ],\n            \"fitness\": round((p1[\"fitness\"] + p2[\"fitness\"]) / 2.0, 2),\n        }\n"
+  hint: Take role from p1 and instruction from p2.
+- title: Apply Mutation Cost
+  skill: edge
+  goal: Adjust fitness after mutation operation.
+  instructions: Return round(fitness - 0.05, 2).
+  function:
+    name: deduct_mutation_cost
+    params:
+    - name: fitness
+      type: any
+  starter_code: "class Solution:\n    def deduct_mutation_cost(self, fitness: float) -> float:\n        pass\n"
+  tests:
+  - args:
+    - 0.85
+    expected: 0.8
+  solution: "class Solution:\n    def deduct_mutation_cost(self, fitness: float) -> float:\n        return round(fitness -\
+    \ 0.05, 2)\n"
+  hint: Subtract 0.05 and round to 2 decimals.
+hints:
+- Sort population by fitness descending with id tie-breaker.
+- Copy top elite_k individuals to next_gen.
+- Iterate crossover pairs to construct children, then apply mutation rules.
+solution:
+  code: "class Solution:\n    def evolve_prompt_generation(self, population: list[dict], elite_k: int = 2, crossover_pairs:\
+    \ list[list[int]] = None, mutation_rules: list[dict] = None) -> list[dict]:\n        if not population:\n            return\
+    \ []\n            \n        sorted_pop = sorted(population, key=lambda x: (-x[\"fitness\"], x[\"id\"]))\n        next_gen\
+    \ = []\n        \n        # 1. Elitism\n        elites = [dict(p) for p in sorted_pop[:elite_k]]\n        next_gen.extend(elites)\n\
+    \        \n        # 2. Crossover\n        crossover_pairs = crossover_pairs or []\n        for pair in crossover_pairs:\n\
+    \            p1_idx, p2_idx = pair[0], pair[1]\n            p1 = sorted_pop[p1_idx]\n            p2 = sorted_pop[p2_idx]\n\
+    \            child = {\n                \"id\": f\"child_{p1['id']}_{p2['id']}\",\n                \"role\": p1[\"role\"\
+    ],\n                \"instruction\": p2[\"instruction\"],\n                \"fitness\": round((p1[\"fitness\"] + p2[\"\
+    fitness\"]) / 2.0, 2),\n            }\n            next_gen.append(child)\n            \n        # 3. Mutation\n     \
+    \   mutation_rules = mutation_rules or []\n        for rule in mutation_rules:\n            t_id = rule.get(\"target_id\"\
+    )\n            m_type = rule.get(\"mutation_type\")\n            val = rule.get(\"value\", \"\")\n            for ind\
+    \ in next_gen:\n                if ind[\"id\"] == t_id:\n                    if m_type == \"append_constraint\":\n   \
+    \                     ind[\"instruction\"] = f\"{ind['instruction']} Constraint: {val}\"\n                    elif m_type\
+    \ == \"replace_role\":\n                        ind[\"role\"] = val\n                    ind[\"fitness\"] = round(ind[\"\
+    fitness\"] - 0.05, 2)\n                    break\n                    \n        return next_gen\n"
+  explanation: Executes one evolutionary generation combining elitist selection, instruction crossover, and semantic mutations.
+  time: O(P log P + C + M) where P is population, C is crossovers, M is mutations
+  space: O(P) for next generation population
+pitch_script: '**(Clarify)** "We need to implement one discrete generation of genetic prompt optimization using elitism, prompt
+  component crossover, and targeted mutations."
+
+
+  **(Basement Insight)** "Finding effective prompt variations manually is slow and un-reproducible. Genetic algorithms treat
+  prompts as modular genomes, systematically recombining high-performing instructions while protecting top candidates."
+
+
+  **(Solution)** "We sort prompts by fitness. We carry over the top elite candidates, generate offspring by crossing over
+  parent roles and instructions, and apply semantic mutations with calibrated cost penalties."
+
+
+  **(Complexity)** "Executes in O(P log P) time dominated by sorting, using O(P) space."
+
+  '
+twist:
+  lc: 9604
+  title: Interactive Resume Defense Scenario Engine
+  why: Take the prompt optimization principles and build an interactive interview simulator that grills system design decisions.
+viz:
+  title: GEPA Evolutionary Prompt Optimization Architecture

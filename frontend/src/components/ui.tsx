@@ -101,7 +101,7 @@ type ButtonVariant = 'primary' | 'emerald' | 'glass' | 'outline' | 'ghost'
 const BUTTON_STYLES: Record<ButtonVariant, string> = {
   // Solid, high-contrast pills with a hover lift (same in every zone)
   primary:
-    'bg-action text-white font-semibold shadow-[0_6px_16px_-6px_rgb(79_70_229/0.6)] hover:bg-action-hi hover:-translate-y-px hover:shadow-[0_10px_22px_-8px_rgb(79_70_229/0.7)]',
+    'bg-action text-surface-0 font-semibold shadow-[0_4px_16px_-4px_rgba(0,0,0,0.4)] hover:brightness-110 hover:-translate-y-px',
   emerald:
     'bg-success text-white font-semibold shadow-[0_6px_16px_-6px_rgb(5_150_105/0.55)] hover:bg-emerald hover:-translate-y-px',
   glass: 'text-chalk border border-line-strong bg-panel hover:bg-panel-2 hover:border-chalk/25',

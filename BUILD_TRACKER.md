@@ -67,3 +67,32 @@ content is validated by `scripts/validate_content.py` (reference solutions must 
 - [x] Pattern Finder (`/finder`): decision tree from input shape → ask → constraint to one of 20 patterns, with template and lessons
 - [x] Command palette (Ctrl+K or `/`): search 115 questions by title, #number or pattern, worlds and actions
 - [x] Loading skeletons, 404 page, Pattern Finder link beside the Stage 1 pattern quiz
+
+---
+
+# PatternForge 6-Citadel Engineering Expansion Roadmap
+
+## Phase A: DESIGN_AND_CURRICULUM_PLAN.md + 3-Zone High-Contrast UI Overhaul
+- [x] Create `DESIGN_AND_CURRICULUM_PLAN.md` with all reference links and architecture specs
+- [x] Overhaul `frontend/src/index.css`, `App.tsx`, `Dashboard.tsx`, `WorldPage.tsx`, `QuestionPage.tsx`, and `Playground.tsx` to implement the 3-Zone Contrast System (`studio-contrast` Warm Stone `#F3F2EC` + Crisp Ivory `#FFFFFF` cards + Framed Pitch-Carbon `#0B0C10` Constellation/Visualizer stages, plus `carbon-dark` toggle)
+- [x] Brighten all unexplored Constellation nodes and SVG connector beams, split Dashboard hero into 3 Bento cards, and add the 6-Citadel Switcher in `App.tsx`
+
+## Phase B: Multi-Citadel Backend Schema + sql_sqlite & python_practical Runners
+- [x] Add `citadel_id`, `brick_layer`, and `runner_type` (`python_trace`, `python_practical`, `sql_sqlite`) support to backend models, `curriculum.json`, and `POST /api/questions/{slug}/run`
+- [x] Implement the in-memory `sqlite3` runner (with intermediate query step capture) and practical Python runner (`pandas`, XML, JSON, concurrency)
+- [x] Extend `scripts/validate_content.py` so every SQL lesson and practical Python lesson is automatically tested and validated
+
+## Phase C: The 5 New Interactive System Visualizers
+- [x] Build and wire up `SQLPipelineVisualizer.tsx`, `DataFramePipelineVisualizer.tsx`, `ConcurrencyTimelineVisualizer.tsx`, `HTTPPacketLifecycleVisualizer.tsx`, and `SystemBlueprintVisualizer.tsx` inside `frontend/src/components/visualizers/` and `VisualizerHost.tsx`
+- [x] Ensure Stage 1 (`StageConcept.tsx`) renders the interactive `concept_trace` visualizer directly inside the lesson so the user learns every concept visually before coding
+
+## Phase D: Curriculum Hydration — Citadel II (Python, OOP, Design Patterns, Files & Pandas — Worlds 13–16)
+- [x] Create and validate all YAML lessons for Worlds 13, 14, 15, and 16 with rich animations, 3 micro-drills per brick, practical coding tests, and interview pitch scripts
+
+## Phase E: Curriculum Hydration — Citadel III (SQL & DBMS — Worlds 17–18)
+- [x] Create and validate all YAML lessons for World 17 (Storage, B-Tree Indexes, Composite Left-Prefix, Triggers, Normalization, ACID, SQLAlchemy N+1) and World 18 (10 Live SQL Query Arena bricks including 2nd Highest Salary, Department Top N with `DENSE_RANK`, Joins, Self-Joins, Duplicates, CTEs, `LAG/LEAD`, Pivots, and Streaks)
+
+## Phase F: Curriculum Hydration — Citadels IV, V & VI (OS/Concurrency, FastAPI/HTTP/Auth, GenAI & /resume-grill — Worlds 19–21)
+- [x] Create and validate all YAML lessons for Worlds 19, 20, and 21 (12 new lessons created; all 154 curriculum lessons validated)
+- [x] Build the dedicated `/resume-grill` interactive page defending every bullet on Suhas's resume (8 deep-dive technical cards + live verification sandboxes)
+- [x] Run `scripts/validate_content.py` across the entire curriculum (154/154 passed), run backend test suite (26/26 passed), and frontend build check (clean build in 3.08s)

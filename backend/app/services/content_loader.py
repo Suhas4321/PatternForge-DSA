@@ -25,7 +25,14 @@ def world_dir_name(world_id: int, world_slug: str) -> str:
 
 
 def content_path(content_dir: Path, world_id: int, world_slug: str, slug: str) -> Path:
-    return content_dir / "questions" / world_dir_name(world_id, world_slug) / f"{slug}.yaml"
+    canonical = content_dir / "questions" / world_dir_name(world_id, world_slug) / f"{slug}.yaml"
+    if canonical.exists():
+        return canonical
+    # Fallback: resolve across question folders without moving YAML files on disk
+    matches = list((content_dir / "questions").glob(f"*/{slug}.yaml"))
+    if matches:
+        return matches[0]
+    return canonical
 
 
 def load_curriculum(content_dir: Path) -> dict:
@@ -58,20 +65,25 @@ def sync_content(session: Session, content_dir: Path) -> LoadReport:
     for w in curriculum["worlds"]:
         world = session.get(World, w["id"]) or World(id=w["id"])
         world.slug = w["slug"]
+        world.citadel_id = w.get("citadel_id", "dsa")
+        world.status = w.get("status", "live" if len(w.get("questions", [])) > 0 else "coming_soon")
         world.name = w["name"]
-        world.tagline = w["tagline"]
-        world.core_idea = w["core_idea"]
-        world.triggers = w["triggers"]
+        world.tagline = w.get("tagline", "")
+        world.core_idea = w.get("core_idea", "")
+        world.triggers = w.get("triggers", [])
         session.add(world)
         report.worlds += 1
 
-        for position, q in enumerate(w["questions"]):
+        for position, q in enumerate(w.get("questions", [])):
             question = session.get(Question, q["slug"]) or Question(slug=q["slug"])
             question.lc = q["lc"]
             question.title = q["title"]
             question.difficulty = q["difficulty"]
             question.world_id = w["id"]
             question.position = position
+            question.citadel_id = q.get("citadel_id", w.get("citadel_id", "dsa"))
+            question.brick_layer = q.get("brick_layer", 1)
+            question.runner_type = q.get("runner_type", "python_trace")
             question.visualizer = q["visualizer"]
             question.patterns = q["patterns"]
 
@@ -79,7 +91,14 @@ def sync_content(session: Session, content_dir: Path) -> LoadReport:
             question.content = None
             if path.exists():
                 try:
-                    question.content = read_question_content(path, q["slug"], q["lc"]).model_dump()
+                    loaded = read_question_content(path, q["slug"], q["lc"]).model_dump()
+                    question.content = loaded
+                    if loaded.get("citadel_id"):
+                        question.citadel_id = loaded["citadel_id"]
+                    if loaded.get("brick_layer"):
+                        question.brick_layer = loaded["brick_layer"]
+                    if loaded.get("runner_type"):
+                        question.runner_type = loaded["runner_type"]
                     report.with_content += 1
                 except (ValidationError, ValueError) as exc:
                     report.errors.append(f"{path.relative_to(content_dir)}: {exc}")

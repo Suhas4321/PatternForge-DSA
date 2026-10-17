@@ -1,0 +1,260 @@
+slug: sql-consecutive-available-seats
+lc: 9315
+citadel_id: sql_dbms
+brick_layer: 5
+runner_type: sql_sqlite
+
+concept:
+  problem_it_solves: >-
+    "How do we detect consecutive runs or streaks of events in SQL (e.g. 2+ consecutive available cinema seats, or 3+ login days in a row)?"
+    Without window functions, solving this requires cumbersome three-way self-joins on `a.seat_id = b.seat_id - 1`.
+    Analytical window functions `LAG()` (look at the preceding row) and `LEAD()` (look at the succeeding row)
+    inspect adjacent rows in a single sorted pass.
+  brute_force: >-
+    Joining `Cinema c1` with `Cinema c2 ON ABS(c1.seat_id - c2.seat_id) = 1 AND c1.free = 1 AND c2.free = 1`
+    and applying `DISTINCT`. While working, it generates quadratic intermediate join Cartesian products.
+  brute_force_complexity: O(N^2) unindexed self-join comparison.
+  key_insight: >-
+    Using `LAG(free, 1) OVER (ORDER BY seat_id)` and `LEAD(free, 1) OVER (ORDER BY seat_id)`,
+    each row inspects whether its left or right neighbor is also available (`free = 1`).
+    A seat is part of a consecutive pair if `free = 1 AND (prev_free = 1 OR next_free = 1)`.
+  real_world: >-
+    LeetCode 603 (Consecutive Available Seats), detecting user activity streaks (Duolingo daily streaks), and identifying hardware sensor anomalies.
+
+statement:
+  clean: |
+    Write a SQL query to find all consecutive seats available in cinema that have two or more seats available in a row.
+    
+    Table schema:
+    ```sql
+    CREATE TABLE Cinema (
+      seat_id INTEGER PRIMARY KEY,
+      free INTEGER
+    );
+    ```
+    `free` is 1 if the seat is available and 0 if it is occupied.
+    
+    Return the result table ordered by `seat_id` ascending.
+  oa_story: |
+    **TicketDhaba Cinema Booking — Adjacent Seat Allocator**
+    
+    Couples and families booking movie tickets require adjacent seats in the cinema hall.
+    Our booking API needs a fast query to identify all available seats that are part of a contiguous block
+    of two or more open seats.
+    
+    Write an optimal window function query using `LAG` and `LEAD` to locate all eligible seat IDs in ascending order.
+  trigger_keywords: ["consecutive seats", "Cinema", "seat_id"]
+  examples:
+    - input: "Cinema table: (1, 1), (2, 0), (3, 1), (4, 1), (5, 1)"
+      output: "seat_id: [3, 4, 5]"
+      explanation: "Seat 1 is isolated (adjacent to occupied seat 2). Seats 3, 4, and 5 form a consecutive run of 3 free seats."
+  constraints:
+    - "Cinema table contains between 0 and 10^5 rows"
+    - "seat_id increments by 1"
+
+constraint_quiz:
+  prompt: >-
+    What value does `LAG(col, 1) OVER (ORDER BY id)` return for the very first row of a table?
+  options:
+    - "0"
+    - "NULL"
+    - "The same row's value"
+    - "It raises a runtime exception"
+  answer: 1
+  explanation: >-
+    Because there is no preceding row for the first record, LAG() defaults to NULL unless an explicit default is supplied.
+
+pattern_quiz:
+  prompt: Which window functions allow looking forward and backward without self-joins?
+  options:
+    - "LAG() and LEAD()"
+    - "RANK() and DENSE_RANK()"
+    - "FIRST_VALUE() and LAST_VALUE()"
+    - "SUM() and AVG()"
+  answer: 0
+  explanation: >-
+    `LAG()` inspects preceding rows and `LEAD()` inspects succeeding rows in the current window.
+
+schema_sql: |
+  CREATE TABLE Cinema (
+    seat_id INTEGER PRIMARY KEY,
+    free INTEGER
+  );
+
+seed_sql: |
+  INSERT INTO Cinema (seat_id, free) VALUES
+    (1, 1),
+    (2, 0),
+    (3, 1),
+    (4, 1),
+    (5, 1);
+
+function:
+  name: execute_sql
+  params: []
+
+starter_code: |
+  -- Write your SQL query below
+  WITH Windowed AS (
+    SELECT
+      seat_id,
+      free,
+      LAG(free, 1) OVER (ORDER BY seat_id) AS prev_free,
+      LEAD(free, 1) OVER (ORDER BY seat_id) AS next_free
+    FROM Cinema
+  )
+  SELECT seat_id
+  FROM Windowed
+  WHERE free = 1 AND (prev_free = 1 OR next_free = 1)
+  ORDER BY seat_id;
+
+tests:
+  - args: []
+    expected:
+      - [3]
+      - [4]
+      - [5]
+    note: "Seats 3, 4, 5 are consecutive available"
+  - args: []
+    expected: null
+    note: "Self verification"
+  - args: []
+    expected: null
+    note: "Consistency check"
+
+visualize_test: 0
+
+drills:
+  - title: Inspect adjacent rows with lag and lead
+    skill: setup
+    goal: Query prev and next values via window functions.
+    instructions: |
+      Select `seat_id, free, LAG(free, 1) OVER (ORDER BY seat_id) AS prev_f, LEAD(free, 1) OVER (ORDER BY seat_id) AS next_f FROM Cinema;`.
+    function:
+      name: execute_sql
+      params: []
+    starter_code: |
+      SELECT seat_id, free,
+             LAG(free, 1) OVER (ORDER BY seat_id) AS prev_f,
+             LEAD(free, 1) OVER (ORDER BY seat_id) AS next_f
+      FROM Cinema;
+    tests:
+      - args: []
+        expected: null
+    solution: |
+      SELECT seat_id, free,
+             LAG(free, 1) OVER (ORDER BY seat_id) AS prev_f,
+             LEAD(free, 1) OVER (ORDER BY seat_id) AS next_f
+      FROM Cinema;
+    hint: "Use `LAG(free, 1) OVER (ORDER BY seat_id)` and `LEAD(free, 1) OVER (ORDER BY seat_id)`."
+
+  - title: Consecutive availability predicate
+    skill: core
+    goal: Filter seats where self is free and neighbor is free.
+    instructions: |
+      Filter `WHERE free = 1 AND (prev_free = 1 OR next_free = 1)` inside a CTE.
+    function:
+      name: execute_sql
+      params: []
+    starter_code: |
+      WITH S AS (
+        SELECT seat_id, free,
+               LAG(free, 1) OVER (ORDER BY seat_id) AS prev_free,
+               LEAD(free, 1) OVER (ORDER BY seat_id) AS next_free
+        FROM Cinema
+      )
+      SELECT seat_id FROM S WHERE free = 1 AND (prev_free = 1 OR next_free = 1);
+    tests:
+      - args: []
+        expected:
+          - [3]
+          - [4]
+          - [5]
+    solution: |
+      WITH S AS (
+        SELECT seat_id, free,
+               LAG(free, 1) OVER (ORDER BY seat_id) AS prev_free,
+               LEAD(free, 1) OVER (ORDER BY seat_id) AS next_free
+        FROM Cinema
+      )
+      SELECT seat_id FROM S WHERE free = 1 AND (prev_free = 1 OR next_free = 1);
+    hint: "Check `free = 1 AND (prev_free = 1 OR next_free = 1)`."
+
+  - title: Sort order verification
+    skill: edge
+    goal: Ensure seat_id is ordered ascending.
+    instructions: |
+      Add `ORDER BY seat_id ASC` to the final query.
+    function:
+      name: execute_sql
+      params: []
+    starter_code: |
+      WITH S AS (
+        SELECT seat_id, free,
+               LAG(free, 1) OVER (ORDER BY seat_id) AS prev_free,
+               LEAD(free, 1) OVER (ORDER BY seat_id) AS next_free
+        FROM Cinema
+      )
+      SELECT seat_id FROM S WHERE free = 1 AND (prev_free = 1 OR next_free = 1) ORDER BY seat_id ASC;
+    tests:
+      - args: []
+        expected:
+          - [3]
+          - [4]
+          - [5]
+    solution: |
+      WITH S AS (
+        SELECT seat_id, free,
+               LAG(free, 1) OVER (ORDER BY seat_id) AS prev_free,
+               LEAD(free, 1) OVER (ORDER BY seat_id) AS next_free
+        FROM Cinema
+      )
+      SELECT seat_id FROM S WHERE free = 1 AND (prev_free = 1 OR next_free = 1) ORDER BY seat_id ASC;
+    hint: "Add `ORDER BY seat_id ASC`."
+
+hints:
+  - "Use a CTE to calculate `LAG(free, 1) OVER (ORDER BY seat_id)` and `LEAD(free, 1) OVER (ORDER BY seat_id)`."
+  - "In the outer query, filter where `free = 1 AND (prev_free = 1 OR next_free = 1)`."
+  - "Order by `seat_id ASC`."
+
+solution:
+  code: |
+    WITH Windowed AS (
+      SELECT
+        seat_id,
+        free,
+        LAG(free, 1) OVER (ORDER BY seat_id) AS prev_free,
+        LEAD(free, 1) OVER (ORDER BY seat_id) AS next_free
+      FROM Cinema
+    )
+    SELECT seat_id
+    FROM Windowed
+    WHERE free = 1 AND (prev_free = 1 OR next_free = 1)
+    ORDER BY seat_id;
+  explanation: |
+    1. The CTE `Windowed` projects each seat alongside its immediate predecessor (`LAG`) and successor (`LEAD`).
+    2. A seat is part of a consecutive run if it is available (`free = 1`) and at least one adjacent neighbor
+       (preceding or succeeding) is also available.
+    3. `ORDER BY seat_id`: ensures the output displays in sequential physical hall order.
+  time: O(N log N) for sorting window order
+  space: O(N) for window buffer
+
+pitch_script: |
+  **(Clarify)** "We need to find all available cinema seats that are part of a continuous streak of two or more free seats."
+
+  **(Basement Insight)** "Self-joining Cinema with itself on `ABS(a.seat_id - b.seat_id) = 1` incurs quadratic O(N^2) join overhead. Using window functions `LAG()` and `LEAD()` allows us to inspect immediate neighbors in a single O(N) linear scan over sorted keys."
+
+  **(Solution)** "We build a CTE that computes `LAG(free, 1)` and `LEAD(free, 1)` ordered by `seat_id`. We select `seat_id` where `free = 1 AND (prev_free = 1 OR next_free = 1)` ordered by `seat_id`."
+
+  **(Complexity)** "Runs in O(N log N) time for sorting, using O(N) space."
+
+twist:
+  lc: 9316
+  title: Gaps and Islands Difference Technique
+  why: >-
+    For arbitrary length streaks (e.g. 5+ consecutive days), subtracting ROW_NUMBER() from date
+    produces a constant island identifier that groups contiguous streaks together:
+    GROUP BY user_id, (date - ROW_NUMBER() OVER (...)).
+
+viz:
+  title: "Window LAG and LEAD Sequence"

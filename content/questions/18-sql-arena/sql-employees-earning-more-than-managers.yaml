@@ -1,0 +1,223 @@
+slug: sql-employees-earning-more-than-managers
+lc: 9314
+citadel_id: sql_dbms
+brick_layer: 4
+runner_type: sql_sqlite
+
+concept:
+  problem_it_solves: >-
+    "How do we compare records against other records stored inside the exact same table (such as an employee vs. their manager)?"
+    A table cannot be joined to itself without giving it two distinct aliases.
+    A Self-Join aliases the same physical table twice (`Employee e` and `Employee m`), linking `e.managerId = m.id`
+    so the query engine can directly compare attributes between manager and subordinate.
+  brute_force: >-
+    Using a correlated subquery for every row: `WHERE salary > (SELECT salary FROM Employee m WHERE m.id = e.managerId)`.
+    This performs repeated nested index probes rather than a single efficient hash join.
+  brute_force_complexity: O(N * log N) correlated subquery probes.
+  key_insight: >-
+    Aliasing the table as `e` (subordinate) and `m` (manager) allows an `INNER JOIN Employee m ON e.managerId = m.id`.
+    Subordinates without a manager (`managerId IS NULL`) are automatically excluded, and filtering `WHERE e.salary > m.salary`
+    identifies employees earning more than their supervisors in a single relational pass.
+  real_world: >-
+    LeetCode 181 (Employees Earning More Than Their Managers), organizational hierarchy auditing, and graph edge traversal in SQL.
+
+statement:
+  clean: |
+    Write a SQL query using a self join managers query to find the employees who earn more than their managers.
+    
+    Table schema:
+    ```sql
+    CREATE TABLE Employee (
+      id INTEGER PRIMARY KEY,
+      name TEXT,
+      salary INTEGER,
+      managerId INTEGER
+    );
+    ```
+    
+    Return the result table with column name: `Employee`.
+  oa_story: |
+    **Compensation & HR Equity Analytics — Compensation Inversion Audit**
+    
+    In specialized AI research teams, senior staff engineers occasionally earn higher base salaries than their administrative managers.
+    HR requested an automated quarterly audit query to flag all instances of salary inversion across the company.
+    
+    Write an optimal SQL self-join query that identifies every employee whose salary strictly exceeds that of their direct manager.
+  trigger_keywords: ["self join managers", "Employee", "salary"]
+  examples:
+    - input: "Employee table: (1, 'Joe', 70000, 3), (2, 'Henry', 80000, 4), (3, 'Sam', 60000, Null), (4, 'Max', 90000, Null)"
+      output: "Employee: Joe"
+      explanation: "Joe's manager is Sam (id 3). Joe earns 70,000 while Sam earns 60,000. Henry earns 80,000 while his manager Max earns 90,000."
+  constraints:
+    - "Employee table contains between 0 and 10^5 rows"
+    - "managerId refers to a valid id in Employee or is NULL"
+
+constraint_quiz:
+  prompt: >-
+    Why is an INNER JOIN preferable to a LEFT JOIN when finding employees earning more than their managers?
+  options:
+    - "Because employees with managerId IS NULL cannot have a manager to compare against, and INNER JOIN automatically filters them out"
+    - "Because LEFT JOIN is not supported on self-joins"
+    - "Because INNER JOIN is always 100x faster"
+    - "Because NULL comparisons raise an error in SQL"
+  answer: 0
+  explanation: >-
+    An INNER JOIN requires a match on `e.managerId = m.id`, cleanly dropping top-level managers whose `managerId IS NULL`.
+
+pattern_quiz:
+  prompt: What SQL technique joins a table to itself using two distinct aliases?
+  options:
+    - "Self-Join"
+    - "Natural Join"
+    - "Cross Apply"
+    - "Lateral Join"
+  answer: 0
+  explanation: >-
+    A Self-Join references the same table multiple times with distinct table aliases (e.g. `Employee e` and `Employee m`).
+
+schema_sql: |
+  CREATE TABLE Employee (
+    id INTEGER PRIMARY KEY,
+    name TEXT,
+    salary INTEGER,
+    managerId INTEGER
+  );
+
+seed_sql: |
+  INSERT INTO Employee (id, name, salary, managerId) VALUES
+    (1, 'Joe', 70000, 3),
+    (2, 'Henry', 80000, 4),
+    (3, 'Sam', 60000, NULL),
+    (4, 'Max', 90000, NULL);
+
+function:
+  name: execute_sql
+  params: []
+
+starter_code: |
+  -- Write your SQL query below
+  SELECT e.name AS Employee
+  FROM Employee e
+  JOIN Employee m ON e.managerId = m.id
+  WHERE e.salary > m.salary;
+
+tests:
+  - args: []
+    expected:
+      - ["Joe"]
+    note: "Joe (70k) earns more than manager Sam (60k)"
+  - args: []
+    expected: null
+    note: "Self verification"
+  - args: []
+    expected: null
+    note: "Consistency check"
+
+visualize_test: 0
+
+drills:
+  - title: Alias table for self-join
+    skill: setup
+    goal: Join employee with manager alias.
+    instructions: |
+      Select `e.name AS emp, m.name AS mgr FROM Employee e JOIN Employee m ON e.managerId = m.id;`.
+    function:
+      name: execute_sql
+      params: []
+    starter_code: |
+      SELECT e.name AS emp, m.name AS mgr
+      FROM Employee e
+      JOIN Employee m ON e.managerId = m.id;
+    tests:
+      - args: []
+        expected: null
+    solution: |
+      SELECT e.name AS emp, m.name AS mgr
+      FROM Employee e
+      JOIN Employee m ON e.managerId = m.id;
+    hint: "Use `FROM Employee e JOIN Employee m ON e.managerId = m.id`."
+
+  - title: Filter by salary comparison
+    skill: core
+    goal: Compare salaries between aliases.
+    instructions: |
+      Add `WHERE e.salary > m.salary` to select `e.name AS Employee`.
+    function:
+      name: execute_sql
+      params: []
+    starter_code: |
+      SELECT e.name AS Employee
+      FROM Employee e
+      JOIN Employee m ON e.managerId = m.id
+      WHERE e.salary > m.salary;
+    tests:
+      - args: []
+        expected:
+          - ["Joe"]
+    solution: |
+      SELECT e.name AS Employee
+      FROM Employee e
+      JOIN Employee m ON e.managerId = m.id
+      WHERE e.salary > m.salary;
+    hint: "Add `WHERE e.salary > m.salary`."
+
+  - title: Alternative correlated subquery syntax
+    skill: edge
+    goal: Formulate equivalent comparison with subquery.
+    instructions: |
+      Select `e.name AS Employee FROM Employee e WHERE e.salary > (SELECT m.salary FROM Employee m WHERE m.id = e.managerId);`.
+    function:
+      name: execute_sql
+      params: []
+    starter_code: |
+      SELECT e.name AS Employee
+      FROM Employee e
+      WHERE e.salary > (SELECT m.salary FROM Employee m WHERE m.id = e.managerId);
+    tests:
+      - args: []
+        expected:
+          - ["Joe"]
+    solution: |
+      SELECT e.name AS Employee
+      FROM Employee e
+      WHERE e.salary > (SELECT m.salary FROM Employee m WHERE m.id = e.managerId);
+    hint: "Use `WHERE e.salary > (SELECT m.salary FROM Employee m WHERE m.id = e.managerId)`."
+
+hints:
+  - "Alias the `Employee` table twice: `FROM Employee e JOIN Employee m ON e.managerId = m.id`."
+  - "Compare their salaries: `WHERE e.salary > m.salary`."
+  - "Select `e.name AS Employee`."
+
+solution:
+  code: |
+    SELECT e.name AS Employee
+    FROM Employee e
+    JOIN Employee m ON e.managerId = m.id
+    WHERE e.salary > m.salary;
+  explanation: |
+    1. `FROM Employee e JOIN Employee m ON e.managerId = m.id`:
+       Treats `e` as the employee and `m` as the corresponding manager.
+       Top-level employees whose `managerId IS NULL` are automatically dropped by the inner join.
+    2. `WHERE e.salary > m.salary`: filters for records where the employee's salary exceeds the manager's.
+    3. `SELECT e.name AS Employee`: outputs the subordinate's name with the requested column alias.
+  time: O(N) using in-memory hash join on managerId
+  space: O(N) for hash join table
+
+pitch_script: |
+  **(Clarify)** "We need to return the names of all employees who earn strictly more than their direct managers."
+
+  **(Basement Insight)** "Because hierarchical employee relationships reside in a single table, we perform a Self-Join by assigning distinct table aliases `e` (subordinate) and `m` (manager). An INNER JOIN naturally drops employees who have no manager (NULL `managerId`)."
+
+  **(Solution)** "We query `FROM Employee e JOIN Employee m ON e.managerId = m.id WHERE e.salary > m.salary`, projecting `e.name AS Employee`."
+
+  **(Complexity)** "Executes in O(N) time with a hash join or O(N log N) with an index on `id`."
+
+twist:
+  lc: 9315
+  title: Hierarchical Headcount with Recursive CTE
+  why: >-
+    To find total reporting headcount under every manager across arbitrary organizational depths,
+    a Recursive CTE is required (WITH RECURSIVE OrgChart AS ...).
+
+viz:
+  title: "Self-Join Manager Comparison"

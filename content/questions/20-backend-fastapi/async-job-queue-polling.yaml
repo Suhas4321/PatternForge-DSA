@@ -1,0 +1,309 @@
+slug: async-job-queue-polling
+lc: 9503
+citadel_id: backend_apis
+brick_layer: 3
+runner_type: python_practical
+
+concept:
+  problem_it_solves: >-
+    "How do you process long-running tasks (15s–10m) over HTTP without triggering reverse proxy 504 Gateway Timeouts?"
+    Holding open a synchronous HTTP connection while a heavy ML model or video encoder runs causes reverse proxies
+    (Cloudflare, Nginx, AWS ALB) to terminate the TCP socket after 30 to 60 seconds with HTTP 504 / 524 timeouts.
+    The HTTP 202 Accepted + Polling pattern decouples request submission from job completion.
+  brute_force: >-
+    Awaiting the 45-second machine learning job directly inside the FastAPI route handler.
+    Client connections hang, worker threads remain blocked, and edge proxies abort the connection.
+  brute_force_complexity: O(T) synchronous blocking connection; crashes proxy connection limits under moderate traffic.
+  key_insight: >-
+    Decouple ingestion from execution:
+    1. Client submits job via POST -> server queues job in Redis and returns `HTTP 202 Accepted` with a `job_id` in <50ms.
+    2. Background worker pulls job from queue and computes asynchronously.
+    3. Client polls `GET /jobs/{job_id}`:
+       - While working: returns `HTTP 200 OK` (or 202) with `status: "processing"`, `progress_percent`, and `retry_after`.
+       - When finished: returns `HTTP 200 OK` with `status: "completed"` and the asset URL.
+  real_world: >-
+    FitLabs IDM-VTON virtual try-on diffusion pipeline, OpenAI Batch API, AWS Transcribe, and Stripe payment exports.
+
+statement:
+  clean: |
+    Implement an asynchronous job queue and polling dispatcher using async job 202 accepted:
+    `def poll_job_status(self, job: dict, current_tick: int) -> dict`.
+    
+    Given a `job` dictionary containing:
+    - `job_id`: string identifier
+    - `created_tick`: integer creation time
+    - `duration_ticks`: integer required processing ticks
+    - `payload`: optional dictionary of job parameters
+    
+    And `current_tick` (integer representing current simulated time):
+    1. If `current_tick < job["created_tick"]`:
+       return `{"status_code": 400, "status": "invalid_tick", "message": "Current tick precedes job creation"}`
+    2. Calculate elapsed ticks: `elapsed = current_tick - job["created_tick"]`.
+    3. If `elapsed == 0`:
+       return `{"status_code": 202, "status": "pending", "progress_percent": 0, "retry_after": 2}`
+    4. If `0 < elapsed < job["duration_ticks"]`:
+       Calculate integer progress: `progress = int((elapsed / job["duration_ticks"]) * 100)`
+       return `{"status_code": 200, "status": "processing", "progress_percent": progress, "retry_after": 1}`
+    5. If `elapsed >= job["duration_ticks"]`:
+       If `job.get("payload", {}).get("simulate_failure")`:
+         return `{"status_code": 200, "status": "failed", "error": "Inference computation failed", "progress_percent": 100}`
+       Otherwise:
+         return {
+           "status_code": 200,
+           "status": "completed",
+           "result_url": f"https://fitlabs.ai/results/{job['job_id']}.png",
+           "progress_percent": 100
+         }
+  oa_story: |
+    **FitLabs Virtual Try-On — IDM-VTON Diffusion Polling Pipeline**
+    
+    In FitLabs, running 25-second IDM-VTON virtual try-on diffusion inference on HuggingFace ZeroGPU
+    caused Cloudflare reverse proxies to terminate user connections at second 30 with HTTP 524 timeouts.
+    
+    By returning HTTP 202 Accepted within 50ms and dispatching the task to an asynchronous worker queue,
+    mobile clients polled job status smoothly, completely eliminating timeout drops.
+  trigger_keywords: ["async job 202 accepted", "poll_job_status", "job"]
+  examples:
+    - input: 'job = {"job_id": "vton_1", "created_tick": 10, "duration_ticks": 5}, current_tick = 10'
+      output: '{"status_code": 202, "status": "pending", "progress_percent": 0, "retry_after": 2}'
+      explanation: "Job just created (elapsed=0), returns 202 Accepted."
+    - input: 'job = {"job_id": "vton_1", "created_tick": 10, "duration_ticks": 5}, current_tick = 12'
+      output: '{"status_code": 200, "status": "processing", "progress_percent": 40, "retry_after": 1}'
+      explanation: "Elapsed 2/5 ticks (40% progress), returns processing."
+    - input: 'job = {"job_id": "vton_1", "created_tick": 10, "duration_ticks": 5}, current_tick = 15'
+      output: '{"status_code": 200, "status": "completed", "result_url": "https://fitlabs.ai/results/vton_1.png", "progress_percent": 100}'
+      explanation: "Job completed, returns final result URL."
+  constraints:
+    - "duration_ticks >= 1"
+    - "job_id is a non-empty string"
+
+constraint_quiz:
+  prompt: "Why is HTTP 202 Accepted preferred over HTTP 200 OK when submitting long-running background tasks?"
+  options:
+    - "202 Accepted explicitly signals to clients that the request has been accepted for processing, but processing has not yet completed"
+    - "202 Accepted automatically disables SSL encryption"
+    - "202 Accepted compresses image uploads faster than 200"
+    - "202 Accepted causes browsers to refresh automatically"
+  answer: 0
+  explanation: "RFC 9110 specifies that 202 Accepted indicates the request has been validated and queued for execution, but final outcome is not yet determined."
+
+pattern_quiz:
+  prompt: "What is the role of the `Retry-After` header in an asynchronous polling API?"
+  options:
+    - "It advises the client how many seconds to wait before making the next polling check, preventing client tight-loops from overwhelming the server"
+    - "It tells the database when to commit the transaction"
+    - "It forces the GPU to run 2x faster"
+    - "It disconnects the client permanently"
+  answer: 0
+  explanation: "Without a `Retry-After` recommendation, naive mobile clients might poll in a 0ms while-loop, effectively DDoS-ing the status endpoint."
+
+function:
+  name: poll_job_status
+  params:
+    - name: job
+      type: any
+    - name: current_tick
+      type: any
+  returns: any
+
+starter_code: |
+  class Solution:
+      def poll_job_status(self, job: dict, current_tick: int) -> dict:
+          pass
+
+tests:
+  - args:
+      - {"job_id": "vton_1", "created_tick": 10, "duration_ticks": 5}
+      - 10
+    expected:
+      status_code: 202
+      status: "pending"
+      progress_percent: 0
+      retry_after: 2
+    note: "Just created returns 202 pending"
+
+  - args:
+      - {"job_id": "vton_1", "created_tick": 10, "duration_ticks": 5}
+      - 12
+    expected:
+      status_code: 200
+      status: "processing"
+      progress_percent: 40
+      retry_after: 1
+    note: "Mid-execution returns processing with progress"
+
+  - args:
+      - {"job_id": "vton_1", "created_tick": 10, "duration_ticks": 5}
+      - 15
+    expected:
+      status_code: 200
+      status: "completed"
+      result_url: "https://fitlabs.ai/results/vton_1.png"
+      progress_percent: 100
+    note: "Finished execution returns completed URL"
+
+  - args:
+      - {"job_id": "vton_err", "created_tick": 0, "duration_ticks": 4, "payload": {"simulate_failure": true}}
+      - 4
+    expected:
+      status_code: 200
+      status: "failed"
+      error: "Inference computation failed"
+      progress_percent: 100
+    note: "Handled failure status"
+
+  - args:
+      - {"job_id": "vton_invalid", "created_tick": 20, "duration_ticks": 5}
+      - 10
+    expected:
+      status_code: 400
+      status: "invalid_tick"
+      message: "Current tick precedes job creation"
+    note: "Invalid tick returns 400"
+
+visualize_test: 1
+
+drills:
+  - title: Calculate progress percentage
+    skill: setup
+    goal: Convert elapsed and duration into integer percentage.
+    instructions: |
+      Return `int((elapsed / duration) * 100)`.
+    function:
+      name: calc_progress
+      params: [{name: elapsed}, {name: duration}]
+    starter_code: |
+      class Solution:
+          def calc_progress(self, elapsed: int, duration: int) -> int:
+              pass
+    tests:
+      - {args: [2, 5], expected: 40}
+      - {args: [5, 5], expected: 100}
+    solution: |
+      class Solution:
+          def calc_progress(self, elapsed: int, duration: int) -> int:
+              return int((elapsed / duration) * 100)
+    hint: "Use int((elapsed / duration) * 100)."
+
+  - title: Result URL formatter
+    skill: core
+    goal: Construct formatted result URL string.
+    instructions: |
+      Return `f"https://fitlabs.ai/results/{job_id}.png"`.
+    function:
+      name: format_url
+      params: [{name: job_id}]
+    starter_code: |
+      class Solution:
+          def format_url(self, job_id: str) -> str:
+              pass
+    tests:
+      - {args: ["test_1"], expected: "https://fitlabs.ai/results/test_1.png"}
+    solution: |
+      class Solution:
+          def format_url(self, job_id: str) -> str:
+              return f"https://fitlabs.ai/results/{job_id}.png"
+    hint: "Use f-string formatting."
+
+  - title: Elapsed bounds validation
+    skill: edge
+    goal: Return False if current < created.
+    instructions: |
+      Return `current >= created`.
+    function:
+      name: is_valid_tick
+      params: [{name: current}, {name: created}]
+    starter_code: |
+      class Solution:
+          def is_valid_tick(self, current: int, created: int) -> bool:
+              pass
+    tests:
+      - {args: [10, 5], expected: true}
+      - {args: [4, 5], expected: false}
+    solution: |
+      class Solution:
+          def is_valid_tick(self, current: int, created: int) -> bool:
+              return current >= created
+    hint: "Return current >= created."
+
+hints:
+  - "Check `if current_tick < job['created_tick']:` first and return status_code 400."
+  - "Compute `elapsed = current_tick - job['created_tick']`. If 0, return status_code 202 with status 'pending' and progress 0."
+  - "If `elapsed < job['duration_ticks']`, compute progress percentage and return 'processing'. Otherwise check `job.get('payload', {}).get('simulate_failure')` to return 'failed' or 'completed'."
+
+solution:
+  code: |
+    class Solution:
+        def poll_job_status(self, job: dict, current_tick: int) -> dict:
+            created = job.get("created_tick", 0)
+            duration = job.get("duration_ticks", 1)
+            job_id = job.get("job_id", "unknown")
+
+            if current_tick < created:
+                return {
+                    "status_code": 400,
+                    "status": "invalid_tick",
+                    "message": "Current tick precedes job creation",
+                }
+
+            elapsed = current_tick - created
+
+            if elapsed == 0:
+                return {
+                    "status_code": 202,
+                    "status": "pending",
+                    "progress_percent": 0,
+                    "retry_after": 2,
+                }
+
+            if elapsed < duration:
+                progress = int((elapsed / duration) * 100)
+                return {
+                    "status_code": 200,
+                    "status": "processing",
+                    "progress_percent": progress,
+                    "retry_after": 1,
+                }
+
+            # Completed or Failed
+            payload = job.get("payload") or {}
+            if payload.get("simulate_failure"):
+                return {
+                    "status_code": 200,
+                    "status": "failed",
+                    "error": "Inference computation failed",
+                    "progress_percent": 100,
+                }
+
+            return {
+                "status_code": 200,
+                "status": "completed",
+                "result_url": f"https://fitlabs.ai/results/{job_id}.png",
+                "progress_percent": 100,
+            }
+  explanation: |
+    The state machine transitions based on elapsed time:
+    - `elapsed == 0`: initial enqueue, returning HTTP 202 Accepted.
+    - `0 < elapsed < duration`: active processing, returning percentage completion and `retry_after`.
+    - `elapsed >= duration`: terminal state, checking for worker errors or returning the generated resource URL.
+  time: O(1) arithmetic
+  space: O(1)
+
+pitch_script: |
+  **(Clarify)** "We need to simulate an asynchronous job queue status endpoint implementing the 202 Accepted and polling lifecycle pattern."
+
+  **(Basement Insight)** "Synchronous HTTP requests for heavy jobs (e.g. 25-second AI inference) inevitably hit reverse proxy timeouts at 30 seconds. Decoupling ingestion from execution via HTTP 202 Accepted and polling endpoints avoids socket timeout crashes completely."
+
+  **(Solution)** "We calculate elapsed time since job creation. If elapsed is 0, we return 202 pending. While elapsed is less than total duration, we return 200 processing with calculated progress percent. Once elapsed meets or exceeds duration, we return the final result or error."
+
+  **(Complexity)** "Executes in O(1) time and space."
+
+twist:
+  lc: 9504
+  title: Server-Sent Events (SSE) & WebSocket Push Alternative
+  why: >-
+    Instead of repeated HTTP client polling which wastes network bandwidth, upgrade the connection
+    to Server-Sent Events (SSE) or WebSockets to push progress events to the client in real-time.
+
+viz:
+  title: "HTTP 202 Accepted & Background Polling Timeline"

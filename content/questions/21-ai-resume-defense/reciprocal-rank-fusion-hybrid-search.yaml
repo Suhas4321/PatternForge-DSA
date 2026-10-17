@@ -1,0 +1,258 @@
+slug: reciprocal-rank-fusion-hybrid-search
+lc: 9602
+citadel_id: ai_resume
+brick_layer: 2
+runner_type: python_practical
+
+concept:
+  problem_it_solves: >-
+    "Why do pure vector search and pure keyword search both fail in production enterprise RAG?"
+    Dense vector embeddings excel at semantic paraphrasing ("how do I turn on debug logs?"),
+    but fail on exact acronyms, error codes, and SKU identifiers (e.g., `ORA-01403: no data found`),
+    blurring exact tokens into broad conceptual clusters. Sparse BM25 keyword search excels at exact tokens, but fails on synonyms.
+  brute_force: >-
+    Naively adding raw scores: `0.5 * bm25_score + 0.5 * vector_cosine_score`.
+    BM25 scores are unbounded $[0, \infty)$, while cosine scores are bounded $[-1, 1]$.
+    Uncalibrated score addition lets arbitrary BM25 magnitudes completely dominate semantic vector signals.
+  brute_force_complexity: O(N) uncalibrated fusion that breaks ranking accuracy.
+  key_insight: >-
+    Reciprocal Rank Fusion (RRF) discards uncalibrated raw scores entirely and operates solely on ordinal rank positions:
+    $$\text{RRF}(d) = \sum_{m \in \{\text{dense}, \text{sparse}\}} \frac{1}{k + \text{rank}_m(d)}$$
+    Where $\text{rank}_m(d)$ is the 1-based rank of document $d$ in retriever $m$, and $k$ (typically 60) dampens the impact of high-ranking outliers.
+    Documents that appear near the top of both retrieval lists receive a compounded score boost, achieving the best of lexical precision and semantic depth.
+  real_world: >-
+    WisdomBot hybrid retrieval, Elasticsearch / OpenSearch RRF plugin, Pinecone hybrid search, and Azure AI Search.
+
+statement:
+  clean: |
+    Implement hybrid search result merging using reciprocal rank fusion:
+    `def reciprocal_rank_fusion(self, dense_ranks: list[str], sparse_ranks: list[str], k: int = 60) -> list[dict]`.
+    
+    Given:
+    - `dense_ranks`: list of document ID strings returned by dense vector search in descending order (index 0 is rank 1)
+    - `sparse_ranks`: list of document ID strings returned by sparse BM25 search in descending order (index 0 is rank 1)
+    - `k`: integer smoothing constant (default 60)
+    
+    1. If both lists are empty, return `[]`.
+    2. Maintain a running accumulator of RRF scores for each document ID.
+    3. For each document `doc` at 0-based index `i` in `dense_ranks`:
+       - `rank = i + 1`
+       - Add `1.0 / (k + rank)` to `doc`'s score.
+    4. For each document `doc` at 0-based index `j` in `sparse_ranks`:
+       - `rank = j + 1`
+       - Add `1.0 / (k + rank)` to `doc`'s score.
+    5. For each unique document, round its score to 6 decimal places: `round(score, 6)`.
+    6. Sort all unique documents by:
+       - Primary: RRF score descending
+       - Secondary (tie-breaker): document ID alphabetically ascending
+    7. Return list of dicts: `[{"doc_id": doc, "rrf_score": score}, ...]`.
+  oa_story: |
+    **WisdomBot RAG Pipeline — Aerospace Part Number Retrieval**
+    
+    When aircraft technicians searched for exact hardware specs like `MS21042-4 locknut torque`,
+    pure vector search hallucinated general fastener passages without the exact part number.
+    
+    By fusing dense semantic retrieval with sparse BM25 keyword matching via Reciprocal Rank Fusion,
+    WisdomBot guaranteed that exact part numbers matched while retaining broader semantic context.
+  trigger_keywords: ["reciprocal rank fusion", "reciprocal_rank_fusion", "dense_ranks"]
+  examples:
+    - input: 'dense_ranks = ["docA", "docB"], sparse_ranks = ["docB", "docC"], k = 60'
+      output: '[{"doc_id": "docB", "rrf_score": 0.032522}, {"doc_id": "docA", "rrf_score": 0.016393}, {"doc_id": "docC", "rrf_score": 0.016129}]'
+      explanation: "docB appears in both lists (rank 2 dense + rank 1 sparse), receiving the highest fused score."
+    - input: 'dense_ranks = ["d1"], sparse_ranks = ["d1"], k = 60'
+      output: '[{"doc_id": "d1", "rrf_score": 0.032787}]'
+      explanation: "Rank 1 in both: 1/61 + 1/61 = 2/61 ~ 0.032787."
+  constraints:
+    - "k >= 1"
+    - "0 <= len(dense_ranks), len(sparse_ranks) <= 100"
+
+constraint_quiz:
+  prompt: "Why is the constant k (typically 60) added to the denominator in the RRF formula: 1 / (k + rank)?"
+  options:
+    - "It prevents a document with rank 1 from overwhelming all other documents, smoothing the penalty difference between adjacent ranks"
+    - "It converts negative scores into positive numbers"
+    - "It ensures the score is always a prime number"
+    - "It limits the maximum number of documents to 60"
+  answer: 0
+  explanation: "Without k, rank 1 would have score 1.0 while rank 2 has score 0.5 (a massive 50% drop). With k=60, rank 1 is 1/61 (0.01639) and rank 2 is 1/62 (0.01613), smoothly rewarding consensus across multiple retrievers."
+
+pattern_quiz:
+  prompt: "Why is RRF immune to differences in score distributions between BM25 and Vector Search?"
+  options:
+    - "Because RRF discards raw score magnitudes completely and relies solely on the ordinal rank positions of documents"
+    - "Because RRF trains a neural network on every search"
+    - "Because BM25 and Vector search use the exact same formula"
+    - "Because RRF only runs on GPUs"
+  answer: 0
+  explanation: "Different retrieval algorithms produce non-comparable score ranges (BM25 is unbounded, cosine is [-1, 1]). RRF standardizes them by discarding scores and operating only on rank positions (1st, 2nd, 3rd)."
+
+function:
+  name: reciprocal_rank_fusion
+  params:
+    - name: dense_ranks
+      type: any
+    - name: sparse_ranks
+      type: any
+    - name: k
+      type: any
+  returns: any
+
+starter_code: |
+  class Solution:
+      def reciprocal_rank_fusion(self, dense_ranks: list[str], sparse_ranks: list[str], k: int = 60) -> list[dict]:
+          pass
+
+tests:
+  - args:
+      - ["docA", "docB"]
+      - ["docB", "docC"]
+      - 60
+    expected:
+      - {doc_id: "docB", rrf_score: 0.032522}
+      - {doc_id: "docA", rrf_score: 0.016393}
+      - {doc_id: "docC", rrf_score: 0.016129}
+    note: "Cross-retriever agreement ranks highest"
+
+  - args:
+      - ["d1"]
+      - ["d1"]
+      - 60
+    expected:
+      - {doc_id: "d1", rrf_score: 0.032787}
+    note: "Identical top match"
+
+  - args:
+      - []
+      - []
+      - 60
+    expected: []
+    note: "Empty input edge case"
+
+  - args:
+      - ["docX"]
+      - []
+      - 60
+    expected:
+      - {doc_id: "docX", rrf_score: 0.016393}
+    note: "Single retriever input"
+
+visualize_test: 0
+
+drills:
+  - title: Single rank RRF term
+    skill: setup
+    goal: Compute 1.0 / (k + rank).
+    instructions: |
+      Return `1.0 / (k + rank)`.
+    function:
+      name: calc_rrf_term
+      params: [{name: rank}, {name: k}]
+    starter_code: |
+      class Solution:
+          def calc_rrf_term(self, rank: int, k: int) -> float:
+              pass
+    tests:
+      - {args: [1, 60], expected: 0.01639344262295082}
+    solution: |
+      class Solution:
+          def calc_rrf_term(self, rank: int, k: int) -> float:
+              return 1.0 / (k + rank)
+    hint: "Return 1.0 / (k + rank)."
+
+  - title: Accumulate dict score
+    skill: core
+    goal: Add score to existing dictionary key.
+    instructions: |
+      `scores[doc] = scores.get(doc, 0.0) + delta`.
+    function:
+      name: add_score
+      params: [{name: scores}, {name: doc}, {name: delta}]
+    starter_code: |
+      class Solution:
+          def add_score(self, scores: dict, doc: str, delta: float) -> dict:
+              pass
+    tests:
+      - {args: [{"a": 1.0}, "a", 0.5], expected: {"a": 1.5}}
+    solution: |
+      class Solution:
+          def add_score(self, scores: dict, doc: str, delta: float) -> dict:
+              scores[doc] = scores.get(doc, 0.0) + delta
+              return scores
+    hint: "Use scores.get(doc, 0.0) + delta."
+
+  - title: Multi-key sort order
+    skill: edge
+    goal: Sort items by (-score, doc_id).
+    instructions: |
+      Return `sorted(items, key=lambda x: (-x[1], x[0]))`.
+    function:
+      name: sort_candidates
+      params: [{name: items}]
+    starter_code: |
+      class Solution:
+          def sort_candidates(self, items: list) -> list:
+              pass
+    tests:
+      - {args: [[["b", 10], ["a", 10], ["c", 20]]], expected: [["c", 20], ["a", 10], ["b", 10]]}
+    solution: |
+      class Solution:
+          def sort_candidates(self, items: list) -> list:
+              return sorted(items, key=lambda x: (-x[1], x[0]))
+    hint: "Sort by -score then doc_id."
+
+hints:
+  - "If both lists are empty, return `[]` immediately."
+  - "Use a `scores = {}` dictionary. Iterate `dense_ranks` with `rank = i + 1`, adding `1.0 / (k + rank)`. Do the same for `sparse_ranks`."
+  - "Round scores to 6 decimal places, sort by `(-score, doc_id)`, and return `[{'doc_id': doc, 'rrf_score': score}, ...]`."
+
+solution:
+  code: |
+    class Solution:
+        def reciprocal_rank_fusion(self, dense_ranks: list[str], sparse_ranks: list[str], k: int = 60) -> list[dict]:
+            if not dense_ranks and not sparse_ranks:
+                return []
+
+            scores: dict[str, float] = {}
+
+            for idx, doc in enumerate(dense_ranks):
+                rank = idx + 1
+                scores[doc] = scores.get(doc, 0.0) + (1.0 / (k + rank))
+
+            for idx, doc in enumerate(sparse_ranks):
+                rank = idx + 1
+                scores[doc] = scores.get(doc, 0.0) + (1.0 / (k + rank))
+
+            ranked = [
+                {"doc_id": doc, "rrf_score": round(score, 6)}
+                for doc, score in scores.items()
+            ]
+
+            # Primary: score desc, Secondary: doc_id asc
+            ranked.sort(key=lambda x: (-x["rrf_score"], x["doc_id"]))
+
+            return ranked
+  explanation: |
+    Reciprocal Rank Fusion converts arbitrary rank orders into normalized reciprocal penalties.
+    By iterating both candidate sets and accumulating `1.0 / (k + rank)`, items retrieved near the top
+    of both dense and sparse pipelines achieve the highest compound score, balancing lexical precision and semantic recall.
+  time: O(N + M + U log U) where N is dense length, M is sparse length, U is unique docs
+  space: O(U) for dictionary and ranked output
+
+pitch_script: |
+  **(Clarify)** "We need to combine results from two search systems—dense vector embeddings and sparse BM25 keywords—using the Reciprocal Rank Fusion algorithm."
+
+  **(Basement Insight)** "Directly adding BM25 scores to vector similarity fails because BM25 scores are unbounded while cosine similarity is bounded between -1 and 1. RRF normalizes across systems by evaluating only ordinal rank positions."
+
+  **(Solution)** "For each document in both the dense and sparse result lists, we add `1.0 / (k + rank)` to its score accumulator. Documents retrieved by both systems receive compounded boosts. We round to 6 decimal places and sort by score descending with doc_id tie-breaking."
+
+  **(Complexity)** "Runs in O(N + M + U log U) time and O(U) space."
+
+twist:
+  lc: 9603
+  title: Cross-Encoder Neural Reranking Stage
+  why: >-
+    After RRF retrieves the top-50 candidate documents, feed query-document pairs into a BERT Cross-Encoder
+    to model full cross-attention token interactions for the final top-5 prompt injection.
+
+viz:
+  title: "Hybrid Reciprocal Rank Fusion Architecture"

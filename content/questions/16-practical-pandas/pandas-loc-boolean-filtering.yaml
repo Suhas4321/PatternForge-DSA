@@ -1,0 +1,243 @@
+slug: pandas-loc-boolean-filtering
+lc: 9231
+citadel_id: python_data
+brick_layer: 1
+runner_type: python_practical
+
+concept:
+  problem_it_solves: >-
+    "Why does looping through a 100,000-row Pandas DataFrame with for row in df.iterrows(): take 45 seconds when SQL takes 5ms?"
+    Python for loops incur heavy CPython object boxing and unboxing overhead on every iteration.
+    Vectorized boolean indexing with `.loc[mask]` executes across contiguous C-arrays in NumPy, filtering 100,000 rows in under 2 milliseconds.
+  brute_force: >-
+    Using `df.iterrows()` or `df.apply()` with an inline Python function containing `if row['status'] == 'FAIL' and row['latency'] > 500:`.
+    This bypasses SIMD CPU vectorization and serializes memory access.
+  brute_force_complexity: O(N) operations in Python bytecode — 100x slower than vectorized C-loops.
+  key_insight: >-
+    Construct boolean Series masks using bitwise operators (`&`, `|`, `~`). In Pandas, `(df['status'] == 'FAIL') & (df['latency_ms'] > threshold)`
+    computes an aligned boolean array in compiled C code. Passing this mask into `.loc[mask]` returns filtered records in a single vectorized pass.
+  real_world: >-
+    Real-time fraud detection pipelines, test failure triage dashboards, and telemetry anomaly alerting engines.
+
+statement:
+  clean: |
+    Implement high-speed vectorized filtering using boolean indexing loc:
+    `filter_slow_failures(data: list[dict], threshold_ms: int) -> list[dict]`.
+    
+    Given a list of device test run dictionaries with keys:
+    `test_id` (int), `device` (str), `status` (str), and `latency_ms` (int).
+    
+    Tasks:
+    1. Load `data` into a `pandas.DataFrame`.
+    2. If `data` is empty, return `[]`.
+    3. Construct a vectorized boolean mask that selects rows where:
+       - `status == "FAIL"`, AND
+       - `latency_ms > threshold_ms`.
+    4. Slice the DataFrame using `.loc[mask]`.
+    5. Return the resulting rows as a list of dictionaries via `.to_dict(orient="records")`.
+  oa_story: |
+    **Drizz Mobile CI/CD — Flaky Device Triage**
+    
+    Every night, our test automation cluster runs 50,000 automated UI journeys across 80 physical Android devices.
+    The triage script was lagging by 20 minutes because it checked every row with a Python `for row in df.iterrows():` loop.
+    
+    Refactor this filter into a vectorized `.loc` query so the CI/CD pipeline can isolate slow failed runs instantaneously.
+  trigger_keywords: ["boolean indexing loc", "filter_slow_failures", "data"]
+  examples:
+    - input: "data = [{'test_id': 1, 'device': 'Pixel 8', 'status': 'FAIL', 'latency_ms': 600}, {'test_id': 2, 'device': 'S23', 'status': 'PASS', 'latency_ms': 700}], threshold_ms = 500"
+      output: "[{'test_id': 1, 'device': 'Pixel 8', 'status': 'FAIL', 'latency_ms': 600}]"
+      explanation: "Row 1 failed and latency 600 > 500. Row 2 passed, so it is excluded."
+  constraints:
+    - "data contains between 0 and 50,000 records"
+    - "threshold_ms is a positive integer"
+
+constraint_quiz:
+  prompt: >-
+    Why must you use bitwise `&` instead of Python's logical `and` when combining boolean Series in Pandas?
+  options:
+    - "Because `and` evaluates truth value of the entire Series object rather than element-wise"
+    - "Because bitwise operators are slower"
+    - "Because `and` only works on numbers"
+    - "Because `&` allocates more RAM"
+  answer: 0
+  explanation: >-
+    Python's `and` evaluates whether the whole container is truthy (raising ValueError in Pandas), while `&` evaluates element-wise boolean operations across arrays.
+
+pattern_quiz:
+  prompt: Which Pandas method provides label-based slicing using boolean series masks?
+  options:
+    - ".loc[]"
+    - ".iloc[]"
+    - ".filter()"
+    - ".where()"
+  answer: 0
+  explanation: >-
+    `.loc[boolean_mask]` is the idiomatic Pandas method for label-based and boolean-condition row selection.
+
+function:
+  name: filter_slow_failures
+  params:
+    - {name: data}
+    - {name: threshold_ms}
+
+starter_code: |
+  class Solution:
+      def filter_slow_failures(self, data: list[dict], threshold_ms: int) -> list[dict]:
+          pass
+
+tests:
+  - args:
+      - [
+          {"test_id": 101, "device": "Pixel 8", "status": "FAIL", "latency_ms": 680},
+          {"test_id": 102, "device": "Pixel 8", "status": "PASS", "latency_ms": 320},
+          {"test_id": 103, "device": "Galaxy S23", "status": "FAIL", "latency_ms": 400},
+          {"test_id": 104, "device": "iPhone 15", "status": "FAIL", "latency_ms": 850}
+        ]
+      - 500
+    expected:
+      - {"test_id": 101, "device": "Pixel 8", "status": "FAIL", "latency_ms": 680}
+      - {"test_id": 104, "device": "iPhone 15", "status": "FAIL", "latency_ms": 850}
+  - args:
+      - [
+          {"test_id": 201, "device": "Pixel 7", "status": "PASS", "latency_ms": 100}
+        ]
+      - 200
+    expected: []
+  - args:
+      - []
+      - 500
+    expected: []
+  - args:
+      - [
+          {"test_id": 301, "device": "Tab S9", "status": "FAIL", "latency_ms": 501}
+        ]
+      - 500
+    expected:
+      - {"test_id": 301, "device": "Tab S9", "status": "FAIL", "latency_ms": 501}
+
+visualize_test: 0
+
+drills:
+  - title: Create DataFrame from records
+    skill: setup
+    goal: Initialize DataFrame from list of dicts.
+    instructions: |
+      Given `records`, return the row count of `pd.DataFrame(records)`.
+    function:
+      name: df_row_count
+      params: [{name: records}]
+    starter_code: |
+      class Solution:
+          def df_row_count(self, records: list[dict]) -> int:
+              pass
+    tests:
+      - {args: [[{"a": 1}, {"a": 2}]], expected: 2}
+      - {args: [[]], expected: 0}
+    solution: |
+      import pandas as pd
+
+      class Solution:
+          def df_row_count(self, records: list[dict]) -> int:
+              df = pd.DataFrame(records)
+              return len(df)
+    hint: "Use `len(pd.DataFrame(records))`."
+
+  - title: Vectorized boolean equality mask
+    skill: core
+    goal: Create mask selecting rows matching string.
+    instructions: |
+      Return records where `category == 'A'` using `df.loc[df['category'] == 'A']`.
+    function:
+      name: filter_category_a
+      params: [{name: records}]
+    starter_code: |
+      class Solution:
+          def filter_category_a(self, records: list[dict]) -> list[dict]:
+              pass
+    tests:
+      - {args: [[{"id": 1, "category": "A"}, {"id": 2, "category": "B"}]], expected: [{"id": 1, "category": "A"}]}
+      - {args: [[]], expected: []}
+    solution: |
+      import pandas as pd
+
+      class Solution:
+          def filter_category_a(self, records: list[dict]) -> list[dict]:
+              if not records:
+                  return []
+              df = pd.DataFrame(records)
+              filtered = df.loc[df["category"] == "A"]
+              return filtered.to_dict(orient="records")
+    hint: "Use `df.loc[df['category'] == 'A'].to_dict(orient='records')`."
+
+  - title: Combined bitwise and condition
+    skill: edge
+    goal: Combine two Series conditions with bitwise &.
+    instructions: |
+      Return records where `val > 10` and `flag == True`.
+    function:
+      name: filter_both
+      params: [{name: records}]
+    starter_code: |
+      class Solution:
+          def filter_both(self, records: list[dict]) -> list[dict]:
+              pass
+    tests:
+      - {args: [[{"val": 15, "flag": true}, {"val": 5, "flag": true}]], expected: [{"val": 15, "flag": true}]}
+      - {args: [[]], expected: []}
+    solution: |
+      import pandas as pd
+
+      class Solution:
+          def filter_both(self, records: list[dict]) -> list[dict]:
+              if not records:
+                  return []
+              df = pd.DataFrame(records)
+              mask = (df["val"] > 10) & (df["flag"] == True)
+              return df.loc[mask].to_dict(orient="records")
+    hint: "Wrap each comparison in parentheses: `(cond1) & (cond2)`."
+
+hints:
+  - "If `not data`: return `[]`."
+  - "Build DataFrame: `df = pd.DataFrame(data)`."
+  - "Create mask: `mask = (df['status'] == 'FAIL') & (df['latency_ms'] > threshold_ms)` and return `df.loc[mask].to_dict(orient='records')`."
+
+solution:
+  code: |
+    import pandas as pd
+
+    class Solution:
+        def filter_slow_failures(self, data: list[dict], threshold_ms: int) -> list[dict]:
+            if not data:
+                return []
+            df = pd.DataFrame(data)
+            mask = (df["status"] == "FAIL") & (df["latency_ms"] > threshold_ms)
+            filtered_df = df.loc[mask]
+            return filtered_df.to_dict(orient="records")
+  explanation: |
+    By instantiating a `pd.DataFrame`, the columnar data is stored in contiguous C-arrays.
+    The compound condition `(df["status"] == "FAIL") & (df["latency_ms"] > threshold_ms)`
+    executes via vectorized CPU operations without running Python bytecode on each row.
+    
+    Using `.loc[mask]` slices the qualifying rows instantly and `.to_dict(orient="records")`
+    serializes the result into a clean list of row dictionaries.
+  time: O(N) vectorized C-speed execution
+  space: O(N) for DataFrame memory
+
+pitch_script: |
+  **(Clarify)** "We need to filter device run records for failed tests where latency exceeds a threshold, returning the result as a list of records."
+
+  **(Basement Insight)** "Iterating over DataFrames using `iterrows()` is notoriously slow because it converts each row into a Python Series object on every step. Vectorized operations using bitwise `&` on boolean Series evaluate at compiled C speed directly on NumPy memory buffers."
+
+  **(Solution)** "We build a DataFrame, construct a vectorized boolean mask `(df['status'] == 'FAIL') & (df['latency_ms'] > threshold_ms)`, slice with `.loc[mask]`, and serialize with `.to_dict(orient='records')`."
+
+  **(Complexity)** "Runs in O(N) vectorized time across N rows, using O(N) space for the DataFrame."
+
+twist:
+  lc: 9232
+  title: Inverted Selection with ~ and isin() Filtering
+  why: >-
+    Filtering out devices belonging to an exclusion list: ~df['device'].isin(deprecated_devices).
+    Bitwise NOT (~) flips the boolean mask in a single vectorized pass.
+
+viz:
+  title: "Pandas Vectorized Boolean Filter"

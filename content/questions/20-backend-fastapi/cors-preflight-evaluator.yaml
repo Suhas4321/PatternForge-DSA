@@ -1,0 +1,281 @@
+slug: cors-preflight-evaluator
+lc: 9506
+citadel_id: backend_apis
+brick_layer: 1
+runner_type: python_practical
+concept:
+  problem_it_solves: Why does a browser block web applications from querying APIs on another domain until a special OPTIONS
+    request succeeds? Cross-Origin Resource Sharing (CORS) protects users from malicious sites reading private intranet or
+    API data. For non-simple requests (custom headers like `Authorization` or methods like `PUT`/`DELETE`), browsers send
+    an HTTP `OPTIONS` preflight request. The server must explicitly declare allowed origins, methods, and headers.
+  brute_force: 'Blindly setting `Access-Control-Allow-Origin: *` on production authenticated APIs, exposing cookies and sensitive
+    data to CSRF attacks.'
+  brute_force_complexity: Severe browser security vulnerability.
+  key_insight: Evaluating the Origin, Method, and non-simple Headers against strict server policies returns HTTP 204 No Content
+    with `Access-Control-*` headers or appropriate 4xx rejections.
+  real_world: FastAPI `CORSMiddleware`, AWS API Gateway CORS policies, and Cloudflare egress security headers.
+statement:
+  clean: "Implement a CORS preflight options decision engine for cross-origin browser security:\n`evaluate_cors_preflight(origin:\
+    \ str, method: str, headers: list[str], allowed_origins: list[str], allowed_methods: list[str], allowed_headers: list[str])\
+    \ -> dict`.\n\nInputs:\n- `origin`: client request `Origin` header (e.g. `\"https://app.payloop.in\"`).\n- `method`: requested\
+    \ `Access-Control-Request-Method` (e.g. `\"POST\"`).\n- `headers`: list of requested `Access-Control-Request-Headers`\
+    \ (e.g. `[\"Authorization\", \"Content-Type\"]`).\n- `allowed_origins`, `allowed_methods`, `allowed_headers`: server whitelist\
+    \ policies.\n\nRules:\n1. Origin Validation:\n   - If `origin not in allowed_origins` and `\"*\"` not in `allowed_origins`:\n\
+    \     return `{\"allowed\": False, \"status_code\": 403, \"headers\": {}}`.\n2. Method Validation:\n   - If `method.upper()`\
+    \ not in `[m.upper() for m in allowed_methods]`:\n     return `{\"allowed\": False, \"status_code\": 405, \"headers\"\
+    : {}}`.\n3. Header Validation:\n   - Case-insensitive check: all requested `headers` must be in `allowed_headers` OR belong\
+    \ to standard simple headers (`\"content-type\"`, `\"accept\"`, `\"origin\"`).\n   - If any requested header is disallowed:\n\
+    \     return `{\"allowed\": False, \"status_code\": 400, \"headers\": {}}`.\n4. Success (CORS Preflight Approved):\n \
+    \  - Return HTTP 204 No Content with response headers:\n     - `\"Access-Control-Allow-Origin\"`: `origin` (or `\"*\"\
+    ` if wildcard allowed)\n     - `\"Access-Control-Allow-Methods\"`: comma-separated `allowed_methods`\n     - `\"Access-Control-Allow-Headers\"\
+    `: comma-separated `allowed_headers`\n     - `\"Access-Control-Max-Age\"`: `\"86400\"`\n   - Result: `{\"allowed\": True,\
+    \ \"status_code\": 204, \"headers\": resp_headers}`."
+  oa_story: '**PayLoop Merchant Dashboard — CORS Preflight Failure**
+
+
+    PayLoop launched a merchant analytics portal hosted on `https://portal.payloop.in` calling API backend `https://api.payloop.in`.
+    In Chrome, API requests failed instantly with console errors: ''No Access-Control-Allow-Origin header is present on the
+    requested resource''.
+
+
+    The security team refused to open wildcards (`*`). Implement this CORS preflight engine to evaluate origins, methods,
+    and headers securely, returning HTTP 204 preflight approvals.'
+  trigger_keywords:
+  - cors preflight options decision engine
+  - evaluate_cors_preflight
+  - Access-Control-Allow-Origin
+  examples:
+  - input: origin = "https://payloop.in", method = "POST", headers = ["Authorization", "Content-Type"], allowed_origins =
+      ["https://payloop.in"], allowed_methods = ["GET", "POST", "OPTIONS"], allowed_headers = ["Authorization", "Content-Type"]
+    output: '{"allowed": True, "status_code": 204, "headers": {"Access-Control-Allow-Origin": "https://payloop.in", "Access-Control-Allow-Methods":
+      "GET, POST, OPTIONS", "Access-Control-Allow-Headers": "Authorization, Content-Type", "Access-Control-Max-Age": "86400"}}'
+    explanation: Origin, method, and headers match allowed policies, yielding HTTP 204 preflight approval.
+  - input: origin = "https://malicious-site.com", method = "POST", headers = [], allowed_origins = ["https://payloop.in"],
+      allowed_methods = ["GET", "POST"], allowed_headers = []
+    output: '{"allowed": False, "status_code": 403, "headers": {}}'
+    explanation: Untrusted origin rejected with HTTP 403 Forbidden.
+  constraints:
+  - 1 <= len(allowed_origins) <= 50
+  - 1 <= len(allowed_methods) <= 10
+constraint_quiz:
+  prompt: What HTTP status code is typically returned by servers for a successful CORS preflight OPTIONS request?
+  options:
+  - 204 No Content (or 200 OK)
+  - 301 Moved Permanently
+  - 404 Not Found
+  - 503 Service Unavailable
+  answer: 0
+  explanation: A preflight OPTIONS request is a metadata check that requires no response body, so servers respond with HTTP
+    204 No Content (or 200 OK) containing CORS headers.
+pattern_quiz:
+  prompt: What is the purpose of the `Access-Control-Max-Age` header in a CORS preflight response?
+  options:
+  - It specifies how many seconds the browser can cache the preflight result before needing to send another OPTIONS check
+  - It sets the maximum lifetime of user login sessions
+  - It controls database cache TTLs
+  - It sets the SSL certificate validity period
+  answer: 0
+  explanation: '`Access-Control-Max-Age` caches the preflight decision in the browser, eliminating the round-trip latency
+    of OPTIONS checks for subsequent requests within that window.'
+function:
+  name: evaluate_cors_preflight
+  params:
+  - name: origin
+  - name: method
+  - name: headers
+  - name: allowed_origins
+  - name: allowed_methods
+  - name: allowed_headers
+  returns: any
+  compare: exact
+starter_code: "class Solution:\n    def evaluate_cors_preflight(self, origin: str, method: str, headers: list[str], allowed_origins:\
+  \ list[str], allowed_methods: list[str], allowed_headers: list[str]) -> dict:\n        pass\n"
+tests:
+- args:
+  - https://payloop.in
+  - POST
+  - - Authorization
+    - Content-Type
+  - - https://payloop.in
+  - - GET
+    - POST
+    - OPTIONS
+  - - Authorization
+    - Content-Type
+  expected:
+    allowed: true
+    status_code: 204
+    headers:
+      Access-Control-Allow-Origin: https://payloop.in
+      Access-Control-Allow-Methods: GET, POST, OPTIONS
+      Access-Control-Allow-Headers: Authorization, Content-Type
+      Access-Control-Max-Age: '86400'
+  note: Successful preflight
+- args:
+  - https://attacker.com
+  - POST
+  - []
+  - - https://payloop.in
+  - - GET
+    - POST
+  - []
+  expected:
+    allowed: false
+    status_code: 403
+    headers: {}
+  note: Untrusted origin rejected
+- args:
+  - https://payloop.in
+  - DELETE
+  - []
+  - - https://payloop.in
+  - - GET
+    - POST
+  - []
+  expected:
+    allowed: false
+    status_code: 405
+    headers: {}
+  note: Method not allowed
+- args:
+  - https://payloop.in
+  - POST
+  - - X-Secret-Header
+  - - https://payloop.in
+  - - POST
+  - - Authorization
+  expected:
+    allowed: false
+    status_code: 400
+    headers: {}
+  note: Disallowed custom header
+visualize_test: 0
+drills:
+- skill: setup
+  title: Validate request origin
+  goal: Check if origin matches whitelist or wildcard.
+  instructions: Return `True` if `origin in allowed or '*' in allowed`.
+  function:
+    name: drill_check_origin
+    params:
+    - name: origin
+    - name: allowed
+  starter_code: "class Solution:\n    def drill_check_origin(self, origin: str, allowed: list[str]) -> bool:\n        pass\n"
+  tests:
+  - args:
+    - https://app.com
+    - - https://app.com
+    expected: true
+  - args:
+    - https://evil.com
+    - - https://app.com
+    expected: false
+  solution: "class Solution:\n    def drill_check_origin(self, origin: str, allowed: list[str]) -> bool:\n        return origin\
+    \ in allowed or \"*\" in allowed\n"
+  hint: Check `origin in allowed or '*' in allowed`.
+- skill: core
+  title: Verify non-simple headers
+  goal: Confirm all requested headers are in allowed set or simple list.
+  instructions: Check case-insensitively against allowed headers plus simple defaults.
+  function:
+    name: drill_check_headers
+    params:
+    - name: headers
+    - name: allowed
+  starter_code: "class Solution:\n    def drill_check_headers(self, headers: list[str], allowed: list[str]) -> bool:\n   \
+    \     pass\n"
+  tests:
+  - args:
+    - - Authorization
+    - - authorization
+    expected: true
+  - args:
+    - - X-Custom
+    - - authorization
+    expected: false
+  solution: "class Solution:\n    def drill_check_headers(self, headers: list[str], allowed: list[str]) -> bool:\n       \
+    \ safe = {h.lower() for h in allowed} | {\"content-type\", \"accept\", \"origin\"}\n        return all(h.lower() in safe\
+    \ for h in headers)\n"
+  hint: Convert to lower case and check subset.
+- skill: edge
+  title: Construct CORS 204 headers
+  goal: Build preflight response headers dictionary.
+  instructions: Format Access-Control headers with comma separated methods and headers.
+  function:
+    name: drill_cors_dict
+    params:
+    - name: origin
+    - name: methods
+    - name: headers
+  starter_code: "class Solution:\n    def drill_cors_dict(self, origin: str, methods: list[str], headers: list[str]) -> dict:\n\
+    \        pass\n"
+  tests:
+  - args:
+    - https://a.com
+    - - GET
+      - POST
+    - - Auth
+    expected:
+      Access-Control-Allow-Origin: https://a.com
+      Access-Control-Allow-Methods: GET, POST
+      Access-Control-Allow-Headers: Auth
+      Access-Control-Max-Age: '86400'
+  solution: "class Solution:\n    def drill_cors_dict(self, origin: str, methods: list[str], headers: list[str]) -> dict:\n\
+    \        return {\n            \"Access-Control-Allow-Origin\": origin,\n            \"Access-Control-Allow-Methods\"\
+    : \", \".join(methods),\n            \"Access-Control-Allow-Headers\": \", \".join(headers),\n            \"Access-Control-Max-Age\"\
+    : \"86400\",\n        }\n"
+  hint: Join with comma and space.
+hints:
+- Validate origin against `allowed_origins` and `*`.
+- Verify method case-insensitively, then verify requested headers.
+- '| # Pseudocode Blueprint
+
+  | if origin not in allowed and "*" not in allowed: return False, 403
+
+  | if method.upper() not in [m.upper() for m in allowed_methods]: return False, 405
+
+  | safe = {h.lower() for h in allowed_headers} | {content-type, accept, origin}
+
+  | if any(h.lower() not in safe for h in headers): return False, 400
+
+  | return True, 204, {Access-Control headers}'
+solution:
+  code: "class Solution:\n    def evaluate_cors_preflight(self, origin: str, method: str, headers: list[str], allowed_origins:\
+    \ list[str], allowed_methods: list[str], allowed_headers: list[str]) -> dict:\n        if origin not in allowed_origins\
+    \ and \"*\" not in allowed_origins:\n            return {\"allowed\": False, \"status_code\": 403, \"headers\": {}}\n\n\
+    \        if method.upper() not in [m.upper() for m in allowed_methods]:\n            return {\"allowed\": False, \"status_code\"\
+    : 405, \"headers\": {}}\n\n        allowed_h_lower = {h.lower() for h in allowed_headers} | {\"content-type\", \"accept\"\
+    , \"origin\"}\n        for h in headers:\n            if h.lower() not in allowed_h_lower:\n                return {\"\
+    allowed\": False, \"status_code\": 400, \"headers\": {}}\n\n        resp_headers = {\n            \"Access-Control-Allow-Origin\"\
+    : origin if \"*\" not in allowed_origins else \"*\",\n            \"Access-Control-Allow-Methods\": \", \".join(allowed_methods),\n\
+    \            \"Access-Control-Allow-Headers\": \", \".join(allowed_headers),\n            \"Access-Control-Max-Age\":\
+    \ \"86400\",\n        }\n        return {\"allowed\": True, \"status_code\": 204, \"headers\": resp_headers}\n"
+  explanation: Validating the preflight request verifies the origin against the allowed whitelist (returning 403 on mismatch),
+    confirms the HTTP method (405 on unsupported verbs), and checks non-simple headers (400 on unpermitted headers). On approval,
+    it returns HTTP 204 with complete `Access-Control-*` headers.
+  time: O(H) where H is the count of requested headers
+  space: O(1) returned dictionary
+pitch_script: '**(Clarify)** "We need to evaluate a browser CORS preflight OPTIONS request by checking Origin, Method, and
+  Headers against security policies and returning 204 No Content with appropriate headers."
+
+
+  **(Brute force)** "Using wildcard `*` origins on authenticated endpoints permits malicious third-party websites to make
+  unauthorized authenticated requests on behalf of users."
+
+
+  **(Trigger)** "Evaluating preflight request parameters against security policies signals an HTTP OPTIONS decision engine."
+
+
+  **(Optimal)** "We validate Origin against the whitelist (rejecting with 403), check the method against allowed verbs (rejecting
+  with 405), and check non-simple headers against allowed headers (rejecting with 400). If valid, we return HTTP 204 with
+  `Access-Control-Allow-Origin`, `-Methods`, `-Headers`, and a 24-hour `-Max-Age` cache."
+
+
+  **(Complexity)** "Executes in O(H) time and O(1) space." '
+twist:
+  lc: 9521
+  title: HMAC-SHA256 Stateless Token Signer & Verifier
+  why: 'Once the CORS preflight passes, the browser submits the actual request carrying an `Authorization: Bearer <JWT>` header.'
+viz:
+  title: CORS Preflight HTTP OPTIONS Cycle
+  type: http_lifecycle

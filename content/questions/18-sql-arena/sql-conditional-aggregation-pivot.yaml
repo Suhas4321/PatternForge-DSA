@@ -1,0 +1,249 @@
+slug: sql-conditional-aggregation-pivot
+lc: 9316
+citadel_id: sql_dbms
+brick_layer: 6
+runner_type: sql_sqlite
+
+concept:
+  problem_it_solves: >-
+    "How do we transform discrete row values (such as test statuses PASS, FAIL, TIMEOUT) into columnar dashboard summaries in a single table pass?"
+    In relational databases that lack dynamic `PIVOT` operators, or where portable cross-database SQL is required,
+    conditional aggregation using `SUM(CASE WHEN status = 'X' THEN 1 ELSE 0 END)` is the industry-standard pattern.
+  brute_force: >-
+    Executing three separate queries (`SELECT COUNT(*) WHERE status = 'PASS'`, `SELECT COUNT(*) WHERE status = 'FAIL'`),
+    then joining the three resulting tables back together. This scans the underlying disk pages 3 times instead of 1.
+  brute_force_complexity: O(3 * N) table scans plus intermediate multi-join overhead.
+  key_insight: >-
+    Embedding a `CASE WHEN` expression directly inside an aggregate function (`SUM` or `COUNT`) computes multiple
+    pivoted column metrics during a single Sequential Table Scan over the grouped table blocks.
+  real_world: >-
+    Continuous integration test summaries (Drizz testing telemetry), order fulfillment metrics, and financial monthly accounting rollups.
+
+statement:
+  clean: |
+    Write a SQL query using conditional aggregation to pivot test run status counts per device:
+    
+    Table schema:
+    ```sql
+    CREATE TABLE TestRuns (
+      run_id INTEGER PRIMARY KEY,
+      device TEXT,
+      status TEXT
+    );
+    ```
+    
+    Status can be `'PASS'`, `'FAIL'`, or `'TIMEOUT'`.
+    
+    Requirements:
+    1. Group rows by `device`.
+    2. Compute:
+       - `pass_count`: number of runs with `status = 'PASS'`.
+       - `fail_count`: number of runs with `status = 'FAIL'`.
+       - `timeout_count`: number of runs with `status = 'TIMEOUT'`.
+    3. Order the results by `device` ascending.
+  oa_story: |
+    **Drizz Test Farm — Execution Telemetry Dashboard**
+    
+    Our CI/CD telemetry dashboard displays a daily matrix showing total pass, fail, and timeout numbers
+    for each connected mobile device model.
+    The previous reporting job executed multiple separate queries and merged them in memory.
+    
+    Write an optimal, single-pass conditional aggregation query that pivots status counts into clean columnar metrics.
+  trigger_keywords: ["conditional aggregation", "TestRuns", "device"]
+  examples:
+    - input: "TestRuns table has Pixel 8 with 2 PASS, 1 FAIL, and Galaxy S23 with 1 PASS, 1 FAIL, 1 TIMEOUT"
+      output: "[('Galaxy S23', 1, 1, 1), ('Pixel 8', 2, 1, 0)]"
+      explanation: "Statuses are pivoted into columns per device."
+  constraints:
+    - "TestRuns table contains between 0 and 10^5 rows"
+    - "status is one of 'PASS', 'FAIL', 'TIMEOUT'"
+
+constraint_quiz:
+  prompt: >-
+    Why is `SUM(CASE WHEN status = 'PASS' THEN 1 ELSE 0 END)` preferred over `COUNT(CASE WHEN status = 'PASS' THEN 1 END)`?
+  options:
+    - "Both work, but SUM(...) ELSE 0 explicitly guarantees an integer 0 rather than NULL when no matching rows exist"
+    - "COUNT cannot accept CASE statements in SQL"
+    - "SUM is 10x faster than COUNT"
+    - "COUNT only works on primary keys"
+  answer: 0
+  explanation: >-
+    Using `SUM(...) ELSE 0` ensures non-matching groups receive 0 rather than NULL, avoiding awkward COALESCE handling.
+
+pattern_quiz:
+  prompt: What SQL pattern pivots discrete row values into columns without specialized vendor PIVOT keywords?
+  options:
+    - "Conditional Aggregation (SUM/COUNT with CASE WHEN)"
+    - "NATURAL JOIN"
+    - "UNION ALL"
+    - "RECURSIVE CTE"
+  answer: 0
+  explanation: >-
+    Combining aggregate functions with CASE WHEN expressions is the universal, cross-database idiom for row-to-column pivoting.
+
+schema_sql: |
+  CREATE TABLE TestRuns (
+    run_id INTEGER PRIMARY KEY,
+    device TEXT,
+    status TEXT
+  );
+
+seed_sql: |
+  INSERT INTO TestRuns (run_id, device, status) VALUES
+    (1, 'Pixel 8', 'PASS'),
+    (2, 'Pixel 8', 'PASS'),
+    (3, 'Pixel 8', 'FAIL'),
+    (4, 'Galaxy S23', 'PASS'),
+    (5, 'Galaxy S23', 'FAIL'),
+    (6, 'Galaxy S23', 'TIMEOUT');
+
+function:
+  name: execute_sql
+  params: []
+
+starter_code: |
+  -- Write your SQL query below
+  SELECT
+    device,
+    SUM(CASE WHEN status = 'PASS' THEN 1 ELSE 0 END) AS pass_count,
+    SUM(CASE WHEN status = 'FAIL' THEN 1 ELSE 0 END) AS fail_count,
+    SUM(CASE WHEN status = 'TIMEOUT' THEN 1 ELSE 0 END) AS timeout_count
+  FROM TestRuns
+  GROUP BY device
+  ORDER BY device ASC;
+
+tests:
+  - args: []
+    expected:
+      - ["Galaxy S23", 1, 1, 1]
+      - ["Pixel 8", 2, 1, 0]
+    note: "Pivoted status counts per device"
+  - args: []
+    expected: null
+    note: "Self verification"
+  - args: []
+    expected: null
+    note: "Consistency check"
+
+visualize_test: 0
+
+drills:
+  - title: Group by device simple count
+    skill: setup
+    goal: Aggregate total rows per device.
+    instructions: |
+      Select `device, COUNT(*) AS total FROM TestRuns GROUP BY device ORDER BY device;`.
+    function:
+      name: execute_sql
+      params: []
+    starter_code: |
+      SELECT device, COUNT(*) AS total FROM TestRuns GROUP BY device ORDER BY device;
+    tests:
+      - args: []
+        expected:
+          - ["Galaxy S23", 3]
+          - ["Pixel 8", 3]
+    solution: |
+      SELECT device, COUNT(*) AS total FROM TestRuns GROUP BY device ORDER BY device;
+    hint: "Use `GROUP BY device`."
+
+  - title: Conditional case when pass count
+    skill: core
+    goal: Count only PASS statuses using CASE WHEN.
+    instructions: |
+      Select `device, SUM(CASE WHEN status = 'PASS' THEN 1 ELSE 0 END) AS pass_count FROM TestRuns GROUP BY device ORDER BY device;`.
+    function:
+      name: execute_sql
+      params: []
+    starter_code: |
+      SELECT device, SUM(CASE WHEN status = 'PASS' THEN 1 ELSE 0 END) AS pass_count
+      FROM TestRuns
+      GROUP BY device
+      ORDER BY device;
+    tests:
+      - args: []
+        expected:
+          - ["Galaxy S23", 1]
+          - ["Pixel 8", 2]
+    solution: |
+      SELECT device, SUM(CASE WHEN status = 'PASS' THEN 1 ELSE 0 END) AS pass_count
+      FROM TestRuns
+      GROUP BY device
+      ORDER BY device;
+    hint: "Use `SUM(CASE WHEN status = 'PASS' THEN 1 ELSE 0 END)`."
+
+  - title: Full three-column pivot
+    skill: edge
+    goal: Aggregate pass, fail, and timeout simultaneously.
+    instructions: |
+      Add `fail_count` and `timeout_count` columns to the query.
+    function:
+      name: execute_sql
+      params: []
+    starter_code: |
+      SELECT
+        device,
+        SUM(CASE WHEN status = 'PASS' THEN 1 ELSE 0 END) AS pass_count,
+        SUM(CASE WHEN status = 'FAIL' THEN 1 ELSE 0 END) AS fail_count,
+        SUM(CASE WHEN status = 'TIMEOUT' THEN 1 ELSE 0 END) AS timeout_count
+      FROM TestRuns
+      GROUP BY device
+      ORDER BY device ASC;
+    tests:
+      - args: []
+        expected:
+          - ["Galaxy S23", 1, 1, 1]
+          - ["Pixel 8", 2, 1, 0]
+    solution: |
+      SELECT
+        device,
+        SUM(CASE WHEN status = 'PASS' THEN 1 ELSE 0 END) AS pass_count,
+        SUM(CASE WHEN status = 'FAIL' THEN 1 ELSE 0 END) AS fail_count,
+        SUM(CASE WHEN status = 'TIMEOUT' THEN 1 ELSE 0 END) AS timeout_count
+      FROM TestRuns
+      GROUP BY device
+      ORDER BY device ASC;
+    hint: "Combine three SUM(CASE ...) clauses in the SELECT statement."
+
+hints:
+  - "Group by `device`."
+  - "Use `SUM(CASE WHEN status = 'PASS' THEN 1 ELSE 0 END) AS pass_count`."
+  - "Repeat for `FAIL` and `TIMEOUT`, and order by `device ASC`."
+
+solution:
+  code: |
+    SELECT
+      device,
+      SUM(CASE WHEN status = 'PASS' THEN 1 ELSE 0 END) AS pass_count,
+      SUM(CASE WHEN status = 'FAIL' THEN 1 ELSE 0 END) AS fail_count,
+      SUM(CASE WHEN status = 'TIMEOUT' THEN 1 ELSE 0 END) AS timeout_count
+    FROM TestRuns
+    GROUP BY device
+    ORDER BY device ASC;
+  explanation: |
+    1. `GROUP BY device`: partitions rows into distinct device groups.
+    2. `SUM(CASE WHEN status = '...' THEN 1 ELSE 0 END)`: evaluates each row in the group.
+       If the status matches, it contributes 1; otherwise 0.
+       This pivots status values into three clean columnar totals in a single table scan.
+    3. `ORDER BY device ASC`: sorts the summary alphabetically.
+  time: O(N) single-pass aggregation
+  space: O(K) where K is unique devices
+
+pitch_script: |
+  **(Clarify)** "We need to summarize test execution counts across PASS, FAIL, and TIMEOUT statuses grouped by device in a single query."
+
+  **(Basement Insight)** "Running multiple independent queries with `WHERE status = 'X'` forces the database to scan disk pages multiple times. Conditional aggregation using `SUM(CASE WHEN ... THEN 1 ELSE 0 END)` accomplishes the pivot in a single physical table scan."
+
+  **(Solution)** "We group by `device`, evaluate three conditional `SUM(CASE ...)` expressions to compute individual status tallies, and order by `device ASC`."
+
+  **(Complexity)** "Executes in O(N) time in a single pass over N rows, using O(K) space for K devices."
+
+twist:
+  lc: 9317
+  title: Percentage Ratio Calculation in Conditional Aggregation
+  why: >-
+    Calculate pass percentage directly:
+    ROUND(100.0 * SUM(CASE WHEN status = 'PASS' THEN 1 ELSE 0 END) / COUNT(*), 1) AS pass_percentage.
+
+viz:
+  title: "SQL Conditional Aggregation Pivot"

@@ -1,0 +1,252 @@
+slug: sync-vs-async-handler-throughput
+lc: 9513
+citadel_id: backend_apis
+brick_layer: 2
+runner_type: python_practical
+concept:
+  problem_it_solves: Why does calling `time.sleep()` or synchronous `requests.get()` inside an `async def` FastAPI route freeze
+    all other concurrent users? In Python's `asyncio`, the event loop runs on a single OS thread. When an `async def` route
+    executes a synchronous blocking call without `await`, the event loop cannot switch tasks, starving all incoming requests.
+    In contrast, declaring standard `def` prompts FastAPI to offload execution to an external threadpool (`anyio.to_thread`).
+  brute_force: Declaring every FastAPI route as `async def` without checking if internal database drivers or SDKs are truly
+    non-blocking.
+  brute_force_complexity: Total event loop freeze and complete API downtime under concurrent traffic.
+  key_insight: Simulating throughput across N requests reveals that sync `def` runs in parallel batches bounded by threadpool
+    workers, whereas blocking `async def` completely serializes.
+  real_world: FastAPI production incident post-mortems involving synchronous Boto3 AWS SDK calls inside async endpoints.
+statement:
+  clean: "Implement an event loop throughput model comparing sync `def` vs blocking `async def`:\n`simulate_handler_throughput(handler_type:\
+    \ str, requests_count: int, blocking_time_ms: int, threadpool_workers: int = 4) -> dict`.\n\nInputs:\n- `handler_type`:\
+    \ `\"sync_def\"` or `\"async_def_blocking\"`.\n- `requests_count`: total concurrent incoming requests.\n- `blocking_time_ms`:\
+    \ duration of a synchronous blocking call (e.g. synchronous DB query or legacy API call).\n- `threadpool_workers`: size\
+    \ of the external worker threadpool (default 4).\n\nExecution Models:\n1. `\"sync_def\"` (FastAPI Threadpool Offload):\n\
+    \   - FastAPI automatically routes regular `def` endpoints to an external threadpool.\n   - Requests execute concurrently\
+    \ up to `threadpool_workers`:\n     `batches = math.ceil(requests_count / threadpool_workers)`\n     `total_time_ms =\
+    \ batches * blocking_time_ms`\n   - The asyncio event loop remains free: `event_loop_starved = False`.\n2. `\"async_def_blocking\"\
+    ` (Single Event Loop Thread Blocked):\n   - The blocking call executes directly on the single event loop thread.\n   -\
+    \ All requests are completely serialized:\n     `total_time_ms = requests_count * blocking_time_ms`\n   - If `requests_count\
+    \ > 1`, `event_loop_starved = True`.\n\nThroughput Calculation:\n- `throughput_req_per_sec = round(requests_count / (total_time_ms\
+    \ / 1000.0), 2)` (or `0.0` if `total_time_ms == 0`).\n\nReturn a dictionary containing:\n- `\"handler_type\"`: `str`\n\
+    - `\"requests_count\"`: `int`\n- `\"total_time_ms\"`: `int`\n- `\"event_loop_starved\"`: `bool`\n- `\"throughput_req_per_sec\"\
+    `: `float`"
+  oa_story: '**Drizz Analytics API — The Async Def Outage**
+
+
+    Drizz engineers rewrote their reporting microservice with FastAPI, slapping `async def` on every endpoint for ''high performance''.
+    Inside the endpoint, they called a legacy synchronous Snowflake SDK query that took 200ms.
+
+
+    During an automated marketing blast of 100 requests, the entire API stopped responding to health checks. Kubernetes liveness
+    probes timed out, triggering cascading pod restarts. Implement this model to understand why blocking calls inside async
+    def destroys throughput.'
+  trigger_keywords:
+  - event loop throughput model
+  - simulate_handler_throughput
+  - event_loop_starved
+  examples:
+  - input: handler_type = "async_def_blocking", requests_count = 10, blocking_time_ms = 100, threadpool_workers = 4
+    output: '{"handler_type": "async_def_blocking", "requests_count": 10, "total_time_ms": 1000, "event_loop_starved": True,
+      "throughput_req_per_sec": 10.0}'
+    explanation: 'Event loop is blocked: 10 requests * 100ms = 1000ms. Throughput is 10 req/s.'
+  - input: handler_type = "sync_def", requests_count = 10, blocking_time_ms = 100, threadpool_workers = 4
+    output: '{"handler_type": "sync_def", "requests_count": 10, "total_time_ms": 300, "event_loop_starved": False, "throughput_req_per_sec":
+      33.33}'
+    explanation: 'Offloaded to 4 threads: ceil(10/4) = 3 batches * 100ms = 300ms. Throughput is 33.33 req/s.'
+  constraints:
+  - 0 <= requests_count <= 10000
+  - 1 <= blocking_time_ms <= 5000
+  - 1 <= threadpool_workers <= 64
+constraint_quiz:
+  prompt: What does FastAPI do under the hood when you declare a route as regular `def` instead of `async def`?
+  options:
+  - It automatically offloads execution to an external threadpool using `anyio.to_thread.run_sync` so the event loop is never
+    blocked
+  - It converts Python bytecode to C++ machine code
+  - It downgrades the HTTP protocol to HTTP/1.0
+  - It rejects the request with HTTP 500
+  answer: 0
+  explanation: FastAPI recognizes standard `def` routes and executes them in a worker threadpool, preserving the main event
+    loop for other asynchronous tasks.
+pattern_quiz:
+  prompt: When should an engineer strictly use `async def` in FastAPI?
+  options:
+  - Only when the endpoint uses genuinely asynchronous non-blocking libraries with `await` (e.g. `httpx`, `asyncpg`)
+  - Always, because async is modern
+  - Only for GET requests
+  - Only when the database is SQLite
+  answer: 0
+  explanation: An endpoint should only be `async def` if every I/O operation inside it is genuinely non-blocking and awaited.
+    Blocking calls inside `async def` starve the event loop.
+function:
+  name: simulate_handler_throughput
+  params:
+  - name: handler_type
+  - name: requests_count
+  - name: blocking_time_ms
+  - name: threadpool_workers
+  returns: any
+  compare: exact
+starter_code: "class Solution:\n    def simulate_handler_throughput(self, handler_type: str, requests_count: int, blocking_time_ms:\
+  \ int, threadpool_workers: int = 4) -> dict:\n        pass\n"
+tests:
+- args:
+  - async_def_blocking
+  - 10
+  - 100
+  - 4
+  expected:
+    handler_type: async_def_blocking
+    requests_count: 10
+    total_time_ms: 1000
+    event_loop_starved: true
+    throughput_req_per_sec: 10.0
+  note: Blocking async def serializes
+- args:
+  - sync_def
+  - 10
+  - 100
+  - 4
+  expected:
+    handler_type: sync_def
+    requests_count: 10
+    total_time_ms: 300
+    event_loop_starved: false
+    throughput_req_per_sec: 33.33
+  note: Sync def offloaded to threadpool
+- args:
+  - sync_def
+  - 0
+  - 100
+  - 4
+  expected:
+    handler_type: sync_def
+    requests_count: 0
+    total_time_ms: 0
+    event_loop_starved: false
+    throughput_req_per_sec: 0.0
+  note: Zero requests
+visualize_test: 0
+drills:
+- skill: setup
+  title: Compute threadpool batch count
+  goal: Calculate ceil(requests / workers).
+  instructions: Return `math.ceil(reqs / workers)` if reqs > 0 else 0.
+  function:
+    name: drill_batch_count
+    params:
+    - name: reqs
+    - name: workers
+  starter_code: "class Solution:\n    def drill_batch_count(self, reqs: int, workers: int) -> int:\n        pass\n"
+  tests:
+  - args:
+    - 10
+    - 4
+    expected: 3
+  - args:
+    - 8
+    - 4
+    expected: 2
+  solution: "import math\n\nclass Solution:\n    def drill_batch_count(self, reqs: int, workers: int) -> int:\n        return\
+    \ math.ceil(reqs / workers) if reqs > 0 else 0\n"
+  hint: Use math.ceil(reqs / workers).
+- skill: core
+  title: Calculate serialized async time
+  goal: Multiply requests count by blocking time.
+  instructions: Return `reqs * blocking_ms`.
+  function:
+    name: drill_async_time
+    params:
+    - name: reqs
+    - name: blocking_ms
+  starter_code: "class Solution:\n    def drill_async_time(self, reqs: int, blocking_ms: int) -> int:\n        pass\n"
+  tests:
+  - args:
+    - 5
+    - 100
+    expected: 500
+  solution: "class Solution:\n    def drill_async_time(self, reqs: int, blocking_ms: int) -> int:\n        return reqs * blocking_ms\n"
+  hint: Multiply reqs by blocking_ms.
+- skill: edge
+  title: Calculate requests per second
+  goal: Compute RPS rounded to 2 decimal places.
+  instructions: Return `round(reqs / (ms / 1000.0), 2)` if ms > 0 else 0.0.
+  function:
+    name: drill_rps
+    params:
+    - name: reqs
+    - name: ms
+  starter_code: "class Solution:\n    def drill_rps(self, reqs: int, ms: int) -> float:\n        pass\n"
+  tests:
+  - args:
+    - 10
+    - 300
+    expected: 33.33
+  - args:
+    - 0
+    - 0
+    expected: 0.0
+  solution: "class Solution:\n    def drill_rps(self, reqs: int, ms: int) -> float:\n        return round(reqs / (ms / 1000.0),\
+    \ 2) if ms > 0 else 0.0\n"
+  hint: Convert ms to seconds and divide reqs.
+hints:
+- If `handler_type == 'sync_def'`, use `math.ceil(requests_count / threadpool_workers) * blocking_time_ms`.
+- If `handler_type == 'async_def_blocking'`, execution is fully serialized (`requests_count * blocking_time_ms`).
+- '| # Pseudocode Blueprint
+
+  | if handler_type == "sync_def":
+
+  |     batches = ceil(reqs / workers)
+
+  |     total_ms = batches * blocking_ms
+
+  |     starved = False
+
+  | else:
+
+  |     total_ms = reqs * blocking_ms
+
+  |     starved = reqs > 1
+
+  | rps = round(reqs / (total_ms / 1000.0), 2)
+
+  | return total_ms, starved, rps'
+solution:
+  code: "import math\n\nclass Solution:\n    def simulate_handler_throughput(self, handler_type: str, requests_count: int,\
+    \ blocking_time_ms: int, threadpool_workers: int = 4) -> dict:\n        if handler_type == \"sync_def\":\n           \
+    \ batches = math.ceil(requests_count / threadpool_workers) if requests_count > 0 else 0\n            total_time_ms = batches\
+    \ * blocking_time_ms\n            starved = False\n        else:\n            total_time_ms = requests_count * blocking_time_ms\n\
+    \            starved = requests_count > 1\n\n        rps = round((requests_count / (total_time_ms / 1000.0)), 2) if total_time_ms\
+    \ > 0 else 0.0\n        return {\n            \"handler_type\": handler_type,\n            \"requests_count\": requests_count,\n\
+    \            \"total_time_ms\": total_time_ms,\n            \"event_loop_starved\": starved,\n            \"throughput_req_per_sec\"\
+    : rps,\n        }\n"
+  explanation: FastAPI routes regular `def` endpoints to a multi-threaded pool, executing blocking calls in parallel batches
+    across threads. An `async def` endpoint runs directly on the single-threaded event loop; any synchronous blocking call
+    monopolizes the thread and starves all concurrent requests.
+  time: O(1) arithmetic calculation
+  space: O(1) dictionary response
+pitch_script: '**(Clarify)** "We need to model the latency and throughput of synchronous `def` versus blocking `async def`
+  endpoints in FastAPI under concurrent traffic."
+
+
+  **(Brute force)** "Using `async def` everywhere causes synchronous I/O or CPU operations to monopolize the single event
+  loop thread, causing full system lockups."
+
+
+  **(Trigger)** "Comparing single-threaded event loop starvation against threadpool batch processing signals a web concurrency
+  model."
+
+
+  **(Optimal)** "For `sync_def`, FastAPI offloads requests to a threadpool, completing in `ceil(N / workers) * blocking_time`.
+  For `async_def_blocking`, all requests are strictly serialized (`N * blocking_time`). Throughput is computed as requests
+  divided by total wall-clock seconds."
+
+
+  **(Complexity)** "Executes in O(1) time and space." '
+twist:
+  lc: 9505
+  title: HTTP Method Idempotency & Idempotency-Key Deduplication
+  why: When requests take time to execute, clients retry. Implementing idempotency keys prevents duplicate billing and order
+    creation.
+viz:
+  title: Event Loop vs Threadpool Concurrency
+  type: http_lifecycle

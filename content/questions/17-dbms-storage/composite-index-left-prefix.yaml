@@ -1,0 +1,239 @@
+slug: composite-index-left-prefix
+lc: 9303
+citadel_id: sql_dbms
+brick_layer: 3
+runner_type: python_practical
+
+concept:
+  problem_it_solves: >-
+    "Why does my query do a Full Table Scan even though an index exists on the columns in my WHERE clause?"
+    If you create a composite index on `(dept_id, salary, hire_date)`, the database sorts rows primarily by `dept_id`,
+    secondarily by `salary`, and tertiarily by `hire_date`.
+    If your query executes `WHERE salary > 90000`, the index is completely useless!
+    This is identical to trying to find all people named 'Alice' in a phone book sorted by Last Name:
+    without the Last Name (the leftmost prefix), you must scan every single page.
+  brute_force: >-
+    Adding composite indexes randomly without considering column order, or creating redundant single-column indexes
+    on every column. Redundant indexes slow down INSERT/UPDATE/DELETE operations and waste storage without accelerating queries.
+  brute_force_complexity: O(1) syntax, but causes index skip scans or table scans at runtime.
+  key_insight: >-
+    The Leftmost Prefix Rule dictates that a composite index on `(A, B, C)` can only be used by the query optimizer
+    if the WHERE clause filters on a contiguous prefix starting from the first column: `(A)`, `(A, B)`, or `(A, B, C)`.
+    Queries filtering by `(B)`, `(C)`, or `(B, C)` cannot navigate the index tree from the root.
+  real_world: >-
+    Database index optimization across PostgreSQL, MySQL InnoDB, and CockroachDB, avoiding slow query warnings in production APIs.
+
+statement:
+  clean: |
+    Implement a query planner index advisor that verifies the composite leftmost prefix rule:
+    `can_use_composite_index(index_cols: list[str], where_cols: list[str]) -> bool`.
+    
+    Given:
+    1. `index_cols`: an ordered list of column names defining a composite index (e.g. `["dept_id", "salary", "hire_date"]`).
+    2. `where_cols`: an unordered list of columns present in the query's `WHERE` clause (e.g. `["salary", "dept_id"]`).
+    
+    Rules for composite index usage:
+    1. If `index_cols` or `where_cols` is empty, return `False`.
+    2. The first column of the composite index (`index_cols[0]`) **must** be present in `where_cols`.
+       If `index_cols[0]` is missing, the query engine cannot enter the B-Tree root, so return `False`.
+    3. The query can use the index if `where_cols` contains a contiguous prefix of `index_cols` starting at position 0.
+       For instance, for `["A", "B", "C"]`:
+       - `["A"]` -> `True`
+       - `["A", "B"]` -> `True`
+       - `["A", "B", "C"]` -> `True`
+       - `["A", "C"]` -> `True` (uses column A of the index, even though C cannot be used for index filtering)
+       - `["B"]` or `["B", "C"]` -> `False` (fails the leftmost prefix rule)
+  oa_story: |
+    **DynamoDB to PostgreSQL Migration — Index Tuning**
+    
+    After migrating our test execution tables from DynamoDB to PostgreSQL, we created a composite index
+    on `(tenant_id, status, created_at)`.
+    A junior engineer reported that an analytics query filtering only by `status = 'FAIL'` was running in 4 seconds
+    instead of 5 milliseconds.
+    `EXPLAIN ANALYZE` revealed a Sequential Table Scan because the query omitted `tenant_id`, violating the Leftmost Prefix Rule.
+    
+    Build this query planner advisor to validate whether a query's WHERE clause qualifies to use a composite index.
+  trigger_keywords: ["composite leftmost prefix", "can_use_composite_index", "index_cols"]
+  examples:
+    - input: "index_cols = ['dept_id', 'salary'], where_cols = ['dept_id']"
+      output: "True"
+      explanation: "dept_id is index_cols[0], satisfying the leftmost prefix rule."
+    - input: "index_cols = ['dept_id', 'salary'], where_cols = ['salary']"
+      output: "False"
+      explanation: "Omitting dept_id prevents using the index; requires full table scan."
+  constraints:
+    - "index_cols contains between 0 and 10 column names"
+    - "where_cols contains between 0 and 10 column names"
+
+constraint_quiz:
+  prompt: >-
+    Why can't an index on `(last_name, first_name)` be used to look up `WHERE first_name = 'Alice'`?
+  options:
+    - "Because first_name values are not stored in the index"
+    - "Because entries are sorted primarily by last_name; 'Alice' can be scattered across every page of the tree"
+    - "Because SQL does not allow string indexes"
+    - "Because first_name is shorter than last_name"
+  answer: 1
+  explanation: >-
+    Without the primary sort key (last_name), the engine cannot prune branches of the B-Tree and must scan all entries.
+
+pattern_quiz:
+  prompt: What is the Leftmost Prefix Rule in relational database indexing?
+  options:
+    - "A query must always filter columns from left to right in the SELECT statement"
+    - "A composite index can only be leveraged if the query filters include the leading columns of the index definition"
+    - "Indexes must always be named starting with the letter A"
+    - "Only the leftmost table in a JOIN can have an index"
+  answer: 1
+  explanation: >-
+    A composite B-Tree index on (A, B, C) can only be entered if the query filters on column A.
+
+function:
+  name: can_use_composite_index
+  params:
+    - {name: index_cols}
+    - {name: where_cols}
+
+starter_code: |
+  class Solution:
+      def can_use_composite_index(self, index_cols: list[str], where_cols: list[str]) -> bool:
+          pass
+
+tests:
+  - args:
+      - ["dept_id", "salary", "hire_date"]
+      - ["salary", "dept_id"]
+    expected: true
+  - args:
+      - ["dept_id", "salary", "hire_date"]
+      - ["salary"]
+    expected: false
+  - args:
+      - ["tenant_id", "status"]
+      - ["tenant_id"]
+    expected: true
+  - args:
+      - []
+      - ["dept_id"]
+    expected: false
+  - args:
+      - ["dept_id"]
+      - []
+    expected: false
+
+visualize_test: 0
+
+drills:
+  - title: Check first element presence
+    skill: setup
+    goal: Verify that the first column exists in the set.
+    instructions: |
+      Return `True` if `cols[0]` is in `where_set`, assuming `cols` is non-empty.
+    function:
+      name: has_first_col
+      params: [{name: cols}, {name: where_set}]
+    starter_code: |
+      class Solution:
+          def has_first_col(self, cols: list[str], where_set: list[str]) -> bool:
+              pass
+    tests:
+      - {args: [["a", "b"], ["a"]], expected: true}
+      - {args: [["a", "b"], ["b"]], expected: false}
+    solution: |
+      class Solution:
+          def has_first_col(self, cols: list[str], where_set: list[str]) -> bool:
+              return cols[0] in set(where_set)
+    hint: "Check `cols[0] in set(where_set)`."
+
+  - title: Case-insensitive column matching
+    skill: core
+    goal: Normalize column names before comparison.
+    instructions: |
+      Check if `target` matches any column in `cols` ignoring case.
+    function:
+      name: col_match_nocase
+      params: [{name: target}, {name: cols}]
+    starter_code: |
+      class Solution:
+          def col_match_nocase(self, target: str, cols: list[str]) -> bool:
+              pass
+    tests:
+      - {args: ["Dept_Id", ["dept_id", "salary"]], expected: true}
+      - {args: ["age", ["name"]], expected: false}
+    solution: |
+      class Solution:
+          def col_match_nocase(self, target: str, cols: list[str]) -> bool:
+              low_cols = {c.lower() for c in cols}
+              return target.lower() in low_cols
+    hint: "Convert all names to lowercase using `.lower()`."
+
+  - title: Prefix length counter
+    skill: edge
+    goal: Count how many consecutive leading items match.
+    instructions: |
+      Count how many items from the start of `seq` are present in `lookup_set`.
+    function:
+      name: count_leading_matches
+      params: [{name: seq}, {name: lookup_set}]
+    starter_code: |
+      class Solution:
+          def count_leading_matches(self, seq: list[str], lookup_set: list[str]) -> int:
+              pass
+    tests:
+      - {args: [["a", "b", "c"], ["a", "b"]], expected: 2}
+      - {args: [["a", "b", "c"], ["b", "c"]], expected: 0}
+    solution: |
+      class Solution:
+          def count_leading_matches(self, seq: list[str], lookup_set: list[str]) -> int:
+              s = set(lookup_set)
+              count = 0
+              for item in seq:
+                  if item in s:
+                      count += 1
+                  else:
+                      break
+              return count
+    hint: "Loop over seq; increment count while item in s, break on first miss."
+
+hints:
+  - "Check if `not index_cols` or `not where_cols`; if so, return `False`."
+  - "Convert `where_cols` to a set for O(1) membership lookups."
+  - "Check if `index_cols[0]` is in the set; if it is, the query can use the leftmost prefix of the index."
+
+solution:
+  code: |
+    class Solution:
+        def can_use_composite_index(self, index_cols: list[str], where_cols: list[str]) -> bool:
+            if not index_cols or not where_cols:
+                return False
+
+            where_set = set(where_cols)
+            # The Leftmost Prefix Rule mandates that index_cols[0] must be present
+            return index_cols[0] in where_set
+  explanation: |
+    In relational database B-Trees, an index on `(A, B, C)` sorts first by A.
+    If column A is absent from the query's WHERE clause, the database cannot perform an index range scan
+    because it cannot traverse from the root node.
+    
+    Therefore, the query planner can only use the index if `index_cols[0]` is specified in `where_cols`.
+  time: O(W) where W is number of WHERE columns
+  space: O(W) for the lookup set
+
+pitch_script: |
+  **(Clarify)** "We need to verify if a query's WHERE clause satisfies the Leftmost Prefix Rule to enable composite index usage."
+
+  **(Basement Insight)** "A composite index on (A, B, C) physically organizes data ordered by A, then B, then C. Without column A in the query predicate, the database engine cannot prune branches at the B-Tree root, rendering the index unusable and forcing a full table scan."
+
+  **(Solution)** "We verify that neither list is empty, convert `where_cols` to a set, and check if `index_cols[0]` is present. If `index_cols[0]` is missing, we return False; otherwise True."
+
+  **(Complexity)** "Executes in O(W) time where W is WHERE columns, using O(W) space."
+
+twist:
+  lc: 9304
+  title: Index Skip Scan in PostgreSQL 17 / Oracle
+  why: >-
+    Some advanced database engines can perform an 'Index Skip Scan' if the leading column has very low cardinality
+    (e.g. gender with only 2 values), iterating each value of A and using the index for B.
+
+viz:
+  title: "Leftmost Prefix Composite Index Rule"

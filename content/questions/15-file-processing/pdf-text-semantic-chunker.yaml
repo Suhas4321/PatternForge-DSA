@@ -1,0 +1,261 @@
+slug: pdf-text-semantic-chunker
+lc: 9223
+citadel_id: python_data
+brick_layer: 3
+runner_type: python_practical
+
+concept:
+  problem_it_solves: >-
+    "Why does feeding raw extracted PDF text into vector databases produce terrible retrieval search results?"
+    PDF extractors return broken words split across line breaks (e.g. `multi-\npage` becomes `multi-` and `page`),
+    meaning search queries for `multipage` fail to match. Additionally, fixed-token chunking without overlap splits
+    critical context in half right in the middle of sentences.
+  brute_force: >-
+    Splitting raw text with `text.split('.')` or arbitrary character slicing `text[i:i+500]`.
+    This cuts words in half, leaves hyphenated word fragments unmerged, and loses semantic continuity across chunk borders.
+  brute_force_complexity: O(N) operations, but severely degrades embedding quality and RAG recall.
+  key_insight: >-
+    A production RAG ingestion pipeline cleans OCR/PDF artifacts first by regex-merging hyphenated word breaks
+    (`re.sub(r'(\w+)-\s*\n\s*(\w+)', r'\1\2', text)`). Then it tokenizes into words and applies a sliding window
+    with `step = chunk_size - overlap`, ensuring adjacent chunks share enough context so semantic boundaries aren't lost.
+  real_world: >-
+    WisdomBot enterprise PDF ingestion, LangChain/LlamaIndex RecursiveCharacterTextSplitter, and ChromaDB vector indexing.
+
+statement:
+  clean: |
+    Implement a RAG document preprocessor using pdf semantic chunking:
+    `chunk_document(raw_text: str, chunk_size: int, overlap: int) -> list[dict]`.
+    
+    Given raw extracted document text:
+    1. **Clean Hyphenation**: Detect words split across line breaks by a hyphen (e.g. `"multi-\npage"` or `"trans-\n action"`)
+       and merge them into a single word (e.g. `"multipage"`, `"transaction"`).
+    2. **Normalize Whitespace**: Replace all remaining newline characters and multiple whitespace sequences with a single space.
+    3. **Tokenize**: Split the cleaned text into words (tokens) by whitespace.
+    4. **Sliding Window Chunking**:
+       - Slide a window of size `chunk_size` over the tokens.
+       - The step size between consecutive chunk start positions is `chunk_size - overlap`.
+       - If `len(tokens) <= chunk_size`, produce a single chunk containing all tokens.
+       - For each chunk, construct:
+         `{"chunk_id": int, "text": " ".join(tokens), "token_count": len(tokens)}`.
+       - `chunk_id` starts at 0 and increments by 1.
+    5. Return the list of chunk dictionaries. If `raw_text` contains no words after cleaning, return `[]`.
+  oa_story: |
+    **WisdomBot Knowledge Base — PDF RAG Ingestion Engine**
+    
+    In our enterprise PDF document QA system, vector similarity search was failing on technical queries
+    because standard PyPDF extraction left hyphenated line breaks (`"concur-\n rency"`), which embedding
+    models failed to map to the term `"concurrency"`.
+    
+    Build a resilient preprocessor that de-hyphenates broken tokens and chunks the document into overlapping
+    semantic slices for embedding ingestion.
+  trigger_keywords: ["pdf semantic chunking", "chunk_document", "raw_text"]
+  examples:
+    - input: "raw_text = 'The algo-\nrithm runs in linear time.', chunk_size = 3, overlap = 1"
+      output: "[{'chunk_id': 0, 'text': 'The algorithm runs', 'token_count': 3}, {'chunk_id': 1, 'text': 'runs in linear', 'token_count': 3}, {'chunk_id': 2, 'text': 'linear time.', 'token_count': 2}]"
+      explanation: "De-hyphenates 'algorithm', then slides window of size 3 with step 2 (3 - 1)."
+    - input: "raw_text = 'Short document', chunk_size = 5, overlap = 1"
+      output: "[{'chunk_id': 0, 'text': 'Short document', 'token_count': 2}]"
+      explanation: "Total tokens (2) <= chunk_size (5), so only one chunk is generated."
+  constraints:
+    - "chunk_size >= 1"
+    - "0 <= overlap < chunk_size"
+
+constraint_quiz:
+  prompt: >-
+    Why is token overlap used when chunking documents for Vector DB embeddings?
+  options:
+    - "To compress file sizes on disk"
+    - "To ensure context spanning across chunk boundaries is not lost during semantic search"
+    - "To speed up embedding model inference"
+    - "To reduce token costs"
+  answer: 1
+  explanation: >-
+    Overlap ensures that sentences crossing a chunk boundary are represented in at least one chunk with their surrounding context intact.
+
+pattern_quiz:
+  prompt: What regular expression substitution merges hyphenated words across line breaks?
+  options:
+    - 're.sub(r"(\w+)-\s*\n\s*(\w+)", r"\1\2", text)'
+    - 're.sub(r"-", " ", text)'
+    - 're.sub(r"\n", "", text)'
+    - 're.split(r" ", text)'
+  answer: 0
+  explanation: >-
+    Matching word characters on both sides of a hyphen and newline allows merging the fragments into a single unbroken word.
+
+function:
+  name: chunk_document
+  params:
+    - {name: raw_text}
+    - {name: chunk_size}
+    - {name: overlap}
+
+starter_code: |
+  class Solution:
+      def chunk_document(self, raw_text: str, chunk_size: int, overlap: int) -> list[dict]:
+          pass
+
+tests:
+  - args:
+      - "The algo-\nrithm runs in linear time."
+      - 3
+      - 1
+    expected:
+      - {"chunk_id": 0, "text": "The algorithm runs", "token_count": 3}
+      - {"chunk_id": 1, "text": "runs in linear", "token_count": 3}
+      - {"chunk_id": 2, "text": "linear time.", "token_count": 2}
+  - args:
+      - "Short text here"
+      - 5
+      - 1
+    expected:
+      - {"chunk_id": 0, "text": "Short text here", "token_count": 3}
+  - args:
+      - ""
+      - 4
+      - 2
+    expected: []
+  - args:
+      - "One two three four five"
+      - 2
+      - 0
+    expected:
+      - {"chunk_id": 0, "text": "One two", "token_count": 2}
+      - {"chunk_id": 1, "text": "three four", "token_count": 2}
+      - {"chunk_id": 2, "text": "five", "token_count": 1}
+
+visualize_test: 0
+
+drills:
+  - title: De-hyphenate broken words
+    skill: setup
+    goal: Merge words split across line breaks.
+    instructions: |
+      Replace `word-\nbreak` patterns with `wordbreak`.
+    function:
+      name: clean_hyphens
+      params: [{name: s}]
+    starter_code: |
+      class Solution:
+          def clean_hyphens(self, s: str) -> str:
+              pass
+    tests:
+      - {args: ["trans-\naction"], expected: "transaction"}
+      - {args: ["auto-\n mated"], expected: "automated"}
+      - {args: ["normal-hyphen"], expected: "normal-hyphen"}
+    solution: |
+      import re
+
+      class Solution:
+          def clean_hyphens(self, s: str) -> str:
+              return re.sub(r'(\w+)-\s*\n\s*(\w+)', r'\1\2', s)
+    hint: 'Use regex substitution to merge hyphenated words across line breaks.'
+
+  - title: Sliding window slice indexing
+    skill: core
+    goal: Generate start indices with fixed step.
+    instructions: |
+      Given total length `n`, `chunk_size` and `overlap`, return list of start indices.
+    function:
+      name: get_start_indices
+      params: [{name: n}, {name: chunk_size}, {name: overlap}]
+    starter_code: |
+      class Solution:
+          def get_start_indices(self, n: int, chunk_size: int, overlap: int) -> list[int]:
+              pass
+    tests:
+      - {args: [6, 3, 1], expected: [0, 2, 4]}
+      - {args: [2, 5, 1], expected: [0]}
+      - {args: [0, 3, 1], expected: []}
+    solution: |
+      class Solution:
+          def get_start_indices(self, n: int, chunk_size: int, overlap: int) -> list[int]:
+              if n == 0:
+                  return []
+              step = chunk_size - overlap
+              return list(range(0, n, step))
+    hint: "Use range(0, n, chunk_size - overlap)."
+
+  - title: Construct chunk dictionary
+    skill: edge
+    goal: Package token slice into chunk dict.
+    instructions: |
+      Return `{"chunk_id": cid, "text": " ".join(tokens), "token_count": len(tokens)}`.
+    function:
+      name: make_chunk_dict
+      params: [{name: cid}, {name: tokens}]
+    starter_code: |
+      class Solution:
+          def make_chunk_dict(self, cid: int, tokens: list[str]) -> dict:
+              pass
+    tests:
+      - {args: [0, ["A", "B"]], expected: {"chunk_id": 0, "text": "A B", "token_count": 2}}
+      - {args: [1, []], expected: {"chunk_id": 1, "text": "", "token_count": 0}}
+    solution: |
+      class Solution:
+          def make_chunk_dict(self, cid: int, tokens: list[str]) -> dict:
+              return {"chunk_id": cid, "text": " ".join(tokens), "token_count": len(tokens)}
+    hint: "Use `' '.join(tokens)` and `len(tokens)`."
+
+hints:
+  - 'Use regex substitution to merge hyphenated words across line breaks.'
+  - "Split the normalized string by whitespace into a list of word tokens."
+  - "Step through indices with `step = chunk_size - overlap`, slicing `tokens[start:start+chunk_size]`."
+
+solution:
+  code: |
+    import re
+
+    class Solution:
+        def chunk_document(self, raw_text: str, chunk_size: int, overlap: int) -> list[dict]:
+            # Step 1: De-hyphenate broken words across line breaks
+            cleaned = re.sub(r'(\w+)-\s*\n\s*(\w+)', r'\1\2', raw_text)
+            # Step 2: Normalize remaining whitespace and tokenize
+            tokens = cleaned.split()
+            if not tokens:
+                return []
+
+            step = chunk_size - overlap
+            chunks = []
+            chunk_id = 0
+
+            for start in range(0, len(tokens), step):
+                chunk_tokens = tokens[start : start + chunk_size]
+                chunks.append({
+                    "chunk_id": chunk_id,
+                    "text": " ".join(chunk_tokens),
+                    "token_count": len(chunk_tokens),
+                })
+                chunk_id += 1
+                if start + chunk_size >= len(tokens):
+                    break
+
+            return chunks
+  explanation: |
+    The pipeline begins by healing broken words split across lines using regular expression capture groups.
+    Next, it splits the normalized string into word tokens.
+    
+    A sliding window then moves across the token sequence with `step = chunk_size - overlap`.
+    Each window slice is packaged into a structured dictionary with metadata (`chunk_id`, `text`, `token_count`),
+    providing clean document ingestion for vector database embedding models.
+  time: O(N) where N is text length
+  space: O(N) for tokens and generated chunks
+
+pitch_script: |
+  **(Clarify)** "We need to clean OCR/PDF hyphenation artifacts from raw text and divide it into overlapping semantic chunks for RAG embedding generation."
+
+  **(Basement Insight)** "PDF text extraction often splits hyphenated words across lines, producing fragmented tokens that cause embedding searches to fail. Furthermore, chunking without overlap splits sentences across vector boundaries, dropping crucial context."
+
+  **(Solution)** "We apply a regex replacement to heal hyphenated tokens across line breaks, tokenize into words, and slide a window with `step = chunk_size - overlap`. Each chunk is enriched with `chunk_id` and `token_count` metadata."
+
+  **(Complexity)** "Executes in O(N) time across N characters, using O(N) auxiliary memory for token chunks."
+
+twist:
+  lc: 9224
+  title: Hierarchical Header-Aware Semantic Chunking
+  why: >-
+    Instead of fixed token windows, split documents primarily along markdown headers (# H1, ## H2),
+    falling back to token overlap only when a section exceeds the model's maximum context length.
+
+viz:
+  title: "Sliding Window Document Chunker"

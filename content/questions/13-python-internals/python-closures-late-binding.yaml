@@ -1,0 +1,221 @@
+slug: python-closures-late-binding
+lc: 9205
+citadel_id: python_data
+brick_layer: 1
+runner_type: python_practical
+concept:
+  problem_it_solves: Why do closures defined inside Python loops frequently produce identical, unexpected values? In Python,
+    closures bind variable names, not values, at function definition time. When the returned function finally executes, it
+    resolves the variable in the enclosing scope where it has already reached the loop's final iteration value. Fixing this
+    requires binding the variable early using default arguments or an enclosing factory function.
+  brute_force: 'Writing [lambda x: x * m for m in multipliers] and wondering why every multiplier function multiplies by the
+    final element.'
+  brute_force_complexity: Silent logic bugs across dynamically registered callback handlers.
+  key_insight: 'Default arguments are evaluated at function definition time, freezing the current loop value into the closure''s
+    local scope: lambda x, factor=m: x * factor.'
+  real_world: UI button click handler registration, Flask/FastAPI dynamic endpoint generation, and Airflow dynamic DAG task
+    generation.
+statement:
+  clean: "Demonstrate and resolve the Python closure late binding trap:\n`evaluate_closure_binding(self, multipliers: list[int],\
+    \ value: int, method: str) -> list[int]`.\n\nGiven:\n- `multipliers`: list of integer factors (e.g. `[1, 2, 3]`)\n- `value`:\
+    \ input integer to evaluate\n- `method`: closure creation strategy:\n  - `'late_binding'`: standard loop closures `[lambda\
+    \ x: x * m for m in multipliers]`. Due to late binding, every closure looks up `m` at execution time, which equals `multipliers[-1]`.\
+    \ Returns `[value * multipliers[-1]] * len(multipliers)`.\n  - `'default_arg'`: early binding via default arguments `[lambda\
+    \ x, factor=m: x * factor for m in multipliers]`. Each closure preserves its respective factor.\n  - `'factory_function'`:\
+    \ early binding using an enclosing helper function:\n    ```python\n    def make_multiplier(factor):\n        return lambda\
+    \ x: x * factor\n    funcs = [make_multiplier(m) for m in multipliers]\n    ```\n\nRules:\n1. If `multipliers` is empty,\
+    \ return `[]`.\n2. Apply each function in `funcs` to `value`.\n3. Return list of evaluated integer results: `[f(value)\
+    \ for f in funcs]`."
+  oa_story: '**RideMitra Pricing Engine — Fare Surge Multiplier Registry**
+
+
+    RideMitra''s dynamic pricing microservice dynamically registers surge pricing tiers based on traffic density: `[1.2x,
+    1.5x, 2.0x, 3.0x]`. A junior backend engineer generated discount calculator callbacks inside a list comprehension.
+
+
+    During the Bengaluru monsoon rush, all riders were unexpectedly billed the maximum 3.0x surge tier, even in low-demand
+    suburbs, because Python closures bound the surge variable late. Implement this diagnostic module to demonstrate and fix
+    the late binding trap.'
+  trigger_keywords:
+  - Python closure late binding trap
+  - evaluate_closure_binding
+  - late_binding
+  examples:
+  - input: multipliers = [1, 2, 3], value = 10, method = 'late_binding'
+    output: '[30, 30, 30]'
+    explanation: Because m ends at 3, all closures multiply value 10 by 3.
+  - input: multipliers = [1, 2, 3], value = 10, method = 'default_arg'
+    output: '[10, 20, 30]'
+    explanation: 'Default argument captures factor at definition time: 10*1, 10*2, 10*3.'
+  constraints:
+  - 0 <= len(multipliers) <= 100
+  - method in ['late_binding', 'default_arg', 'factory_function']
+constraint_quiz:
+  prompt: 'Why does lambda x, factor=m: x * factor avoid the closure late binding trap?'
+  options:
+  - Because default argument values are evaluated and bound to the function object at definition time, not execution time
+  - Because default arguments run in a separate C thread
+  - Because Python converts default arguments into global constants
+  - Because lambdas with default arguments are compiled to WebAssembly
+  answer: 0
+  explanation: In Python, default parameter expressions are evaluated when the def/lambda statement executes, binding the
+    snapshot value to __defaults__.
+pattern_quiz:
+  prompt: How does an enclosing factory function solve the late binding trap without using default arguments?
+  options:
+  - Calling make_multiplier(m) creates a distinct new local scope (frame) where m is preserved in the closure's __closure__
+    cell
+  - It writes the value to a temporary SQLite database
+  - It deletes the variable from the global scope
+  - It forces Python to use call-by-reference
+  answer: 0
+  explanation: Each invocation of the factory creates a unique enclosing stack frame whose local variables are captured as
+    an immutable cell object.
+function:
+  name: evaluate_closure_binding
+  params:
+  - name: multipliers
+    type: any
+  - name: value
+    type: any
+  - name: method
+    type: any
+  returns: any
+starter_code: "class Solution:\n    def evaluate_closure_binding(self, multipliers: list[int], value: int, method: str) ->\
+  \ list[int]:\n        pass\n"
+tests:
+- args:
+  - - 1
+    - 2
+    - 3
+  - 10
+  - late_binding
+  expected:
+  - 30
+  - 30
+  - 30
+  note: Late binding multiplies by final value 3
+- args:
+  - - 1
+    - 2
+    - 3
+  - 10
+  - default_arg
+  expected:
+  - 10
+  - 20
+  - 30
+  note: Default argument captures respective factors
+- args:
+  - - 2
+    - 5
+  - 4
+  - factory_function
+  expected:
+  - 8
+  - 20
+  note: Factory function captures respective factors
+- args:
+  - []
+  - 10
+  - default_arg
+  expected: []
+  note: Empty multipliers edge case
+visualize_test: 0
+drills:
+- title: Build Buggy Closures
+  skill: setup
+  goal: Construct closures demonstrating late binding.
+  instructions: 'Return [lambda x: x * m for m in multipliers].'
+  function:
+    name: make_late_closures
+    params:
+    - name: multipliers
+      type: any
+  starter_code: "class Solution:\n    def make_late_closures(self, multipliers: list) -> list:\n        pass\n"
+  tests:
+  - args:
+    - - 1
+      - 2
+    expected:
+    - 4
+    - 4
+  solution: "class Solution:\n    def make_late_closures(self, multipliers: list) -> list:\n        funcs = [lambda x: x *\
+    \ m for m in multipliers]\n        return [f(2) for f in funcs]\n"
+  hint: 'Create list comprehension with lambda x: x * m.'
+- title: Early Binding via Default Arg
+  skill: core
+  goal: Capture loop variable in default argument.
+  instructions: 'Return [lambda x, factor=m: x * factor for m in multipliers].'
+  function:
+    name: make_early_closures
+    params:
+    - name: multipliers
+      type: any
+  starter_code: "class Solution:\n    def make_early_closures(self, multipliers: list) -> list:\n        pass\n"
+  tests:
+  - args:
+    - - 1
+      - 2
+    expected:
+    - 2
+    - 4
+  solution: "class Solution:\n    def make_early_closures(self, multipliers: list) -> list:\n        funcs = [lambda x, factor=m:\
+    \ x * factor for m in multipliers]\n        return [f(2) for f in funcs]\n"
+  hint: Use factor=m in lambda parameters.
+- title: Early Binding via Factory
+  skill: edge
+  goal: Capture loop variable using helper function scope.
+  instructions: Return list of closures created via factory helper.
+  function:
+    name: make_factory_closures
+    params:
+    - name: multipliers
+      type: any
+  starter_code: "class Solution:\n    def make_factory_closures(self, multipliers: list) -> list:\n        pass\n"
+  tests:
+  - args:
+    - - 3
+      - 5
+    expected:
+    - 6
+    - 10
+  solution: "class Solution:\n    def make_factory_closures(self, multipliers: list) -> list:\n        def factory(f):\n \
+    \           return lambda x: x * f\n        funcs = [factory(m) for m in multipliers]\n        return [f(2) for f in funcs]\n"
+  hint: 'Define a factory function returning lambda x: x * f.'
+hints:
+- 'If method == ''late_binding'', use [lambda x: x * m for m in multipliers].'
+- 'If method == ''default_arg'', freeze with [lambda x, factor=m: x * factor for m in multipliers].'
+- 'If method == ''factory_function'', use an enclosing def factory(f): return lambda x: x * f.'
+solution:
+  code: "class Solution:\n    def evaluate_closure_binding(self, multipliers: list[int], value: int, method: str) -> list[int]:\n\
+    \        if not multipliers:\n            return []\n            \n        if method == \"late_binding\":\n          \
+    \  funcs = [lambda x: x * m for m in multipliers]\n        elif method == \"default_arg\":\n            funcs = [lambda\
+    \ x, factor=m: x * factor for m in multipliers]\n        elif method == \"factory_function\":\n            def make_multiplier(f):\n\
+    \                return lambda x: x * f\n            funcs = [make_multiplier(m) for m in multipliers]\n        else:\n\
+    \            return []\n            \n        return [f(value) for f in funcs]\n"
+  explanation: Exposes how Python scopes closures by reference to enclosing frames, and demonstrates early-binding remedies
+    using default parameters and factory closures.
+  time: O(N) where N is the length of multipliers
+  space: O(N) to store closure references and results
+pitch_script: '**(Clarify)** "We need to demonstrate how closures capture variable references in Python loops, contrasting
+  late binding against early binding via default arguments and factory functions."
+
+
+  **(Basement Insight)** "Python functions capture variable names in closures rather than copying their values. When executed
+  after the loop finishes, all lambdas look up the same final loop variable."
+
+
+  **(Solution)** "We implement all three strategies: the standard late-binding loop, default parameter binding where values
+  freeze at definition time, and factory functions that allocate separate stack frames."
+
+
+  **(Complexity)** "Executes in O(N) time and O(N) space."
+
+  '
+twist:
+  lc: 9206
+  title: Deterministic Exponential Backoff Retry Decorator
+  why: Combine closure function wrapping with decorators to implement robust exponential backoff.
+viz:
+  title: Python Scope Resolution & Closure Binding Cells

@@ -1,0 +1,270 @@
+slug: agent-tool-calling-loop
+lc: 9632
+citadel_id: ai_resume
+brick_layer: 5
+runner_type: python_practical
+concept:
+  problem_it_solves: How do AI agents interact with external APIs, search engines, and calculators autonomously without freezing
+    in infinite loops? The ReAct (Reason + Act) loop executes iterative cycles of Thought -> Tool Call -> Observation -> Answer.
+    A hard max-steps guard is essential in production to halt runaway loops when the model repeats queries.
+  brute_force: Unconstrained while True loops that call external APIs continuously until token budgets or cloud billing thresholds
+    collapse.
+  brute_force_complexity: Unbounded O(infinity) API invocations during reasoning failures.
+  key_insight: Instrumenting each iteration step with an execution trace and bounding execution with a max-steps guard ensures
+    deterministic termination and full observability.
+  real_world: OpenAI Function Calling loops, LangChain ReAct agents, and Anthropic Tool Use SDK.
+statement:
+  clean: "Implement an agentic tool-calling loop with a max-steps guard:\n`execute_tool_loop(self, user_query: str, mock_llm_steps:\
+    \ list[dict], max_steps: int = 5) -> dict`.\n\nInputs:\n- `user_query`: initial user prompt string\n- `mock_llm_steps`:\
+    \ list of decision dicts emitted by the model at each reasoning step:\n  - Tool Call: `{'type': 'tool', 'tool_name': 'calculator'\
+    \ | 'search', 'tool_arg': '...'}`\n  - Final Answer: `{'type': 'finish', 'answer': '...'}`\n- `max_steps`: maximum allowable\
+    \ execution steps (`max_steps >= 1`)\n\nBuilt-in Tool Handlers:\n- `'calculator'`: If `tool_arg == '12 * 8'` returns `'96'`.\
+    \ If `tool_arg == '100 - 45'` returns `'55'`. Otherwise returns string length `str(len(tool_arg))`.\n- `'search'`: If\
+    \ `'order_status'` in `tool_arg`, returns `'Shipped: arriving tomorrow'`. If `'inventory'` in `tool_arg`, returns `'In\
+    \ Stock (14 units)'`. Otherwise returns `'No results found'`.\n\nExecution Logic:\n1. Maintain `trace`: list of step logs:\
+    \ `{'step': step_idx, 'action': action_dict, 'observation': obs_str}`.\n2. Iterate through `mock_llm_steps` up to `max_steps`:\n\
+    \   - If `action['type'] == 'finish'`: record step with `observation: None`, set `status = 'completed'`, and return immediately.\n\
+    \   - If `action['type'] == 'tool'`: dispatch tool to get `observation`, append to `trace`, and proceed.\n3. If loop finishes\
+    \ without reaching a `'finish'` action or hits `max_steps`:\n   set `status = 'max_steps_exceeded'` and `final_answer\
+    \ = None`.\n\nReturn dict:\n`{'status': status, 'final_answer': final_answer, 'steps_executed': step_idx, 'trace': trace}`."
+  oa_story: '**Drizz Mobile AI — Autonomous App Interaction Loop**
+
+
+    Drizz''s mobile testing agent translates natural language user stories into UI actions (tap, type, swipe) by inspecting
+    device XML hierarchies. During automated regression runs on e-commerce apps, ambiguous search bars caused the agent to
+    repeatedly trigger inventory queries without reaching the checkout assertion.
+
+
+    The platform architect mandated that all agent tool runners enforce a deterministic tool-calling loop with a max-steps
+    guard and structured execution telemetry. Implement this loop engine.'
+  trigger_keywords:
+  - tool-calling loop with a max-steps guard
+  - mock_llm_steps
+  - steps_executed
+  examples:
+  - input: 'user_query = ''What is 12 * 8?'', mock_llm_steps = [{''type'': ''tool'', ''tool_name'': ''calculator'', ''tool_arg'':
+      ''12 * 8''}, {''type'': ''finish'', ''answer'': ''The answer is 96.''}], max_steps = 5'
+    output: '{''status'': ''completed'', ''final_answer'': ''The answer is 96.'', ''steps_executed'': 2, ''trace'': [{''step'':
+      1, ''action'': {''type'': ''tool'', ''tool_name'': ''calculator'', ''tool_arg'': ''12 * 8''}, ''observation'': ''96''},
+      {''step'': 2, ''action'': {''type'': ''finish'', ''answer'': ''The answer is 96.''}, ''observation'': None}]}'
+    explanation: Calculates 12 * 8 on step 1 and finishes on step 2 with status completed.
+  constraints:
+  - 1 <= max_steps <= 20
+  - 0 <= len(mock_llm_steps) <= 50
+constraint_quiz:
+  prompt: What primary vulnerability does a max-steps guard mitigate in LLM tool execution loops?
+  options:
+  - Runaway recursion and infinite API cost consumption when the model hallucinates repeating tool calls
+  - Python syntax errors in user prompts
+  - Operating system thread deadlocks
+  - Buffer overflows in the database driver
+  answer: 0
+  explanation: If a tool's observation does not satisfy the model, the model may repeatedly emit identical tool calls. The
+    max_steps guard forcibly terminates execution before costs escalate.
+pattern_quiz:
+  prompt: What are the core stages of the ReAct agent design pattern?
+  options:
+  - Thought (reasoning), Action (tool call), and Observation (environment feedback)
+  - Compile, Link, and Execute
+  - Map, Shuffle, and Reduce
+  - Prepare, Commit, and Rollback
+  answer: 0
+  explanation: ReAct stands for Reason + Act, alternating internal chain-of-thought generation with external environment observations.
+function:
+  name: execute_tool_loop
+  params:
+  - name: user_query
+    type: any
+  - name: mock_llm_steps
+    type: any
+  - name: max_steps
+    type: any
+  returns: any
+starter_code: "class Solution:\n    def execute_tool_loop(self, user_query: str, mock_llm_steps: list[dict], max_steps: int\
+  \ = 5) -> dict:\n        pass\n"
+tests:
+- args:
+  - What is 12 * 8?
+  - - type: tool
+      tool_name: calculator
+      tool_arg: 12 * 8
+    - type: finish
+      answer: The answer is 96.
+  - 5
+  expected:
+    status: completed
+    final_answer: The answer is 96.
+    steps_executed: 2
+    trace:
+    - step: 1
+      action:
+        type: tool
+        tool_name: calculator
+        tool_arg: 12 * 8
+      observation: '96'
+    - step: 2
+      action:
+        type: finish
+        answer: The answer is 96.
+      observation: null
+  note: Tool execution followed by final answer
+- args:
+  - Hi
+  - - type: finish
+      answer: Hello!
+  - 5
+  expected:
+    status: completed
+    final_answer: Hello!
+    steps_executed: 1
+    trace:
+    - step: 1
+      action:
+        type: finish
+        answer: Hello!
+      observation: null
+  note: Direct finish without tools
+- args:
+  - Check stock
+  - - type: tool
+      tool_name: search
+      tool_arg: inventory
+  - 1
+  expected:
+    status: max_steps_exceeded
+    final_answer: null
+    steps_executed: 1
+    trace:
+    - step: 1
+      action:
+        type: tool
+        tool_name: search
+        tool_arg: inventory
+      observation: In Stock (14 units)
+  note: Max steps halts execution when answer not provided
+visualize_test: 0
+drills:
+- title: Dispatch Tool Call
+  skill: setup
+  goal: Execute calculator or search tool logic.
+  instructions: Return '96' for calculator '12 * 8', 'In Stock (14 units)' for search 'inventory', else 'No results found'.
+  function:
+    name: dispatch_tool
+    params:
+    - name: name
+      type: any
+    - name: arg
+      type: any
+  starter_code: "class Solution:\n    def dispatch_tool(self, name: str, arg: str) -> str:\n        pass\n"
+  tests:
+  - args:
+    - calculator
+    - 12 * 8
+    expected: '96'
+  - args:
+    - search
+    - inventory
+    expected: In Stock (14 units)
+  - args:
+    - search
+    - unknown
+    expected: No results found
+  solution: "class Solution:\n    def dispatch_tool(self, name: str, arg: str) -> str:\n        if name == \"calculator\"\
+    \ and arg == \"12 * 8\":\n            return \"96\"\n        if name == \"search\" and \"inventory\" in arg:\n       \
+    \     return \"In Stock (14 units)\"\n        return \"No results found\"\n"
+  hint: Check tool name and argument strings.
+- title: Record Trace Step
+  skill: core
+  goal: Build step dictionary for execution telemetry.
+  instructions: Return dict with keys 'step', 'action', 'observation'.
+  function:
+    name: make_trace_record
+    params:
+    - name: step
+      type: any
+    - name: action
+      type: any
+    - name: obs
+      type: any
+  starter_code: "class Solution:\n    def make_trace_record(self, step: int, action: dict, obs: str) -> dict:\n        pass\n"
+  tests:
+  - args:
+    - 1
+    - type: tool
+    - '96'
+    expected:
+      step: 1
+      action:
+        type: tool
+      observation: '96'
+  solution: "class Solution:\n    def make_trace_record(self, step: int, action: dict, obs: str) -> dict:\n        return\
+    \ {\"step\": step, \"action\": action, \"observation\": obs}\n"
+  hint: Construct a dict with step, action, and observation.
+- title: Evaluate Finish Action
+  skill: edge
+  goal: Determine if current model decision concludes execution.
+  instructions: Return True if action.get('type') == 'finish' else False.
+  function:
+    name: is_finish
+    params:
+    - name: action
+      type: any
+  starter_code: "class Solution:\n    def is_finish(self, action: dict) -> bool:\n        pass\n"
+  tests:
+  - args:
+    - type: finish
+    expected: true
+  - args:
+    - type: tool
+    expected: false
+  solution: "class Solution:\n    def is_finish(self, action: dict) -> bool:\n        return action.get(\"type\") == \"finish\"\
+    \n"
+  hint: Check action['type'] == 'finish'.
+hints:
+- Loop over mock_llm_steps while tracking step_idx < max_steps.
+- If action['type'] == 'finish', record observation None, set status completed, and break.
+- If action['type'] == 'tool', invoke the corresponding tool to retrieve observation.
+solution:
+  code: "class Solution:\n    def execute_tool_loop(self, user_query: str, mock_llm_steps: list[dict], max_steps: int = 5)\
+    \ -> dict:\n        trace = []\n        step_idx = 0\n        final_answer = None\n        status = \"max_steps_exceeded\"\
+    \n        \n        for action in mock_llm_steps:\n            if step_idx >= max_steps:\n                break\n    \
+    \        step_idx += 1\n            act_type = action.get(\"type\")\n            \n            if act_type == \"finish\"\
+    :\n                final_answer = action.get(\"answer\")\n                trace.append({\n                    \"step\"\
+    : step_idx,\n                    \"action\": action,\n                    \"observation\": None,\n                })\n\
+    \                status = \"completed\"\n                break\n            elif act_type == \"tool\":\n             \
+    \   tool_name = action.get(\"tool_name\")\n                tool_arg = action.get(\"tool_arg\", \"\")\n               \
+    \ obs = \"No results found\"\n                if tool_name == \"calculator\":\n                    if tool_arg == \"12\
+    \ * 8\":\n                        obs = \"96\"\n                    elif tool_arg == \"100 - 45\":\n                 \
+    \       obs = \"55\"\n                    else:\n                        obs = str(len(tool_arg))\n                elif\
+    \ tool_name == \"search\":\n                    if \"order_status\" in tool_arg:\n                        obs = \"Shipped:\
+    \ arriving tomorrow\"\n                    elif \"inventory\" in tool_arg:\n                        obs = \"In Stock (14\
+    \ units)\"\n                    else:\n                        obs = \"No results found\"\n                trace.append({\n\
+    \                    \"step\": step_idx,\n                    \"action\": action,\n                    \"observation\"\
+    : obs,\n                })\n        return {\n            \"status\": status,\n            \"final_answer\": final_answer,\n\
+    \            \"steps_executed\": step_idx,\n            \"trace\": trace,\n        }\n"
+  explanation: Iterates through model decisions, dispatching tools and collecting observations into an audit trace until a
+    finish action is encountered or max_steps is reached.
+  time: O(K) where K is the number of executed steps (bounded by max_steps)
+  space: O(K) for storing trace history
+pitch_script: '**(Clarify)** "We are implementing a ReAct agent execution loop that parses model decisions, dispatches tools,
+  and terminates either on final answer or upon exceeding max_steps."
+
+
+  **(Basement Insight)** "Without strict iteration caps, reasoning failures or contradictory tool outputs trap agents in infinite
+  loops. A max-steps guard guarantees predictable cloud costs and deterministic timeout behavior."
+
+
+  **(Solution)** "We process each decision step sequentially. If the model emits a tool call, we run the tool and log the
+  observation. When a finish action is emitted, we record the final answer and halt immediately. If the budget expires first,
+  we flag max_steps_exceeded."
+
+
+  **(Complexity)** "Executes in O(K) time and O(K) space bounded by max_steps."
+
+  '
+twist:
+  lc: 9633
+  title: Multi-Provider LLM Gateway with Fallback Routing
+  why: When tool execution encounters rate limits or upstream provider outages, dynamically route queries to a fallback provider.
+viz:
+  title: Autonomous ReAct Tool-Calling Sequence

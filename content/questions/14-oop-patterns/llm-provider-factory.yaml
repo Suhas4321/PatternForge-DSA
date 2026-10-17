@@ -1,0 +1,279 @@
+slug: llm-provider-factory
+lc: 9214
+citadel_id: python_data
+brick_layer: 4
+runner_type: python_practical
+
+concept:
+  problem_it_solves: >-
+    "Why does creating a new API client or database pool connection on every function call exhaust file descriptors and slow down latency?"
+    Initializing HTTP connection pools, TLS sessions, and auth headers is expensive (often 100ms+ per handshake).
+    The Factory pattern paired with Singleton instance caching guarantees that client instances are lazily created once and reused.
+  brute_force: >-
+    Calling `client = OpenAIClient(api_key=...)` inside every individual request handler.
+    Under concurrent load, creating thousands of redundant client sessions exhausts sockets and triggers connection pool exhaustion.
+  brute_force_complexity: O(1) runtime per request, but high memory churn and socket leakage.
+  key_insight: >-
+    A Factory class encapsulates object creation behind a static or class method `get_client(provider_name)`.
+    By maintaining an internal cache (`_instances = {}`), subsequent requests for the same provider retrieve the pre-warmed
+    singleton instance in O(1) time without rebuilding TCP connection pools.
+  real_world: >-
+    Database connection pooling (SQLAlchemy engine singleton), Redis client reuse, and Drizz's multi-threaded LLM provider manager.
+
+statement:
+  clean: |
+    Implement a client instantiation engine using the factory pattern:
+    `dispatch_prompts(prompts: list[dict]) -> list[str]`.
+    
+    Each item in `prompts` is a dictionary:
+    `{"provider": "openai" | "anthropic", "prompt": str}`.
+    
+    Architecture requirements:
+    1. Define client classes:
+       - `MockOpenAIClient`: implements method `generate(self, prompt: str) -> str`, returning `f"OpenAI: {prompt}"`.
+       - `MockAnthropicClient`: implements method `generate(self, prompt: str) -> str`, returning `f"Claude: {prompt}"`.
+    2. Define `LLMClientFactory`:
+       - Maintains a class-level cache `_instances = {}`.
+       - Implements `@classmethod def get_client(cls, provider: str)`:
+         - If `provider` already exists in `_instances`, return the cached instance.
+         - If `provider == "openai"`, create `MockOpenAIClient()`, store it in `_instances["openai"]`, and return it.
+         - If `provider == "anthropic"`, create `MockAnthropicClient()`, store it in `_instances["anthropic"]`, and return it.
+         - If `provider` is unknown, raise a `ValueError(f"Unsupported provider: {provider}")`.
+    3. In `dispatch_prompts`:
+       - Clear `LLMClientFactory._instances` at the start of each run to ensure isolated test runs.
+       - For each item in `prompts`, obtain the client from `LLMClientFactory.get_client(...)`.
+       - Call `client.generate(item["prompt"])`.
+       - Return the list of generated string responses.
+  oa_story: |
+    **Drizz Multi-LLM Benchmark Runner — Connection Pool Re-use**
+    
+    During high-concurrency evaluation of 100 mobile UI interaction prompts, workers were instantiating fresh
+    HTTP client sessions for every single prompt. Sockets quickly accumulated in `TIME_WAIT` status, triggering
+    `OS Error: Too many open files`.
+    
+    Build a centralized `LLMClientFactory` that caches client singletons and routes generation requests through pre-warmed connections.
+  trigger_keywords: ["factory pattern", "dispatch_prompts", "prompts"]
+  examples:
+    - input: "prompts = [{'provider': 'openai', 'prompt': 'Summarize'}, {'provider': 'anthropic', 'prompt': 'Refactor'}]"
+      output: "['OpenAI: Summarize', 'Claude: Refactor']"
+      explanation: "Factory creates and reuses OpenAI and Anthropic client instances."
+    - input: "prompts = [{'provider': 'openai', 'prompt': 'P1'}, {'provider': 'openai', 'prompt': 'P2'}]"
+      output: "['OpenAI: P1', 'OpenAI: P2']"
+      explanation: "The exact same cached MockOpenAIClient instance handles both requests."
+  constraints:
+    - "prompts contains between 0 and 200 items"
+    - "provider is either 'openai' or 'anthropic'"
+
+constraint_quiz:
+  prompt: >-
+    Why is caching client instances inside a Factory advantageous over instantiating new clients per request?
+  options:
+    - "It eliminates the need for unit tests"
+    - "It reuses persistent TCP connection pools and avoids socket exhaustion"
+    - "It makes Python run without a GIL"
+    - "It converts synchronous code to multi-core"
+  answer: 1
+  explanation: >-
+    Reusing clients preserves HTTP keep-alive connection pools, reducing latency and preventing TCP port exhaustion.
+
+pattern_quiz:
+  prompt: What classification of design pattern is the Factory Pattern?
+  options:
+    - "Creational Pattern"
+    - "Structural Pattern"
+    - "Behavioral Pattern"
+    - "Concurrency Pattern"
+  answer: 0
+  explanation: >-
+    The Factory pattern is a Creational design pattern that deals with object creation mechanisms.
+
+function:
+  name: dispatch_prompts
+  params:
+    - {name: prompts}
+
+starter_code: |
+  class Solution:
+      def dispatch_prompts(self, prompts: list[dict]) -> list[str]:
+          pass
+
+tests:
+  - args:
+      - [
+          {"provider": "openai", "prompt": "Extract JSON"},
+          {"provider": "anthropic", "prompt": "Write pytest"},
+          {"provider": "openai", "prompt": "Format table"}
+        ]
+    expected:
+      - "OpenAI: Extract JSON"
+      - "Claude: Write pytest"
+      - "OpenAI: Format table"
+  - args:
+      - [
+          {"provider": "anthropic", "prompt": "Audit code"}
+        ]
+    expected:
+      - "Claude: Audit code"
+  - args:
+      - []
+    expected: []
+  - args:
+      - [
+          {"provider": "openai", "prompt": "Prompt 1"},
+          {"provider": "openai", "prompt": "Prompt 2"}
+        ]
+    expected:
+      - "OpenAI: Prompt 1"
+      - "OpenAI: Prompt 2"
+
+visualize_test: 0
+
+drills:
+  - title: Class-level cache dictionary
+    skill: setup
+    goal: Store and retrieve objects from a class attribute.
+    instructions: |
+      Implement `CacheBox` with class dictionary `_items = {}`.
+      Implement `@classmethod set(cls, k, v)` and `@classmethod get(cls, k)`.
+    function:
+      name: test_cache
+      params: [{name: k}, {name: v}]
+    starter_code: |
+      class Solution:
+          def test_cache(self, k: str, v: int) -> int:
+              pass
+    tests:
+      - {args: ["counter", 42], expected: 42}
+      - {args: ["val", 100], expected: 100}
+    solution: |
+      class CacheBox:
+          _items = {}
+          @classmethod
+          def set(cls, k, v):
+              cls._items[k] = v
+          @classmethod
+          def get(cls, k):
+              return cls._items.get(k)
+
+      class Solution:
+          def test_cache(self, k: str, v: int) -> int:
+              CacheBox.set(k, v)
+              return CacheBox.get(k)
+    hint: "Use `cls._items[k] = v` and `return cls._items.get(k)`."
+
+  - title: Simple factory instantiation
+    skill: core
+    goal: Return the right subclass based on string name.
+    instructions: |
+      Given `"dog"` return `"Woof"`, given `"cat"` return `"Meow"`, otherwise `"Unknown"`.
+    function:
+      name: animal_sound
+      params: [{name: kind}]
+    starter_code: |
+      class Solution:
+          def animal_sound(self, kind: str) -> str:
+              pass
+    tests:
+      - {args: ["dog"], expected: "Woof"}
+      - {args: ["cat"], expected: "Meow"}
+      - {args: ["lion"], expected: "Unknown"}
+    solution: |
+      class Solution:
+          def animal_sound(self, kind: str) -> str:
+              sounds = {"dog": "Woof", "cat": "Meow"}
+              return sounds.get(kind, "Unknown")
+    hint: "Use a mapping dictionary with `.get(kind, 'Unknown')`."
+
+  - title: Singleton instance verification
+    skill: edge
+    goal: Verify that two factory calls return the identical heap object.
+    instructions: |
+      Return `True` if `a is b` (identical object reference), else `False`.
+    function:
+      name: is_same_instance
+      params: [{name: a_val}, {name: b_val}]
+    starter_code: |
+      class Solution:
+          def is_same_instance(self, a_val: int, b_val: int) -> bool:
+              pass
+    tests:
+      - {args: [1, 1], expected: true}
+      - {args: [1, 2], expected: false}
+    solution: |
+      class Box:
+          pass
+
+      class Solution:
+          def is_same_instance(self, a_val: int, b_val: int) -> bool:
+              b1 = Box()
+              b2 = b1 if a_val == b_val else Box()
+              return b1 is b2
+    hint: "Use `is` to check identity."
+
+hints:
+  - "Define `MockOpenAIClient` and `MockAnthropicClient` with a `generate(prompt)` method."
+  - "In `LLMClientFactory`, check if `provider in cls._instances` before creating a new instance."
+  - "In `dispatch_prompts`, call `LLMClientFactory._instances.clear()` before running the batch."
+
+solution:
+  code: |
+    class MockOpenAIClient:
+        def generate(self, prompt: str) -> str:
+            return f"OpenAI: {prompt}"
+
+    class MockAnthropicClient:
+        def generate(self, prompt: str) -> str:
+            return f"Claude: {prompt}"
+
+    class LLMClientFactory:
+        _instances = {}
+
+        @classmethod
+        def get_client(cls, provider: str):
+            if provider in cls._instances:
+                return cls._instances[provider]
+            if provider == "openai":
+                client = MockOpenAIClient()
+            elif provider == "anthropic":
+                client = MockAnthropicClient()
+            else:
+                raise ValueError(f"Unsupported provider: {provider}")
+            cls._instances[provider] = client
+            return client
+
+    class Solution:
+        def dispatch_prompts(self, prompts: list[dict]) -> list[str]:
+            LLMClientFactory._instances.clear()
+            results = []
+            for item in prompts:
+                provider = item.get("provider")
+                prompt = item.get("prompt", "")
+                client = LLMClientFactory.get_client(provider)
+                results.append(client.generate(prompt))
+            return results
+  explanation: |
+    `LLMClientFactory` combines the Factory Method pattern with a Singleton registry.
+    The client creation logic is isolated inside `get_client`.
+    Because `_instances` caches the created objects, repeating calls for `"openai"` retrieve
+    the existing `MockOpenAIClient` from memory without reallocating resources.
+  time: O(N) where N is number of prompts
+  space: O(1) auxiliary client memory (at most 2 singleton clients allocated)
+
+pitch_script: |
+  **(Clarify)** "We need to build a factory that lazily instantiates and caches LLM client singletons, dispatching prompt generation requests through pre-warmed client instances."
+
+  **(Basement Insight)** "Creating new network clients on every request introduces significant overhead: TCP three-way handshakes, TLS session negotiation, and socket exhaustion under load. A Factory that caches singleton instances ensures that HTTP connection pools are safely reused across calls."
+
+  **(Solution)** "We build `LLMClientFactory` with a class-level `_instances` cache. When `get_client(provider)` is called, it returns the cached instance or lazily instantiates the appropriate mock client. The dispatch loop iterates through prompts and executes `.generate()`."
+
+  **(Complexity)** "Runs in O(N) time across N prompts with O(1) auxiliary client space."
+
+twist:
+  lc: 9215
+  title: Thread-Safe Singleton with Double-Checked Locking
+  why: >-
+    In a multithreaded application, two threads might check `provider in _instances` simultaneously
+    and instantiate two clients. A threading.Lock with double-checked locking guarantees thread safety.
+
+viz:
+  title: "Factory Singleton Lifecycle"

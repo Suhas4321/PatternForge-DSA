@@ -1,0 +1,282 @@
+slug: jwt-auth-role-guard
+lc: 9502
+citadel_id: backend_apis
+brick_layer: 2
+runner_type: python_practical
+
+concept:
+  problem_it_solves: >-
+    "How do microservices verify caller identity and enforce authorization without querying a database on every request?"
+    Querying a central session database on every incoming API request creates a massive bottleneck under 10,000+ RPS.
+    Stateless JSON Web Tokens (JWT) encode the subject (`sub`), expiration timestamp (`exp`), and permissions (`role`)
+    inside cryptographically verifiable payloads, allowing backend services to authorize requests in-memory.
+  brute_force: >-
+    Stateful session tokens stored in PostgreSQL or Redis. Every HTTP request requires a round-trip network lookup
+    to fetch user privileges, creating connection pool contention and database latency spikes.
+  brute_force_complexity: O(1) network lookup per request, but scales to thousands of blocking database calls per second.
+  key_insight: >-
+    A stateless JWT contains claims verified mathematically using HMAC-SHA256 or asymmetric public keys.
+    Once decoded, the Role-Based Access Control (RBAC) middleware checks:
+    1. Token expiration: `current_time < exp`.
+    2. Subject identity: `sub` must be present.
+    3. Role hierarchy: `admin` can access developer/viewer endpoints; `developer` can access viewer endpoints; `viewer` only viewer endpoints.
+    If identity or expiration fails, return HTTP 401 Unauthorized. If identity is valid but permissions are insufficient, return HTTP 403 Forbidden.
+  real_world: >-
+    FastAPI `Depends(get_current_active_user)` dependency injection, AWS Cognito, Auth0, and Kubernetes service account tokens.
+
+statement:
+  clean: |
+    Implement a stateless JWT verification and role-based access filter using a jwt auth role guard:
+    `def verify_jwt_rbac(self, token_payload: dict, required_role: str, current_time: int) -> dict`.
+    
+    Given `token_payload` (simulating decoded claims), `required_role` (`"admin"`, `"developer"`, or `"viewer"`), and `current_time` (Unix timestamp integer):
+    1. Verify claims presence:
+       - If `"sub"` is not present or `"exp"` is not present in `token_payload`, return:
+         `{"authorized": False, "status_code": 401, "error": "Invalid token claims"}`
+    2. Verify expiration:
+       - If `current_time >= token_payload["exp"]`, return:
+         `{"authorized": False, "status_code": 401, "error": "Token has expired"}`
+    3. Verify RBAC role hierarchy:
+       - Role levels: `ROLE_HIERARCHY = {"admin": 3, "developer": 2, "viewer": 1}`
+       - Get token role level: `user_role = token_payload.get("role", "viewer")`
+       - If `user_role` not in `ROLE_HIERARCHY` or `ROLE_HIERARCHY[user_role] < ROLE_HIERARCHY.get(required_role, 1)`:
+         return `{"authorized": False, "status_code": 403, "error": "Insufficient role permissions"}`
+    4. On successful verification:
+       return `{"authorized": True, "status_code": 200, "user_id": token_payload["sub"], "role": user_role}`
+  oa_story: |
+    **Drizz Microservices — Multi-Tenant JWT Guard**
+    
+    When transitioning our test orchestration platform from monolithic sessions to microservices,
+    each worker node needed to independently enforce access rules without crashing our user database.
+    
+    Implement this stateless RBAC security guard to validate JWT claims and enforce endpoint permissions in microseconds.
+  trigger_keywords: ["jwt auth role guard", "verify_jwt_rbac", "token_payload"]
+  examples:
+    - input: 'token_payload = {"sub": "usr_99", "exp": 1700000000, "role": "admin"}, required_role = "developer", current_time = 1690000000'
+      output: '{"authorized": True, "status_code": 200, "user_id": "usr_99", "role": "admin"}'
+      explanation: "Admin has higher hierarchy than developer; token is unexpired."
+    - input: 'token_payload = {"sub": "usr_42", "exp": 1600000000, "role": "admin"}, required_role = "viewer", current_time = 1700000000'
+      output: '{"authorized": False, "status_code": 401, "error": "Token has expired"}'
+      explanation: "Current time exceeds exp, returning 401 Unauthorized."
+    - input: 'token_payload = {"sub": "usr_10", "exp": 1700000000, "role": "viewer"}, required_role = "developer", current_time = 1690000000'
+      output: '{"authorized": False, "status_code": 403, "error": "Insufficient role permissions"}'
+      explanation: "Viewer role has level 1, developer requires level 2, returning 403 Forbidden."
+  constraints:
+    - "current_time > 0"
+    - "required_role is one of 'admin', 'developer', 'viewer'"
+
+constraint_quiz:
+  prompt: "Why does an expired token return HTTP 401 while an insufficient role returns HTTP 403?"
+  options:
+    - "401 represents an authentication failure (identity invalid/expired), while 403 represents an authorization failure (identity valid, but lacking permissions)"
+    - "401 is only for symmetric encryption, 403 is for asymmetric encryption"
+    - "401 requires browser cookie refresh, 403 requires DNS flush"
+    - "There is no difference; they are interchangeable"
+  answer: 0
+  explanation: "HTTP 401 indicates the credentials are not valid to authenticate the caller. HTTP 403 indicates the caller's identity is authenticated, but their account lacks permission to access the target resource."
+
+pattern_quiz:
+  prompt: "What is the security risk of storing sensitive passwords or credit card numbers inside a standard JWT payload?"
+  options:
+    - "Standard JWT payloads are only base64url-encoded (not encrypted), meaning anyone with the token can inspect the plaintext payload"
+    - "JWTs cannot hold more than 16 bytes of data"
+    - "The signature breaks if numbers are included in the payload"
+    - "FastAPI cannot parse JSON tokens with numeric fields"
+  answer: 0
+  explanation: "A standard JWS (JSON Web Signature) provides cryptographic integrity and authenticity, but NOT secrecy. The payload is readable plaintext to anyone possessing the token."
+
+function:
+  name: verify_jwt_rbac
+  params:
+    - name: token_payload
+      type: any
+    - name: required_role
+      type: any
+    - name: current_time
+      type: any
+  returns: any
+
+starter_code: |
+  class Solution:
+      def verify_jwt_rbac(self, token_payload: dict, required_role: str, current_time: int) -> dict:
+          pass
+
+tests:
+  - args:
+      - {"sub": "usr_99", "exp": 1700000000, "role": "admin"}
+      - "developer"
+      - 1690000000
+    expected:
+      authorized: true
+      status_code: 200
+      user_id: "usr_99"
+      role: "admin"
+    note: "Admin accesses developer endpoint"
+
+  - args:
+      - {"sub": "usr_42", "exp": 1600000000, "role": "admin"}
+      - "viewer"
+      - 1700000000
+    expected:
+      authorized: false
+      status_code: 401
+      error: "Token has expired"
+    note: "Expired token returns 401"
+
+  - args:
+      - {"sub": "usr_10", "exp": 1700000000, "role": "viewer"}
+      - "developer"
+      - 1690000000
+    expected:
+      authorized: false
+      status_code: 403
+      error: "Insufficient role permissions"
+    note: "Viewer attempting developer endpoint returns 403"
+
+  - args:
+      - {"role": "admin"}
+      - "viewer"
+      - 1690000000
+    expected:
+      authorized: false
+      status_code: 401
+      error: "Invalid token claims"
+    note: "Missing sub and exp claims returns 401"
+
+visualize_test: 0
+
+drills:
+  - title: Claims validation
+    skill: setup
+    goal: Check if sub and exp exist in dictionary.
+    instructions: |
+      Return `("sub" in payload) and ("exp" in payload)`.
+    function:
+      name: has_valid_claims
+      params: [{name: payload}]
+    starter_code: |
+      class Solution:
+          def has_valid_claims(self, payload: dict) -> bool:
+              pass
+    tests:
+      - {args: [{"sub": "u1", "exp": 100}], expected: true}
+      - {args: [{"sub": "u1"}], expected: false}
+    solution: |
+      class Solution:
+          def has_valid_claims(self, payload: dict) -> bool:
+              return ("sub" in payload) and ("exp" in payload)
+    hint: "Check both keys in payload."
+
+  - title: Expiration check
+    skill: core
+    goal: Detect if token timestamp is expired.
+    instructions: |
+      Return `current_time >= exp`.
+    function:
+      name: is_expired
+      params: [{name: current_time}, {name: exp}]
+    starter_code: |
+      class Solution:
+          def is_expired(self, current_time: int, exp: int) -> bool:
+              pass
+    tests:
+      - {args: [100, 90], expected: true}
+      - {args: [80, 90], expected: false}
+    solution: |
+      class Solution:
+          def is_expired(self, current_time: int, exp: int) -> bool:
+              return current_time >= exp
+    hint: "Return current_time >= exp."
+
+  - title: Role level check
+    skill: edge
+    goal: Compare user role rank against required role rank.
+    instructions: |
+      Rank admin: 3, developer: 2, viewer: 1. Return `user_rank >= required_rank`.
+    function:
+      name: is_role_sufficient
+      params: [{name: user_role}, {name: req_role}]
+    starter_code: |
+      class Solution:
+          def is_role_sufficient(self, user_role: str, req_role: str) -> bool:
+              pass
+    tests:
+      - {args: ["admin", "developer"], expected: true}
+      - {args: ["viewer", "admin"], expected: false}
+    solution: |
+      class Solution:
+          def is_role_sufficient(self, user_role: str, req_role: str) -> bool:
+              ranks = {"admin": 3, "developer": 2, "viewer": 1}
+              return ranks.get(user_role, 0) >= ranks.get(req_role, 0)
+    hint: "Map roles to numbers and compare."
+
+hints:
+  - "First check `if 'sub' not in token_payload or 'exp' not in token_payload:` and return 401."
+  - "Second check `if current_time >= token_payload['exp']:` and return 401 with 'Token has expired'."
+  - "Third compare role ranks: define `hierarchy = {'admin': 3, 'developer': 2, 'viewer': 1}`. If user rank < required rank, return 403 Forbidden."
+
+solution:
+  code: |
+    class Solution:
+        def verify_jwt_rbac(self, token_payload: dict, required_role: str, current_time: int) -> dict:
+            if "sub" not in token_payload or "exp" not in token_payload:
+                return {
+                    "authorized": False,
+                    "status_code": 401,
+                    "error": "Invalid token claims",
+                }
+
+            if current_time >= token_payload["exp"]:
+                return {
+                    "authorized": False,
+                    "status_code": 401,
+                    "error": "Token has expired",
+                }
+
+            hierarchy = {"admin": 3, "developer": 2, "viewer": 1}
+            user_role = token_payload.get("role", "viewer")
+
+            user_rank = hierarchy.get(user_role, 0)
+            req_rank = hierarchy.get(required_role, 1)
+
+            if user_rank < req_rank:
+                return {
+                    "authorized": False,
+                    "status_code": 403,
+                    "error": "Insufficient role permissions",
+                }
+
+            return {
+                "authorized": True,
+                "status_code": 200,
+                "user_id": token_payload["sub"],
+                "role": user_role,
+            }
+  explanation: |
+    The guard executes three fast in-memory assertions:
+    1. Structure assertion: `sub` and `exp` must exist.
+    2. Time validity: `current_time < exp` guarantees token freshness.
+    3. Hierarchy assertion: maps roles to hierarchical integer levels to verify permission scope.
+    
+    This enforces stateless authentication and authorization with zero database latency.
+  time: O(1) in-memory checks
+  space: O(1)
+
+pitch_script: |
+  **(Clarify)** "We need to verify JWT token claims, check expiration, and enforce role hierarchy authorization for an API endpoint."
+
+  **(Basement Insight)** "Monolithic session tables force a blocking database round-trip on every single HTTP request. Stateless JWTs allow microservices to verify claims and role hierarchy in memory in under 5 microseconds, eliminating database connection pool exhaustion."
+
+  **(Solution)** "We first assert that the subject (`sub`) and expiration (`exp`) claims are present. Next, we verify that `current_time < exp`, returning 401 Unauthorized if expired. Finally, we map roles to hierarchical integer ranks (admin=3, developer=2, viewer=1) and return 403 Forbidden if the user's role rank is below the required role rank."
+
+  **(Complexity)** "Executes in O(1) time and space."
+
+twist:
+  lc: 9503
+  title: Asymmetric RS256 Key Rotation & JWKS Caching
+  why: >-
+    In production enterprise auth (Auth0/Cognito), replace symmetric HS256 secret sharing
+    with asymmetric RS256 public key verification via a cached JWKS endpoint.
+
+viz:
+  title: "Stateless JWT RBAC Lifecycle Guard"

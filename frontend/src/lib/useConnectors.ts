@@ -34,9 +34,18 @@ export function useConnectors<K extends string | number>(pairs: [K, K][], deps: 
       const b = nodes.current.get(to)?.getBoundingClientRect()
       if (!a || !b) continue
       const x1 = a.left + a.width / 2 - box.left
-      const y1 = a.bottom - box.top
       const x2 = b.left + b.width / 2 - box.left
-      const y2 = b.top - box.top
+      let y1: number
+      let y2: number
+      if (a.top > b.bottom) {
+        // a is below b (bottom-to-top mountain flow)
+        y1 = a.top - box.top
+        y2 = b.bottom - box.top
+      } else {
+        // a is above b (top-to-bottom flow)
+        y1 = a.bottom - box.top
+        y2 = b.top - box.top
+      }
       const my = (y1 + y2) / 2
       out.push({ from, to, d: `M ${x1} ${y1} C ${x1} ${my}, ${x2} ${my}, ${x2} ${y2}` })
     }

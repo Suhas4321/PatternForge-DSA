@@ -281,7 +281,7 @@ export default function Playground() {
   const step = steps[Math.min(index, steps.length - 1)]
 
   return (
-    <div className="mx-auto flex max-w-[1500px] flex-col gap-4 px-5 py-6">
+    <div className="shell flex flex-col gap-4 py-6">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="font-plate text-2xl font-semibold">Playground</h1>

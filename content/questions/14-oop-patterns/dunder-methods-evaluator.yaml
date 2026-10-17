@@ -1,0 +1,269 @@
+slug: dunder-methods-evaluator
+lc: 9211
+citadel_id: python_data
+brick_layer: 1
+runner_type: python_practical
+
+concept:
+  problem_it_solves: >-
+    "How do we make our custom Python objects sortable, callable, and comparable like built-in types?"
+    Instead of writing clumsy helper functions like `is_better(a, b)` or `obj.evaluate()`, Python provides
+    dunder (double underscore) magic methods. Implementing `__lt__` makes objects work natively with `sorted()`,
+    `__call__` turns instances into callables, and `__eq__` enables clean set/dict deduplication.
+  brute_force: >-
+    Writing ad-hoc procedural comparison loops with multiple dictionary lookups everywhere in business logic.
+    This leads to brittle code where sorting criteria change in one place but break in five others.
+  brute_force_complexity: O(N log N) sorting, but tightly coupled procedural code prone to maintenance bugs.
+  key_insight: >-
+    By implementing `__lt__(self, other)` to define strict order (e.g. higher accuracy first, lower latency on ties)
+    and `__call__(self, threshold)` to test qualification, our classes integrate seamlessly with Python's standard library.
+  real_world: >-
+    PyTorch Modules (`model(inputs)` uses `__call__`), Pandas Series indexing (`__getitem__`), and automated LLM benchmark
+    evaluation leaderboards (Drizz and GEPA prompt ranking).
+
+statement:
+  clean: |
+    Implement an evaluation ranking system using Python dunder methods:
+    `rank_benchmarks(records: list[dict], min_accuracy: float) -> list[str]`.
+    
+    Each item in `records` is a dictionary:
+    `{"model": str, "latency": float, "accuracy": float}`.
+    
+    You need to:
+    1. Define a class `BenchmarkResult` with attributes `model`, `latency`, and `accuracy`.
+    2. Implement `__call__(self, min_acc: float) -> bool`: returns `True` if `self.accuracy >= min_acc`.
+    3. Implement `__lt__(self, other: BenchmarkResult) -> bool`:
+       - A model is "less than" another if its `accuracy` is strictly lower.
+       - If accuracies are equal, the model with **higher** latency is "less than" the model with lower latency
+         (meaning faster latency is ranked higher!).
+    4. In `rank_benchmarks`:
+       - Instantiate `BenchmarkResult` for each record.
+       - Filter out any models where `model(min_accuracy)` returns `False`.
+       - Sort the surviving models in descending order (highest ranked first).
+       - Return the list of model names in sorted order.
+  oa_story: |
+    **GEPA Benchmarking Suite — Automated Leaderboard**
+    
+    In the prompt optimization framework, hundreds of mutated prompts and multi-provider models are benchmarked
+    against validation suites. The evaluation team needs a clean, object-oriented scoring engine that ranks models
+    by accuracy while using response latency as a tiebreaker.
+    
+    Implement `BenchmarkResult` with standard Python dunder methods so it natively supports callable filtering
+    and Python's built-in `sorted(..., reverse=True)`.
+  trigger_keywords: ["dunder methods", "rank_benchmarks", "records"]
+  examples:
+    - input: "records = [{'model': 'gpt-4o', 'latency': 450, 'accuracy': 0.95}, {'model': 'claude-3-5', 'latency': 320, 'accuracy': 0.95}], min_accuracy = 0.90"
+      output: "['claude-3-5', 'gpt-4o']"
+      explanation: "Both have 0.95 accuracy; claude-3-5 has lower latency (320ms < 450ms), so it ranks higher."
+    - input: "records = [{'model': 'llama-3', 'latency': 150, 'accuracy': 0.80}], min_accuracy = 0.85"
+      output: "[]"
+      explanation: "Llama-3 fails the 0.85 accuracy threshold."
+  constraints:
+    - "records contains between 0 and 1000 items"
+    - "accuracies are floats between 0.0 and 1.0"
+    - "latencies are positive floats"
+
+constraint_quiz:
+  prompt: >-
+    Which dunder method must you implement so that `obj(arg)` works like a function call?
+  options:
+    - "__init__"
+    - "__call__"
+    - "__invoke__"
+    - "__exec__"
+  answer: 1
+  explanation: >-
+    Implementing `__call__` allows an instance of a class to be called directly as a callable.
+
+pattern_quiz:
+  prompt: For `sorted(objects, reverse=True)` to work correctly, which comparison dunder method is primarily evaluated by Python?
+  options:
+    - "__lt__ (less than)"
+    - "__gt__ (greater than)"
+    - "__cmp__"
+    - "__sort__"
+  answer: 0
+  explanation: >-
+    Python's Timsort relies primarily on `__lt__` to order elements.
+
+function:
+  name: rank_benchmarks
+  params:
+    - {name: records}
+    - {name: min_accuracy}
+
+starter_code: |
+  class Solution:
+      def rank_benchmarks(self, records: list[dict], min_accuracy: float) -> list[str]:
+          pass
+
+tests:
+  - args:
+      - [
+          {"model": "Model-A", "latency": 200.0, "accuracy": 0.92},
+          {"model": "Model-B", "latency": 150.0, "accuracy": 0.92},
+          {"model": "Model-C", "latency": 100.0, "accuracy": 0.85}
+        ]
+      - 0.90
+    expected: ["Model-B", "Model-A"]
+  - args:
+      - [
+          {"model": "Alpha", "latency": 300.0, "accuracy": 0.75},
+          {"model": "Beta", "latency": 400.0, "accuracy": 0.65}
+        ]
+      - 0.80
+    expected: []
+  - args:
+      - [
+          {"model": "HighAcc", "latency": 500.0, "accuracy": 0.98},
+          {"model": "FastAcc", "latency": 100.0, "accuracy": 0.95}
+        ]
+      - 0.50
+    expected: ["HighAcc", "FastAcc"]
+  - args:
+      - []
+      - 0.50
+    expected: []
+
+visualize_test: 0
+
+drills:
+  - title: Callable instance dunder call
+    skill: setup
+    goal: Make an instance callable via __call__.
+    instructions: |
+      Create a class `Multiplier` with `self.factor`. Calling `m(x)` should return `x * self.factor`.
+    function:
+      name: test_multiplier
+      params: [{name: factor}, {name: x}]
+    starter_code: |
+      class Solution:
+          def test_multiplier(self, factor: int, x: int) -> int:
+              pass
+    tests:
+      - {args: [3, 4], expected: 12}
+      - {args: [5, 0], expected: 0}
+    solution: |
+      class Multiplier:
+          def __init__(self, factor):
+              self.factor = factor
+          def __call__(self, x):
+              return x * self.factor
+
+      class Solution:
+          def test_multiplier(self, factor: int, x: int) -> int:
+              m = Multiplier(factor)
+              return m(x)
+    hint: "Define `def __call__(self, x): return x * self.factor`."
+
+  - title: Custom less than comparator
+    skill: core
+    goal: Implement __lt__ for custom sorting.
+    instructions: |
+      Given pairs `(name, score)`, return names sorted descending by score.
+    function:
+      name: sort_by_score
+      params: [{name: pairs}]
+    starter_code: |
+      class Solution:
+          def sort_by_score(self, pairs: list[list]) -> list[str]:
+              pass
+    tests:
+      - {args: [[["A", 80], ["B", 95], ["C", 90]]], expected: ["B", "C", "A"]}
+      - {args: [[]], expected: []}
+    solution: |
+      class Item:
+          def __init__(self, name, score):
+              self.name = name
+              self.score = score
+          def __lt__(self, other):
+              return self.score < other.score
+
+      class Solution:
+          def sort_by_score(self, pairs: list[list]) -> list[str]:
+              items = [Item(p[0], p[1]) for p in pairs]
+              return [it.name for it in sorted(items, reverse=True)]
+    hint: "Implement __lt__ and call sorted(items, reverse=True)."
+
+  - title: String representation with repr
+    skill: edge
+    goal: Format diagnostic string using __repr__.
+    instructions: |
+      Return `f"Node({val})"` using the `__repr__` method of a `Node` class.
+    function:
+      name: repr_node
+      params: [{name: val}]
+    starter_code: |
+      class Solution:
+          def repr_node(self, val: int) -> str:
+              pass
+    tests:
+      - {args: [42], expected: "Node(42)"}
+      - {args: [0], expected: "Node(0)"}
+    solution: |
+      class Node:
+          def __init__(self, val):
+              self.val = val
+          def __repr__(self):
+              return f"Node({self.val})"
+
+      class Solution:
+          def repr_node(self, val: int) -> str:
+              return repr(Node(val))
+    hint: "Define `def __repr__(self): return f'Node({self.val})'`."
+
+hints:
+  - "Define `BenchmarkResult` with `__init__`, `__call__`, and `__lt__`."
+  - "In `__lt__`, if `self.accuracy != other.accuracy`: return `self.accuracy < other.accuracy`."
+  - "If accuracies are equal, return `self.latency > other.latency` (higher latency is considered 'lesser' rank)."
+
+solution:
+  code: |
+    class BenchmarkResult:
+        def __init__(self, model: str, latency: float, accuracy: float):
+            self.model = model
+            self.latency = latency
+            self.accuracy = accuracy
+
+        def __call__(self, min_acc: float) -> bool:
+            return self.accuracy >= min_acc
+
+        def __lt__(self, other: "BenchmarkResult") -> bool:
+            if self.accuracy != other.accuracy:
+                return self.accuracy < other.accuracy
+            # When accuracy ties, lower latency is superior (so higher latency is 'less')
+            return self.latency > other.latency
+
+    class Solution:
+        def rank_benchmarks(self, records: list[dict], min_accuracy: float) -> list[str]:
+            benchmarks = [BenchmarkResult(r["model"], r["latency"], r["accuracy"]) for r in records]
+            qualified = [b for b in benchmarks if b(min_accuracy)]
+            ranked = sorted(qualified, reverse=True)
+            return [b.model for b in ranked]
+  explanation: |
+    `BenchmarkResult` encapsulates evaluation state.
+    Implementing `__call__` allows `b(min_accuracy)` to act as an expressive predicate.
+    Implementing `__lt__` establishes a two-tiered priority ordering: accuracy takes precedence,
+    with latency serving as the tiebreaker. Calling Python's built-in `sorted(..., reverse=True)`
+    organizes the models from best to worst.
+  time: O(N log N) — dominated by Timsort on the qualified list
+  space: O(N) — instantiates N BenchmarkResult objects
+
+pitch_script: |
+  **(Clarify)** "We need to filter benchmark records by a minimum accuracy threshold and rank the survivors primarily by accuracy and secondarily by lower latency."
+
+  **(Basement Insight)** "By implementing Python dunder methods (`__call__` and `__lt__`), custom classes integrate natively with Python's built-in functions like `filter()` and `sorted()`. Python's Timsort relies directly on `__lt__` for comparisons."
+
+  **(Solution)** "We define `BenchmarkResult`. `__call__` validates whether accuracy meets the threshold. `__lt__` returns `self.accuracy < other.accuracy`, or if tied, `self.latency > other.latency`. We filter the objects with `b(min_accuracy)` and sort with `reverse=True`."
+
+  **(Complexity)** "Runs in O(N log N) time for sorting N records, requiring O(N) space to hold the instances."
+
+twist:
+  lc: 9212
+  title: Hashability & Set Deduplication via __hash__ and __eq__
+  why: >-
+    To place BenchmarkResult instances into a set or use them as dictionary keys,
+    both __eq__ and __hash__ must be implemented consistently using immutable fields.
+
+viz:
+  title: "Dunder Method Benchmark Graph"

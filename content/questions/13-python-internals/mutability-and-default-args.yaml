@@ -1,0 +1,210 @@
+slug: mutability-and-default-args
+lc: 9201
+citadel_id: python_data
+brick_layer: 1
+runner_type: python_practical
+
+concept:
+  problem_it_solves: >-
+    "Why does my function remember items from previous calls?" In Python, function default arguments
+    are evaluated once at function definition time on the heap, NOT on each call. If you use a mutable
+    default like def log(item, store=[]):, every caller that omits store appends to the exact same heap list.
+  brute_force: >-
+    Using def log(item, store=[]): and hoping callers always pass an explicit empty list. In production,
+    one forgotten argument shares state across different HTTP requests, leaking user data across sessions.
+  brute_force_complexity: O(1) invocation, but catastrophic state corruption across calls.
+  key_insight: >-
+    Use None as the sentinel default: def log(item, store=None):. Inside the function body, check
+    if store is None: store = []. This guarantees a freshly allocated list on the heap for every invocation.
+  real_world: >-
+    Production API request loggers, session stores, and metric accumulators. In FastAPI or Flask, a mutable default
+    in a route handler or helper function will share state across unrelated concurrent user requests.
+
+statement:
+  clean: |
+    Implement a safe telemetry logger method `append_record(record: dict, store: list = None) -> list`
+    without suffering from a mutable default argument bug.
+    
+    A junior engineer previously wrote `def append_record(record, store=[]): store.append(record); return store`,
+    which caused a catastrophic state leak where independent user telemetry records merged into the same list.
+    
+    Your task:
+    1. If `store` is `None`, create and return a brand-new list containing a copy of `record`.
+    2. If an existing `store` list is provided, append a copy of `record` into it and return `store`.
+    3. Ensure records added to `store` are shallow copies (`record.copy()`), so subsequent external modifications
+       to the input dictionary do not mutate the history inside `store`.
+  oa_story: |
+    **Drizz Telemetry Engine — P1 Production Post-Mortem**
+    
+    During high-throughput mobile app testing, telemetry payloads from device Alpha were mysteriously
+    appearing in device Beta's session report. The investigation traced the bug to a helper function that
+    used a mutable default argument `logs=[]`. Because Python binds default arguments to a single heap object
+    when the module loads, all concurrent test workers shared the same log instance.
+    
+    Fix this function so every test run remains completely isolated unless an explicit store is provided.
+  trigger_keywords: ["mutable default argument", "append_record", "store"]
+  examples:
+    - input: "record = {'event': 'click', 'id': 1}, store = None"
+      output: "[{'event': 'click', 'id': 1}]"
+      explanation: "A fresh list is created since store was None."
+    - input: "record = {'event': 'swipe'}, store = [{'event': 'tap'}]"
+      output: "[{'event': 'tap'}, {'event': 'swipe'}]"
+      explanation: "Record is appended to the caller-supplied store."
+  constraints:
+    - "record is always a valid non-empty dictionary"
+    - "store is either None or an existing Python list"
+
+constraint_quiz:
+  prompt: >-
+    When is a default parameter expression evaluated in Python?
+  options:
+    - "Every time the function is called"
+    - "Exactly once when the function definition is executed"
+    - "When the garbage collector runs"
+    - "Only when the parameter is omitted"
+  answer: 1
+  explanation: >-
+    Default parameter values are evaluated once when the def statement executes. The resulting object
+    is bound to the function's __defaults__ tuple on the heap.
+
+pattern_quiz:
+  prompt: What is the Pythonic idiom to avoid mutable default argument bugs?
+  options:
+    - "Use store = [] in the signature"
+    - "Use store = None as the default, and inside the body if store is None: store = []"
+    - "Use global store"
+    - "Pass a string instead of a list"
+  answer: 1
+  explanation: >-
+    Using None as the default sentinel and allocating store = [] inside the body ensures a fresh object is created
+    every time the function is called without an explicit argument.
+
+function:
+  name: append_record
+  params:
+    - {name: record}
+    - {name: store}
+
+starter_code: |
+  class Solution:
+      def append_record(self, record: dict, store: list = None) -> list:
+          pass
+
+tests:
+  - {args: [{"event": "login", "user": "suhas"}, null], expected: [{"event": "login", "user": "suhas"}]}
+  - {args: [{"event": "logout"}, [{"event": "init"}]], expected: [{"event": "init"}, {"event": "logout"}]}
+  - {args: [{"latency_ms": 120}, null], expected: [{"latency_ms": 120}]}
+  - {args: [{"metric": "cpu", "val": 42}, []], expected: [{"metric": "cpu", "val": 42}]}
+
+visualize_test: 0
+
+drills:
+  - title: Initialize on None
+    skill: setup
+    goal: Create a new container only when the argument is None.
+    instructions: |
+      Return `target` if it is not None, otherwise return an empty list `[]`.
+    function:
+      name: ensure_list
+      params: [{name: target}]
+    starter_code: |
+      class Solution:
+          def ensure_list(self, target: list = None) -> list:
+              pass
+    tests:
+      - {args: [null], expected: []}
+      - {args: [[1, 2, 3]], expected: [1, 2, 3]}
+      - {args: [[]], expected: []}
+    solution: |
+      class Solution:
+          def ensure_list(self, target: list = None) -> list:
+              if target is None:
+                  return []
+              return target
+    hint: "Use if target is None: return []"
+
+  - title: Defensive shallow copying
+    skill: core
+    goal: Prevent caller mutations from altering stored state.
+    instructions: |
+      Return a shallow copy of the input dictionary `data` using `.copy()`.
+    function:
+      name: copy_dict
+      params: [{name: data}]
+    starter_code: |
+      class Solution:
+          def copy_dict(self, data: dict) -> dict:
+              pass
+    tests:
+      - {args: [{"a": 1, "b": 2}], expected: {"a": 1, "b": 2}}
+      - {args: [{}], expected: {}}
+      - {args: [{"key": "val"}], expected: {"key": "val"}}
+    solution: |
+      class Solution:
+          def copy_dict(self, data: dict) -> dict:
+              return data.copy()
+    hint: "Call data.copy() to duplicate the dictionary references."
+
+  - title: Is vs Equals Identity check
+    skill: edge
+    goal: Understand object identity with 'is' versus structural equality with '=='.
+    instructions: |
+      Return `True` if `a` and `b` refer to the exact same object in memory (`a is b`), else `False`.
+    function:
+      name: same_identity
+      params: [{name: a}, {name: b}]
+    starter_code: |
+      class Solution:
+          def same_identity(self, a: list, b: list) -> bool:
+              pass
+    tests:
+      - {args: [[1], [1]], expected: false}
+      - {args: [[], []], expected: false}
+      - {args: [null, null], expected: true}
+    solution: |
+      class Solution:
+          def same_identity(self, a: list, b: list) -> bool:
+              return a is b
+    hint: "Use the `is` operator to compare heap pointer addresses."
+
+hints:
+  - "Default parameter values are created once at definition time, not on every function call."
+  - "Use store = None in the method signature, and check `if store is None:` inside the method."
+  - "Append `record.copy()` to make sure the stored item cannot be mutated from outside."
+
+solution:
+  code: |
+    class Solution:
+        def append_record(self, record: dict, store: list = None) -> list:
+            if store is None:
+                store = []
+            store.append(record.copy())
+            return store
+  explanation: |
+    By setting `store = None` as the default argument, we avoid binding a single mutable list
+    to the function definition. Inside the function, `if store is None:` instantiates a brand new
+    list on the heap specifically for this invocation.
+    
+    Calling `record.copy()` ensures that if the caller mutates their local dictionary after passing
+    it into `append_record`, the internal record inside `store` remains intact.
+  time: O(1) — dictionary copy and list append are constant time
+  space: O(1) extra space beyond the newly allocated copy
+
+pitch_script: |
+  **(Clarify)** "We need to fix the classic mutable default argument issue where omitted arguments share state across invocations, while also guarding against external mutation via shallow copying."
+
+  **(Basement Insight)** "In Python, default arguments are evaluated when the function definition is executed, storing references on the function object's `__defaults__` tuple. If you use a mutable list `store=[]`, all calls that omit the argument mutate the exact same object on the heap."
+
+  **(Solution)** "We use `None` as a sentinel default. Inside the body, if `store is None`, we allocate a fresh list `[]`. We then append `record.copy()` to defend against caller side-effects."
+
+  **(Complexity)** "This runs in O(K) time where K is the number of keys in the record, using O(K) space for the defensive copy."
+
+twist:
+  lc: 9202
+  title: Deepcopy vs Shallow Copy in Nested Telemetry
+  why: >-
+    If the record dictionary contains nested sub-dictionaries (e.g. {'user': {'id': 1}}), shallow copy
+    still shares the inner dictionary. For deeply nested structures, copy.deepcopy() is required.
+
+viz:
+  title: "Stack Pointer vs Heap Object Trace"

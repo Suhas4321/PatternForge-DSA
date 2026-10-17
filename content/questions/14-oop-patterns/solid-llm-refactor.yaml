@@ -1,0 +1,274 @@
+slug: solid-llm-refactor
+lc: 9213
+citadel_id: python_data
+brick_layer: 3
+runner_type: python_practical
+
+concept:
+  problem_it_solves: >-
+    "Why does adding support for a new LLM provider require modifying 15 different files and risking existing production traffic?"
+    Monolithic code packed with `if provider == 'openai': elif provider == 'anthropic':` violates the Single Responsibility (SRP)
+    and Open/Closed Principles (OCP). Software should be open for extension, but closed for modification.
+  brute_force: >-
+    Writing giant if/elif conditional chains throughout the routing and payload formatting layer.
+    Whenever a new model is introduced, every condition must be found and edited, risking regressions across existing providers.
+  brute_force_complexity: O(P) conditionals per request, but high cyclomatic complexity and brittle code architecture.
+  key_insight: >-
+    Extract provider-specific payload formatting into distinct handler strategy classes adhering to a common interface.
+    Register handlers in an extensible dictionary registry. Adding a new provider requires only writing a new handler class
+    and registering it, without altering any existing routing code.
+  real_world: >-
+    Multi-provider LLM gateways (Drizz testing framework, Portkey, LiteLLM), multi-cloud storage abstractions,
+    and payment gateway integrations (Stripe, Razorpay, PayPal).
+
+statement:
+  clean: |
+    Perform a SOLID refactoring on a multi-provider LLM request builder:
+    `execute_provider_pipeline(requests: list[dict]) -> list[dict]`.
+    
+    Each item in `requests` is a dictionary:
+    `{"provider": str, "prompt": str, "max_tokens": int}`.
+    
+    Refactor the formatting logic into individual strategy classes:
+    1. `OpenAIHandler`:
+       Formats payload as:
+       `{"model": "gpt-4o", "messages": [{"role": "user", "content": prompt}], "max_tokens": max_tokens}`
+    2. `AnthropicHandler`:
+       Formats payload as:
+       `{"model": "claude-3-5", "prompt": prompt, "max_tokens_to_sample": max_tokens}`
+    3. `GeminiHandler`:
+       Formats payload as:
+       `{"contents": [{"parts": [{"text": prompt}]}], "generationConfig": {"maxOutputTokens": max_tokens}}`
+    4. In `execute_provider_pipeline`:
+       - Look up the provider's handler from an extensible registry.
+       - If the provider is unsupported, return `{"error": f"Unknown provider: {provider}"}` for that item.
+       - Return the list of formatted payloads.
+  oa_story: |
+    **Drizz Multi-LLM Testing Gateway — Architecture Overhaul**
+    
+    Our testing engine evaluates UI action predictions across OpenAI, Anthropic, and Gemini models.
+    The original prototype used a monolithic 400-line class with nested `if/elif` statements checking `model_type`.
+    When the team tried to add Gemini 1.5 Pro, an accidental typo in an `elif` branch broke existing Claude pipelines during a P1 release.
+    
+    Refactor this subsystem into decoupled Strategy classes adhering to the Open/Closed Principle.
+  trigger_keywords: ["SOLID refactoring", "execute_provider_pipeline", "requests"]
+  examples:
+    - input: "requests = [{'provider': 'openai', 'prompt': 'hello', 'max_tokens': 100}]"
+      output: "[{'model': 'gpt-4o', 'messages': [{'role': 'user', 'content': 'hello'}], 'max_tokens': 100}]"
+      explanation: "OpenAIHandler formats message array and max_tokens parameter."
+    - input: "requests = [{'provider': 'unknown', 'prompt': 'test', 'max_tokens': 50}]"
+      output: "[{'error': 'Unknown provider: unknown'}]"
+      explanation: "Unknown provider returns structured error dictionary."
+  constraints:
+    - "requests contains between 0 and 100 items"
+    - "max_tokens is a positive integer"
+
+constraint_quiz:
+  prompt: >-
+    Which SOLID principle states that classes should be open for extension but closed for modification?
+  options:
+    - "Single Responsibility Principle (SRP)"
+    - "Open/Closed Principle (OCP)"
+    - "Liskov Substitution Principle (LSP)"
+    - "Interface Segregation Principle (ISP)"
+  answer: 1
+  explanation: >-
+    The Open/Closed Principle (OCP) states that software entities should be open for extension without modifying existing tested code.
+
+pattern_quiz:
+  prompt: Which behavioral design pattern replaces conditional if/elif ladders by encapsulating algorithms in separate classes?
+  options:
+    - "Strategy Pattern"
+    - "Singleton Pattern"
+    - "Decorator Pattern"
+    - "Facade Pattern"
+  answer: 0
+  explanation: >-
+    The Strategy pattern defines a family of algorithms, encapsulates each one, and makes them interchangeable at runtime.
+
+function:
+  name: execute_provider_pipeline
+  params:
+    - {name: requests}
+
+starter_code: |
+  class Solution:
+      def execute_provider_pipeline(self, requests: list[dict]) -> list[dict]:
+          pass
+
+tests:
+  - args:
+      - [
+          {"provider": "openai", "prompt": "Summarize text", "max_tokens": 150},
+          {"provider": "anthropic", "prompt": "Generate code", "max_tokens": 200}
+        ]
+    expected:
+      - {"model": "gpt-4o", "messages": [{"role": "user", "content": "Summarize text"}], "max_tokens": 150}
+      - {"model": "claude-3-5", "prompt": "Generate code", "max_tokens_to_sample": 200}
+  - args:
+      - [
+          {"provider": "gemini", "prompt": "Analyze image", "max_tokens": 300}
+        ]
+    expected:
+      - {"contents": [{"parts": [{"text": "Analyze image"}]}], "generationConfig": {"maxOutputTokens": 300}}
+  - args:
+      - [
+          {"provider": "deepseek", "prompt": "Reason", "max_tokens": 500}
+        ]
+    expected:
+      - {"error": "Unknown provider: deepseek"}
+  - args:
+      - []
+    expected: []
+
+visualize_test: 0
+
+drills:
+  - title: Strategy handler interface
+    skill: setup
+    goal: Create a strategy class with a single formatting method.
+    instructions: |
+      Implement `UpperStrategy` with method `format(val: str) -> str` that returns `val.upper()`.
+    function:
+      name: test_upper_strat
+      params: [{name: val}]
+    starter_code: |
+      class Solution:
+          def test_upper_strat(self, val: str) -> str:
+              pass
+    tests:
+      - {args: ["hello"], expected: "HELLO"}
+      - {args: ["abc"], expected: "ABC"}
+    solution: |
+      class UpperStrategy:
+          def format(self, val: str) -> str:
+              return val.upper()
+
+      class Solution:
+          def test_upper_strat(self, val: str) -> str:
+              return UpperStrategy().format(val)
+    hint: "Implement UpperStrategy with def format(self, val): return val.upper()."
+
+  - title: Strategy registry dictionary
+    skill: core
+    goal: Retrieve a strategy object by key from a registry.
+    instructions: |
+      Given a key `"double"` or `"triple"`, return `x * 2` or `x * 3` using a registry dictionary.
+    function:
+      name: apply_op
+      params: [{name: key}, {name: x}]
+    starter_code: |
+      class Solution:
+          def apply_op(self, key: str, x: int) -> int:
+              pass
+    tests:
+      - {args: ["double", 10], expected: 20}
+      - {args: ["triple", 5], expected: 15}
+    solution: |
+      class Solution:
+          def apply_op(self, key: str, x: int) -> int:
+              registry = {
+                  "double": lambda v: v * 2,
+                  "triple": lambda v: v * 3,
+              }
+              return registry[key](x)
+    hint: "Use a dictionary mapping string keys to callable operations."
+
+  - title: Defensive fallback for missing key
+    skill: edge
+    goal: Handle unknown keys gracefully with default error dictionary.
+    instructions: |
+      If `key` is in `registry`, call it with `x`. Otherwise return `{"error": f"Missing {key}"}`.
+    function:
+      name: safe_lookup
+      params: [{name: key}, {name: x}]
+    starter_code: |
+      class Solution:
+          def safe_lookup(self, key: str, x: int) -> dict:
+              pass
+    tests:
+      - {args: ["add1", 5], expected: {"result": 6}}
+      - {args: ["missing", 5], expected: {"error": "Missing missing"}}
+    solution: |
+      class Solution:
+          def safe_lookup(self, key: str, x: int) -> dict:
+              registry = {"add1": lambda v: {"result": v + 1}}
+              if key in registry:
+                  return registry[key](x)
+              return {"error": f"Missing {key}"}
+    hint: "Check `if key in registry:` before lookup."
+
+hints:
+  - "Create three handler classes: `OpenAIHandler`, `AnthropicHandler`, and `GeminiHandler`."
+  - "Give each class a method `format(prompt: str, max_tokens: int) -> dict`."
+  - "Store instances in a dictionary: `REGISTRY = {'openai': OpenAIHandler(), ...}`."
+
+solution:
+  code: |
+    class OpenAIHandler:
+        def format(self, prompt: str, max_tokens: int) -> dict:
+            return {
+                "model": "gpt-4o",
+                "messages": [{"role": "user", "content": prompt}],
+                "max_tokens": max_tokens,
+            }
+
+    class AnthropicHandler:
+        def format(self, prompt: str, max_tokens: int) -> dict:
+            return {
+                "model": "claude-3-5",
+                "prompt": prompt,
+                "max_tokens_to_sample": max_tokens,
+            }
+
+    class GeminiHandler:
+        def format(self, prompt: str, max_tokens: int) -> dict:
+            return {
+                "contents": [{"parts": [{"text": prompt}]}],
+                "generationConfig": {"maxOutputTokens": max_tokens},
+            }
+
+    class Solution:
+        def execute_provider_pipeline(self, requests: list[dict]) -> list[dict]:
+            registry = {
+                "openai": OpenAIHandler(),
+                "anthropic": AnthropicHandler(),
+                "gemini": GeminiHandler(),
+            }
+            results = []
+            for req in requests:
+                provider = req.get("provider")
+                prompt = req.get("prompt", "")
+                max_tokens = req.get("max_tokens", 100)
+                if provider in registry:
+                    results.append(registry[provider].format(prompt, max_tokens))
+                else:
+                    results.append({"error": f"Unknown provider: {provider}"})
+            return results
+  explanation: |
+    By refactoring into the Strategy pattern, each provider's formatting rules are cleanly isolated
+    within its own class (Single Responsibility).
+    
+    Adding a new provider like DeepSeek or Mistral simply requires adding `DeepSeekHandler` and registering it
+    in the `registry` dictionary. The core loop in `execute_provider_pipeline` never requires modification (Open/Closed).
+  time: O(N) where N is number of requests
+  space: O(N) for formatted payload dictionaries
+
+pitch_script: |
+  **(Clarify)** "We need to refactor a multi-provider LLM payload builder away from nested if/elif ladders and into clean SOLID Strategy classes."
+
+  **(Basement Insight)** "Monolithic if/elif trees violate both the Single Responsibility and Open/Closed Principles. Adding or changing a provider modifies the same core function, causing regression hazards and increasing cyclomatic complexity."
+
+  **(Solution)** "We implement dedicated strategy classes (`OpenAIHandler`, `AnthropicHandler`, `GeminiHandler`) conforming to a unified `format(prompt, max_tokens)` contract, registered inside a strategy dictionary. The dispatch loop looks up the handler in O(1) time and delegates execution."
+
+  **(Complexity)** "Runs in O(N) time across N requests, using O(N) space for the resulting payloads."
+
+twist:
+  lc: 9214
+  title: Dynamic Plugin Discovery via Entry Points or Decorator Registration
+  why: >-
+    Instead of hardcoding the registry in source code, use a @register_provider('name') decorator
+    so third-party extensions can register themselves automatically at module import time.
+
+viz:
+  title: "SOLID Provider Strategy Registry"

@@ -1,0 +1,254 @@
+slug: thread-vs-process-pool-advisor
+lc: 9425
+citadel_id: os_concurrency
+brick_layer: 3
+runner_type: python_practical
+concept:
+  problem_it_solves: When should a Python backend use `ThreadPoolExecutor` versus `ProcessPoolExecutor`? In CPython, the Global
+    Interpreter Lock (GIL) prevents multiple threads from executing Python bytecode in parallel. For CPU-bound tasks, multithreading
+    performs *slower* than single-threaded execution due to GIL lock thrashing! However, I/O-bound tasks release the GIL during
+    network/disk wait. Process pools bypass the GIL across physical cores at the cost of IPC serialization overhead.
+  brute_force: Throwing ThreadPoolExecutor at heavy image processing or cryptography tasks, causing CPU execution to serialize
+    under the GIL.
+  brute_force_complexity: O(N) CPU tasks running 100% serialized under GIL contention.
+  key_insight: Calculate the CPU workload ratio. If CPU tasks dominate and process parallel execution beats threadpool serialization
+    (accounting for IPC overhead), recommend ProcessPoolExecutor.
+  real_world: FastAPI background worker pool sizing, ML batch prediction dispatchers, and web scraping pipelines.
+statement:
+  clean: "Implement a workload pool optimizer to recommend ThreadPoolExecutor vs ProcessPoolExecutor:\n`recommend_pool_strategy(tasks:\
+    \ list[dict], cpu_cores: int) -> dict`.\n\nEach task has `{\"name\": str, \"type\": \"CPU\" | \"IO\", \"duration_ms\"\
+    : int}`.\n\nWorkload Execution Model:\n1. `total_cpu_ms = sum(t[\"duration_ms\"] for t in tasks if t[\"type\"] == \"CPU\"\
+    )`.\n2. `total_io_ms = sum(t[\"duration_ms\"] for t in tasks if t[\"type\"] == \"IO\")`.\n3. `max_io_ms = max((t[\"duration_ms\"\
+    ] for t in tasks if t[\"type\"] == \"IO\"), default=0)`.\n4. `max_cpu_ms = max((t[\"duration_ms\"] for t in tasks if t[\"\
+    type\"] == \"CPU\"), default=0)`.\n5. `cpu_ratio = round(total_cpu_ms / (total_cpu_ms + total_io_ms), 2)` if tasks else\
+    \ `0.0`.\n\nPerformance Estimates:\n- `ThreadPoolExecutor`:\n  - Due to the GIL, all CPU tasks execute serially: `total_cpu_ms`.\n\
+    \  - IO tasks execute concurrently: `max_io_ms`.\n  - `thread_pool_time = total_cpu_ms + max_io_ms`.\n- `ProcessPoolExecutor`:\n\
+    \  - CPU tasks run in parallel across `cpu_cores`: `max(math.ceil(total_cpu_ms / cpu_cores), max_cpu_ms)`.\n  - IO tasks\
+    \ overlap: `max_io_ms`.\n  - Inter-Process Communication (IPC) serialization penalty: `len(tasks) * 5` ms.\n  - `process_pool_time\
+    \ = max(math.ceil(total_cpu_ms / cpu_cores), max_cpu_ms) + max_io_ms + (len(tasks) * 5)`.\n\nDecision:\n- If `process_pool_time\
+    \ < thread_pool_time`: recommend `\"ProcessPoolExecutor\"` with `gil_bottleneck_detected = True`.\n- Otherwise: recommend\
+    \ `\"ThreadPoolExecutor\"` with `gil_bottleneck_detected = False`.\n\nReturn a dictionary containing:\n- `\"recommended_pool\"\
+    `: `str`\n- `\"estimated_time_ms\"`: `int`\n- `\"gil_bottleneck_detected\"`: `bool`\n- `\"cpu_ratio\"`: `float`"
+  oa_story: '**BlinkFast OCR Document Extraction — Pool Bottleneck**
+
+
+    BlinkFast receipt scanning pipeline ground to a halt during the Diwali shopping weekend. Developers dispatched 100 concurrent
+    OCR image resizing tasks using Python''s `ThreadPoolExecutor`. Instead of speeding up on a 16-core server, CPU usage pegged
+    at 100% on a single core due to GIL lock contention.
+
+
+    Implement this pool advisor to automatically route CPU-heavy workloads to ProcessPoolExecutor and IO workloads to ThreadPoolExecutor.'
+  trigger_keywords:
+  - workload pool optimizer
+  - recommend_pool_strategy
+  - gil_bottleneck_detected
+  examples:
+  - input: 'tasks = [{"name": "t1", "type": "CPU", "duration_ms": 400}, {"name": "t2", "type": "CPU", "duration_ms": 400},
+      {"name": "t3", "type": "IO", "duration_ms": 50}], cpu_cores = 4'
+    output: '{"recommended_pool": "ProcessPoolExecutor", "estimated_time_ms": 465, "gil_bottleneck_detected": True, "cpu_ratio":
+      0.94}'
+    explanation: CPU tasks take 800ms under ThreadPool GIL. ProcessPool completes in 400 + 50 + 15 = 465ms.
+  - input: 'tasks = [{"name": "t1", "type": "IO", "duration_ms": 200}, {"name": "t2", "type": "IO", "duration_ms": 300}],
+      cpu_cores = 4'
+    output: '{"recommended_pool": "ThreadPoolExecutor", "estimated_time_ms": 300, "gil_bottleneck_detected": False, "cpu_ratio":
+      0.0}'
+    explanation: Pure IO workload has zero GIL contention; ThreadPool avoids process IPC overhead.
+  constraints:
+  - 0 <= len(tasks) <= 1000
+  - 1 <= cpu_cores <= 64
+constraint_quiz:
+  prompt: Why does multi-threaded CPU-bound code in CPython fail to utilize multiple CPU cores?
+  options:
+  - The Global Interpreter Lock (GIL) serializes execution of Python bytecode to protect memory management and reference counts
+  - Operating system kernels refuse to allocate threads to Python
+  - CPython disables hyper-threading at compile time
+  - Multi-threading requires root permissions
+  answer: 0
+  explanation: The GIL is a mutual exclusion lock held by the interpreter thread to protect reference count modifications,
+    ensuring only one native thread runs Python bytecode at a time.
+pattern_quiz:
+  prompt: Why is ProcessPoolExecutor not always superior to ThreadPoolExecutor?
+  options:
+  - Process creation and IPC argument serialization (pickling) introduce noticeable latency overhead
+  - Process pools cannot access local disk storage
+  - Processes cannot make HTTP requests
+  - Process pools crash if CPU usage exceeds 50%
+  answer: 0
+  explanation: ProcessPoolExecutor must pickle function arguments and return values across pipe sockets, introducing IPC latency
+    that makes it slower for lightweight or IO tasks.
+function:
+  name: recommend_pool_strategy
+  params:
+  - name: tasks
+  - name: cpu_cores
+  returns: any
+  compare: exact
+starter_code: "class Solution:\n    def recommend_pool_strategy(self, tasks: list[dict], cpu_cores: int) -> dict:\n      \
+  \  pass\n"
+tests:
+- args:
+  - - name: t1
+      type: CPU
+      duration_ms: 400
+    - name: t2
+      type: CPU
+      duration_ms: 400
+    - name: t3
+      type: IO
+      duration_ms: 50
+  - 4
+  expected:
+    recommended_pool: ProcessPoolExecutor
+    estimated_time_ms: 465
+    gil_bottleneck_detected: true
+    cpu_ratio: 0.94
+  note: Heavy CPU tasks benefit from ProcessPool
+- args:
+  - - name: t1
+      type: IO
+      duration_ms: 200
+    - name: t2
+      type: IO
+      duration_ms: 300
+  - 4
+  expected:
+    recommended_pool: ThreadPoolExecutor
+    estimated_time_ms: 300
+    gil_bottleneck_detected: false
+    cpu_ratio: 0.0
+  note: IO tasks benefit from ThreadPool
+- args:
+  - []
+  - 4
+  expected:
+    recommended_pool: ThreadPoolExecutor
+    estimated_time_ms: 0
+    gil_bottleneck_detected: false
+    cpu_ratio: 0.0
+  note: Empty tasks
+visualize_test: 0
+drills:
+- skill: setup
+  title: Partition workload types
+  goal: Separate tasks into CPU and IO lists.
+  instructions: Return `[cpu_tasks, io_tasks]`.
+  function:
+    name: drill_split_workload
+    params:
+    - name: tasks
+  starter_code: "class Solution:\n    def drill_split_workload(self, tasks: list[dict]) -> list:\n        pass\n"
+  tests:
+  - args:
+    - - type: CPU
+      - type: IO
+    expected:
+    - - type: CPU
+    - - type: IO
+  solution: "class Solution:\n    def drill_split_workload(self, tasks: list[dict]) -> list:\n        return [[t for t in\
+    \ tasks if t.get(\"type\") == \"CPU\"], [t for t in tasks if t.get(\"type\") == \"IO\"]]\n"
+  hint: Use list comprehensions on `t.get('type')`.
+- skill: core
+  title: Calculate thread vs process times
+  goal: Compute latency estimates for both pools.
+  instructions: Return `[thread_time, process_time]`.
+  function:
+    name: drill_pool_times
+    params:
+    - name: cpu_ms
+    - name: io_ms
+    - name: cores
+    - name: n_tasks
+  starter_code: "class Solution:\n    def drill_pool_times(self, cpu_ms: int, io_ms: int, cores: int, n_tasks: int) -> list[int]:\n\
+    \        pass\n"
+  tests:
+  - args:
+    - 800
+    - 50
+    - 4
+    - 3
+    expected:
+    - 850
+    - 265
+  solution: "import math\n\nclass Solution:\n    def drill_pool_times(self, cpu_ms: int, io_ms: int, cores: int, n_tasks:\
+    \ int) -> list[int]:\n        thread_t = cpu_ms + io_ms\n        proc_t = math.ceil(cpu_ms / cores) + io_ms + (n_tasks\
+    \ * 5)\n        return [thread_t, proc_t]\n"
+  hint: Calculate `cpu + io` for thread, and `ceil(cpu/cores) + io + n*5` for process.
+- skill: edge
+  title: Compute CPU workload ratio
+  goal: Calculate fraction of time spent in CPU tasks.
+  instructions: Return `round(cpu_ms / total_ms, 2)` if total_ms > 0 else 0.0.
+  function:
+    name: drill_cpu_ratio
+    params:
+    - name: cpu_ms
+    - name: total_ms
+  starter_code: "class Solution:\n    def drill_cpu_ratio(self, cpu_ms: int, total_ms: int) -> float:\n        pass\n"
+  tests:
+  - args:
+    - 800
+    - 850
+    expected: 0.94
+  - args:
+    - 0
+    - 300
+    expected: 0.0
+  solution: "class Solution:\n    def drill_cpu_ratio(self, cpu_ms: int, total_ms: int) -> float:\n        return round(cpu_ms\
+    \ / total_ms, 2) if total_ms > 0 else 0.0\n"
+  hint: Divide cpu_ms by total_ms and round to 2 decimals.
+hints:
+- Sum CPU task durations and find maximum IO duration.
+- Compare `thread_pool_time` (GIL serializes CPU) against `process_pool_time` (parallel CPU plus IPC penalty).
+- '| # Pseudocode Blueprint
+
+  | thread_time = total_cpu_ms + max_io_ms
+
+  | proc_time = max(ceil(total_cpu_ms / cores), max_cpu_ms) + max_io_ms + (len(tasks) * 5)
+
+  | if proc_time < thread_time: recommend ProcessPoolExecutor, gil = True
+
+  | else: recommend ThreadPoolExecutor, gil = False'
+solution:
+  code: "import math\n\nclass Solution:\n    def recommend_pool_strategy(self, tasks: list[dict], cpu_cores: int) -> dict:\n\
+    \        cpu_tasks = [t for t in tasks if t.get(\"type\") == \"CPU\"]\n        io_tasks = [t for t in tasks if t.get(\"\
+    type\") == \"IO\"]\n\n        total_cpu_ms = sum(t[\"duration_ms\"] for t in cpu_tasks)\n        total_io_ms = sum(t[\"\
+    duration_ms\"] for t in io_tasks)\n        max_io_ms = max((t[\"duration_ms\"] for t in io_tasks), default=0)\n      \
+    \  max_cpu_ms = max((t[\"duration_ms\"] for t in cpu_tasks), default=0)\n\n        total_duration = total_cpu_ms + total_io_ms\n\
+    \        cpu_ratio = round(total_cpu_ms / total_duration, 2) if total_duration > 0 else 0.0\n\n        thread_pool_time\
+    \ = total_cpu_ms + max_io_ms\n        ipc_overhead = len(tasks) * 5\n        process_pool_time = max(math.ceil(total_cpu_ms\
+    \ / cpu_cores), max_cpu_ms) + max_io_ms + ipc_overhead\n\n        if process_pool_time < thread_pool_time:\n         \
+    \   recommended = \"ProcessPoolExecutor\"\n            est_time = process_pool_time\n            gil_bottleneck = True\n\
+    \        else:\n            recommended = \"ThreadPoolExecutor\"\n            est_time = thread_pool_time\n          \
+    \  gil_bottleneck = False\n\n        return {\n            \"recommended_pool\": recommended,\n            \"estimated_time_ms\"\
+    : est_time,\n            \"gil_bottleneck_detected\": gil_bottleneck,\n            \"cpu_ratio\": cpu_ratio,\n       \
+    \ }\n"
+  explanation: For CPU-bound tasks, the Python GIL forces ThreadPoolExecutor to run serially. ProcessPoolExecutor bypasses
+    the GIL across available CPU cores, outperforming threads whenever the parallel speedup outweighs the IPC serialization
+    penalty.
+  time: O(N) where N is the number of tasks
+  space: O(N) for partitioned task lists
+pitch_script: '**(Clarify)** "We need to analyze a list of CPU and IO tasks to recommend whether ThreadPoolExecutor or ProcessPoolExecutor
+  will achieve lower overall wall-clock execution time."
+
+
+  **(Brute force)** "Using ThreadPoolExecutor for all tasks causes CPU-bound workloads to serialize under CPython''s Global
+  Interpreter Lock."
+
+
+  **(Trigger)** "Comparing GIL serialization against multi-process core distribution and IPC penalties signals a workload
+  pool optimization model."
+
+
+  **(Optimal)** "We partition tasks into CPU and IO. In ThreadPoolExecutor, CPU tasks serialize (sum) while IO overlaps (max).
+  In ProcessPoolExecutor, CPU tasks run in parallel across CPU cores bounded by ceil(total_cpu / cores) and max task duration,
+  plus a 5ms IPC serialization penalty. We pick the pool with the minimum estimated completion time."
+
+
+  **(Complexity)** "Runs in O(N) time and O(N) space." '
+twist:
+  lc: 9513
+  title: Sync vs Async Def Event Loop Starvation Simulation
+  why: In FastAPI, calling a synchronous blocking function inside an async def endpoint starves the single event loop, requiring
+    threadpool offloading.
+viz:
+  title: ThreadPool vs ProcessPool Allocation
+  type: concurrency_timeline

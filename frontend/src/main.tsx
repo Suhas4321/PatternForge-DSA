@@ -17,11 +17,14 @@ import PatternFinder from './pages/PatternFinder'
 import NotFound from './pages/NotFound'
 import { Spinner } from './components/ui'
 
-// The editor pages pull in Monaco (several MB); load them only when visited.
+// Lazy-load heavier interactive pages
 const QuestionPage = lazy(() => import('./pages/QuestionPage'))
 const Playground = lazy(() => import('./pages/Playground'))
+const ResumeGrill = lazy(() => import('./pages/ResumeGrill'))
+const StatsPage = lazy(() => import('./pages/StatsPage'))
+
 const withSpinner = (el: ReactNode) => (
-  <Suspense fallback={<div className="p-8"><Spinner label="Loading the editor" /></div>}>{el}</Suspense>
+  <Suspense fallback={<div className="p-8"><Spinner label="Loading workspace" /></div>}>{el}</Suspense>
 )
 
 const router = createBrowserRouter([
@@ -30,10 +33,13 @@ const router = createBrowserRouter([
     element: <App />,
     children: [
       { index: true, element: <Dashboard /> },
+      { path: 'citadel/:citadelId', element: <Dashboard /> },
       { path: 'world/:id', element: <WorldPage /> },
       { path: 'q/:slug', element: withSpinner(<QuestionPage />) },
       { path: 'playground', element: withSpinner(<Playground />) },
       { path: 'finder', element: <PatternFinder /> },
+      { path: 'resume-grill', element: withSpinner(<ResumeGrill />) },
+      { path: 'stats', element: withSpinner(<StatsPage />) },
       { path: '*', element: <NotFound /> },
     ],
   },

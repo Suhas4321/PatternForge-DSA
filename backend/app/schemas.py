@@ -14,6 +14,8 @@ class ProgressOut(BaseModel):
     attempts: int = 0
     hints_used: int = 0
     confidence: int | None = None
+    first_try_pass: bool | None = None
+    time_spent_seconds: int | None = None
     review_count: int = 0
     last_practiced_at: datetime | None = None
     next_review_at: datetime | None = None
@@ -28,6 +30,9 @@ class QuestionSummary(BaseModel):
     difficulty: str
     world_id: int
     position: int
+    citadel_id: str = "dsa"
+    brick_layer: int = 1
+    runner_type: str = "python_trace"
     visualizer: str
     patterns: list[str]
     has_content: bool
@@ -38,6 +43,8 @@ class QuestionSummary(BaseModel):
 class WorldOut(BaseModel):
     id: int
     slug: str
+    citadel_id: str = "dsa"
+    status: str = "live"
     name: str
     tagline: str
     core_idea: str
@@ -80,7 +87,7 @@ class ProgressPatch(BaseModel):
 
 
 class ConfidenceIn(BaseModel):
-    confidence: int = Field(ge=1, le=3)
+    confidence: int = Field(ge=1, le=5)
 
 
 class DraftIn(BaseModel):
@@ -91,7 +98,7 @@ class DraftIn(BaseModel):
 class RunIn(BaseModel):
     code: str = Field(max_length=50_000)
     target: str = Field(default="main", pattern=r"^(main|drill:[0-2])$")
-    language: Literal["python"] = "python"
+    language: Literal["python", "sql", "java"] = "python"
     visualize: bool = True
     trace_test_index: int | None = None
     # Run the visualizer on your own input; expected output comes from the reference solution.

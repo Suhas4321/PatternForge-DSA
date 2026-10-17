@@ -8,6 +8,7 @@ import type { World } from '../api/types'
 import { useGrimoire } from '../lib/grimoire'
 import { currentQuest, questUrl } from '../lib/journey'
 import { DifficultyBadge, Kbd } from './ui'
+import { GlassSurface } from './vendor/vsrc/glass-surface'
 
 interface Item {
   id: string
@@ -104,7 +105,7 @@ export default function CommandPalette() {
       { id: 'finder', group: 'Actions', label: 'Pattern Finder', detail: 'Which pattern is this problem?', icon: <Compass size={16} />, haystack: 'pattern finder which pattern flowchart decide', run: close(() => navigate('/finder')) },
       { id: 'grimoire', group: 'Actions', label: 'Open the Grimoire', detail: 'Revision sheets', icon: <BookMarked size={16} />, haystack: 'grimoire cheat sheet revision notes pitch', run: close(() => openGrimoire()) },
       { id: 'playground', group: 'Actions', label: 'Playground', detail: 'Trace any code', icon: <FlaskConical size={16} />, haystack: 'playground trace visualize code', run: close(() => navigate('/playground')) },
-      { id: 'theme', group: 'Actions', label: 'Switch theme', detail: 'Studio contrast / carbon dark', icon: <Moon size={16} />, haystack: 'theme dark light mode carbon studio', run: close(() => window.dispatchEvent(new Event('pf-toggle-theme'))) },
+      { id: 'theme', group: 'Actions', label: 'Switch theme', detail: 'Dark / paper light', icon: <Moon size={16} />, haystack: 'theme dark light mode carbon paper', run: close(() => window.dispatchEvent(new Event('pf-toggle-theme'))) },
     ]
     const worldItems: Item[] = (worlds ?? []).map((w) => ({
       id: `world-${w.id}`,
@@ -121,7 +122,7 @@ export default function CommandPalette() {
         group: 'Questions' as const,
         label: q.title,
         detail: `${w.name.replace(/ — .*/, '')}${q.progress.solved ? ', solved' : ''}`,
-        icon: <span className="font-mono text-[11px]">#{q.lc}</span>,
+        icon: <span className="font-mono text-caption">#{q.lc}</span>,
         haystack: ` #${q.lc} ${q.title} ${q.difficulty} ${w.name} ${q.patterns.join(' ').replace(/-/g, ' ')} `.toLowerCase(),
         badge: <DifficultyBadge difficulty={q.difficulty} />,
         run: close(() => navigate(questUrl(q))),
@@ -166,23 +167,24 @@ export default function CommandPalette() {
     <AnimatePresence>
       {open && (
         <motion.div
-          className="fixed inset-0 z-[60] flex items-start justify-center bg-[#141413]/40 px-4 pt-[12vh] backdrop-blur-[2px]"
+          className="fixed inset-0 z-[60] flex items-start justify-center bg-black/50 px-4 pt-[12vh] backdrop-blur-[2px]"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.12 }}
           onMouseDown={() => setOpen(false)}
         >
-          <motion.div
-            role="dialog"
-            aria-label="Command palette"
-            className="card w-full max-w-xl overflow-hidden rounded-2xl shadow-2xl"
-            initial={{ opacity: 0, y: -8, scale: 0.98 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -6, scale: 0.98 }}
-            transition={{ duration: 0.16, ease: 'easeOut' }}
-            onMouseDown={(e) => e.stopPropagation()}
-          >
+          <GlassSurface asChild glass={{ scale: -64, mapBlur: 10, blur: 16 }}>
+            <motion.div
+              role="dialog"
+              aria-label="Command palette"
+              className="w-full max-w-xl overflow-hidden rounded-2xl border border-line bg-panel/90 shadow-2xl backdrop-blur-xl"
+              initial={{ opacity: 0, y: -8, scale: 0.98 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -6, scale: 0.98 }}
+              transition={{ duration: 0.16, ease: 'easeOut' }}
+              onMouseDown={(e) => e.stopPropagation()}
+            >
             <div className="flex items-center gap-3 border-b border-line px-4">
               <Search size={17} className="shrink-0 text-faint" />
               <input
@@ -191,7 +193,7 @@ export default function CommandPalette() {
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={onKeyDown}
                 placeholder="Search questions, worlds, #number, pattern…"
-                className="h-12 w-full bg-transparent text-[15px] text-chalk outline-none placeholder:text-faint"
+                className="h-12 w-full bg-transparent text-ui text-chalk outline-none placeholder:text-faint"
                 role="combobox"
                 aria-expanded="true"
                 aria-controls="palette-list"
@@ -220,10 +222,10 @@ export default function CommandPalette() {
                       onMouseMove={() => setActive(idx)}
                       onClick={r.run}
                       className={`flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left transition-colors duration-100 ${
-                        idx === active ? 'bg-indigo/10' : ''
+                        idx === active ? 'bg-sky-500/10' : ''
                       }`}
                     >
-                      <span className={`flex w-8 shrink-0 justify-center ${idx === active ? 'text-indigo' : 'text-muted'}`}>{r.icon}</span>
+                      <span className={`flex w-8 shrink-0 justify-center ${idx === active ? 'text-sky-400' : 'text-muted'}`}>{r.icon}</span>
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-sm text-chalk">{r.label}</span>
                         {r.detail && <span className="block truncate text-xs text-muted">{r.detail}</span>}
@@ -240,7 +242,8 @@ export default function CommandPalette() {
               <span className="ml-auto flex items-center gap-1"><Kbd keys={[isMac ? '⌘' : 'Ctrl', 'K']} /> toggle</span>
             </div>
           </motion.div>
-        </motion.div>
+        </GlassSurface>
+      </motion.div>
       )}
     </AnimatePresence>,
     document.body,

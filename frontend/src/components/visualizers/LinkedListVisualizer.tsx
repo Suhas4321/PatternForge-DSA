@@ -11,7 +11,7 @@ const COL = NODE_W + 44
 const ROW = NODE_H + 84
 const PAD_X = 16
 const PAD_Y = 30
-const LABEL_COLORS = ['#00F0FF', '#818CF8', '#C084FC', '#10B981', '#F59E0B', '#E8EAF2', '#F43F5E']
+const LABEL_COLORS = ['#00F0FF', '#38BDF8', '#94A3B8', '#10B981', '#F59E0B', '#F8FAFC', '#F43F5E']
 
 type Pos = { row: number; col: number }
 
@@ -131,7 +131,7 @@ export default function LinkedListVisualizer({ step, prev, steps, config }: Visu
             <defs>
               {(['next', 'prev', 'random'] as const).map((k) => (
                 <marker key={k} id={`arrow-${k}`} viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-                  <path d="M 0 0 L 10 5 L 0 10 z" fill={k === 'next' ? '#A3AAC2' : k === 'prev' ? '#818CF8' : '#C084FC'} />
+                  <path d="M 0 0 L 10 5 L 0 10 z" fill={k === 'next' ? '#A3AAC2' : k === 'prev' ? '#38BDF8' : '#F59E0B'} />
                 </marker>
               ))}
             </defs>
@@ -142,7 +142,7 @@ export default function LinkedListVisualizer({ step, prev, steps, config }: Visu
                 animate={{ d: arrowPath(layout.get(e.from)!, layout.get(e.to)!, e.kind) }}
                 transition={{ type: 'spring', stiffness: 260, damping: 30 }}
                 fill="none"
-                stroke={e.kind === 'next' ? '#A3AAC2' : e.kind === 'prev' ? '#818CF8' : '#C084FC'}
+                stroke={e.kind === 'next' ? '#A3AAC2' : e.kind === 'prev' ? '#38BDF8' : '#F59E0B'}
                 strokeWidth={e.kind === 'next' ? 1.6 : 1.2}
                 strokeDasharray={e.kind === 'next' ? undefined : '4 3'}
                 markerEnd={`url(#arrow-${e.kind})`}
@@ -194,7 +194,7 @@ export default function LinkedListVisualizer({ step, prev, steps, config }: Visu
           <div className="mt-1 flex gap-4 text-2xs text-faint">
             <span>— next</span>
             {edges.some((e) => e.kind === 'prev') && <span className="text-sky">- - prev</span>}
-            {edges.some((e) => e.kind === 'random') && <span className="text-orchid">- - random</span>}
+            {edges.some((e) => e.kind === 'random') && <span className="text-amber">- - random</span>}
           </div>
         </div>
       )}

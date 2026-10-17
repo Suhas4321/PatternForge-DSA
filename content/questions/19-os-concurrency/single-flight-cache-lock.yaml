@@ -1,0 +1,275 @@
+slug: single-flight-cache-lock
+lc: 9404
+citadel_id: os_concurrency
+brick_layer: 4
+runner_type: python_practical
+
+concept:
+  problem_it_solves: >-
+    "What prevents a cache stampede (thundering herd) when a hot key expires under heavy traffic?"
+    When a cached item expires and 500 concurrent requests arrive simultaneously, every worker independently
+    misses the cache and invokes the heavy downstream database query or GPU inference job.
+    This creates a thundering herd that saturates connection pools and causes cascading 504 timeouts.
+    A Single-Flight coordinator coalesces concurrent in-flight executions so only the first request performs the computation.
+  brute_force: >-
+    Every concurrent request triggers its own independent query/computation.
+    Under 1,000 RPS, this triggers 1,000 parallel database queries for the exact same identical row.
+  brute_force_complexity: O(N * T) duplicated computation, where N is concurrent requests and T is query latency.
+  key_insight: >-
+    Maintain an in-flight dictionary mapping `key -> asyncio.Future`.
+    When request K arrives:
+    1. If K is already in `in_flight`, simply await the existing future.
+    2. If K is not in `in_flight`, register a new future, execute the computation, set the future result,
+       and unregister K upon completion.
+    All waiting callers receive the shared computed value with zero duplicate backend load.
+  real_world: >-
+    FitLabs ZeroGPU IDM-VTON inference queue, Go's `golang.org/x/sync/singleflight`, Nginx proxy_cache_use_stale, and GraphQL dataloaders.
+
+statement:
+  clean: |
+    Implement an asynchronous Single-Flight request coalescing engine using a single flight lock:
+    `async def simulate_single_flight(self, requests: list[str]) -> dict`.
+    
+    Given a list of cache `requests` arriving concurrently (where each element is a string key):
+    1. Handle edge case: if `requests` is empty, return `{"total_requests": 0, "compute_calls": 0, "results": []}`.
+    2. Manage an in-flight registry `in_flight: dict[str, asyncio.Task]`.
+    3. Track an integer counter `compute_calls` recording how many times the backend computation was invoked.
+    4. Define an internal async function `execute_request(key: str) -> str`:
+       - If `key` is present in `in_flight`, await `in_flight[key]` and return its value.
+       - If `key` is NOT present in `in_flight`:
+         - Define an async worker that increments `compute_calls += 1`, awaits `asyncio.sleep(0.001)` to simulate heavy computation, and returns `f"result_{key}"`.
+         - Create a task: `task = asyncio.create_task(worker())`.
+         - Store `in_flight[key] = task`.
+         - Await `task` wrapped in a `try...finally` block.
+         - In the `finally` block, delete `key` from `in_flight`.
+         - Return the result of `task`.
+    5. Execute all requests concurrently using `await asyncio.gather(*[execute_request(k) for k in requests])`.
+    6. Return a dictionary containing:
+       - `total_requests`: total number of incoming requests (`len(requests)`).
+       - `compute_calls`: total times the backend compute was actually executed.
+       - `results`: list of returned string values in the same order as `requests`.
+  oa_story: |
+    **FitLabs ZeroGPU Stampede Prevention — IDM-VTON Model Protection**
+    
+    During a viral TikTok fashion drop, hundreds of concurrent users requested the exact same virtual try-on outfit.
+    Without request coalescing, hundreds of 25-second diffusion inference jobs flooded our HuggingFace ZeroGPU cluster,
+    causing out-of-memory crashes and service degradation.
+    
+    Implement this Single-Flight coordinator to guarantee that identical concurrent keys execute exactly once.
+  trigger_keywords: ["single flight lock", "simulate_single_flight", "requests"]
+  examples:
+    - input: 'requests = ["model_a", "model_a", "model_b", "model_a"]'
+      output: '{"total_requests": 4, "compute_calls": 2, "results": ["result_model_a", "result_model_a", "result_model_b", "result_model_a"]}'
+      explanation: "4 requests made, but only 2 unique keys: model_a executed once, model_b executed once."
+    - input: 'requests = ["cache_x", "cache_x", "cache_x"]'
+      output: '{"total_requests": 3, "compute_calls": 1, "results": ["result_cache_x", "result_cache_x", "result_cache_x"]}'
+      explanation: "All 3 callers attach to the same in-flight task; compute_calls is 1."
+    - input: 'requests = ["job_1", "job_2", "job_3"]'
+      output: '{"total_requests": 3, "compute_calls": 3, "results": ["result_job_1", "result_job_2", "result_job_3"]}'
+      explanation: "3 distinct keys, so each initiates 1 compute call."
+  constraints:
+    - "0 <= len(requests) <= 100"
+    - "Each key in requests is a non-empty string"
+
+constraint_quiz:
+  prompt: "Why must the key be deleted from `in_flight` in a `finally` block rather than immediately after computation?"
+  options:
+    - "To ensure subsequent requests after completion trigger fresh computation rather than reusing stale in-flight task references or leaking memory on exceptions"
+    - "Because Python dictionaries cannot hold completed coroutines"
+    - "Because deleting inside try blocks triggers a GIL deadlock"
+    - "Because asyncio does not support dictionary modifications"
+  answer: 0
+  explanation: "Using `finally` guarantees that whether the compute task succeeds or raises an exception, the in-flight key is cleaned up so future requests do not deadlock or await stale completed tasks."
+
+pattern_quiz:
+  prompt: "What is the primary difference between a Redis Cache and a Single-Flight Coalescer?"
+  options:
+    - "Redis caches data across time (persisted), while Single-Flight coalesces requests across concurrency (in-flight flight window)"
+    - "Redis can only store strings, while Single-Flight can only store integers"
+    - "Single-Flight runs on GPUs, while Redis runs on CPUs"
+    - "Single-Flight requires distributed multi-node consensus"
+  answer: 0
+  explanation: "Single-Flight solves the thundering herd for concurrent in-flight requests during the window between cache-miss and cache-fill. A cache stores the result for future requests across time."
+
+function:
+  name: simulate_single_flight
+  params:
+    - name: requests
+      type: any
+  returns: any
+
+starter_code: |
+  import asyncio
+
+  class Solution:
+      async def simulate_single_flight(self, requests: list[str]) -> dict:
+          pass
+
+tests:
+  - args: [["model_a", "model_a", "model_b", "model_a"]]
+    expected:
+      total_requests: 4
+      compute_calls: 2
+      results: ["result_model_a", "result_model_a", "result_model_b", "result_model_a"]
+    note: "Coalesce duplicate model_a requests"
+
+  - args: [["cache_x", "cache_x", "cache_x"]]
+    expected:
+      total_requests: 3
+      compute_calls: 1
+      results: ["result_cache_x", "result_cache_x", "result_cache_x"]
+    note: "All identical keys share single execution"
+
+  - args: [["job_1", "job_2", "job_3"]]
+    expected:
+      total_requests: 3
+      compute_calls: 3
+      results: ["result_job_1", "result_job_2", "result_job_3"]
+    note: "Distinct keys execute independently"
+
+  - args: [[]]
+    expected:
+      total_requests: 0
+      compute_calls: 0
+      results: []
+    note: "Empty request list edge case"
+
+visualize_test: 0
+
+drills:
+  - title: In-flight registry lookup
+    skill: setup
+    goal: Detect if a key is currently in-flight.
+    instructions: |
+      Implement `is_inflight(registry: dict, key: str) -> bool`.
+    function:
+      name: is_inflight
+      params: [{name: registry}, {name: key}]
+    starter_code: |
+      class Solution:
+          def is_inflight(self, registry: dict, key: str) -> bool:
+              pass
+    tests:
+      - {args: [{"a": 1}, "a"], expected: true}
+      - {args: [{"a": 1}, "b"], expected: false}
+    solution: |
+      class Solution:
+          def is_inflight(self, registry: dict, key: str) -> bool:
+              return key in registry
+    hint: "Use `return key in registry`."
+
+  - title: Single-Flight compute mock
+    skill: core
+    goal: Format the computed value for a given key.
+    instructions: |
+      Return `f"result_{key}"`.
+    function:
+      name: format_result
+      params: [{name: key}]
+    starter_code: |
+      class Solution:
+          def format_result(self, key: str) -> str:
+              pass
+    tests:
+      - {args: ["model_vton"], expected: "result_model_vton"}
+      - {args: ["auth_token"], expected: "result_auth_token"}
+    solution: |
+      class Solution:
+          def format_result(self, key: str) -> str:
+              return f"result_{key}"
+    hint: "Return f'result_{key}'."
+
+  - title: Coalesced count deduction
+    skill: edge
+    goal: Calculate compute calls saved by single flight.
+    instructions: |
+      Return `total_requests - compute_calls`.
+    function:
+      name: calls_saved
+      params: [{name: total_requests}, {name: compute_calls}]
+    starter_code: |
+      class Solution:
+          def calls_saved(self, total_requests: int, compute_calls: int) -> int:
+              pass
+    tests:
+      - {args: [10, 2], expected: 8}
+      - {args: [5, 5], expected: 0}
+    solution: |
+      class Solution:
+          def calls_saved(self, total_requests: int, compute_calls: int) -> int:
+              return total_requests - compute_calls
+    hint: "Subtract compute_calls from total_requests."
+
+hints:
+  - "If `not requests`, return `{'total_requests': 0, 'compute_calls': 0, 'results': []}` immediately."
+  - "Maintain a dictionary `in_flight = {}`. When a key is requested, check if `key in in_flight`."
+  - "If not present, increment `compute_calls += 1`, create an async task that sleeps briefly and returns `f'result_{key}'`, store it in `in_flight[key]`, await it, and in a `finally` block delete `key` from `in_flight`."
+
+solution:
+  code: |
+    import asyncio
+
+    class Solution:
+        async def simulate_single_flight(self, requests: list[str]) -> dict:
+            if not requests:
+                return {
+                    "total_requests": 0,
+                    "compute_calls": 0,
+                    "results": [],
+                }
+
+            in_flight: dict[str, asyncio.Task] = {}
+            compute_calls = 0
+
+            async def execute_request(key: str) -> str:
+                nonlocal compute_calls
+                if key in in_flight:
+                    return await in_flight[key]
+
+                async def worker() -> str:
+                    await asyncio.sleep(0.001)
+                    return f"result_{key}"
+
+                compute_calls += 1
+                task = asyncio.create_task(worker())
+                in_flight[key] = task
+                try:
+                    return await task
+                finally:
+                    in_flight.pop(key, None)
+
+            results = await asyncio.gather(*[execute_request(k) for k in requests])
+
+            return {
+                "total_requests": len(requests),
+                "compute_calls": compute_calls,
+                "results": list(results),
+            }
+  explanation: |
+    The Single-Flight pattern registers the first caller's computation in an `in_flight` dictionary as an `asyncio.Task`.
+    Any simultaneous caller requesting the identical key detects the active task and awaits it directly,
+    bypassing the backend computation.
+    
+    Once the task resolves, all waiting coroutines receive the result concurrently, and the `finally` block
+    clears the key from `in_flight` to allow subsequent requests to compute fresh data.
+  time: O(K) wall-clock time where K is unique keys in flight, O(N) memory for coroutines
+  space: O(N) for request futures and results
+
+pitch_script: |
+  **(Clarify)** "We need to build a single-flight request coalescer that prevents cache stampedes by ensuring concurrent requests for the same key share a single backend execution."
+
+  **(Basement Insight)** "When a high-traffic cache key expires or misses, hundreds of simultaneous incoming requests independently query the downstream database or GPU worker. This thundering herd causes cascading failure. Single-Flight coalesces concurrent in-flight requests into a single task."
+
+  **(Solution)** "We track an `in_flight` dictionary of active `asyncio.Task` instances. The first caller creates the task, increments our compute counter, and registers it. Concurrent callers finding the key in `in_flight` simply await that task. A `finally` block ensures the key is deregistered when complete."
+
+  **(Complexity)** "Reduces backend compute load from O(N) callers down to O(U) where U is the count of unique keys."
+
+twist:
+  lc: 9501
+  title: Single-Flight with Distributed Redis Locking
+  why: >-
+    In a multi-node cluster (multiple FastAPI pods), local in-memory single-flight only coalesces per-process requests.
+    Extend this to cluster-wide deduplication using Redis SETNX with a lease TTL.
+
+viz:
+  title: "Single Flight Concurrency Lock & Coalesce Timeline"

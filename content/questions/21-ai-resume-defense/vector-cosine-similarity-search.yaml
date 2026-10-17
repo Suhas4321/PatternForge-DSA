@@ -1,0 +1,264 @@
+slug: vector-cosine-similarity-search
+lc: 9601
+citadel_id: ai_resume
+brick_layer: 1
+runner_type: python_practical
+
+concept:
+  problem_it_solves: >-
+    "How do RAG systems (Retrieval-Augmented Generation) find relevant context when user prompts do not share exact keywords with source documents?"
+    Keyword search fails when users ask "How do I fix memory leaks?" and the document explains "Garbage collection and reference cycles".
+    Dense embedding vectors project semantic concepts into high-dimensional geometric space, where conceptual similarity corresponds to vector angle.
+  brute_force: >-
+    SQL `LIKE '%keyword%'` or BM25 keyword matching alone. Misses paraphrases, synonyms, and cross-lingual meaning.
+  brute_force_complexity: O(N * L) substring searches that miss semantic intent.
+  key_insight: >-
+    Cosine similarity measures the angle between two vectors independent of magnitude:
+    $$\text{sim}(A, B) = \frac{\sum A_i B_i}{\sqrt{\sum A_i^2} \cdot \sqrt{\sum B_i^2}}$$
+    A value of 1.0 means identical orientation (same semantic concept), 0.0 means orthogonal (unrelated), and -1.0 means opposite.
+    In vector databases (ChromaDB, Pinecone, pgvector), top-K nearest neighbor search retrieves the closest document chunks to augment the LLM prompt.
+  real_world: >-
+    Suhas's WisdomBot RAG pipeline (ChromaDB + Sentence Transformers across technical documentation), OpenAI embeddings, and Cohere rerankers.
+
+statement:
+  clean: |
+    Implement vector embeddings ranking using vector cosine similarity search:
+    `def search_similar_chunks(self, query_vec: list[float], chunks: list[dict], top_k: int) -> list[dict]`.
+    
+    Given:
+    - `query_vec`: list of floats representing query embedding vector
+    - `chunks`: list of dictionaries, where each element contains `id: str`, `text: str`, and `embedding: list[float]`
+    - `top_k`: integer limit of top documents to return
+    
+    1. If `chunks` is empty or `top_k <= 0`, return `[]`.
+    2. Compute the cosine similarity between `query_vec` and each `chunk["embedding"]`:
+       - Dot product: `dot = sum(q * c for q, c in zip(query_vec, chunk["embedding"]))`
+       - Query norm: `norm_q = math.sqrt(sum(q * q for q in query_vec))`
+       - Chunk norm: `norm_c = math.sqrt(sum(c * c for c in chunk["embedding"]))`
+       - If `norm_q == 0` or `norm_c == 0`, set similarity to `0.0`.
+       - Otherwise, `similarity = round(dot / (norm_q * norm_c), 4)`.
+    3. Sort chunks by `similarity` descending (break ties preserving original order).
+    4. Return the top `top_k` results as a list of dicts:
+       `[{"id": chunk["id"], "text": chunk["text"], "similarity": similarity}, ...]`.
+  oa_story: |
+    **WisdomBot RAG Pipeline — ChromaDB Dense Retrieval**
+    
+    When indexing enterprise technical manuals in WisdomBot, users frequently searched with conceptual queries
+    like "system crashes under high load", whereas the manual section was titled "Worker Thread Starvation".
+    
+    Implement dense vector cosine similarity search to retrieve the most semantically relevant text passages.
+  trigger_keywords: ["vector cosine similarity", "search_similar_chunks", "query_vec"]
+  examples:
+    - input: 'query_vec = [1.0, 0.0], chunks = [{"id": "c1", "text": "auth", "embedding": [1.0, 0.0]}, {"id": "c2", "text": "db", "embedding": [0.0, 1.0]}], top_k = 1'
+      output: '[{"id": "c1", "text": "auth", "similarity": 1.0}]'
+      explanation: "c1 is collinear with query (similarity 1.0); c2 is orthogonal (similarity 0.0)."
+    - input: 'query_vec = [1.0, 1.0], chunks = [{"id": "c1", "text": "a", "embedding": [1.0, 1.0]}, {"id": "c2", "text": "b", "embedding": [1.0, 0.0]}], top_k = 2'
+      output: '[{"id": "c1", "text": "a", "similarity": 1.0}, {"id": "c2", "text": "b", "similarity": 0.7071}]'
+      explanation: "c1 matches exactly (1.0); c2 has 45-degree angle (cos(45) ~ 0.7071)."
+  constraints:
+    - "query_vec and chunk embeddings have the same non-zero dimension"
+    - "0 <= top_k <= 50"
+
+constraint_quiz:
+  prompt: "Why is Cosine Similarity preferred over Euclidean Distance (L2) for text embedding comparison?"
+  options:
+    - "Cosine similarity normalizes for document length, measuring the directional angle between semantic concepts rather than raw token magnitude"
+    - "Cosine similarity runs 1,000x faster in hardware"
+    - "Euclidean distance cannot be computed in Python"
+    - "Cosine similarity only works on integers"
+  answer: 0
+  explanation: "Embeddings of longer documents may have larger vector norms simply due to token length. Cosine similarity compares the unit angle of semantic meaning, making it invariant to vector length."
+
+pattern_quiz:
+  prompt: "If all embedding vectors are unit-normalized (L2 norm = 1.0), what mathematical simplification occurs?"
+  options:
+    - "Cosine similarity equals the raw Dot Product (A · B), eliminating costly square root and division operations during search"
+    - "The vectors become 1-dimensional"
+    - "The similarity is always 0"
+    - "Negative numbers are automatically erased"
+  answer: 0
+  explanation: "When ||A|| = 1 and ||B|| = 1, (A · B) / (||A|| * ||B||) simplifies directly to A · B. This allows modern vector databases to use lightning-fast BLAS matrix dot products."
+
+function:
+  name: search_similar_chunks
+  params:
+    - name: query_vec
+      type: any
+    - name: chunks
+      type: any
+    - name: top_k
+      type: any
+  returns: any
+
+starter_code: |
+  import math
+
+  class Solution:
+      def search_similar_chunks(self, query_vec: list[float], chunks: list[dict], top_k: int) -> list[dict]:
+          pass
+
+tests:
+  - args:
+      - [1.0, 0.0]
+      - [{"id": "c1", "text": "auth", "embedding": [1.0, 0.0]}, {"id": "c2", "text": "db", "embedding": [0.0, 1.0]}]
+      - 1
+    expected:
+      - {id: "c1", text: "auth", similarity: 1.0}
+    note: "Top 1 exact match"
+
+  - args:
+      - [1.0, 1.0]
+      - [{"id": "c1", "text": "a", "embedding": [1.0, 1.0]}, {"id": "c2", "text": "b", "embedding": [1.0, 0.0]}]
+      - 2
+    expected:
+      - {id: "c1", text: "a", similarity: 1.0}
+      - {id: "c2", text: "b", similarity: 0.7071}
+    note: "Rank top 2 chunks"
+
+  - args:
+      - [1.0, 0.0]
+      - []
+      - 5
+    expected: []
+    note: "Empty chunks edge case"
+
+  - args:
+      - [0.0, 0.0]
+      - [{"id": "c1", "text": "zero", "embedding": [1.0, 0.0]}]
+      - 1
+    expected:
+      - {id: "c1", text: "zero", similarity: 0.0}
+    note: "Zero query norm returns 0.0"
+
+visualize_test: 1
+
+drills:
+  - title: Vector dot product
+    skill: setup
+    goal: Compute dot product of two float lists.
+    instructions: |
+      Return `sum(a * b for a, b in zip(v1, v2))`.
+    function:
+      name: dot_product
+      params: [{name: v1}, {name: v2}]
+    starter_code: |
+      class Solution:
+          def dot_product(self, v1: list[float], v2: list[float]) -> float:
+              pass
+    tests:
+      - {args: [[1.0, 2.0], [3.0, 4.0]], expected: 11.0}
+    solution: |
+      class Solution:
+          def dot_product(self, v1: list[float], v2: list[float]) -> float:
+              return sum(a * b for a, b in zip(v1, v2))
+    hint: "Use sum(a * b for a, b in zip(v1, v2))."
+
+  - title: L2 Vector norm
+    skill: core
+    goal: Compute Euclidean L2 norm of vector.
+    instructions: |
+      Return `math.sqrt(sum(x * x for x in v))`.
+    function:
+      name: vector_norm
+      params: [{name: v}]
+    starter_code: |
+      import math
+
+      class Solution:
+          def vector_norm(self, v: list[float]) -> float:
+              pass
+    tests:
+      - {args: [[3.0, 4.0]], expected: 5.0}
+    solution: |
+      import math
+
+      class Solution:
+          def vector_norm(self, v: list[float]) -> float:
+              return math.sqrt(sum(x * x for x in v))
+    hint: "Return math.sqrt(sum(x * x for x in v))."
+
+  - title: Top-K slice
+    skill: edge
+    goal: Slice list to first K items safely.
+    instructions: |
+      Return `items[:k]`.
+    function:
+      name: slice_top
+      params: [{name: items}, {name: k}]
+    starter_code: |
+      class Solution:
+          def slice_top(self, items: list, k: int) -> list:
+              pass
+    tests:
+      - {args: [[1, 2, 3, 4], 2], expected: [1, 2]}
+    solution: |
+      class Solution:
+          def slice_top(self, items: list, k: int) -> list:
+              return items[:k]
+    hint: "Return items[:k]."
+
+hints:
+  - "If `not chunks or top_k <= 0`, return `[]` immediately."
+  - "Compute `norm_q = math.sqrt(sum(q * q for q in query_vec))`. For each chunk, compute `dot` and `norm_c`."
+  - "If either norm is 0, similarity is 0.0, else `round(dot / (norm_q * norm_c), 4)`. Sort chunks by similarity descending and return top_k results."
+
+solution:
+  code: |
+    import math
+
+    class Solution:
+        def search_similar_chunks(self, query_vec: list[float], chunks: list[dict], top_k: int) -> list[dict]:
+            if not chunks or top_k <= 0:
+                return []
+
+            norm_q = math.sqrt(sum(q * q for q in query_vec))
+            scored = []
+
+            for idx, chunk in enumerate(chunks):
+                emb = chunk.get("embedding", [])
+                dot = sum(q * c for q, c in zip(query_vec, emb))
+                norm_c = math.sqrt(sum(c * c for c in emb))
+
+                if norm_q == 0.0 or norm_c == 0.0:
+                    sim = 0.0
+                else:
+                    sim = round(dot / (norm_q * norm_c), 4)
+
+                scored.append({
+                    "id": chunk.get("id"),
+                    "text": chunk.get("text"),
+                    "similarity": sim,
+                    "_order": idx,
+                })
+
+            scored.sort(key=lambda x: (-x["similarity"], x["_order"]))
+
+            return [
+                {"id": s["id"], "text": s["text"], "similarity": s["similarity"]}
+                for s in scored[:top_k]
+            ]
+  explanation: |
+    Cosine similarity quantifies the angle between the query vector and document embeddings in D dimensions.
+    By iterating through candidate chunks, computing normalized dot products, and sorting descending,
+    the nearest semantic neighbors are identified and returned to ground the LLM's response.
+  time: O(N * D + N log N) where N is chunks and D is embedding dimension
+  space: O(N) for scored result items
+
+pitch_script: |
+  **(Clarify)** "We need to compute cosine similarity between a query embedding and candidate text chunks, returning the top-K chunks sorted by descending similarity."
+
+  **(Basement Insight)** "Keyword matching fails when users use synonyms or colloquial terms. Dense embedding vectors map text to continuous vector spaces, where conceptual similarity corresponds to vector angle. Normalizing by vector length makes similarity independent of document verbosity."
+
+  **(Solution)** "We compute query norm once. For each chunk, we calculate the dot product and chunk norm. If either norm is zero, similarity is 0.0; otherwise it is dot / (norm_q * norm_c). We sort candidates descending by score and slice the top-K elements."
+
+  **(Complexity)** "Runs in O(N * D) math time and O(N log N) sort time, using O(N) space."
+
+twist:
+  lc: 9602
+  title: HNSW Approximate Nearest Neighbors (ANN) Graph Indexing
+  why: >-
+    Exact brute-force cosine comparison takes O(N * D), which is too slow for 10 million vectors.
+    Index the vectors using Hierarchical Navigable Small World (HNSW) graphs to search in O(log N) time.
+
+viz:
+  title: "Dense Vector Embedding Cosine Distance Space"

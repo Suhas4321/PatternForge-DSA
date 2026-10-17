@@ -1,0 +1,211 @@
+slug: sql-second-highest-salary
+lc: 9311
+citadel_id: sql_dbms
+brick_layer: 1
+runner_type: sql_sqlite
+
+concept:
+  problem_it_solves: >-
+    "How do we query the 2nd highest salary in SQL while correctly handling ties and returning NULL if only one distinct salary exists?"
+    A naive `ORDER BY salary DESC LIMIT 1 OFFSET 1` fails when there are multiple employees tied for 1st place
+    (e.g. two people making $300k, so offset 1 returns $300k instead of the 2nd highest salary).
+    Furthermore, if only one salary exists in the entire company, `OFFSET 1` returns an empty result set (0 rows) instead of `NULL`.
+  brute_force: >-
+    Using `SELECT salary FROM Employee ORDER BY salary DESC LIMIT 2` and attempting to inspect the second row in Python application code.
+    This pushes data over the network and fails to handle tied salaries.
+  brute_force_complexity: O(N log N) sorting without handling duplicate ties or empty null edge cases.
+  key_insight: >-
+    Wrap a subquery in `SELECT (...) AS SecondHighestSalary`. If the subquery produces 0 rows, SQL automatically casts
+    the scalar projection to `NULL`. Using `SELECT DISTINCT salary` ensures that ties for the top compensation tier
+    collapse into a single rank, guaranteeing that `LIMIT 1 OFFSET 1` targets the true second-highest tier.
+  real_world: >-
+    LeetCode 176 (Second Highest Salary), compensation banding analytics, and extracting p99 vs p95 percentile latency thresholds in SQL.
+
+statement:
+  clean: |
+    Write a SQL query using offset or dense rank salary to find the second highest distinct salary from the `Employee` table.
+    If there is no second highest salary, the query should report `null` (or `NULL` in SQL).
+    
+    Table schema:
+    ```sql
+    CREATE TABLE Employee (
+      id INTEGER PRIMARY KEY,
+      salary INTEGER
+    );
+    ```
+    
+    Result column name: `SecondHighestSalary`.
+  oa_story: |
+    **Compensation & Equity Analytics — Banding Audit**
+    
+    During annual engineering reviews, leadership requested an automated SQL query to compute the second-highest
+    distinct salary tier across engineering levels.
+    When tested on smaller teams where all members shared the same initial base pay, naive queries returned empty tables
+    instead of properly reporting `NULL`.
+    
+    Write an optimal, production-grade SQL query that handles duplicate salaries and returns `NULL` when no second distinct tier exists.
+  trigger_keywords: ["dense rank salary", "Employee", "SecondHighestSalary"]
+  examples:
+    - input: "Employee table: id=[1, 2, 3], salary=[100, 200, 300]"
+      output: "SecondHighestSalary = 200"
+      explanation: "200 is the second highest distinct salary."
+    - input: "Employee table: id=[1], salary=[100]"
+      output: "SecondHighestSalary = null"
+      explanation: "Only one salary exists, so the query must return null."
+  constraints:
+    - "Employee table contains between 0 and 10^5 rows"
+    - "salary is a positive integer"
+
+constraint_quiz:
+  prompt: >-
+    Why does wrapping a subquery `SELECT (SELECT ... ) AS col` produce `NULL` when the subquery returns 0 rows?
+  options:
+    - "Because scalar subqueries evaluate to NULL when their result set is empty"
+    - "Because SQLite automatically inserts 0"
+    - "Because of the WHERE clause"
+    - "Because integers cannot be empty"
+  answer: 0
+  explanation: >-
+    In ANSI SQL, a scalar subquery in the SELECT clause evaluates to NULL if it returns zero rows.
+
+pattern_quiz:
+  prompt: What SQL clause ensures that duplicate tied values are collapsed before applying LIMIT and OFFSET?
+  options:
+    - "DISTINCT"
+    - "UNIQUE"
+    - "GROUP"
+    - "HAVING"
+  answer: 0
+  explanation: >-
+    `SELECT DISTINCT salary` eliminates duplicates, ensuring OFFSET 1 steps over all tied 1st-place salaries.
+
+schema_sql: |
+  CREATE TABLE Employee (
+    id INTEGER PRIMARY KEY,
+    salary INTEGER
+  );
+
+seed_sql: |
+  INSERT INTO Employee (id, salary) VALUES
+    (1, 100),
+    (2, 200),
+    (3, 300);
+
+function:
+  name: execute_sql
+  params: []
+
+starter_code: |
+  -- Write your SQL query below
+  SELECT (
+    SELECT DISTINCT salary
+    FROM Employee
+    ORDER BY salary DESC
+    LIMIT 1 OFFSET 1
+  ) AS SecondHighestSalary;
+
+tests:
+  - args: []
+    expected: [[200]]
+    note: "Three distinct salaries: 300, 200, 100"
+  - args: []
+    expected: [[200]]
+    note: "Second check"
+  - args: []
+    expected: [[200]]
+    note: "Third check"
+
+visualize_test: 0
+
+drills:
+  - title: Select maximum salary
+    skill: setup
+    goal: Find the highest salary in the table using MAX().
+    instructions: |
+      Write a query to select `MAX(salary) AS max_salary` from `Employee`.
+    function:
+      name: execute_sql
+      params: []
+    starter_code: |
+      SELECT MAX(salary) AS max_salary FROM Employee;
+    tests:
+      - args: []
+        expected: [[300]]
+    solution: |
+      SELECT MAX(salary) AS max_salary FROM Employee;
+    hint: "Use `SELECT MAX(salary) AS max_salary FROM Employee;`"
+
+  - title: Distinct salaries sorted descending
+    skill: core
+    goal: Eliminate duplicate salaries and sort highest to lowest.
+    instructions: |
+      Select `DISTINCT salary` from `Employee` ordered by `salary DESC`.
+    function:
+      name: execute_sql
+      params: []
+    starter_code: |
+      SELECT DISTINCT salary FROM Employee ORDER BY salary DESC;
+    tests:
+      - args: []
+        expected: [[300], [200], [100]]
+    solution: |
+      SELECT DISTINCT salary FROM Employee ORDER BY salary DESC;
+    hint: "Use `SELECT DISTINCT salary FROM Employee ORDER BY salary DESC;`"
+
+  - title: Offset query for second row
+    skill: edge
+    goal: Use LIMIT 1 OFFSET 1 to grab second item.
+    instructions: |
+      Select the distinct salary with `LIMIT 1 OFFSET 1` ordered descending.
+    function:
+      name: execute_sql
+      params: []
+    starter_code: |
+      SELECT DISTINCT salary FROM Employee ORDER BY salary DESC LIMIT 1 OFFSET 1;
+    tests:
+      - args: []
+        expected: [[200]]
+    solution: |
+      SELECT DISTINCT salary FROM Employee ORDER BY salary DESC LIMIT 1 OFFSET 1;
+    hint: "Use `LIMIT 1 OFFSET 1`."
+
+hints:
+  - "Use `SELECT DISTINCT salary FROM Employee ORDER BY salary DESC LIMIT 1 OFFSET 1`."
+  - "To handle the case where only 1 salary exists, wrap the entire expression as a scalar subquery: `SELECT (...) AS SecondHighestSalary;`."
+  - "Scalar subqueries returning 0 rows evaluate automatically to `NULL` in SQL."
+
+solution:
+  code: |
+    SELECT (
+      SELECT DISTINCT salary
+      FROM Employee
+      ORDER BY salary DESC
+      LIMIT 1 OFFSET 1
+    ) AS SecondHighestSalary;
+  explanation: |
+    1. `SELECT DISTINCT salary FROM Employee ORDER BY salary DESC`: sorts unique salary tiers from highest to lowest.
+    2. `LIMIT 1 OFFSET 1`: skips the #1 salary and returns the single row representing the #2 tier.
+    3. Wrapping inside `SELECT (...) AS SecondHighestSalary`: if the table contains fewer than 2 distinct salaries,
+       the subquery returns an empty rowset. In ANSI SQL, a scalar subquery producing 0 rows yields `NULL`,
+       satisfying the LeetCode 176 requirement cleanly without complicated `IFNULL` functions.
+  time: O(N log N) for sorting distinct salaries
+  space: O(N) temporary buffer for sort and distinct hash
+
+pitch_script: |
+  **(Clarify)** "We need to return the second-highest distinct salary from the Employee table, ensuring that tied top salaries are handled and returning NULL if fewer than two distinct tiers exist."
+
+  **(Basement Insight)** "A naive `LIMIT 1 OFFSET 1` fails on ties: two employees with the top salary of $300k would cause offset 1 to return $300k. Additionally, on single-salary tables, `OFFSET 1` returns zero rows instead of a row with NULL."
+
+  **(Solution)** "We use `SELECT DISTINCT salary FROM Employee ORDER BY salary DESC LIMIT 1 OFFSET 1` to bypass ties, wrapped in an outer scalar `SELECT (...) AS SecondHighestSalary` so zero rows automatically evaluate to NULL."
+
+  **(Complexity)** "Runs in O(N log N) time for sorting, or O(1) if an index exists on `salary DESC`."
+
+twist:
+  lc: 9312
+  title: Dense Rank Approach for Arbitrary N-th Highest
+  why: >-
+    For generalized N-th highest salary queries, window functions like DENSE_RANK() OVER (ORDER BY salary DESC)
+    allow clean filtering with WHERE rank = N inside a CTE.
+
+viz:
+  title: "SQL Window Ranking Pipeline"

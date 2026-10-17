@@ -1,0 +1,239 @@
+slug: sql-customers-never-order
+lc: 9313
+citadel_id: sql_dbms
+brick_layer: 3
+runner_type: sql_sqlite
+
+concept:
+  problem_it_solves: >-
+    "How do we query records that have NO matching foreign key rows in a child table (an Anti-Join)?"
+    A standard INNER JOIN discards rows with no matches.
+    Using `LEFT JOIN Orders ON Customers.id = Orders.customerId` preserves all customer rows and fills missing order columns with NULL.
+    Filtering with `WHERE Orders.id IS NULL` isolates exactly the customers who have never placed an order.
+  brute_force: >-
+    Using `WHERE id NOT IN (SELECT customerId FROM Orders)`. While readable, if `Orders.customerId` contains even a single `NULL` value,
+    SQL three-valued logic causes `NOT IN (..., NULL)` to evaluate to `UNKNOWN` for every row, returning 0 rows!
+  brute_force_complexity: O(C * O) unindexed subquery scan and prone to NULL poison bugs.
+  key_insight: >-
+    `LEFT JOIN ... WHERE child.id IS NULL` is immune to NULL value pitfalls in the foreign key column.
+    The database engine executes a Hash or Merge Anti-Join in O(C + O) linear time, immediately returning orphan parent records.
+  real_world: >-
+    LeetCode 183 (Customers Who Never Order), identifying inactive users for re-engagement emails, and finding unassigned tickets.
+
+statement:
+  clean: |
+    Write a SQL query to find all customers never order from the `Customers` table.
+    
+    Table schemas:
+    ```sql
+    CREATE TABLE Customers (
+      id INTEGER PRIMARY KEY,
+      name TEXT
+    );
+    
+    CREATE TABLE Orders (
+      id INTEGER PRIMARY KEY,
+      customerId INTEGER
+    );
+    ```
+    
+    Return the result table with a single column: `Customers`.
+  oa_story: |
+    **E-Commerce Marketing Operations — Churn & Inactivity Audit**
+    
+    Our marketing team is launching a discount campaign targeting registered users who created an account but never made a purchase.
+    The previous analytics script used a subquery with `NOT IN`, which broke production reporting when a test order with a `NULL` customerId was created.
+    
+    Write an optimal, production-grade Anti-Join query that reliably returns all customers who have no entries in the `Orders` table.
+  trigger_keywords: ["customers never order", "Customers", "Orders"]
+  examples:
+    - input: "Customers: [(1, 'Joe'), (2, 'Henry'), (3, 'Sam'), (4, 'Max')]; Orders: [(1, 3), (2, 1)]"
+      output: "Customers: Henry, Max"
+      explanation: "Joe and Sam placed orders (3 and 1). Henry and Max have no corresponding orders."
+  constraints:
+    - "Customers table contains between 0 and 10^5 rows"
+    - "Orders table contains between 0 and 10^5 rows"
+
+constraint_quiz:
+  prompt: >-
+    Why can `WHERE id NOT IN (SELECT customerId FROM Orders)` unexpectedly return 0 rows?
+  options:
+    - "Because NOT IN is not supported in ANSI SQL"
+    - "Because if the subquery returns any NULL value, `val NOT IN (..., NULL)` evaluates to UNKNOWN"
+    - "Because customerId must always be positive"
+    - "Because of case sensitivity"
+  answer: 1
+  explanation: >-
+    In SQL's three-valued logic, `x NOT IN (1, NULL)` evaluates to UNKNOWN, which evaluates to False in WHERE clauses.
+
+pattern_quiz:
+  prompt: What join pattern matches all left rows and filters for non-existent right rows via `WHERE right.id IS NULL`?
+  options:
+    - "Anti-Join via LEFT JOIN"
+    - "CROSS JOIN"
+    - "INNER JOIN"
+    - "NATURAL JOIN"
+  answer: 0
+  explanation: >-
+    A LEFT JOIN combined with a `WHERE right_key IS NULL` filter is the textbook SQL Anti-Join idiom.
+
+schema_sql: |
+  CREATE TABLE Customers (
+    id INTEGER PRIMARY KEY,
+    name TEXT
+  );
+
+  CREATE TABLE Orders (
+    id INTEGER PRIMARY KEY,
+    customerId INTEGER
+  );
+
+seed_sql: |
+  INSERT INTO Customers (id, name) VALUES
+    (1, 'Joe'),
+    (2, 'Henry'),
+    (3, 'Sam'),
+    (4, 'Max');
+
+  INSERT INTO Orders (id, customerId) VALUES
+    (1, 3),
+    (2, 1);
+
+function:
+  name: execute_sql
+  params: []
+
+starter_code: |
+  -- Write your SQL query below
+  SELECT c.name AS Customers
+  FROM Customers c
+  LEFT JOIN Orders o ON c.id = o.customerId
+  WHERE o.id IS NULL;
+
+tests:
+  - args: []
+    expected:
+      - ["Henry"]
+      - ["Max"]
+    note: "Henry and Max placed no orders"
+  - args: []
+    expected: null
+    note: "Self verification"
+  - args: []
+    expected: null
+    note: "Consistency check"
+
+visualize_test: 0
+
+drills:
+  - title: Left join customers with orders
+    skill: setup
+    goal: Perform left join to see null order columns.
+    instructions: |
+      Select `c.name, o.id AS order_id FROM Customers c LEFT JOIN Orders o ON c.id = o.customerId;`.
+    function:
+      name: execute_sql
+      params: []
+    starter_code: |
+      SELECT c.name, o.id AS order_id
+      FROM Customers c
+      LEFT JOIN Orders o ON c.id = o.customerId;
+    tests:
+      - args: []
+        expected: null
+    solution: |
+      SELECT c.name, o.id AS order_id
+      FROM Customers c
+      LEFT JOIN Orders o ON c.id = o.customerId;
+    hint: "Use `LEFT JOIN Orders o ON c.id = o.customerId`."
+
+  - title: Filter for null right side
+    skill: core
+    goal: Add WHERE o.id IS NULL to isolate unmatched rows.
+    instructions: |
+      Select `c.name AS Customers FROM Customers c LEFT JOIN Orders o ON c.id = o.customerId WHERE o.id IS NULL;`.
+    function:
+      name: execute_sql
+      params: []
+    starter_code: |
+      SELECT c.name AS Customers
+      FROM Customers c
+      LEFT JOIN Orders o ON c.id = o.customerId
+      WHERE o.id IS NULL;
+    tests:
+      - args: []
+        expected:
+          - ["Henry"]
+          - ["Max"]
+    solution: |
+      SELECT c.name AS Customers
+      FROM Customers c
+      LEFT JOIN Orders o ON c.id = o.customerId
+      WHERE o.id IS NULL;
+    hint: "Use `WHERE o.id IS NULL`."
+
+  - title: Equivalent NOT EXISTS query
+    skill: edge
+    goal: Implement anti-join using NOT EXISTS.
+    instructions: |
+      Write the anti-join query using `WHERE NOT EXISTS (SELECT 1 FROM Orders o WHERE o.customerId = c.id);`.
+    function:
+      name: execute_sql
+      params: []
+    starter_code: |
+      SELECT c.name AS Customers
+      FROM Customers c
+      WHERE NOT EXISTS (
+        SELECT 1 FROM Orders o WHERE o.customerId = c.id
+      );
+    tests:
+      - args: []
+        expected:
+          - ["Henry"]
+          - ["Max"]
+    solution: |
+      SELECT c.name AS Customers
+      FROM Customers c
+      WHERE NOT EXISTS (
+        SELECT 1 FROM Orders o WHERE o.customerId = c.id
+      );
+    hint: "Use `WHERE NOT EXISTS (SELECT 1 FROM Orders o WHERE o.customerId = c.id)`."
+
+hints:
+  - "Perform a `LEFT JOIN` from `Customers c` to `Orders o` on `c.id = o.customerId`."
+  - "If a customer has no orders, all columns from `Orders` will be `NULL` in the result row."
+  - "Add `WHERE o.id IS NULL` and alias the column as `Customers`."
+
+solution:
+  code: |
+    SELECT c.name AS Customers
+    FROM Customers c
+    LEFT JOIN Orders o ON c.id = o.customerId
+    WHERE o.id IS NULL;
+  explanation: |
+    1. `FROM Customers c LEFT JOIN Orders o ON c.id = o.customerId`: keeps every customer row.
+       For customers with matching orders, order columns are populated; for customers with no orders,
+       order columns are set to `NULL`.
+    2. `WHERE o.id IS NULL`: filters out all rows where an order was found, leaving only customers with zero orders.
+    3. `SELECT c.name AS Customers`: projects the requested column name.
+  time: O(C + O) using hash anti-join
+  space: O(O) for in-memory hash table of Orders
+
+pitch_script: |
+  **(Clarify)** "We need to return the names of all customers who do not have any corresponding records in the Orders table."
+
+  **(Basement Insight)** "While `NOT IN (SELECT customerId FROM Orders)` seems intuitive, if `customerId` in Orders contains a single NULL value, three-valued SQL logic causes the entire query to evaluate to UNKNOWN and return zero rows. A `LEFT JOIN ... WHERE o.id IS NULL` Anti-Join is immune to NULL bugs and evaluates via a linear hash join."
+
+  **(Solution)** "We LEFT JOIN `Customers c` with `Orders o` on `c.id = o.customerId`. For customers with no purchases, `o.id` evaluates to NULL. We filter `WHERE o.id IS NULL` and select `c.name AS Customers`."
+
+  **(Complexity)** "Executes in O(C + O) time, requiring O(O) space for the join hash table."
+
+twist:
+  lc: 9314
+  title: NOT EXISTS Correlated Subquery Optimization
+  why: >-
+    In modern query optimizers, SELECT c.name FROM Customers c WHERE NOT EXISTS (SELECT 1 FROM Orders o WHERE o.customerId = c.id)
+    often produces an identical Hash Anti-Join execution plan while being even more readable.
+
+viz:
+  title: "SQL Anti-Join Lifecycle"

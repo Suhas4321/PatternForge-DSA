@@ -1,0 +1,306 @@
+slug: deterministic-interleaving-counter
+lc: 9411
+citadel_id: os_concurrency
+brick_layer: 2
+runner_type: python_practical
+concept:
+  problem_it_solves: 'Why do concurrent increments on a shared counter yield a final value smaller than total operations?
+    An increment is non-atomic: it decomposes into loading memory into a CPU register, adding 1, and storing back. When OS
+    thread preemption interleaves these steps across threads, stale reads cause silent lost updates.'
+  brute_force: Running concurrent threads without synchronization and hoping the operating system scheduler never switches
+    threads mid-instruction.
+  brute_force_complexity: O(N) operations, but non-deterministic data corruption and lost updates.
+  key_insight: Tracing an exact sequence of READ, ADD, and WRITE steps with thread-local registers deterministically exposes
+    how preemption produces lost updates.
+  real_world: Flash-sale inventory counters, distributed analytics click streams, and un-fenced in-memory cache updates.
+statement:
+  clean: 'Implement an interleaving simulator to model thread preemption and lost updates on a shared counter:
+
+    `simulate_interleaving(steps: list[list[str]]) -> dict`.
+
+
+    Each step is a list `[thread_id, operation]` executed in exact order according to a deterministic schedule:
+
+    - `"READ"`: The thread reads the global `counter` into its local register `reg[thread_id]`.
+
+    - `"ADD"`: The thread increments its local register: `reg[thread_id] += 1`.
+
+    - `"WRITE"`: The thread writes its local register back to the global `counter`: `counter = reg[thread_id]`.
+
+
+    Track:
+
+    1. The final value of `counter` (initially `0`).
+
+    2. The total number of `"WRITE"` operations executed across all threads (`total_writes`).
+
+    3. The count of lost updates (`lost_updates = total_writes - counter`).
+
+
+    Return a dictionary containing:
+
+    - `"final_counter"`: `int`
+
+    - `"total_writes"`: `int`
+
+    - `"lost_updates"`: `int`
+
+    - `"race_detected"`: `bool` (`True` if `lost_updates > 0`, else `False`)'
+  oa_story: '**KiranaKart Flash-Sale Inventory Reconciliation Post-Mortem**
+
+
+    During the Bengaluru Diwali Mega Sale, KiranaKart customers ordered 10,000 units of cold-pressed oil in 3 seconds. The
+    backend order counter registered only 7,420 units sold, while physical warehouse stocks were completely exhausted.
+
+
+    The audit team proved that unsynchronized Go routines executed concurrent read-modify-write operations on the shared cache.
+    Implement this interleaving simulator to model how OS thread context-switches produce lost updates under a deterministic
+    schedule.'
+  trigger_keywords:
+  - interleaving simulator
+  - lost updates
+  - deterministic schedule
+  examples:
+  - input: steps = [["T1", "READ"], ["T1", "ADD"], ["T1", "WRITE"], ["T2", "READ"], ["T2", "ADD"], ["T2", "WRITE"]]
+    output: '{"final_counter": 2, "total_writes": 2, "lost_updates": 0, "race_detected": False}'
+    explanation: Threads execute sequentially with no interleaving, so 0 lost updates occur.
+  - input: steps = [["T1", "READ"], ["T2", "READ"], ["T1", "ADD"], ["T2", "ADD"], ["T1", "WRITE"], ["T2", "WRITE"]]
+    output: '{"final_counter": 1, "total_writes": 2, "lost_updates": 1, "race_detected": True}'
+    explanation: Both threads read 0 before either wrote. Both write 1, losing 1 increment.
+  constraints:
+  - 0 <= len(steps) <= 1000
+  - Each operation is one of 'READ', 'ADD', 'WRITE'
+constraint_quiz:
+  prompt: What is the computational complexity to simulate N scheduled thread steps using register hash maps?
+  options:
+  - O(N) time and O(T) space where T is unique threads
+  - O(N^2) time due to nested thread scheduling
+  - O(1) time because hardware registers are fast
+  - O(2^N) time simulating all possible interleavings
+  answer: 0
+  explanation: A single linear pass processes each step in O(1) time using a dictionary for thread registers, taking O(N)
+    time and O(T) space.
+pattern_quiz:
+  prompt: Under what condition does a lost update occur in this read-modify-write model?
+  options:
+  - When Thread B writes a value computed from a READ that occurred before Thread A committed its WRITE
+  - When Thread A and Thread B have different thread IDs
+  - When the counter value exceeds 100
+  - When a thread reads from an empty register
+  answer: 0
+  explanation: If Thread B reads before Thread A's updated write is committed, Thread B's subsequent write overwrites and
+    clobbers Thread A's addition.
+function:
+  name: simulate_interleaving
+  params:
+  - name: steps
+  returns: any
+  compare: exact
+starter_code: "class Solution:\n    def simulate_interleaving(self, steps: list[list[str]]) -> dict:\n        pass\n"
+tests:
+- args:
+  - - - T1
+      - READ
+    - - T1
+      - ADD
+    - - T1
+      - WRITE
+    - - T2
+      - READ
+    - - T2
+      - ADD
+    - - T2
+      - WRITE
+  expected:
+    final_counter: 2
+    total_writes: 2
+    lost_updates: 0
+    race_detected: false
+  note: Sequential execution without preemption
+- args:
+  - - - T1
+      - READ
+    - - T2
+      - READ
+    - - T1
+      - ADD
+    - - T2
+      - ADD
+    - - T1
+      - WRITE
+    - - T2
+      - WRITE
+  expected:
+    final_counter: 1
+    total_writes: 2
+    lost_updates: 1
+    race_detected: true
+  note: Interleaved preemption losing one write
+- args:
+  - - - T1
+      - READ
+    - - T2
+      - READ
+    - - T3
+      - READ
+    - - T1
+      - ADD
+    - - T2
+      - ADD
+    - - T3
+      - ADD
+    - - T1
+      - WRITE
+    - - T2
+      - WRITE
+    - - T3
+      - WRITE
+  expected:
+    final_counter: 1
+    total_writes: 3
+    lost_updates: 2
+    race_detected: true
+  note: Three threads all reading stale zero
+- args:
+  - []
+  expected:
+    final_counter: 0
+    total_writes: 0
+    lost_updates: 0
+    race_detected: false
+  note: Empty schedule edge case
+visualize_test: 1
+drills:
+- skill: setup
+  title: Initialize and read shared counter
+  goal: Read current counter into thread local register.
+  instructions: Assign the shared counter value into `registers[thread_id]` and return `registers`.
+  function:
+    name: drill_read
+    params:
+    - name: registers
+    - name: thread_id
+    - name: counter
+  starter_code: "class Solution:\n    def drill_read(self, registers: dict, thread_id: str, counter: int) -> dict:\n     \
+    \   pass\n"
+  tests:
+  - args:
+    - {}
+    - T1
+    - 5
+    expected:
+      T1: 5
+  - args:
+    - T1: 2
+    - T2
+    - 10
+    expected:
+      T1: 2
+      T2: 10
+  solution: "class Solution:\n    def drill_read(self, registers: dict, thread_id: str, counter: int) -> dict:\n        registers[thread_id]\
+    \ = counter\n        return registers\n"
+  hint: Assign `registers[thread_id] = counter` and return `registers`.
+- skill: core
+  title: Increment register and write back
+  goal: Simulate ADD and WRITE operations for a thread.
+  instructions: Increment `registers[thread_id]` by 1, update `counter = registers[thread_id]`, and return `(counter, registers)`.
+  function:
+    name: drill_add_write
+    params:
+    - name: registers
+    - name: thread_id
+  starter_code: "class Solution:\n    def drill_add_write(self, registers: dict, thread_id: str) -> list:\n        pass\n"
+  tests:
+  - args:
+    - T1: 0
+    - T1
+    expected:
+    - 1
+    - T1: 1
+  - args:
+    - T1: 5
+    - T1
+    expected:
+    - 6
+    - T1: 6
+  solution: "class Solution:\n    def drill_add_write(self, registers: dict, thread_id: str) -> list:\n        registers[thread_id]\
+    \ = registers.get(thread_id, 0) + 1\n        counter = registers[thread_id]\n        return [counter, registers]\n"
+  hint: Increment the register, set counter equal to it, and return a 2-element list `[counter, registers]`.
+- skill: edge
+  title: Calculate lost updates count
+  goal: Detect race conditions by comparing total writes with final counter.
+  instructions: Return `total_writes - final_counter`.
+  function:
+    name: drill_calc_lost
+    params:
+    - name: total_writes
+    - name: final_counter
+  starter_code: "class Solution:\n    def drill_calc_lost(self, total_writes: int, final_counter: int) -> int:\n        pass\n"
+  tests:
+  - args:
+    - 5
+    - 3
+    expected: 2
+  - args:
+    - 4
+    - 4
+    expected: 0
+  solution: "class Solution:\n    def drill_calc_lost(self, total_writes: int, final_counter: int) -> int:\n        return\
+    \ total_writes - final_counter\n"
+  hint: Subtract final_counter from total_writes.
+hints:
+- Maintain a dictionary `registers = {}` mapping each thread ID to its local working value.
+- When op is 'READ', copy the global counter to `registers[t]`. When 'ADD', increment `registers[t]`. When 'WRITE', commit
+  `counter = registers[t]`.
+- '| # Pseudocode Blueprint
+
+  | counter = 0, registers = {}, writes = 0
+
+  | for thread_id, op in steps:
+
+  |     if op == "READ": registers[thread_id] = counter
+
+  |     elif op == "ADD": registers[thread_id] += 1
+
+  |     elif op == "WRITE": counter = registers[thread_id]; writes += 1
+
+  | return writes - counter lost updates'
+solution:
+  code: "class Solution:\n    def simulate_interleaving(self, steps: list[list[str]]) -> dict:\n        counter = 0\n    \
+    \    registers: dict[str, int] = {}\n        total_writes = 0\n\n        for thread_id, op in steps:\n            if op\
+    \ == \"READ\":\n                registers[thread_id] = counter\n            elif op == \"ADD\":\n                registers[thread_id]\
+    \ = registers.get(thread_id, 0) + 1\n            elif op == \"WRITE\":\n                counter = registers.get(thread_id,\
+    \ 0)\n                total_writes += 1\n\n        lost = total_writes - counter\n        return {\n            \"final_counter\"\
+    : counter,\n            \"total_writes\": total_writes,\n            \"lost_updates\": lost,\n            \"race_detected\"\
+    : lost > 0,\n        }\n"
+  explanation: By decoupling the read and write phases across threads with per-thread registers, the simulation faithfully
+    replicates hardware CPU register preemption. When multiple threads execute READ before any thread commits its WRITE, they
+    both write back the same incremented value, causing lost updates.
+  time: O(N) where N is the number of steps in the schedule
+  space: O(T) where T is the number of unique threads
+pitch_script: '**(Clarify)** "We need to simulate thread execution on a shared counter across an explicit schedule of READ,
+  ADD, and WRITE steps to identify lost updates and race conditions."
+
+
+  **(Brute force)** "Running real multi-threaded code with `time.sleep()` yields non-deterministic timing that cannot be tested
+  reliably across different CPU architectures."
+
+
+  **(Trigger)** "The problem provides an explicit sequence of steps with thread IDs, which triggers an event-driven state
+  simulation using thread-local registers."
+
+
+  **(Optimal)** "We iterate through the steps linearly. A dictionary maintains each thread''s register state. When a thread
+  executes READ, it snapshots the global counter. On ADD, it increments its register. On WRITE, it writes its register to
+  the global counter and increments the write tally. Lost updates equal total writes minus final counter."
+
+
+  **(Complexity)** "Executes in O(N) time across N steps and O(T) space for T thread registers." '
+twist:
+  lc: 9412
+  title: Mutex-Protected Atomic Counter Simulation
+  why: Wrapping the READ-ADD-WRITE sequence inside ACQUIRE and RELEASE locks guarantees mutual exclusion and eliminates lost
+    updates.
+viz:
+  title: Deterministic Interleaving Timeline
+  type: concurrency_timeline

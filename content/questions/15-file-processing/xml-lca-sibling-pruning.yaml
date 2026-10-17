@@ -1,0 +1,245 @@
+slug: xml-lca-sibling-pruning
+lc: 9222
+citadel_id: python_data
+brick_layer: 2
+runner_type: python_practical
+
+concept:
+  problem_it_solves: >-
+    "Why does feeding full mobile UI view hierarchies into LLMs cost a fortune and cause context window overflow?"
+    A raw Android or iOS accessibility XML dump contains 5,000+ nodes—most of which are passive layout wrappers,
+    invisible spacers, or static background shapes. Pruning non-interactive sibling subtrees cuts token costs by 67%
+    while preserving every interactive target for the AI agent.
+  brute_force: >-
+    Sending the entire uncompressed 50KB XML DOM string to the LLM. In addition to consuming 15,000+ tokens per UI step,
+    the excessive noise confuses the LLM's vision-language reasoning, leading to missed tap coordinates.
+  brute_force_complexity: O(N) tokens sent over network, causing 3x higher cost and 2x higher inference latency.
+  key_insight: >-
+    Using `xml.etree.ElementTree`, traverse the DOM hierarchy post-order. A node is marked 'relevant' if it possesses
+    `active="true"` or if at least one of its subtree descendants is relevant. Any child node that is not relevant
+    is detached from its parent. This preserves the exact Lowest Common Ancestor (LCA) path to active elements while dropping dead foliage.
+  real_world: >-
+    Suhas's Drizz active-based sibling pruning algorithm (reducing token consumption by 67%), Appium mobile automation,
+    and Web scraping DOM summarizers.
+
+statement:
+  clean: |
+    Implement an active sibling tree reduction algorithm using xml element tree and lca tree pruning:
+    `prune_ui_tree(xml_str: str) -> str`.
+    
+    Given an XML string representing a mobile application view hierarchy:
+    1. Parse the string into an ElementTree using `xml.etree.ElementTree.fromstring(xml_str)`.
+    2. An element is defined as "relevant" if:
+       - It has the attribute `active="true"`, OR
+       - Any of its recursive descendants is "relevant".
+    3. For every parent element, iterate over its direct children and remove (prune) any child that is NOT "relevant".
+    4. If the root element itself has no relevant descendants and lacks `active="true"`, return an empty string `""`.
+    5. Otherwise, serialize the pruned tree back to an XML string using `xml.etree.ElementTree.tostring(root, encoding="unicode").strip()`.
+  oa_story: |
+    **Drizz Mobile Testing Framework — The 67% Token Reduction Algorithm**
+    
+    During automated mobile app evaluation on Android devices, each screen transition dumped an XML hierarchy
+    of up to 8,000 nodes. Passing this dump directly to vision-language models exhausted token budgets and caused
+    catastrophic rate limiting.
+    
+    Build the exact Lowest Common Ancestor (LCA) Sibling Pruner from Suhas's resume that recursively prunes
+    un-interactive branches while retaining the structural ancestor spine leading to active UI elements.
+  trigger_keywords: ["xml element tree", "lca tree pruning", "xml_str"]
+  examples:
+    - input: "xml_str = '<root><button active=\"true\">Submit</button><label>Header</label></root>'"
+      output: "'<root><button active=\"true\">Submit</button></root>'"
+      explanation: "The <label> node has no active='true' attribute or active descendants, so it is pruned."
+    - input: "xml_str = '<screen><nav><icon /></nav><main><input active=\"true\" /></main></screen>'"
+      output: "'<screen><main><input active=\"true\" /></main></screen>'"
+      explanation: "The entire <nav> subtree contains no active elements and is detached."
+  constraints:
+    - "xml_str is well-formed XML"
+    - "total elements in the tree is between 1 and 500"
+
+constraint_quiz:
+  prompt: >-
+    In what order should a tree be traversed when deciding whether parent nodes can safely discard child nodes?
+  options:
+    - "Pre-order (Root -> Left -> Right)"
+    - "Post-order / Bottom-up (Children first, then Parent)"
+    - "Breadth-First Search only"
+    - "In-order traversal"
+  answer: 1
+  explanation: >-
+    Post-order traversal inspects all descendants first. A parent can only determine if its children contain active nodes after the children are evaluated.
+
+pattern_quiz:
+  prompt: Which standard Python library is standard for lightweight, in-memory XML DOM parsing?
+  options:
+    - "xml.etree.ElementTree"
+    - "json"
+    - "urllib"
+    - "csv"
+  answer: 0
+  explanation: >-
+    `xml.etree.ElementTree` is Python's standard, high-performance C-accelerated XML parsing library.
+
+function:
+  name: prune_ui_tree
+  params:
+    - {name: xml_str}
+
+starter_code: |
+  class Solution:
+      def prune_ui_tree(self, xml_str: str) -> str:
+          pass
+
+tests:
+  - args:
+      - '<root><button active="true">Submit</button><label>Header</label></root>'
+    expected: '<root><button active="true">Submit</button></root>'
+  - args:
+      - '<screen><nav><icon /></nav><main><input active="true" /></main></screen>'
+    expected: '<screen><main><input active="true" /></main></screen>'
+  - args:
+      - '<container><spacer /><divider /></container>'
+    expected: ""
+  - args:
+      - '<view active="true"><child /></view>'
+    expected: '<view active="true" />'
+
+visualize_test: 0
+
+drills:
+  - title: Parse XML string to root
+    skill: setup
+    goal: Parse an XML string and return the root element tag.
+    instructions: |
+      Return the tag name of the root element from an XML string.
+    function:
+      name: get_root_tag
+      params: [{name: xml_str}]
+    starter_code: |
+      class Solution:
+          def get_root_tag(self, xml_str: str) -> str:
+              pass
+    tests:
+      - {args: ["<root><child /></root>"], expected: "root"}
+      - {args: ["<application />"], expected: "application"}
+    solution: |
+      import xml.etree.ElementTree as ET
+
+      class Solution:
+          def get_root_tag(self, xml_str: str) -> str:
+              root = ET.fromstring(xml_str)
+              return root.tag
+    hint: "Use `ET.fromstring(xml_str).tag`."
+
+  - title: Active attribute checker
+    skill: core
+    goal: Check if an element has active="true".
+    instructions: |
+      Return `True` if `xml_str` root has attribute `active == "true"`, else `False`.
+    function:
+      name: is_active_node
+      params: [{name: xml_str}]
+    starter_code: |
+      class Solution:
+          def is_active_node(self, xml_str: str) -> bool:
+              pass
+    tests:
+      - {args: ['<btn active="true" />'], expected: true}
+      - {args: ['<btn active="false" />'], expected: false}
+      - {args: ['<btn />'], expected: false}
+    solution: |
+      import xml.etree.ElementTree as ET
+
+      class Solution:
+          def is_active_node(self, xml_str: str) -> bool:
+              root = ET.fromstring(xml_str)
+              return root.attrib.get("active") == "true"
+    hint: "Check `root.attrib.get('active') == 'true'`."
+
+  - title: Remove child element from parent
+    skill: edge
+    goal: Detach a specific child from its parent node.
+    instructions: |
+      Remove the first child of root if it has tag `drop`. Return the serialized XML.
+    function:
+      name: drop_child
+      params: [{name: xml_str}]
+    starter_code: |
+      class Solution:
+          def drop_child(self, xml_str: str) -> str:
+              pass
+    tests:
+      - {args: ["<root><drop /><keep /></root>"], expected: "<root><keep /></root>"}
+      - {args: ["<root><keep /></root>"], expected: "<root><keep /></root>"}
+    solution: |
+      import xml.etree.ElementTree as ET
+
+      class Solution:
+          def drop_child(self, xml_str: str) -> str:
+              root = ET.fromstring(xml_str)
+              for child in list(root):
+                  if child.tag == "drop":
+                      root.remove(child)
+              return ET.tostring(root, encoding="unicode").strip()
+    hint: "Use `root.remove(child)`."
+
+hints:
+  - "Parse with `ET.fromstring(xml_str)`."
+  - "Write a recursive function `_prune(node)` that returns `bool` (whether this node is active or has active descendants)."
+  - "Iterate over `list(node)`: if `_prune(child)` is False, call `node.remove(child)`."
+
+solution:
+  code: |
+    import xml.etree.ElementTree as ET
+
+    class Solution:
+        def prune_ui_tree(self, xml_str: str) -> str:
+            raw = xml_str.strip()
+            if not raw:
+                return ""
+            root = ET.fromstring(raw)
+
+            def _clean(node) -> bool:
+                has_active_descendant = False
+                for child in list(node):
+                    child_is_active = _clean(child)
+                    if not child_is_active:
+                        node.remove(child)
+                    else:
+                        has_active_descendant = True
+
+                self_is_active = node.attrib.get("active") == "true"
+                return self_is_active or has_active_descendant
+
+            root_active = _clean(root)
+            if not root_active:
+                return ""
+            return ET.tostring(root, encoding="unicode").strip()
+  explanation: |
+    The algorithm performs a bottom-up post-order reduction on the XML DOM.
+    For each child, `_clean(child)` recursively prunes non-active sub-branches.
+    If the child returns `False`, it contains neither `active="true"` nor any active descendants,
+    so `node.remove(child)` detaches the entire useless branch.
+    
+    This preserves the exact structural path from the root down to interactive UI targets,
+    cutting typical mobile UI hierarchies by 67% of their token footprint.
+  time: O(N) where N is total nodes in the XML tree
+  space: O(H) recursion stack where H is tree height
+
+pitch_script: |
+  **(Clarify)** "We need to parse an XML view hierarchy and prune all subtrees that do not contain an element with attribute active='true'."
+
+  **(Basement Insight)** "Raw accessibility view trees contain thousands of passive layout containers. Passing un-pruned trees to LLMs inflates token consumption by 300% and dilutes attention. Post-order tree pruning identifies the Lowest Common Ancestor (LCA) path to active targets in a single O(N) pass."
+
+  **(Solution)** "We parse the tree using `xml.etree.ElementTree`. A recursive helper `_clean(node)` visits all children first. Any child that returns `False` is removed via `node.remove(child)`. The node itself returns `True` if it is active or has an active descendant."
+
+  **(Complexity)** "Executes in O(N) time across N nodes, using O(H) auxiliary space on the call stack."
+
+twist:
+  lc: 9223
+  title: Bounding Box Coordinate Intersection Pruning
+  why: >-
+    In mobile OCR, nodes that fall completely outside the visible viewport (y < 0 or y > screen_height)
+    can be pruned regardless of their active status.
+
+viz:
+  title: "XML DOM Tree Pruning"

@@ -7,13 +7,38 @@ import { animate, useInView, useReducedMotion } from 'motion/react'
 import { useEffect, useId, useRef, useState, type CSSProperties, type MouseEvent, type ReactNode } from 'react'
 import { flushSync } from 'react-dom'
 
+// ---------------------------------------------------------------------------
+// Background effects control
+// ---------------------------------------------------------------------------
+
+export type BackgroundEffectLevel = 'off' | 'subtle' | 'full'
+const BG_KEY = 'pf-bg-effects'
+
+export function useBackgroundEffects(): { level: BackgroundEffectLevel; setLevel: (l: BackgroundEffectLevel) => void } {
+  const [level, setLevelState] = useState<BackgroundEffectLevel>(() => {
+    try {
+      const stored = localStorage.getItem(BG_KEY)
+      if (stored === 'off' || stored === 'subtle' || stored === 'full') return stored
+    } catch { /* noop */ }
+    return 'subtle'
+  })
+
+  const setLevel = (l: BackgroundEffectLevel) => {
+    try { localStorage.setItem(BG_KEY, l) } catch { /* noop */ }
+    setLevelState(l)
+  }
+
+  return { level, setLevel }
+}
+
+
 /** Light travelling around the border of its (relative, rounded) parent. */
 export function BorderBeam({ duration = 6 }: { duration?: number }) {
   return <span aria-hidden="true" className="border-beam" style={{ animationDuration: `${duration}s` }} />
 }
 
 /** Animated gradient border, e.g. the World Boss frame. */
-export function ShineBorder({ colors = ['#f59e0b', '#f43f5e', '#fbbf24'] }: { colors?: string[] }) {
+export function ShineBorder({ colors = ['var(--color-amber)', 'var(--color-crimson)', 'var(--color-gold)'] }: { colors?: string[] }) {
   return (
     <span
       aria-hidden="true"
@@ -91,11 +116,11 @@ export function MagicCard({ children, className = '', spotlight = 'rgb(0 240 255
 }
 
 /** Zone 3 theater stage: pitch-carbon frame with a dot pattern. */
-export function Stage({ children, className = '', dots = true }: { children: ReactNode; className?: string; dots?: boolean }) {
+export function Stage({ children, className = '', dots = true, style }: { children: ReactNode; className?: string; dots?: boolean; style?: CSSProperties }) {
   return (
-    <div className={`stage relative overflow-hidden rounded-3xl ${className}`}>
+    <div className={`stage relative overflow-hidden rounded-3xl ${className}`} style={style}>
       {dots && <DotPattern />}
-      <div className="relative">{children}</div>
+      <div className="relative h-full flex flex-col">{children}</div>
     </div>
   )
 }
@@ -104,13 +129,42 @@ export function Stage({ children, className = '', dots = true }: { children: Rea
 // Theme polarity
 // ------------------------------------------------------------------------------------------
 
-export type Theme = 'studio-contrast' | 'carbon-dark'
+export type Theme = 'carbon-dark' | 'paper'
 const STORAGE_KEY = 'pf-theme'
 
 export function useTheme(): [Theme, (t: Theme) => void] {
-  const [theme, setThemeState] = useState<Theme>(
-    () => (document.documentElement.dataset.theme as Theme) || 'studio-contrast',
-  )
+  const [theme, setThemeState] = useState<Theme>(() => {
+    const stored = typeof localStorage !== 'undefined' ? (localStorage.getItem(STORAGE_KEY) as Theme | null) : null
+    if (stored === 'paper') return 'paper'
+    return (typeof document !== 'undefined' && (document.documentElement.dataset.theme as Theme) === 'paper')
+      ? 'paper'
+      : 'carbon-dark'
+  })
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const custom = e as CustomEvent<Theme>
+      if (custom.detail) {
+        setThemeState(custom.detail)
+      } else {
+        const current = (document.documentElement.dataset.theme as Theme) === 'paper' ? 'paper' : 'carbon-dark'
+        setThemeState(current)
+      }
+    }
+    window.addEventListener('pf-theme-changed', handler)
+
+    const observer = new MutationObserver(() => {
+      const current = (document.documentElement.dataset.theme as Theme) === 'paper' ? 'paper' : 'carbon-dark'
+      setThemeState(current)
+    })
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] })
+
+    return () => {
+      window.removeEventListener('pf-theme-changed', handler)
+      observer.disconnect()
+    }
+  }, [])
+
   const setTheme = (t: Theme) => {
     document.documentElement.dataset.theme = t
     try {
@@ -119,6 +173,7 @@ export function useTheme(): [Theme, (t: Theme) => void] {
       /* private mode: theme just won't persist */
     }
     setThemeState(t)
+    window.dispatchEvent(new CustomEvent('pf-theme-changed', { detail: t }))
   }
   return [theme, setTheme]
 }
@@ -128,7 +183,7 @@ export function ThemeToggle() {
   const [theme, setTheme] = useTheme()
   const ref = useRef<HTMLButtonElement>(null)
   const reduce = useReducedMotion()
-  const next: Theme = theme === 'studio-contrast' ? 'carbon-dark' : 'studio-contrast'
+  const next: Theme = theme === 'carbon-dark' ? 'paper' : 'carbon-dark'
 
   // the command palette asks for a switch through this event
   useEffect(() => {
@@ -160,11 +215,11 @@ export function ThemeToggle() {
     <button
       ref={ref}
       onClick={toggle}
-      aria-label={theme === 'studio-contrast' ? 'Switch to carbon dark' : 'Switch to studio contrast'}
-      title={theme === 'studio-contrast' ? 'Carbon dark' : 'Studio contrast'}
+      aria-label={theme === 'carbon-dark' ? 'Switch to paper light' : 'Switch to carbon dark'}
+      title={theme === 'carbon-dark' ? 'Paper light' : 'Carbon dark'}
       className="flex h-8 w-8 items-center justify-center rounded-full border border-line bg-panel-2 text-muted transition-colors hover:text-chalk"
     >
-      {theme === 'studio-contrast' ? <Moon size={15} /> : <Sun size={15} />}
+      {theme === 'carbon-dark' ? <Sun size={15} /> : <Moon size={15} />}
     </button>
   )
 }

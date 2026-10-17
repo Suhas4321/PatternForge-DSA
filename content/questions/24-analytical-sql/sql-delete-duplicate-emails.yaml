@@ -1,0 +1,207 @@
+slug: sql-delete-duplicate-emails
+lc: 9318
+citadel_id: sql_dbms
+brick_layer: 3
+runner_type: sql_sqlite
+concept:
+  problem_it_solves: When an application bug inserts duplicate user or contact rows with identical emails, how do data engineers
+    identify and purge the redundant duplicate rows while keeping the original account? In SQL, grouping by the unique key
+    (email) finds the minimum `id` (`SELECT MIN(id) FROM Contacts GROUP BY email`). Any record whose `id` is NOT in that minimum
+    set is a redundant duplicate to be purged.
+  brute_force: Exporting the entire table into Python, deduplicating with a dictionary, dropping the table, and re-importing
+    all rows.
+  brute_force_complexity: Severe downtime, table locks, and memory exhaustion.
+  key_insight: A subquery with `MIN(id) GROUP BY email` identifies the single survivor for each duplicate group. Filtering
+    with `id NOT IN (...)` isolates the exact rows to delete.
+  real_world: LeetCode 196 (Delete Duplicate Emails), CRM customer deduplication, and database cleanup scripts.
+statement:
+  clean: "Write a SQL query to identify and isolate duplicate contact records that should be purged, keeping only the entry\
+    \ with the lowest id.\n\nTable schema:\n```sql\nCREATE TABLE Contacts (\n    id INTEGER PRIMARY KEY,\n    name TEXT,\n\
+    \    email TEXT\n);\n```\n\nTask:\nIdentify all rows that have a duplicate `email` and whose `id` is NOT the minimum `id`\
+    \ for that email address.\n\nReturn columns: `id`, `name`, `email` ordered by `id` ascending."
+  oa_story: '**KiranaKart Customer CRM — Duplicate Account Purge**
+
+
+    A buggy mobile app signup screen allowed users to repeatedly click ''Submit'', creating multiple account entries with
+    the identical email address under different user IDs.
+
+
+    The CRM team needs to clean up the database by identifying all duplicate customer rows that should be purged, preserving
+    only the original account with the lowest ID. Write the SQL query to locate these redundant rows.'
+  trigger_keywords:
+  - isolate duplicate contact records
+  - Contacts
+  - lowest id
+  examples:
+  - input: 'Contacts: [(1, ''Aarav'', ''a@test.in''), (2, ''Priya'', ''p@test.in''), (3, ''Aarav Dup'', ''a@test.in'')]'
+    output: '[(3, ''Aarav Dup'', ''a@test.in'')]'
+    explanation: Email 'a@test.in' has IDs 1 and 3. ID 1 is the lowest, so ID 3 is the duplicate to be purged.
+  constraints:
+  - 1 <= len(Contacts) <= 1000
+  - id is a unique integer primary key
+constraint_quiz:
+  prompt: How does `WHERE id NOT IN (SELECT MIN(id) FROM Contacts GROUP BY email)` identify duplicate rows?
+  options:
+  - '`MIN(id) GROUP BY email` returns the earliest ID for each email; any row whose ID is NOT in this set is a duplicate'
+  - It deletes all rows whose email contains '@'
+  - It sorts the table by name
+  - It counts the number of letters in each email
+  answer: 0
+  explanation: Because MIN(id) per email picks the single original record, any row with a higher ID for that email is excluded
+    from the subquery and caught by NOT IN.
+pattern_quiz:
+  prompt: What window function alternative can also identify duplicate rows keeping the lowest id?
+  options:
+  - '`ROW_NUMBER() OVER (PARTITION BY email ORDER BY id) AS rn ... WHERE rn > 1`'
+  - '`DENSE_RANK() OVER (ORDER BY id)`'
+  - '`NTILE(4) OVER ()`'
+  - '`LEAD(email) OVER ()`'
+  answer: 0
+  explanation: Assigning row numbers partitioned by email assigns 1 to the lowest id; filtering for `rn > 1` isolates all
+    duplicates.
+schema_sql: "CREATE TABLE Contacts (\n    id INTEGER PRIMARY KEY,\n    name TEXT,\n    email TEXT\n);"
+seed_sql: "INSERT INTO Contacts VALUES\n    (1, 'Aarav Sharma', 'aarav@payloop.in'),\n    (2, 'Priya Patel', 'priya@payloop.in'),\n\
+  \    (3, 'Aarav Duplicate', 'aarav@payloop.in'),\n    (4, 'Aarav Triplicate', 'aarav@payloop.in'),\n    (5, 'Vikram Singh',\
+  \ 'vikram@payloop.in');"
+function:
+  name: execute_sql
+  params: []
+  returns: any
+  compare: exact
+starter_code: "-- Write your SQL query below to identify duplicate contacts keeping lowest id\nSELECT\n    id,\n    name,\n\
+  \    email\nFROM Contacts\nWHERE id NOT IN (\n    SELECT MIN(id)\n    FROM Contacts\n    GROUP BY email\n)\nORDER BY id;\n"
+tests:
+- args: []
+  expected:
+  - - 3
+    - Aarav Duplicate
+    - aarav@payloop.in
+  - - 4
+    - Aarav Triplicate
+    - aarav@payloop.in
+  note: Rows 3 and 4 are duplicates of row 1
+- args: []
+  expected: null
+  note: Reference verification
+- args: []
+  expected: null
+  note: Consistency check
+visualize_test: 0
+drills:
+- skill: setup
+  title: Find minimum id per email
+  goal: Group by email and select MIN(id).
+  instructions: Select `MIN(id) AS min_id, email FROM Contacts GROUP BY email ORDER BY min_id;`.
+  function:
+    name: execute_sql
+    params: []
+  starter_code: 'SELECT MIN(id) AS min_id, email FROM Contacts GROUP BY email ORDER BY min_id;
+
+    '
+  tests:
+  - args: []
+    expected:
+    - - 1
+      - aarav@payloop.in
+    - - 2
+      - priya@payloop.in
+    - - 5
+      - vikram@payloop.in
+  solution: 'SELECT MIN(id) AS min_id, email FROM Contacts GROUP BY email ORDER BY min_id;
+
+    '
+  hint: Use `SELECT MIN(id) FROM Contacts GROUP BY email`.
+- skill: core
+  title: Filter with NOT IN subquery
+  goal: Filter IDs not present in minimum ID list.
+  instructions: Filter `WHERE id NOT IN (SELECT MIN(id) FROM Contacts GROUP BY email)`.
+  function:
+    name: execute_sql
+    params: []
+  starter_code: 'SELECT id FROM Contacts WHERE id NOT IN (SELECT MIN(id) FROM Contacts GROUP BY email) ORDER BY id;
+
+    '
+  tests:
+  - args: []
+    expected:
+    - - 3
+    - - 4
+  solution: 'SELECT id FROM Contacts WHERE id NOT IN (SELECT MIN(id) FROM Contacts GROUP BY email) ORDER BY id;
+
+    '
+  hint: Use `WHERE id NOT IN (SELECT MIN(id) FROM Contacts GROUP BY email)`.
+- skill: edge
+  title: Select full contact row
+  goal: Project id, name, and email for duplicates.
+  instructions: Select `id, name, email` ordered by id.
+  function:
+    name: execute_sql
+    params: []
+  starter_code: 'SELECT id, name, email FROM Contacts WHERE id NOT IN (SELECT MIN(id) FROM Contacts GROUP BY email) ORDER
+    BY id;
+
+    '
+  tests:
+  - args: []
+    expected:
+    - - 3
+      - Aarav Duplicate
+      - aarav@payloop.in
+    - - 4
+      - Aarav Triplicate
+      - aarav@payloop.in
+  solution: 'SELECT id, name, email FROM Contacts WHERE id NOT IN (SELECT MIN(id) FROM Contacts GROUP BY email) ORDER BY id;
+
+    '
+  hint: Project `id, name, email`.
+hints:
+- 'Use a subquery to find the surviving minimum id for each email: `SELECT MIN(id) FROM Contacts GROUP BY email`.'
+- Filter the outer table `WHERE id NOT IN (...)` to isolate all redundant rows.
+- '| # Pseudocode Blueprint
+
+  | SELECT id, name, email
+
+  | FROM Contacts
+
+  | WHERE id NOT IN (
+
+  |     SELECT MIN(id)
+
+  |     FROM Contacts
+
+  |     GROUP BY email
+
+  | )
+
+  | ORDER BY id;'
+solution:
+  code: "SELECT\n    id,\n    name,\n    email\nFROM Contacts\nWHERE id NOT IN (\n    SELECT MIN(id)\n    FROM Contacts\n\
+    \    GROUP BY email\n)\nORDER BY id;\n"
+  explanation: Grouping by email finds the earliest identifier for each contact record. Filtering with `id NOT IN (SELECT
+    MIN(id) ...)` isolates all subsequent duplicate entries with identical emails, allowing safe inspection or purging while
+    preserving the original row.
+  time: O(N) with index on email
+  space: O(U) for distinct email set
+pitch_script: '**(Clarify)** "We need to identify all duplicate contact records sharing the same email address, preserving
+  only the original account with the lowest id."
+
+
+  **(Brute force)** "Scanning the table with pairwise self-joins takes O(N^2) time and produces duplicate match pairings."
+
+
+  **(Trigger)** "Selecting surviving records by minimum key and filtering the rest signals a `MIN(id) GROUP BY` subquery."
+
+
+  **(Optimal)** "We find the survivor for each email using `SELECT MIN(id) FROM Contacts GROUP BY email`. In the outer query,
+  any row whose `id` is NOT in that minimum set is a duplicate. We select `id, name, email` and order by id."
+
+
+  **(Complexity)** "Executes in O(N) time with an index on email and O(U) space." '
+twist:
+  lc: 9315
+  title: Consecutive Available Seats Window Island Problem
+  why: Rather than finding duplicate gaps, consecutive seating problems use window functions to identify contiguous island
+    blocks.
+viz:
+  title: Deduplication Selection Pipeline
+  type: sql_pipeline

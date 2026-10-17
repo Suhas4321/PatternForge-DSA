@@ -1,0 +1,268 @@
+slug: redis-sliding-window-rate-limiter
+lc: 9504
+citadel_id: backend_apis
+brick_layer: 4
+runner_type: python_practical
+
+concept:
+  problem_it_solves: >-
+    "Why do fixed-window rate limiters fail at window boundaries, allowing 2x bursts to overwhelm upstream APIs?"
+    A fixed 60-second window resets at :00. A client can send 100 requests at :59 and another 100 requests at :01.
+    Both requests pass because they fall into separate 60-second fixed buckets, allowing 200 requests within 2 seconds.
+    The Sliding Window Log measures traffic over a continuous rolling window, completely eliminating boundary bursts.
+  brute_force: >-
+    Fixed window counters with `INCR` and `EXPIRE`. Allows double-burst attacks at the boundary edges.
+  brute_force_complexity: O(1) memory, but allows 200% traffic spikes that crash downstream services.
+  key_insight: >-
+    Using Redis Sorted Sets (`ZSET`):
+    Each request is recorded with score = timestamp.
+    When a request arrives at time $T$:
+    1. Prune expired logs: `ZREMRANGEBYSCORE key 0 (T - window_seconds)`.
+    2. Count current entries: `ZCARD key`.
+    3. If `count < max_requests`, add timestamp (`ZADD`) and allow HTTP 200.
+    4. If `count >= max_requests`, reject with HTTP 429 Too Many Requests and calculate `Retry-After`.
+  real_world: >-
+    Stripe API rate limiters, FastAPI `slowapi` Redis middleware, and Drizz multi-tenant LLM token bucket gateways.
+
+statement:
+  clean: |
+    Implement an accurate rolling log rate limiter using a redis sliding window limiter:
+    `def check_rate_limit(self, requests: list[dict], window_seconds: int, max_requests: int) -> list[dict]`.
+    
+    Given a list of incoming `requests` in chronological order, where each element is:
+    - `ip`: client IP address string
+    - `timestamp`: integer timestamp in seconds
+    
+    And `window_seconds` (sliding duration) and `max_requests` (limit per window):
+    For each request:
+    1. Maintain an in-memory sliding log of accepted timestamps for each IP.
+    2. Evict timestamps strictly older than `timestamp - window_seconds` (keep only timestamps where `t > timestamp - window_seconds`).
+    3. If the count of timestamps currently in the window is `< max_requests`:
+       - Append the current `timestamp` to that IP's log.
+       - Append to results: `{"ip": ip, "allowed": True, "status_code": 200, "remaining": max_requests - len(log)}`
+    4. If the count of timestamps currently in the window is `>= max_requests`:
+       - The oldest active timestamp in the window is `oldest = log[0]`.
+       - Compute seconds until the oldest request expires: `retry_after = (oldest + window_seconds) - timestamp`.
+       - Append to results: `{"ip": ip, "allowed": False, "status_code": 429, "retry_after": retry_after}`
+    5. Return the list of result dictionaries.
+  oa_story: |
+    **Drizz Multi-Tenant LLM Gateway — Burst Mitigation**
+    
+    When executing test suites across external LLM APIs (OpenAI / Anthropic), fixed-window limiters
+    frequently allowed test suites to fire double-bursts across minute boundaries, triggering immediate 429 bans.
+    
+    Implement this Redis sliding window log simulator to enforce rolling rate compliance across all client IPs.
+  trigger_keywords: ["redis sliding window limiter", "check_rate_limit", "requests"]
+  examples:
+    - input: 'requests = [{"ip": "1.1.1.1", "timestamp": 10}, {"ip": "1.1.1.1", "timestamp": 20}, {"ip": "1.1.1.1", "timestamp": 30}], window_seconds = 60, max_requests = 2'
+      output: '[{"ip": "1.1.1.1", "allowed": True, "status_code": 200, "remaining": 1}, {"ip": "1.1.1.1", "allowed": True, "status_code": 200, "remaining": 0}, {"ip": "1.1.1.1", "allowed": False, "status_code": 429, "retry_after": 40}]'
+      explanation: "Third request at timestamp 30 is rejected because 2 requests are already active in the [0, 60] window. Oldest (10) expires at 70 (70 - 30 = 40s wait)."
+  constraints:
+    - "0 <= len(requests) <= 50"
+    - "window_seconds >= 1"
+    - "max_requests >= 1"
+
+constraint_quiz:
+  prompt: "What is the primary memory trade-off of the Sliding Window Log algorithm compared to the Token Bucket algorithm?"
+  options:
+    - "Sliding Window Log stores every individual request timestamp in memory (O(N) memory per client), whereas Token Bucket only stores an integer counter and last update timestamp (O(1) memory)"
+    - "Sliding Window Log requires relational database foreign keys"
+    - "Token Bucket cannot run on Redis"
+    - "Sliding Window Log can only be written in C++"
+  answer: 0
+  explanation: "Sliding Window Log achieves 100% precision by storing every timestamp, using O(requests) memory. Token Bucket approximates rate limits using only 2 numbers: tokens available and last refill time."
+
+pattern_quiz:
+  prompt: "Which Redis data structure is ideally suited for implementing a Sliding Window Log?"
+  options:
+    - "Sorted Set (ZSET), using the request timestamp as the score for efficient ZREMRANGEBYSCORE and ZCARD operations"
+    - "Redis Bitmaps"
+    - "Redis Streams"
+    - "Redis Geospatial Index"
+  answer: 0
+  explanation: "Redis Sorted Sets (ZSET) store members sorted by a numeric score (timestamp). `ZREMRANGEBYSCORE` evicts expired items in O(log(N) + M), and `ZCARD` counts active items in O(1)."
+
+function:
+  name: check_rate_limit
+  params:
+    - name: requests
+      type: any
+    - name: window_seconds
+      type: any
+    - name: max_requests
+      type: any
+  returns: any
+
+starter_code: |
+  class Solution:
+      def check_rate_limit(self, requests: list[dict], window_seconds: int, max_requests: int) -> list[dict]:
+          pass
+
+tests:
+  - args:
+      - [{"ip": "1.1.1.1", "timestamp": 10}, {"ip": "1.1.1.1", "timestamp": 20}, {"ip": "1.1.1.1", "timestamp": 30}]
+      - 60
+      - 2
+    expected:
+      - {ip: "1.1.1.1", allowed: true, status_code: 200, remaining: 1}
+      - {ip: "1.1.1.1", allowed: true, status_code: 200, remaining: 0}
+      - {ip: "1.1.1.1", allowed: false, status_code: 429, retry_after: 40}
+    note: "Third request hits rate limit"
+
+  - args:
+      - [{"ip": "1.1.1.1", "timestamp": 10}, {"ip": "1.1.1.1", "timestamp": 80}]
+      - 60
+      - 1
+    expected:
+      - {ip: "1.1.1.1", allowed: true, status_code: 200, remaining: 0}
+      - {ip: "1.1.1.1", allowed: true, status_code: 200, remaining: 0}
+    note: "Window slides past first request"
+
+  - args:
+      - [{"ip": "1.1.1.1", "timestamp": 10}, {"ip": "2.2.2.2", "timestamp": 10}]
+      - 60
+      - 1
+    expected:
+      - {ip: "1.1.1.1", allowed: true, status_code: 200, remaining: 0}
+      - {ip: "2.2.2.2", allowed: true, status_code: 200, remaining: 0}
+    note: "Distinct IPs track independent limits"
+
+  - args:
+      - []
+      - 60
+      - 5
+    expected: []
+    note: "Empty requests list"
+
+visualize_test: 0
+
+drills:
+  - title: Evict expired timestamps
+    skill: setup
+    goal: Filter timestamps where t > current - window.
+    instructions: |
+      Return `[t for t in log if t > current - window]`.
+    function:
+      name: filter_active
+      params: [{name: log}, {name: current}, {name: window}]
+    starter_code: |
+      class Solution:
+          def filter_active(self, log: list[int], current: int, window: int) -> list[int]:
+              pass
+    tests:
+      - {args: [[10, 50], 70, 60], expected: [50]}
+    solution: |
+      class Solution:
+          def filter_active(self, log: list[int], current: int, window: int) -> list[int]:
+              return [t for t in log if t > current - window]
+    hint: "Keep timestamps strictly greater than current - window."
+
+  - title: Retry-After calculation
+    skill: core
+    goal: Compute seconds until oldest timestamp slides out.
+    instructions: |
+      Return `(oldest + window) - current`.
+    function:
+      name: calc_retry_after
+      params: [{name: oldest}, {name: window}, {name: current}]
+    starter_code: |
+      class Solution:
+          def calc_retry_after(self, oldest: int, window: int, current: int) -> int:
+              pass
+    tests:
+      - {args: [10, 60, 30], expected: 40}
+    solution: |
+      class Solution:
+          def calc_retry_after(self, oldest: int, window: int, current: int) -> int:
+              return (oldest + window) - current
+    hint: "Return (oldest + window) - current."
+
+  - title: IP log initialization
+    skill: edge
+    goal: Retrieve list for IP or initialize empty list.
+    instructions: |
+      Return `logs.setdefault(ip, [])`.
+    function:
+      name: get_log
+      params: [{name: logs}, {name: ip}]
+    starter_code: |
+      class Solution:
+          def get_log(self, logs: dict, ip: str) -> list:
+              pass
+    tests:
+      - {args: [{}, "1.1.1.1"], expected: []}
+    solution: |
+      class Solution:
+          def get_log(self, logs: dict, ip: str) -> list:
+              return logs.setdefault(ip, [])
+    hint: "Use logs.setdefault(ip, [])."
+
+hints:
+  - "Maintain a dictionary `logs: dict[str, list[int]]` where keys are IP addresses and values are lists of accepted request timestamps."
+  - "For each request, evict timestamps from the IP's log that are `<= timestamp - window_seconds`."
+  - "If `len(log) < max_requests`, append `timestamp` and return `allowed: True, status_code: 200, remaining: max_requests - len(log)`. Else compute `retry_after = (log[0] + window_seconds) - timestamp` and return 429."
+
+solution:
+  code: |
+    class Solution:
+        def check_rate_limit(self, requests: list[dict], window_seconds: int, max_requests: int) -> list[dict]:
+            logs: dict[str, list[int]] = {}
+            results = []
+
+            for req in requests:
+                ip = req["ip"]
+                ts = req["timestamp"]
+                log = logs.setdefault(ip, [])
+
+                # Evict timestamps outside the rolling window (keep strictly ts - window_seconds < t)
+                cutoff = ts - window_seconds
+                valid_log = [t for t in log if t > cutoff]
+                logs[ip] = valid_log
+
+                if len(valid_log) < max_requests:
+                    valid_log.append(ts)
+                    results.append({
+                        "ip": ip,
+                        "allowed": True,
+                        "status_code": 200,
+                        "remaining": max_requests - len(valid_log),
+                    })
+                else:
+                    oldest = valid_log[0]
+                    retry_after = (oldest + window_seconds) - ts
+                    results.append({
+                        "ip": ip,
+                        "allowed": False,
+                        "status_code": 429,
+                        "retry_after": retry_after,
+                    })
+
+            return results
+  explanation: |
+    The sliding window log tracks each client IP's request history.
+    By filtering out timestamps older than `ts - window_seconds` on each arrival, the algorithm ensures
+    that at any instant, only requests within the active duration window are counted.
+    
+    If the threshold is reached, HTTP 429 is returned along with the exact `Retry-After` seconds
+    calculated from the oldest item in the window.
+  time: O(N * M) where N is requests and M is max_requests per window
+  space: O(K * M) where K is unique IPs and M is retained timestamps
+
+pitch_script: |
+  **(Clarify)** "We need to simulate a sliding window log rate limiter that tracks requests per client IP and returns HTTP 200 with remaining permits, or HTTP 429 with Retry-After."
+
+  **(Basement Insight)** "Fixed-window rate limiters fail at boundary edges, allowing twice the configured traffic burst across bucket transitions. Sliding window log using Redis Sorted Sets ensures that across ANY rolling window of duration W, requests never exceed the configured limit."
+
+  **(Solution)** "For each request, we evict timestamps older than `ts - window_seconds`. If active requests are below `max_requests`, we append the timestamp and return 200 OK with `remaining` permits. Otherwise, we calculate `Retry-After = (oldest + window_seconds) - ts` and return 429 Too Many Requests."
+
+  **(Complexity)** "Runs in O(N * M) time where M <= max_requests, using O(K * M) space for active timestamps."
+
+twist:
+  lc: 9601
+  title: Sliding Window Counter Approximation for Low Memory
+  why: >-
+    Under high traffic (100,000+ RPS), storing every timestamp in Redis ZSET consumes substantial RAM.
+    Upgrade to Cloudflare's Sliding Window Counter which weights the previous fixed window and current window with O(1) memory.
+
+viz:
+  title: "Redis Sliding Window Rate Limiter Timeline"

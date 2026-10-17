@@ -2,20 +2,14 @@ import { CalendarClock, Check, Crown, Flag, Lock, Mountain } from 'lucide-react'
 import { motion, useReducedMotion } from 'motion/react'
 import { useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import type { QuestionSummary } from '../api/types'
+import type { QuestionSummary, World } from '../api/types'
 import { questUrl, stagesDone } from '../lib/journey'
 import { ShineBorder } from './effects'
 import { Button, ConfidenceStars, DifficultyBadge, LeetCodeLink } from './ui'
 
-/**
- * A world as a mountain climb: question 1 at base camp (bottom), switchbacks up the face, the
- * boss question on the summit. The climbed route glows emerald; a cyan beam runs from there to
- * your current trial.
- */
-
-const SUMMIT_SPACE = 150 // room above the summit card for the peak and flag
+const SUMMIT_SPACE = 130
 const BASE_SPACE = 70
-const NARROW = 460 // below this (phones): zig-zag along the left edge, every card on the right
+const NARROW = 460 // below this: single column on the right / centered
 
 interface Point {
   x: number
@@ -39,7 +33,7 @@ function smoothSegments(pts: Point[]): string[] {
 
 /** The part of the full trail between waypoints `from` and `to`, following exactly the same curve. */
 function trailPart(pts: Point[], segs: string[], from: number, to: number): string {
-  if (to <= from) return ''
+  if (to <= from || pts.length <= 1) return ''
   return `M ${pts[from].x} ${pts[from].y} ${segs.slice(from, to).join(' ')}`
 }
 
@@ -62,16 +56,25 @@ function mountainPath(w: number, h: number, peak: Point, spread: number, seed: n
 }
 
 function altitude(i: number, n: number) {
-  return Math.round((900 + (n <= 1 ? 1 : i / (n - 1)) * 4100) / 10) * 10
+  if (n <= 1) return 2950
+  return Math.round((900 + (i / (n - 1)) * 4100) / 10) * 10
 }
 
 function campLabel(i: number, n: number) {
-  if (i === n - 1) return 'Summit'
-  if (i === 0) return 'Base camp'
+  if (i === n - 1) return 'Summit Camp'
+  if (i === 0) return 'Base Camp'
   return `Camp ${i}`
 }
 
-export default function MountainTrail({ qs, active }: { qs: QuestionSummary[]; active: number }) {
+export default function MountainTrail({
+  qs = [],
+  active,
+  world,
+}: {
+  qs: QuestionSummary[]
+  active: number
+  world?: World
+}) {
   const ref = useRef<HTMLDivElement>(null)
   const activeRef = useRef<HTMLDivElement>(null)
   const [width, setWidth] = useState(0)
@@ -89,66 +92,153 @@ export default function MountainTrail({ qs, active }: { qs: QuestionSummary[]; a
   const narrow = width < NARROW
   const n = qs.length
 
-  // Node positions, bottom (index 0) to top (index n-1). Wider screens: the trail swings between
-  // two switchback columns with each card on the outside of its bend.
+  // Case 0: Empty world (coming_soon)
+  if (n === 0) {
+    return (
+      <div ref={ref} className="relative flex min-h-[480px] flex-col items-center justify-between py-8 px-4">
+        {/* Summit marker */}
+        <div className="flex flex-col items-center gap-2 z-10">
+          <span className="flex h-11 w-11 items-center justify-center rounded-full border border-dashed border-amber/60 bg-panel-2 text-amber shadow-lg">
+            <Flag size={18} />
+          </span>
+          <div className="flex items-center gap-2 font-mono text-2xs text-faint">
+            <span>Summit</span>
+            <span>·</span>
+            <span>5,000m</span>
+          </div>
+        </div>
+
+        {/* Central calm card with world core idea */}
+        <div className="card relative z-10 max-w-md rounded-2xl border border-dashed border-line-strong bg-panel/90 p-6 text-center shadow-2xl backdrop-blur-md">
+          <span className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-panel-2 text-muted">
+            <Mountain size={20} />
+          </span>
+          <h2 className="font-plate text-lg font-semibold text-chalk">
+            {world?.name ?? 'Ascent Trail'}
+          </h2>
+          <p className="mt-2 text-xs leading-relaxed text-muted">
+            {world?.core_idea || 'This engineering realm is actively under construction.'}
+          </p>
+          <div className="mt-4 inline-flex items-center gap-1.5 rounded-full border border-line bg-panel-2 px-3 py-1 text-2xs font-medium text-faint">
+            <span>Lessons landing soon</span>
+          </div>
+        </div>
+
+        {/* Base Camp marker */}
+        <div className="flex flex-col items-center gap-2 z-10">
+          <div className="flex items-center gap-2 font-mono text-2xs text-faint">
+            <span>Base Camp</span>
+            <span>·</span>
+            <span>900m</span>
+          </div>
+          <span className="flex h-9 w-9 items-center justify-center rounded-full border border-line bg-panel-2 text-muted">
+            <Mountain size={15} />
+          </span>
+        </div>
+
+        {/* Faint center connector */}
+        <div className="pointer-events-none absolute inset-y-12 left-1/2 -translate-x-1/2 w-px border-l border-dashed border-line/40 z-0" />
+      </div>
+    )
+  }
+
+  // Node positions, bottom (index 0) to top (index n-1)
   const layout = useMemo(() => {
-    if (!width) return null
-    const cardW = narrow ? width - 108 : Math.min(300, Math.max(180, (width - 130 - 88) / 2))
-    const heights = qs.map((_, i) => (i === active ? (narrow ? 230 : 210) : narrow ? 112 : cardW < 240 ? 118 : 100))
-    const gaps = qs.slice(1).map((_, i) => (heights[i] + heights[i + 1]) / 2 + (narrow ? 26 : 34))
-    const total = SUMMIT_SPACE + gaps.reduce((a, b) => a + b, 0) + BASE_SPACE + heights[0] / 2 + heights[n - 1] / 2
+    if (!width || n === 0) return null
+    const cardW = narrow ? width - 88 : Math.min(300, Math.max(180, (width - 130 - 88) / 2))
+    const heights = qs.map((_, i) => (i === active ? (narrow ? 230 : 210) : narrow ? 116 : cardW < 240 ? 122 : 104))
+
+    // Handle 1 to 3 lessons with generous spacing
+    const minHeight = n <= 3 ? 500 : 600
+    const gaps = qs.slice(1).map((_, i) => (heights[i] + heights[i + 1]) / 2 + (narrow ? 28 : 36))
+    const computedTotal = SUMMIT_SPACE + gaps.reduce((a, b) => a + b, 0) + BASE_SPACE + heights[0] / 2 + heights[n - 1] / 2
+    const total = Math.max(minHeight, computedTotal)
+
     const center = width / 2
-    const swing = (width - 2 * (cardW + 44)) / 2 // distance from the centre line to a switchback column
+    const swing = (width - 2 * (cardW + 44)) / 2
     const pts: Point[] = []
     let y = total - BASE_SPACE - heights[0] / 2
+
     for (let i = 0; i < n; i++) {
-      if (i > 0) y -= gaps[i - 1]
-      const t = n <= 1 ? 1 : i / (n - 1)
+      if (i > 0) y -= gaps[i - 1] ?? (total / (n + 1))
+      const t = n <= 1 ? 0.5 : i / (n - 1)
       let x: number
-      if (narrow) x = i % 2 === 0 ? 34 : 74
-      else if (i === n - 1) x = center // the summit
-      else x = center + (i % 2 === 0 ? -1 : 1) * swing * (1 - 0.45 * t) // switchbacks tighten near the peak
+      if (narrow) {
+        x = 36
+      } else if (n === 1) {
+        x = center - 60
+      } else if (n <= 3) {
+        x = center + (i % 2 === 0 ? -1 : 1) * Math.min(swing, 120)
+      } else if (i === n - 1) {
+        x = center
+      } else {
+        x = center + (i % 2 === 0 ? -1 : 1) * swing * (1 - 0.45 * t)
+      }
       pts.push({ x, y })
     }
     return { pts, heights, total, cardW }
   }, [width, narrow, qs, active, n])
 
-  // Scroll to where you are on the mountain (after the zoom-in transition settles).
   useLayoutEffect(() => {
     if (!layout || active <= 0) return
-    const t = window.setTimeout(() => activeRef.current?.scrollIntoView({ block: 'center', behavior: reduce ? 'auto' : 'smooth' }), 750)
+    const t = window.setTimeout(
+      () => activeRef.current?.scrollIntoView({ block: 'center', behavior: reduce ? 'auto' : 'smooth' }),
+      700,
+    )
     return () => window.clearTimeout(t)
-    // only when the page opens, not on every resize
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [!!layout])
 
   let lastSolved = -1
   qs.forEach((q, i) => q.progress.solved && (lastSolved = i))
 
   return (
-    <div ref={ref} className="relative" style={{ height: layout?.total ?? 600 }}>
+    <div ref={ref} className="relative overflow-hidden" style={{ minHeight: layout?.total ?? 500 }}>
       {layout && (
         <>
           <MountainBackdrop width={width} height={layout.total} summit={layout.pts[n - 1]} narrow={narrow} />
+
+          {/* Summit & Base Camp Markers */}
+          <div
+            className="absolute z-10 flex flex-col items-center gap-1.5"
+            style={{ left: layout.pts[n - 1].x, top: Math.max(16, layout.pts[n - 1].y - 68), transform: 'translateX(-50%)' }}
+          >
+            <span className="flex h-8 w-8 items-center justify-center rounded-full border border-amber bg-panel-2 text-amber shadow-[0_0_12px_rgba(245,158,11,0.3)]">
+              <Flag size={14} />
+            </span>
+            <span className="font-mono text-caption text-faint">Summit 5,000m</span>
+          </div>
+
+          <div
+            className="absolute z-10 flex flex-col items-center gap-1"
+            style={{ left: layout.pts[0].x, top: Math.min(layout.total - 30, layout.pts[0].y + 54), transform: 'translateX(-50%)' }}
+          >
+            <span className="font-mono text-caption text-faint">Base Camp 900m</span>
+          </div>
+
           <TrailPaths pts={layout.pts} lastSolved={lastSolved} active={active} reduce={!!reduce} width={width} height={layout.total} />
+
           {qs.map((q, i) => {
             const p = layout.pts[i]
             const boss = i === n - 1
-            // cards sit on the outside of each bend, never over the trail
             const cardOnRight = narrow || p.x >= width / 2
             const room = cardOnRight ? width - p.x - 44 : p.x - 44
-            const cardW = narrow ? width - p.x - 34 : Math.min(boss ? 340 : 300, Math.max(layout.cardW, room))
+            const cardW = narrow ? width - 82 : Math.min(boss ? 340 : 300, Math.max(layout.cardW, room))
+
             return (
               <div key={q.slug}>
                 <Waypoint q={q} index={i} n={n} point={p} active={i === active} boss={boss} />
                 <div
                   ref={i === active ? activeRef : undefined}
-                  className="absolute"
+                  className="absolute z-10"
                   style={{
                     top: p.y,
                     width: cardW,
                     transform: 'translateY(-50%)',
-                    ...(cardOnRight ? { left: p.x + 32 } : { right: width - p.x + 32 }),
+                    ...(narrow
+                      ? { left: p.x + 30 }
+                      : cardOnRight
+                        ? { left: p.x + 32 }
+                        : { right: width - p.x + 32 }),
                   }}
                 >
                   <TrailNode q={q} index={i} n={n} active={i === active} boss={boss} />
@@ -163,70 +253,48 @@ export default function MountainTrail({ qs, active }: { qs: QuestionSummary[]; a
 }
 
 function MountainBackdrop({ width, height, summit, narrow }: { width: number; height: number; summit: Point; narrow: boolean }) {
-  const peak = { x: narrow ? width * 0.55 : summit.x, y: summit.y - 110 }
+  const peak = { x: narrow ? width * 0.5 : summit.x, y: Math.max(30, summit.y - 80) }
   const stars = useMemo(
     () =>
-      Array.from({ length: 40 }, (_, i) => ({
+      Array.from({ length: 30 }, (_, i) => ({
         x: ((Math.sin(i * 91.7) + 1) / 2) * width,
-        y: ((Math.sin(i * 37.3) + 1) / 2) * Math.min(height * 0.35, 520),
+        y: ((Math.sin(i * 37.3) + 1) / 2) * Math.min(height * 0.35, 480),
         r: 0.6 + ((Math.sin(i * 13.1) + 1) / 2) * 1.1,
-        o: 0.25 + ((Math.sin(i * 5.7) + 1) / 2) * 0.55,
+        o: 0.2 + ((Math.sin(i * 5.7) + 1) / 2) * 0.45,
       })),
     [width, height],
   )
-  const snowDepth = 70
-  const snowHalf = (narrow ? 0.62 : 0.75) * width * Math.sqrt(snowDepth / (height - peak.y))
+
   return (
-    <svg aria-hidden="true" className="pointer-events-none absolute inset-0" width={width} height={height}>
+    <svg aria-hidden="true" className="pointer-events-none absolute inset-0 z-0" width={width} height={height}>
       <defs>
         <linearGradient id="mtn-far" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#1E2433" />
-          <stop offset="100%" stopColor="#0E1118" />
+          <stop offset="0%" stopColor="var(--color-panel-2)" stopOpacity="0.8" />
+          <stop offset="100%" stopColor="var(--color-void)" />
         </linearGradient>
         <linearGradient id="mtn-near" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#262E42" />
-          <stop offset="45%" stopColor="#161B27" />
-          <stop offset="100%" stopColor="#0D1016" />
+          <stop offset="0%" stopColor="var(--color-panel)" />
+          <stop offset="100%" stopColor="var(--color-void)" />
         </linearGradient>
-        <radialGradient id="summit-glow" cx="0.5" cy="0.5" r="0.5">
-          <stop offset="0%" stopColor="#FBBF24" stopOpacity="0.28" />
-          <stop offset="100%" stopColor="#FBBF24" stopOpacity="0" />
-        </radialGradient>
       </defs>
       {stars.map((s, i) => (
-        <circle key={i} cx={s.x} cy={s.y} r={s.r} fill="#E2E8F0" opacity={s.o} />
+        <circle key={i} cx={s.x} cy={s.y} r={s.r} fill="var(--color-chalk)" opacity={s.o} />
       ))}
-      <circle cx={peak.x} cy={peak.y + 40} r={narrow ? 120 : 180} fill="url(#summit-glow)" />
-      {/* far ranges */}
-      <path d={mountainPath(width, height, { x: width * 0.14, y: peak.y + height * 0.22 }, 0.55, 3)} fill="url(#mtn-far)" opacity={0.8} />
-      <path d={mountainPath(width, height, { x: width * 0.9, y: peak.y + height * 0.16 }, 0.6, 7)} fill="url(#mtn-far)" opacity={0.8} />
-      {/* the mountain you climb */}
-      <path d={mountainPath(width, height, peak, narrow ? 0.62 : 0.75, 11)} fill="url(#mtn-near)" />
-      <path
-        d={`M ${peak.x} ${peak.y} L ${peak.x - snowHalf} ${peak.y + snowDepth} Q ${peak.x - snowHalf * 0.4} ${peak.y + snowDepth - 16}, ${peak.x - snowHalf * 0.15} ${peak.y + snowDepth + 6} Q ${peak.x + snowHalf * 0.3} ${peak.y + snowDepth - 12}, ${peak.x + snowHalf} ${peak.y + snowDepth} Z`}
-        fill="#E2E8F0"
-        opacity={0.85}
-      />
-      {/* faint contour lines on the face */}
-      {[0.32, 0.5, 0.68, 0.84].map((f) => {
-        const y = peak.y + f * (height - peak.y)
-        const half = (narrow ? 0.62 : 0.75) * width * Math.sqrt(f) * 0.92
-        return (
-          <path
-            key={f}
-            d={`M ${peak.x - half} ${y} Q ${peak.x} ${y - 26}, ${peak.x + half} ${y}`}
-            fill="none"
-            stroke="#E2E8F0"
-            strokeOpacity={0.05}
-            strokeWidth={1.2}
-          />
-        )
-      })}
+      <path d={mountainPath(width, height, { x: width * 0.16, y: peak.y + height * 0.2 }, 0.55, 3)} fill="url(#mtn-far)" opacity={0.5} />
+      <path d={mountainPath(width, height, { x: width * 0.84, y: peak.y + height * 0.18 }, 0.55, 7)} fill="url(#mtn-far)" opacity={0.5} />
+      <path d={mountainPath(width, height, peak, narrow ? 0.65 : 0.75, 11)} fill="url(#mtn-near)" opacity={0.8} />
     </svg>
   )
 }
 
-function TrailPaths({ pts, lastSolved, active, reduce, width, height }: {
+function TrailPaths({
+  pts,
+  lastSolved,
+  active,
+  reduce,
+  width,
+  height,
+}: {
   pts: Point[]
   lastSolved: number
   active: number
@@ -234,34 +302,43 @@ function TrailPaths({ pts, lastSolved, active, reduce, width, height }: {
   width: number
   height: number
 }) {
+  if (pts.length <= 1) return null
   const segs = smoothSegments(pts)
   const full = trailPart(pts, segs, 0, pts.length - 1)
   const climbed = trailPart(pts, segs, 0, lastSolved)
   const from = Math.max(0, lastSolved)
   const ahead = trailPart(pts, segs, from, active)
+
   return (
-    <svg aria-hidden="true" className="pointer-events-none absolute inset-0" width={width} height={height}>
-      {/* the dirt trail */}
-      <path d={full} fill="none" stroke="#0B0C10" strokeOpacity={0.6} strokeWidth={10} strokeLinecap="round" />
-      <path d={full} fill="none" stroke="#475069" strokeWidth={2.5} strokeDasharray="2 9" strokeLinecap="round" />
-      {/* the route you've climbed */}
+    <svg aria-hidden="true" className="pointer-events-none absolute inset-0 z-0" width={width} height={height}>
+      {/* Dirt trail */}
+      <path d={full} fill="none" stroke="var(--color-line-strong)" strokeOpacity={0.35} strokeWidth={8} strokeLinecap="round" />
+      <path d={full} fill="none" stroke="var(--color-line)" strokeWidth={2.5} strokeDasharray="3 8" strokeLinecap="round" />
+      {/* Climbed route */}
       {climbed && (
-        <path d={climbed} fill="none" stroke="#34D399" strokeWidth={3.5} strokeLinecap="round" style={{ filter: 'drop-shadow(0 0 6px #34D399)' }} />
+        <path
+          d={climbed}
+          fill="none"
+          stroke="var(--color-emerald-hi)"
+          strokeWidth={3}
+          strokeLinecap="round"
+          style={{ filter: 'drop-shadow(0 0 6px var(--color-emerald))' }}
+        />
       )}
-      {/* the way to your current trial */}
+      {/* Active leg to current trial */}
       {ahead && (
         <>
-          <path d={ahead} fill="none" stroke="#22D3EE" strokeOpacity={0.35} strokeWidth={3} strokeLinecap="round" />
+          <path d={ahead} fill="none" stroke="var(--color-cyan)" strokeOpacity={0.35} strokeWidth={3} strokeLinecap="round" />
           {!reduce && (
             <motion.path
               d={ahead}
               pathLength={1}
               fill="none"
-              stroke="#22D3EE"
+              stroke="var(--color-cyan)"
               strokeWidth={3.5}
               strokeLinecap="round"
               strokeDasharray="0.25 0.75"
-              style={{ filter: 'drop-shadow(0 0 6px #22D3EE)' }}
+              style={{ filter: 'drop-shadow(0 0 6px var(--color-cyan))' }}
               initial={{ strokeDashoffset: 0.25 }}
               animate={{ strokeDashoffset: -1 }}
               transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut', repeatDelay: 0.3 }}
@@ -273,25 +350,43 @@ function TrailPaths({ pts, lastSolved, active, reduce, width, height }: {
   )
 }
 
-function Waypoint({ q, index, n, point, active, boss }: { q: QuestionSummary; index: number; n: number; point: Point; active: boolean; boss: boolean }) {
+function Waypoint({
+  q,
+  index,
+  n,
+  point,
+  active,
+  boss,
+}: {
+  q: QuestionSummary
+  index: number
+  n: number
+  point: Point
+  active: boolean
+  boss: boolean
+}) {
   const solved = q.progress.solved
-  const size = boss ? 48 : active ? 44 : 38
+  const size = boss ? 44 : active ? 40 : 34
+
   return (
-    <div className="absolute z-10" style={{ left: point.x - size / 2, top: point.y - size / 2, width: size, height: size }}>
-      {active && <span className="absolute inset-0 animate-ping rounded-full bg-cyan-400/40" />}
+    <div
+      className="absolute z-20"
+      style={{ left: point.x - size / 2, top: point.y - size / 2, width: size, height: size }}
+    >
+      {active && <span className="absolute inset-0 animate-ping rounded-full bg-cyan/30" />}
       <span
-        className={`relative flex h-full w-full items-center justify-center rounded-full border-2 font-mono text-xs ${
+        className={`relative flex h-full w-full items-center justify-center rounded-full border-2 font-mono text-xs font-semibold ${
           solved
-            ? 'border-emerald-400 bg-[#0F1E1A] text-emerald-300 shadow-[0_0_14px_-2px_#34D399]'
+            ? 'border-emerald bg-panel-2 text-emerald shadow-[0_0_12px_rgba(16,185,129,0.35)]'
             : boss
-              ? 'border-amber-400 bg-[#1F1712] text-amber-300 shadow-[0_0_18px_-2px_#F59E0B]'
+              ? 'border-amber bg-panel-2 text-amber shadow-[0_0_14px_rgba(245,158,11,0.35)]'
               : active
-                ? 'border-cyan-400 bg-[#131824] text-cyan-300 shadow-[0_0_16px_-2px_#22D3EE]'
-                : 'border-[#3D4560] bg-[#181B24] text-[#94A3B8]'
+                ? 'border-cyan bg-panel-2 text-cyan shadow-[0_0_14px_rgba(34,211,238,0.4)]'
+                : 'border-line-strong bg-panel-2 text-muted'
         }`}
-        title={`${campLabel(index, n)}, ${altitude(index, n).toLocaleString()} m`}
+        title={`${campLabel(index, n)}, ${altitude(index, n).toLocaleString()}m`}
       >
-        {solved ? <Check size={16} /> : boss ? <Flag size={17} /> : index === 0 ? <Mountain size={15} /> : index + 1}
+        {solved ? <Check size={14} /> : boss ? <Flag size={15} /> : index === 0 ? <Mountain size={13} /> : index + 1}
       </span>
     </div>
   )
@@ -307,51 +402,63 @@ function StageDots({ q }: { q: QuestionSummary }) {
       {STAGE_NAMES.map((name, i) => (
         <span key={name} className="flex items-center gap-1.5">
           <span
-            className={`h-2 w-2 rounded-full ${done[i] ? 'bg-emerald-400 shadow-[0_0_6px_#34D399]' : 'bg-[#3D4560]'}`}
+            className={`h-2 w-2 rounded-full ${done[i] ? 'bg-emerald shadow-[0_0_6px_var(--color-emerald)]' : 'bg-line-strong'}`}
             title={`${name}${done[i] ? ' done' : ''}`}
           />
-          <span className={`text-2xs ${done[i] ? 'text-emerald-300' : 'text-[#94A3B8]'}`}>{name}</span>
+          <span className={`text-2xs ${done[i] ? 'text-emerald' : 'text-muted'}`}>{name}</span>
         </span>
       ))}
     </div>
   )
 }
 
-function TrailNode({ q, index, n, active, boss }: { q: QuestionSummary; index: number; n: number; active: boolean; boss: boolean }) {
+function TrailNode({
+  q,
+  index,
+  n,
+  active,
+  boss,
+}: {
+  q: QuestionSummary
+  index: number
+  n: number
+  active: boolean
+  boss: boolean
+}) {
   const navigate = useNavigate()
   const solved = q.progress.solved
   const due = q.progress.status === 'review_due'
   const href = questUrl(q)
 
   const frame = solved
-    ? 'border-emerald-400/60 bg-[#0F1E1A]/95'
+    ? 'border-emerald/60 bg-panel-2/90'
     : due
-      ? 'border-amber-400/70 bg-[#1F1712]/95'
+      ? 'border-amber/70 bg-panel-2/90'
       : active
-        ? 'border-cyan-400 bg-[#131824]/95 quest-pulse'
+        ? 'border-cyan bg-panel-2/90 quest-pulse'
         : boss
-          ? 'border-transparent bg-[#1A1418]/95'
-          : 'border-[#2E3446] bg-[#181B24]/95 hover:border-cyan-400/50'
+          ? 'border-line-strong bg-panel-2/90'
+          : 'border-line bg-panel/90 hover:border-cyan/50'
 
   return (
-    <div className={`relative rounded-2xl border backdrop-blur-sm transition-colors ${frame} ${active ? 'p-4' : 'px-4 py-3'}`}>
-      {boss && !solved && <ShineBorder />}
+    <div className={`relative rounded-2xl border backdrop-blur-sm transition-colors ${frame} ${active ? 'p-3.5 sm:p-4' : 'px-3.5 py-2.5 sm:px-4 sm:py-3'}`}>
+      {boss && !solved && !active && <ShineBorder />}
       {boss && (
         <span
-          className={`absolute -top-3 left-4 inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-2xs font-semibold ${
-            solved ? 'border-amber-300/60 bg-[#2A2010] text-amber-300' : 'border-rose-400/60 bg-[#2A1218] text-rose-300'
+          className={`absolute -top-3 left-4 inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-2xs font-semibold ${
+            solved ? 'border-amber/60 bg-panel-2 text-amber' : 'border-crimson/60 bg-panel-2 text-crimson'
           }`}
         >
-          <Crown size={11} /> {solved ? 'Summit reached' : 'Final Trial'}
+          <Crown size={11} /> {solved ? 'Summit cleared' : 'Citadel Boss'}
         </span>
       )}
-      <div className={`flex flex-wrap items-center gap-x-2 text-2xs ${boss ? 'mt-1' : ''}`}>
-        <span className={active ? 'font-medium text-cyan-300' : 'text-[#94A3B8]'}>
-          {active ? (due ? 'Blind re-solve due' : 'You are here') : campLabel(index, n)}
+      <div className={`flex flex-wrap items-center gap-x-2 text-2xs ${boss ? 'mt-0.5' : ''}`}>
+        <span className={active ? 'font-medium text-cyan' : 'text-muted'}>
+          {active ? (due ? 'Blind re-solve due' : 'Current trial') : campLabel(index, n)}
         </span>
-        <span className="font-mono text-[#64748B]">{altitude(index, n).toLocaleString()} m</span>
+        <span className="font-mono text-faint">{altitude(index, n).toLocaleString()}m</span>
       </div>
-      <Link to={href} className={`block font-plate leading-snug font-semibold text-[#F1F5F9] hover:text-cyan-300 ${active ? 'text-lg' : 'text-[15px]'}`}>
+      <Link to={href} className={`block font-plate leading-snug font-semibold text-chalk hover:text-cyan ${active ? 'text-base sm:text-lg' : 'text-sm'}`}>
         {q.title}
       </Link>
       <div className="mt-1.5 flex flex-wrap items-center gap-2">
@@ -359,27 +466,27 @@ function TrailNode({ q, index, n, active, boss }: { q: QuestionSummary; index: n
         <LeetCodeLink lc={q.lc} url={q.leetcode_url} />
         {solved && <ConfidenceStars value={q.progress.confidence} />}
         {due && !active && (
-          <span className="inline-flex items-center gap-1 text-2xs text-amber-300">
+          <span className="inline-flex items-center gap-1 text-2xs text-amber">
             <CalendarClock size={11} /> re-solve due
           </span>
         )}
         {!q.has_content && (
-          <span className="inline-flex items-center gap-1 text-2xs text-[#94A3B8]">
-            <Lock size={11} /> lesson not written
+          <span className="inline-flex items-center gap-1 text-2xs text-muted">
+            <Lock size={11} /> coming soon
           </span>
         )}
       </div>
       {active && (
-        <div className="mt-3 flex flex-col gap-3">
+        <div className="mt-3 flex flex-col gap-2.5">
           <StageDots q={q} />
-          <Button className="self-start" onClick={() => navigate(href)}>
+          <Button className="self-start text-xs h-7 px-3" onClick={() => navigate(href)}>
             {q.progress.status === 'new' ? 'Begin trial →' : 'Continue →'}
           </Button>
         </div>
       )}
       {solved && !active && (
-        <Link to={`/q/${q.slug}?stage=4`} className="mt-1.5 inline-block text-xs text-emerald-300 hover:underline">
-          Review your pitch
+        <Link to={`/q/${q.slug}?stage=4`} className="mt-1.5 inline-block text-xs text-emerald hover:underline">
+          Review pitch →
         </Link>
       )}
     </div>

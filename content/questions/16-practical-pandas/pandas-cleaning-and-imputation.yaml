@@ -1,0 +1,270 @@
+slug: pandas-cleaning-and-imputation
+lc: 9232
+citadel_id: python_data
+brick_layer: 2
+runner_type: python_practical
+
+concept:
+  problem_it_solves: >-
+    "How do we prepare raw telemetry with missing fields, repeated retries, and null values for production analytics?"
+    Raw ingestion logs frequently contain duplicate retry attempts, corrupted null identifiers, and missing metric measurements.
+    Pandas provides specialized vectorized operations (`.drop_duplicates()`, `.dropna()`, `.fillna()`) to normalize datasets cleanly.
+  brute_force: >-
+    Iterating with Python loops and dictionaries to track duplicate IDs, filtering None values manually,
+    and calculating medians with custom sort passes.
+  brute_force_complexity: O(N log N) sorting with high memory overhead and complex edge-case handling.
+  key_insight: >-
+    Chaining vectorized Pandas cleaning operations executes in compiled C code:
+    `df.drop_duplicates(subset=['test_id'], keep='last')` keeps the final attempt,
+    `df.dropna(subset=['device'])` eliminates records missing required foreign keys, and
+    `df['latency_ms'].fillna(median_val)` imputes missing readings without distorting the distribution.
+  real_world: >-
+    Cleaning telemetry prior to feeding Grafana dashboards, preprocessing training sets for ML models, and ETL data quality gates.
+
+statement:
+  clean: |
+    Implement an end-to-end telemetry cleaning pipeline using dropna fillna:
+    `clean_telemetry_df(records: list[dict]) -> list[dict]`.
+    
+    Given a list of test run dictionaries containing keys:
+    `test_id` (int), `device` (optional str), `status` (str), and `latency_ms` (optional float).
+    
+    Cleaning rules:
+    1. If `records` is empty, return `[]`.
+    2. Convert `records` into a `pandas.DataFrame`.
+    3. **Deduplicate**: Drop duplicate rows sharing the same `test_id`, retaining the **last** occurrence (`keep='last'`).
+    4. **Drop Missing Keys**: Drop any rows where `device` is `NaN` or `None`.
+    5. **Median Imputation**: If any row has a missing or null `latency_ms`, fill it with the **median** of all non-null
+       `latency_ms` values in the dataset. If all latencies are missing, fill with `0.0`.
+    6. **Sort**: Sort the cleaned DataFrame by `test_id` ascending.
+    7. Return the resulting records as a list of dictionaries via `.to_dict(orient='records')`.
+  oa_story: |
+    **FitLabs Virtual Try-On — Telemetry Quality Gate**
+    
+    During high-throughput GPU model benchmarking, client retries created duplicate run records, while network drops
+    left some runs with missing device identifiers or null latency timers.
+    Before metrics could be ingested into our Snowflake data warehouse, the pipeline needed an automated data quality cleaner.
+    
+    Implement a standardized Pandas cleaning pipeline that purges duplicates, drops invalid device records, and imputes missing latencies.
+  trigger_keywords: ["dropna fillna", "clean_telemetry_df", "records"]
+  examples:
+    - input: "records = [{'test_id': 1, 'device': 'Pixel 8', 'status': 'PASS', 'latency_ms': 200}, {'test_id': 1, 'device': 'Pixel 8', 'status': 'PASS', 'latency_ms': 250}]"
+      output: "[{'test_id': 1, 'device': 'Pixel 8', 'status': 'PASS', 'latency_ms': 250.0}]"
+      explanation: "Duplicate test_id 1 is resolved by keeping the last record (latency 250.0)."
+    - input: "records = [{'test_id': 2, 'device': None, 'status': 'FAIL', 'latency_ms': 100}]"
+      output: "[]"
+      explanation: "Row with missing device is dropped."
+  constraints:
+    - "records contains between 0 and 10,000 items"
+    - "test_id is a positive integer"
+
+constraint_quiz:
+  prompt: >-
+    Why is median imputation preferred over mean imputation when filling missing latency metrics?
+  options:
+    - "Because median is faster to compute"
+    - "Because median is robust against extreme outliers (e.g. 60-second timeouts)"
+    - "Because mean cannot be computed on floats"
+    - "Because median always produces integers"
+  answer: 1
+  explanation: >-
+    A single 60-second timeout can heavily skew the mean, whereas the median remains stable against extreme latency spikes.
+
+pattern_quiz:
+  prompt: Which argument in `.drop_duplicates()` ensures that the most recent attempt is retained?
+  options:
+    - "keep='first'"
+    - "keep='last'"
+    - "keep=False"
+    - "inplace=True"
+  answer: 1
+  explanation: >-
+    `keep='last'` retains the last observed duplicate row and drops earlier occurrences.
+
+function:
+  name: clean_telemetry_df
+  params:
+    - {name: records}
+
+starter_code: |
+  class Solution:
+      def clean_telemetry_df(self, records: list[dict]) -> list[dict]:
+          pass
+
+tests:
+  - args:
+      - [
+          {"test_id": 101, "device": "Pixel 8", "status": "FAIL", "latency_ms": 100.0},
+          {"test_id": 101, "device": "Pixel 8", "status": "PASS", "latency_ms": 200.0},
+          {"test_id": 102, "device": null, "status": "FAIL", "latency_ms": 300.0},
+          {"test_id": 103, "device": "Galaxy S23", "status": "PASS", "latency_ms": null}
+        ]
+    expected:
+      - {"test_id": 101, "device": "Pixel 8", "status": "PASS", "latency_ms": 200.0}
+      - {"test_id": 103, "device": "Galaxy S23", "status": "PASS", "latency_ms": 200.0}
+  - args:
+      - []
+    expected: []
+  - args:
+      - [
+          {"test_id": 201, "device": "iPhone 15", "status": "PASS", "latency_ms": 150.0}
+        ]
+    expected:
+      - {"test_id": 201, "device": "iPhone 15", "status": "PASS", "latency_ms": 150.0}
+  - args:
+      - [
+          {"test_id": 301, "device": "Pixel 7", "status": "PASS", "latency_ms": 100.0},
+          {"test_id": 302, "device": "Pixel 7", "status": "PASS", "latency_ms": 300.0},
+          {"test_id": 303, "device": "Pixel 7", "status": "PASS", "latency_ms": null}
+        ]
+    expected:
+      - {"test_id": 301, "device": "Pixel 7", "status": "PASS", "latency_ms": 100.0}
+      - {"test_id": 302, "device": "Pixel 7", "status": "PASS", "latency_ms": 300.0}
+      - {"test_id": 303, "device": "Pixel 7", "status": "PASS", "latency_ms": 200.0}
+
+visualize_test: 0
+
+drills:
+  - title: Deduplicate subset keep last
+    skill: setup
+    goal: Drop earlier duplicate records.
+    instructions: |
+      Return records after running `df.drop_duplicates(subset=['id'], keep='last')`.
+    function:
+      name: dedupe_last
+      params: [{name: items}]
+    starter_code: |
+      class Solution:
+          def dedupe_last(self, items: list[dict]) -> list[dict]:
+              pass
+    tests:
+      - {args: [[{"id": 1, "v": "a"}, {"id": 1, "v": "b"}]], expected: [{"id": 1, "v": "b"}]}
+      - {args: [[]], expected: []}
+    solution: |
+      import pandas as pd
+
+      class Solution:
+          def dedupe_last(self, items: list[dict]) -> list[dict]:
+              if not items:
+                  return []
+              df = pd.DataFrame(items)
+              return df.drop_duplicates(subset=["id"], keep="last").to_dict(orient="records")
+    hint: "Use `df.drop_duplicates(subset=['id'], keep='last')`."
+
+  - title: Drop rows with NaN subset
+    skill: core
+    goal: Remove rows where a specified column is missing.
+    instructions: |
+      Drop any row where `name` is null.
+    function:
+      name: drop_missing_name
+      params: [{name: items}]
+    starter_code: |
+      class Solution:
+          def drop_missing_name(self, items: list[dict]) -> list[dict]:
+              pass
+    tests:
+      - {args: [[{"name": "Alice"}, {"name": null}]], expected: [{"name": "Alice"}]}
+      - {args: [[]], expected: []}
+    solution: |
+      import pandas as pd
+
+      class Solution:
+          def drop_missing_name(self, items: list[dict]) -> list[dict]:
+              if not items:
+                  return []
+              df = pd.DataFrame(items)
+              return df.dropna(subset=["name"]).to_dict(orient="records")
+    hint: "Use `df.dropna(subset=['name'])`."
+
+  - title: Fillna with column median
+    skill: edge
+    goal: Impute missing numerical values with median.
+    instructions: |
+      Fill missing values in column `val` with the median of `val`.
+    function:
+      name: impute_median
+      params: [{name: items}]
+    starter_code: |
+      class Solution:
+          def impute_median(self, items: list[dict]) -> list[dict]:
+              pass
+    tests:
+      - {args: [[{"val": 10.0}, {"val": 30.0}, {"val": null}]], expected: [{"val": 10.0}, {"val": 30.0}, {"val": 20.0}]}
+      - {args: [[]], expected: []}
+    solution: |
+      import pandas as pd
+
+      class Solution:
+          def impute_median(self, items: list[dict]) -> list[dict]:
+              if not items:
+                  return []
+              df = pd.DataFrame(items)
+              med = df["val"].median()
+              df["val"] = df["val"].fillna(med)
+              return df.to_dict(orient="records")
+    hint: "Compute `med = df['val'].median()` then call `.fillna(med)`."
+
+hints:
+  - "If `records` is empty, return `[]`."
+  - "Call `df = df.drop_duplicates(subset=['test_id'], keep='last')` and `df = df.dropna(subset=['device'])`."
+  - "Compute `median_latency = df['latency_ms'].median()`. If NaN, use `0.0`. Fillna with `float(median_latency)` and sort by `test_id`."
+
+solution:
+  code: |
+    import pandas as pd
+
+    class Solution:
+        def clean_telemetry_df(self, records: list[dict]) -> list[dict]:
+            if not records:
+                return []
+            df = pd.DataFrame(records)
+
+            # Step 1: Deduplicate on test_id keeping last
+            df = df.drop_duplicates(subset=["test_id"], keep="last")
+
+            # Step 2: Drop rows where device is null
+            df = df.dropna(subset=["device"])
+
+            if df.empty:
+                return []
+
+            # Step 3: Compute median latency
+            med = df["latency_ms"].median()
+            median_val = float(med) if pd.notna(med) else 0.0
+
+            # Step 4: Impute missing latency
+            df["latency_ms"] = df["latency_ms"].fillna(median_val).astype(float)
+
+            # Step 5: Sort by test_id
+            df = df.sort_values(by="test_id", ascending=True)
+
+            return df.to_dict(orient="records")
+  explanation: |
+    The cleaning pipeline chains canonical Pandas operations.
+    `.drop_duplicates(subset=['test_id'], keep='last')` discards stale retry traces.
+    `.dropna(subset=['device'])` removes incomplete foreign key rows.
+    
+    The median of remaining valid latencies is calculated and applied via `.fillna(median_val)`.
+    Sorting by `test_id` guarantees deterministic output order.
+  time: O(N log N) dominated by sorting
+  space: O(N) for DataFrame memory
+
+pitch_script: |
+  **(Clarify)** "We need to clean a test telemetry dataset by deduplicating on `test_id` keeping the last retry, dropping rows with missing device names, imputing missing latency values with the median, and sorting by ID."
+
+  **(Basement Insight)** "Outliers in telemetry data heavily distort arithmetic means. Imputing with the median provides robust central tendency estimation. Chaining vectorized Pandas operations executes in C rather than Python loops, processing tens of thousands of rows efficiently."
+
+  **(Solution)** "We build a DataFrame, apply `drop_duplicates(subset=['test_id'], keep='last')`, filter with `dropna(subset=['device'])`, calculate the median latency, fill nulls with `.fillna(median_val)`, and sort by `test_id`."
+
+  **(Complexity)** "Executes in O(N log N) time due to sorting, using O(N) memory for the DataFrame."
+
+twist:
+  lc: 9233
+  title: Group-Specific Median Imputation
+  why: >-
+    Instead of a global dataset median, impute missing latency using the median of that specific device model:
+    df['latency_ms'] = df.groupby('device')['latency_ms'].transform(lambda g: g.fillna(g.median())).
+
+viz:
+  title: "Pandas Data Cleaning Pipeline"
