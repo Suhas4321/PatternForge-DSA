@@ -268,7 +268,17 @@ twist:
     Same question, different trigger.
 
 viz:
+  title: Two Sum Complement Hash Map
+  complexity:
+    time: "O(n)"
+    space: "O(n)"
   arrays: [nums]
   pointers: [i]
   maps: [seen]
   watch: [x, need, target]
+  line_notes:
+    3: "Initialize seen map to store past values mapped to their indices."
+    5: "Calculate need = target - x, the exact complement required to reach target."
+    6: "Check if need exists in seen map from an earlier index."
+    7: "Complement pair found! Return indices [seen[need], i]."
+    8: "Store current number x with its index i in the hash map."

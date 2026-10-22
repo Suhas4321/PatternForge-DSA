@@ -1,8 +1,11 @@
-"use client"
+/**
+ * Magic UI - Number Ticker
+ * Source: https://magicui.design/r/number-ticker.json
+ * License: MIT
+ */
 
 import { useEffect, useRef, type ComponentPropsWithoutRef } from "react"
 import { useInView, useMotionValue, useSpring } from "motion/react"
-
 import { cn } from "../vsrc/utils"
 
 interface NumberTickerProps extends ComponentPropsWithoutRef<"span"> {
@@ -63,7 +66,7 @@ export function NumberTicker({
     <span
       ref={ref}
       className={cn(
-        "inline-block tracking-wider text-black tabular-nums dark:text-white",
+        "inline-block tracking-wider tabular-nums font-mono",
         className
       )}
       {...props}

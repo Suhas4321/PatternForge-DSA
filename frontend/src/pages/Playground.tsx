@@ -1,10 +1,10 @@
 import { Play } from 'lucide-react'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import type { RunError, Trace, VisualizerKind } from '../api/types'
 import CodeEditor from '../components/CodeEditor'
 import { Button, ErrorNote } from '../components/ui'
-import TracePlayer from '../components/visualizers/TracePlayer'
 import VisualizerHost from '../components/visualizers/VisualizerHost'
+import { precomputeTraceNarration } from '../lib/narrator/index.ts'
 
 const KINDS: { kind: VisualizerKind; label: string }[] = [
   { kind: 'array_pointer', label: 'Array and pointers' },
@@ -280,6 +280,12 @@ export default function Playground() {
   const steps = trace?.steps ?? []
   const step = steps[Math.min(index, steps.length - 1)]
 
+  const narrations = useMemo(() => {
+    if (!trace?.steps || trace.steps.length === 0) return []
+    return precomputeTraceNarration(trace.steps, trace.line_info, undefined, kind)
+  }, [trace, kind])
+  const currentNarration = narrations[index]
+
   return (
     <div className="shell flex flex-col gap-4 py-6">
       <header className="flex flex-wrap items-end justify-between gap-4">
@@ -320,31 +326,56 @@ export default function Playground() {
               ))}
             </select>
           </header>
-          <div className="drafting flex-1 overflow-auto p-5">
-            {step ? (
-              <VisualizerHost kind={kind} step={step} prev={steps[index - 1]} steps={steps} index={index} config={{}} code={tracedCode} />
-            ) : (
-              <p className="text-sm text-muted">Run the code to see it here.</p>
-            )}
+          <div className="flex-1 w-full min-h-[420px] p-2">
+            <VisualizerHost
+              kind={kind}
+              title={KINDS.find((k) => k.kind === kind)?.label || 'Playground Visualizer'}
+              description="Interactive Custom Code Execution"
+              caption={currentNarration?.caption}
+              why={currentNarration?.why}
+              comparisons={currentNarration?.counters.comparisons}
+              swaps={currentNarration?.counters.swaps}
+              writes={currentNarration?.counters.writes}
+              narration={currentNarration}
+              lineInfo={trace?.line_info}
+              step={
+                step || {
+                  event: 'line',
+                  line: 1,
+                  func: 'ready',
+                  depth: 0,
+                  frames: [],
+                  heap: {},
+                }
+              }
+              prev={steps[index - 1]}
+              steps={steps}
+              index={index}
+              config={{}}
+              code={tracedCode || code}
+              playing={playing}
+              onTogglePlay={() => setPlaying(!playing)}
+              onStepForward={() => setIndex(Math.min(steps.length - 1, index + 1))}
+              onStepBackward={() => setIndex(Math.max(0, index - 1))}
+              onJumpFirst={() => setIndex(0)}
+              onJumpLast={() => setIndex(Math.max(0, steps.length - 1))}
+              onSeek={setIndex}
+              speed={speed}
+              onSpeedChange={setSpeed}
+            />
           </div>
-          {trace && steps.length > 0 && (
-            <div className="border-t border-line px-4 py-3">
-              <TracePlayer
-                trace={trace}
-                index={Math.min(index, steps.length - 1)}
-                onIndex={setIndex}
-                playing={playing}
-                onPlaying={setPlaying}
-                speed={speed}
-                onSpeed={setSpeed}
-              />
-            </div>
-          )}
         </section>
 
         <section className="flex flex-col gap-3">
           <div className="stage h-[22rem] overflow-hidden rounded-3xl">
-            <CodeEditor value={code} onChange={setCode} traceLine={step && step.event !== 'call' ? step.line : null} onRun={run} />
+            <CodeEditor
+              value={code}
+              onChange={setCode}
+              traceLine={step && step.event !== 'call' ? step.line : null}
+              onRun={run}
+              step={step}
+              prevStep={steps[index - 1]}
+            />
           </div>
           <label className="flex flex-col gap-1 text-sm text-muted">
             Arguments (JSON list, one per parameter)

@@ -303,4 +303,14 @@ twist:
     "what does this call report to its parent?", and you start it with isMirror(root.left,
     root.right).
 
-viz: {}  # the tree is drawn automatically; left/right label the returned subtrees
+viz:
+  title: Invert Binary Tree
+  complexity:
+    time: O(N)
+    space: O(H)
+  line_notes:
+    3: "Base case: mirror of an empty tree/leaf child is None."
+    5: "Recursively invert the left subtree."
+    6: "Recursively invert the right subtree."
+    7: "Swap left and right children of current node."
+    8: "Return inverted subtree root back to parent."

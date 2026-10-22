@@ -324,8 +324,18 @@ twist:
     subtracting nums[l] on exit, and track the best sum instead of r − l + 1.
 
 viz:
+  title: Longest Substring Sliding Window
+  complexity:
+    time: "O(n)"
+    space: "O(min(n, m))"
   arrays: [s]
   pointers: [l, r]
   window: [l, r]
   maps: [count]
   watch: [c, best]
+  line_notes:
+    6: "Expand sliding window to the right by including character c at index r."
+    7: "Increment character frequency count within the active window."
+    9: "Character c is repeated; shrink window from left until the duplicate exits."
+    10: "Decrement count of outgoing character at window left boundary."
+    12: "Window contains only unique characters; record maximum window length."

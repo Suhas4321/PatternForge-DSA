@@ -18,3 +18,9 @@ backend/*.db-*
 
 *.log
 .DS_Store
+
+# Temporary captures and test artifacts
+screenshots/
+*.jpeg
+frontend/public/test-overlap.png
+

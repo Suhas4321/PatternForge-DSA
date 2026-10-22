@@ -340,7 +340,18 @@ twist:
     usually the real interview question.
 
 viz:
+  title: Search in Rotated Sorted Array
+  complexity:
+    time: "O(log n)"
+    space: "O(1)"
   arrays: [nums]
   pointers: [lo, mid, hi]
   window: [lo, hi]
   watch: [target]
+  line_notes:
+    5: "Compute midpoint mid between current rotation search bounds [lo..hi]."
+    6: "Target matched at midpoint index mid; return index."
+    8: "Left subarray nums[lo..mid] is monotonically sorted."
+    9: "Target falls within sorted left half; narrow search interval to [lo..mid-1]."
+    12: "Target is outside sorted left half; search the rotated right half [mid+1..hi]."
+    14: "Right subarray nums[mid..hi] is monotonically sorted; check if target falls inside."

@@ -1,0 +1,253 @@
+slug: bubble-sort
+lc: 9010
+concept:
+  problem_it_solves: Sorts an array into ascending numerical order by repeatedly comparing adjacent elements and swapping them if they are out of order.
+  brute_force: Comparing random pairs or rescanning sorted suffixes wastes quadratic comparisons and excessive write cycles.
+  brute_force_complexity: O(n^2) time, O(1) space — 100 elements means up to 10,000 comparison steps.
+  key_insight: In each pass, the largest remaining unsorted element bubbles up to its final rightmost position. Adjacent comparisons ensure local ordering quickly propagates globally.
+  real_world: Educational benchmarking, hardware verification, and nearly-sorted telemetry lists where a single pass with early exit runs in O(n) time.
+statement:
+  clean: |
+    Given an array of integers `nums`, sort the array in **ascending order** using the **Bubble Sort** algorithm.
+
+    In each pass through the array, compare **adjacent elements** from left to right. If two adjacent elements are in the wrong order (`nums[j] > nums[j + 1]`), **swap** them. Repeat this process until no more swaps are needed.
+
+    Return the sorted array.
+  oa_story: |
+    **SwiftCart Logistics** warehouse robotics system processes incoming batches of parcel shipping weights. Conveyor sensor bays can only compare two adjacent package scales at a time.
+
+    To calibrate the sorting track, the engineer must order package weights in ascending numerical sequence by repeatedly comparing neighboring cargo containers and triggering pneumatic diverters to swap any misordered adjacent boxes.
+  trigger_keywords:
+    - adjacent elements
+    - swap
+    - ascending order
+  examples:
+    - input: nums = [5, 1, 4, 2, 8]
+      output: "[1, 2, 4, 5, 8]"
+      explanation: In the first pass, 5 bubbles past 1, 4, and 2 before stopping before 8.
+    - input: nums = [4, 2, 2, 1]
+      output: "[1, 2, 2, 4]"
+      explanation: Duplicate elements 2 maintain relative order while 4 bubbles to the right.
+    - input: nums = [1, 2, 3]
+      output: "[1, 2, 3]"
+      explanation: The array is already sorted in ascending order.
+  constraints:
+    - 1 <= nums.length <= 100
+    - -1000 <= nums[i] <= 1000
+constraint_quiz:
+  prompt: "Given N <= 100 package weights, what time complexity does standard nested Bubble Sort achieve in the worst case?"
+  options:
+    - "O(n^2) time with O(1) auxiliary space"
+    - "O(n log n) time with O(n) auxiliary space"
+    - "O(n) time with O(n) auxiliary space"
+    - "O(1) time with O(1) auxiliary space"
+  answer: 0
+  explanation: "With nested loops comparing adjacent elements for each prefix, the total comparisons are n*(n-1)/2, which is O(n^2)."
+pattern_quiz:
+  prompt: "Which core mechanism enables Bubble Sort to place the largest unsorted element at the end of the array each pass?"
+  options:
+    - "Repeated adjacent comparisons and conditional swapping"
+    - "Binary search halving on sorted ranges"
+    - "Hash map frequency tallying"
+    - "Prefix sum difference calculations"
+  answer: 0
+  explanation: "Comparing adjacent elements nums[j] and nums[j+1] and swapping when nums[j] > nums[j+1] guarantees the maximum value in the active range migrates to the right boundary."
+function:
+  name: bubbleSort
+  params:
+    - name: nums
+  returns: any
+  compare: exact
+  inplace_arg: 0
+starter_code: |
+  class Solution:
+      def bubbleSort(self, nums: list[int]) -> list[int]:
+          pass
+tests:
+  - args: [[5, 1, 4, 2, 8]]
+    expected: [1, 2, 4, 5, 8]
+    note: Standard unsorted array (hero visualizer demo)
+  - args: [[4, 2, 2, 1]]
+    expected: [1, 2, 2, 4]
+    note: Array with duplicate elements
+  - args: [[3, 2, 1]]
+    expected: [1, 2, 3]
+    note: Reverse ordered 3 elements
+  - args: [[1, 2, 3, 4]]
+    expected: [1, 2, 3, 4]
+    note: Already sorted array
+  - args: [[42]]
+    expected: [42]
+    note: Single element array
+  - args: [[5, 4, 3, 2, 1]]
+    expected: [1, 2, 3, 4, 5]
+    note: Strictly decreasing 5 elements
+  - args: [[-2, 5, -8, 0, 3]]
+    expected: [-8, -2, 0, 3, 5]
+    note: Mixed negative and positive integers
+visualize_test: 0
+drills:
+  - title: Adjacent Compare and Swap
+    skill: core
+    goal: Compare two adjacent elements and swap if out of order.
+    instructions: Given a list of integers `nums` and an index `j`, if `nums[j] > nums[j + 1]`, swap them in place. Return `nums`.
+    function:
+      name: swapAdjacent
+      params:
+        - name: nums
+        - name: j
+      returns: any
+      compare: exact
+      inplace_arg: 0
+    starter_code: |
+      class Solution:
+          def swapAdjacent(self, nums: list[int], j: int) -> list[int]:
+              pass
+    tests:
+      - args: [[5, 2], 0]
+        expected: [2, 5]
+        note: Out of order pair
+      - args: [[2, 5], 0]
+        expected: [2, 5]
+        note: Already ordered pair
+      - args: [[3, 3], 0]
+        expected: [3, 3]
+        note: Equal values
+    solution: |
+      class Solution:
+          def swapAdjacent(self, nums: list[int], j: int) -> list[int]:
+              if nums[j] > nums[j + 1]:
+                  nums[j], nums[j + 1] = nums[j + 1], nums[j]
+              return nums
+    hint: "Use tuple unpacking: `nums[j], nums[j+1] = nums[j+1], nums[j]`."
+  - title: Single Pass Bubble
+    skill: setup
+    goal: Implement a single sweep that bubbles the maximum value to the end.
+    instructions: Perform one single pass through `nums` from index 0 to `len(nums) - 2`, swapping adjacent inverted pairs. Return `nums`.
+    function:
+      name: singlePass
+      params:
+        - name: nums
+      returns: any
+      compare: exact
+      inplace_arg: 0
+    starter_code: |
+      class Solution:
+          def singlePass(self, nums: list[int]) -> list[int]:
+              pass
+    tests:
+      - args: [[4, 1, 3, 2]]
+        expected: [1, 3, 2, 4]
+        note: Largest element 4 bubbles to the end
+      - args: [[1, 2, 3]]
+        expected: [1, 2, 3]
+        note: No changes on sorted list
+      - args: [[2, 1]]
+        expected: [1, 2]
+        note: Two element inversion
+    solution: |
+      class Solution:
+          def singlePass(self, nums: list[int]) -> list[int]:
+              for j in range(len(nums) - 1):
+                  if nums[j] > nums[j + 1]:
+                      nums[j], nums[j + 1] = nums[j + 1], nums[j]
+              return nums
+    hint: "Iterate `j` from 0 up to `len(nums) - 2`."
+  - title: Full Bubble Sort Guard
+    skill: edge
+    goal: Handle single element and empty arrays safely.
+    instructions: Sort `nums` in place, returning immediately if `len(nums) <= 1`.
+    function:
+      name: safeSort
+      params:
+        - name: nums
+      returns: any
+      compare: exact
+      inplace_arg: 0
+    starter_code: |
+      class Solution:
+          def safeSort(self, nums: list[int]) -> list[int]:
+              pass
+    tests:
+      - args: [[]]
+        expected: []
+        note: Empty list
+      - args: [[7]]
+        expected: [7]
+        note: Single element
+      - args: [[3, 1]]
+        expected: [1, 3]
+        note: Two elements
+    solution: |
+      class Solution:
+          def safeSort(self, nums: list[int]) -> list[int]:
+              n = len(nums)
+              for i in range(n):
+                  for j in range(0, n - i - 1):
+                      if nums[j] > nums[j + 1]:
+                          nums[j], nums[j + 1] = nums[j + 1], nums[j]
+              return nums
+    hint: "If n <= 1, the nested range loops execute zero iterations naturally."
+hints:
+  - "How does comparing adjacent elements guarantee the largest element reaches the end?"
+  - "After pass i, elements from index n - i to n - 1 are in their final positions, so inner loop only needs to run up to n - i - 1."
+  - |
+    for i from 0 to n - 1:
+        for j from 0 to n - i - 2:
+            if nums[j] > nums[j + 1]:
+                swap(nums[j], nums[j + 1])
+solution:
+  code: |
+    class Solution:
+        def bubbleSort(self, nums: list[int]) -> list[int]:
+            n = len(nums)
+            for i in range(n):
+                for j in range(0, n - i - 1):
+                    if nums[j] > nums[j + 1]:
+                        nums[j], nums[j + 1] = nums[j + 1], nums[j]
+            return nums
+  explanation: |
+    We maintain the invariant that after each iteration `i` of the outer loop, the largest remaining unsorted element has bubbled up to its correct final index `n - i - 1`.
+
+    In the inner loop, pointer `j` scans from index 0 to `n - i - 1`. If `nums[j] > nums[j + 1]`, the two elements are out of order and swapped. By shrinking the inner loop boundary by `i` on each pass, we avoid redundant comparisons on already sorted elements.
+  time: O(n^2) — n passes with average n/2 comparisons each
+  space: O(1) — in-place adjacent swaps using constant auxiliary memory
+  brute_force_code: |
+    class Solution:
+        def bubbleSort(self, nums: list[int]) -> list[int]:
+            # Naive unoptimized bubble sort without shrinking inner bound
+            n = len(nums)
+            for i in range(n):
+                for j in range(n - 1):
+                    if nums[j] > nums[j + 1]:
+                        nums[j], nums[j + 1] = nums[j + 1], nums[j]
+            return nums
+pitch_script: |
+  **(Clarify)** "I will clarify the requirements: we are given an array of integers `nums`, and need to sort it in ascending order in place using the adjacent swapping mechanism of Bubble Sort. The array may contain duplicates or negative values."
+
+  **(Brute force)** "A naive sorting approach might re-check all pairs repeatedly or allocate extra arrays, but that still costs quadratic operations and unnecessary memory."
+
+  **(Trigger)** "The trigger here is the explicit requirement to compare adjacent elements and bubble the largest value rightward on each pass."
+
+  **(Optimal)** "My optimal in-place strategy uses two loops: the outer loop tracks pass `i`, while the inner loop compares neighboring elements `nums[j]` and `nums[j+1]` up to `n - i - 1`. If `nums[j] > nums[j+1]`, we swap them in O(1). After `i` passes, the suffix of length `i` is permanently sorted."
+
+  **(Complexity)** "This runs in O(n^2) worst- and average-case time with O(1) auxiliary space, modifying the input array completely in place."
+twist:
+  lc: 75
+  title: Sort Colors
+  why: Instead of quadratic adjacent bubbling, Dutch National Flag three-way partitioning sorts 0s, 1s, and 2s in a single O(n) pass.
+viz:
+  title: Bubble Sort 3D Platform
+  complexity:
+    time: "O(n^2)"
+    space: "O(1)"
+  style: bars
+  arrays: [nums]
+  pointers: [j]
+  line_notes:
+    3: "Read array length n to determine the total number of passes required."
+    4: "Outer loop i tracks passes; after pass i, the i largest elements are locked at the end."
+    5: "Inner loop j scans unsorted elements from 0 up to n - i - 1."
+    6: "Compare adjacent elements nums[j] and nums[j+1] to check if they violate ascending order."
+    7: "Swap nums[j] and nums[j+1] along an arc to bubble the larger value to the right."
+    8: "All passes complete; return the fully sorted array."

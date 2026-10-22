@@ -3,15 +3,35 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="alternate icon" type="image/png" href="/favicon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>PatternForge DSA</title>
+    <title>ApexCaliber | SDE & AI Engineering Mastery</title>
     <script>
-      // Apply the saved theme before first paint (no flash). Default: carbon-dark.
+      // Apply the saved theme before first paint (no flash). Supports: light | dark | system.
       try {
-        var t = localStorage.getItem('pf-theme')
-        document.documentElement.dataset.theme = (t === 'paper' || t === 'studio-contrast') ? 'paper' : 'carbon-dark'
+        var params = new URLSearchParams(window.location.search);
+        var qTheme = params.get('theme');
+        if (qTheme) {
+          localStorage.setItem('pf-theme', qTheme);
+        }
+        if (params.get('nomodal')) {
+          ['dsa', 'python_data', 'sql_dbms', 'os_concurrency', 'backend_apis', 'ai_resume'].forEach(function(id) {
+            localStorage.setItem('pf-chapter-intro-' + id, 'true');
+          });
+        }
+        var raw = localStorage.getItem('pf-theme') || 'system';
+        var resolved = 'dark';
+        if (raw === 'light' || raw === 'paper' || raw === 'studio-contrast') {
+          resolved = 'light';
+        } else if (raw === 'dark' || raw === 'carbon-dark') {
+          resolved = 'dark';
+        } else {
+          // 'system' or default: check OS preference
+          resolved = window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+        }
+        document.documentElement.dataset.theme = resolved;
       } catch (e) {
-        document.documentElement.dataset.theme = 'carbon-dark'
+        document.documentElement.dataset.theme = 'dark';
       }
     </script>
   </head>

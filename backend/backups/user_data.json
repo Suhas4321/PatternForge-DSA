@@ -1,6 +1,6 @@
 {
   "format_version": 1,
-  "exported_at": "2026-10-16T13:46:43.913614",
+  "exported_at": "2026-10-18T18:10:20.797808",
   "tables": {
     "progress": [
       {
@@ -11,38 +11,49 @@
         "solved": true,
         "studied_solution": false,
         "solved_at": "2026-10-15T04:00:14.877459",
-        "attempts": 1,
+        "attempts": 7,
         "hints_used": 0,
         "confidence": null,
         "first_try_pass": null,
         "time_spent_seconds": null,
         "review_count": 0,
-        "last_practiced_at": "2026-10-15T04:00:14.877459",
+        "last_practiced_at": "2026-10-18T17:08:36.841067",
         "next_review_at": null,
-        "updated_at": "2026-10-15T04:00:14.884037"
+        "updated_at": "2026-10-18T17:08:36.841956"
       },
       {
         "question_slug": "contains-duplicate",
         "concept_done": true,
         "quiz_passed": true,
         "drills_passed": [
-          0
+          0,
+          1,
+          2
         ],
-        "solved": false,
+        "solved": true,
         "studied_solution": false,
-        "solved_at": null,
-        "attempts": 0,
+        "solved_at": "2026-10-18T16:26:31.269578",
+        "attempts": 21,
         "hints_used": 0,
-        "confidence": null,
-        "first_try_pass": null,
+        "confidence": 1,
+        "first_try_pass": false,
         "time_spent_seconds": null,
         "review_count": 0,
-        "last_practiced_at": null,
-        "next_review_at": null,
-        "updated_at": "2026-10-16T13:46:43.910651"
+        "last_practiced_at": "2026-10-18T17:08:45.549696",
+        "next_review_at": "2026-10-21T16:38:17.486384",
+        "updated_at": "2026-10-18T17:08:45.550594"
       }
     ],
-    "pitch_notes": [],
+    "pitch_notes": [
+      {
+        "question_slug": "contains-duplicate",
+        "brute_force": "",
+        "trigger": "",
+        "intuition": "",
+        "complexity": "",
+        "updated_at": "2026-10-18T16:35:44.033948"
+      }
+    ],
     "drafts": [
       {
         "question_slug": "two-sum",
@@ -57,6 +68,27 @@
         "language": "python",
         "code": "class Solution:\n    def countDistinct(self, nums: List[int]) -> int:\n        seen = set()\n        for i in range(len(nums)):\n            \n            if nums[i] in seen:\n                return  i\n\n            seen.add(nums[i])\n        return len(nums)\n        \n",
         "updated_at": "2026-10-16T13:46:40.260801"
+      },
+      {
+        "question_slug": "contains-duplicate",
+        "target": "drill:1",
+        "language": "python",
+        "code": "class Solution:\n    def firstRepeatedValue(self, nums: List[int]) -> Optional[int]:\n        seen = set()\n        for i in range(len(nums)):\n            if nums[i] in seen:\n                return nums[i]\n            seen.add(nums[i])\n        return None\n",
+        "updated_at": "2026-10-18T15:58:38.485595"
+      },
+      {
+        "question_slug": "contains-duplicate",
+        "target": "drill:2",
+        "language": "python",
+        "code": "class Solution:\n    def extraCopies(self, nums: List[int]) -> int:\n        return len(nums)- len(set(nums))\n",
+        "updated_at": "2026-10-18T16:12:50.152155"
+      },
+      {
+        "question_slug": "contains-duplicate",
+        "target": "main",
+        "language": "python",
+        "code": "class Solution:\n    def containsDuplicate(self, nums: List[int]) -> bool:\n        seen = set()\n        for x in nums:\n            if x in seen:\n                return True\n            seen.add(x)\n        return False\n",
+        "updated_at": "2026-10-18T16:45:17.644824"
       }
     ],
     "submissions": [
@@ -158,6 +190,413 @@
         "passed_count": 4,
         "total_count": 4,
         "created_at": "2026-10-16T13:46:43.911290"
+      },
+      {
+        "id": 10,
+        "question_slug": "contains-duplicate",
+        "target": "drill:1",
+        "language": "python",
+        "code": "class Solution:\n    def firstRepeatedValue(self, nums: List[int]) -> Optional[int]:\n        seen = set()\n        for i in range(len(nums)):\n            if nums[i] in seen:\n                return i\n            seen.add(num)\n        return len(nums)\n\n",
+        "passed": false,
+        "passed_count": 0,
+        "total_count": 4,
+        "created_at": "2026-10-18T15:55:18.407752"
+      },
+      {
+        "id": 11,
+        "question_slug": "contains-duplicate",
+        "target": "drill:1",
+        "language": "python",
+        "code": "class Solution:\n    def firstRepeatedValue(self, nums: List[int]) -> Optional[int]:\n        seen = set()\n        for i in range(len(nums)):\n            if nums[i] in seen:\n                return i\n            seen.add(num[i])\n        return len(nums)\n\n",
+        "passed": false,
+        "passed_count": 0,
+        "total_count": 4,
+        "created_at": "2026-10-18T15:55:30.644763"
+      },
+      {
+        "id": 12,
+        "question_slug": "contains-duplicate",
+        "target": "drill:1",
+        "language": "python",
+        "code": "class Solution:\n    def firstRepeatedValue(self, nums: List[int]) -> Optional[int]:\n        seen = set()\n        for i in range(len(nums)):\n            if nums[i] in seen:\n                return i\n            seen.add(nums[i])\n        return len(nums)\n\n",
+        "passed": false,
+        "passed_count": 0,
+        "total_count": 4,
+        "created_at": "2026-10-18T15:56:03.606546"
+      },
+      {
+        "id": 13,
+        "question_slug": "contains-duplicate",
+        "target": "drill:1",
+        "language": "python",
+        "code": "class Solution:\n    def firstRepeatedValue(self, nums: List[int]) -> Optional[int]:\n        seen = set()\n        for i in range(len(nums)):\n            if nums[i] in seen:\n                return i\n            seen.add(nums[i])\n        return len(nums)\n\n",
+        "passed": false,
+        "passed_count": 0,
+        "total_count": 4,
+        "created_at": "2026-10-18T15:56:05.565963"
+      },
+      {
+        "id": 14,
+        "question_slug": "contains-duplicate",
+        "target": "drill:1",
+        "language": "python",
+        "code": "class Solution:\n    def firstRepeatedValue(self, nums: List[int]) -> Optional[int]:\n        seen = set()\n        for i in range(len(nums)):\n            if i in seen:\n                return i\n            seen.add(nums[i])\n        return len(nums)\n\n",
+        "passed": false,
+        "passed_count": 0,
+        "total_count": 4,
+        "created_at": "2026-10-18T15:56:51.349203"
+      },
+      {
+        "id": 15,
+        "question_slug": "contains-duplicate",
+        "target": "drill:1",
+        "language": "python",
+        "code": "class Solution:\n    def firstRepeatedValue(self, nums: List[int]) -> Optional[int]:\n        seen = set()\n        for i in range(len(nums)):\n            if i in seen:\n                return i\n            seen.add(nums[i])\n        return len(nums)\n\n",
+        "passed": false,
+        "passed_count": 0,
+        "total_count": 4,
+        "created_at": "2026-10-18T15:56:52.597771"
+      },
+      {
+        "id": 16,
+        "question_slug": "contains-duplicate",
+        "target": "drill:1",
+        "language": "python",
+        "code": "class Solution:\n    def firstRepeatedValue(self, nums: List[int]) -> Optional[int]:\n        seen = set()\n        for i in range(len(nums)):\n            if nums[i] in seen:\n                return nums[i]\n            seen.add(nums[i])\n        return len(nums)\n\n",
+        "passed": false,
+        "passed_count": 3,
+        "total_count": 4,
+        "created_at": "2026-10-18T15:58:10.980580"
+      },
+      {
+        "id": 17,
+        "question_slug": "contains-duplicate",
+        "target": "drill:1",
+        "language": "python",
+        "code": "class Solution:\n    def firstRepeatedValue(self, nums: List[int]) -> Optional[int]:\n        seen = set()\n        for i in range(len(nums)):\n            if nums[i] in seen:\n                return nums[i]\n            seen.add(nums[i])\n        return len(nums)\n\n",
+        "passed": false,
+        "passed_count": 3,
+        "total_count": 4,
+        "created_at": "2026-10-18T15:58:14.426395"
+      },
+      {
+        "id": 18,
+        "question_slug": "contains-duplicate",
+        "target": "drill:1",
+        "language": "python",
+        "code": "class Solution:\n    def firstRepeatedValue(self, nums: List[int]) -> Optional[int]:\n        seen = set()\n        for i in range(len(nums)):\n            if nums[i] in seen:\n                return nums[i]\n            seen.add(nums[i])\n        return None\n",
+        "passed": true,
+        "passed_count": 4,
+        "total_count": 4,
+        "created_at": "2026-10-18T15:58:39.190963"
+      },
+      {
+        "id": 19,
+        "question_slug": "contains-duplicate",
+        "target": "drill:2",
+        "language": "python",
+        "code": "class Solution:\n    def extraCopies(self, nums: List[int]) -> int:\n        return len(nums)- len(set(nums))\n",
+        "passed": true,
+        "passed_count": 5,
+        "total_count": 5,
+        "created_at": "2026-10-18T16:12:52.027736"
+      },
+      {
+        "id": 20,
+        "question_slug": "contains-duplicate",
+        "target": "main",
+        "language": "python",
+        "code": "class Solution:\n    def containsDuplicate(self, nums: List[int]) -> bool:\n        \n",
+        "passed": false,
+        "passed_count": 0,
+        "total_count": 0,
+        "created_at": "2026-10-18T16:14:18.318554"
+      },
+      {
+        "id": 21,
+        "question_slug": "contains-duplicate",
+        "target": "main",
+        "language": "python",
+        "code": "class Solution:\n    def containsDuplicate(self, nums: List[int]) -> bool:\n        seen = set()\n        for x in nums:\n            if x in seen:\n                return True\n            seen.add(x)\n        return False\n",
+        "passed": true,
+        "passed_count": 8,
+        "total_count": 8,
+        "created_at": "2026-10-18T16:26:31.273544"
+      },
+      {
+        "id": 22,
+        "question_slug": "contains-duplicate",
+        "target": "main",
+        "language": "python",
+        "code": "class Solution:\n    def containsDuplicate(self, nums: List[int]) -> bool:\n        see",
+        "passed": false,
+        "passed_count": 0,
+        "total_count": 8,
+        "created_at": "2026-10-18T16:26:37.667189"
+      },
+      {
+        "id": 23,
+        "question_slug": "contains-duplicate",
+        "target": "main",
+        "language": "python",
+        "code": "class Solution:\n    def containsDuplicate(self, nums: List[int]) -> bool:\n        see",
+        "passed": false,
+        "passed_count": 0,
+        "total_count": 8,
+        "created_at": "2026-10-18T16:26:43.887376"
+      },
+      {
+        "id": 24,
+        "question_slug": "contains-duplicate",
+        "target": "main",
+        "language": "python",
+        "code": "class Solution:\n    def containsDuplicate(self, nums: List[int]) -> bool:\n        seen = set()\n        for x in nums:\n            if x in seen:\n                return True\n            seen.add(x)\n        return False\n",
+        "passed": true,
+        "passed_count": 8,
+        "total_count": 8,
+        "created_at": "2026-10-18T16:33:11.115350"
+      },
+      {
+        "id": 25,
+        "question_slug": "contains-duplicate",
+        "target": "main",
+        "language": "python",
+        "code": "class Solution:\n    def containsDuplicate(self, nums: List[int]) -> bool:\n        seen = set()\n        for x in nums:\n            if x in seen:\n                return True\n            seen.add(x)\n        return False\n",
+        "passed": true,
+        "passed_count": 8,
+        "total_count": 8,
+        "created_at": "2026-10-18T16:36:17.860161"
+      },
+      {
+        "id": 26,
+        "question_slug": "contains-duplicate",
+        "target": "main",
+        "language": "python",
+        "code": "class Solution:\n    def containsDuplicate(self, nums: List[int]) -> bool:\n        seen = set()\n        for x in nums:\n            if x in seen:\n                return True\n            seen.add(x)\n        return False\n",
+        "passed": true,
+        "passed_count": 8,
+        "total_count": 8,
+        "created_at": "2026-10-18T16:36:26.304020"
+      },
+      {
+        "id": 27,
+        "question_slug": "contains-duplicate",
+        "target": "main",
+        "language": "python",
+        "code": "class Solution:\n    def containsDuplicate(self, nums: List[int]) -> bool:\n        seen = set()\n        for x in nums:\n            if x in seen:\n                return True\n            seen.add(x)\n        return False\n",
+        "passed": true,
+        "passed_count": 8,
+        "total_count": 8,
+        "created_at": "2026-10-18T16:42:42.613828"
+      },
+      {
+        "id": 28,
+        "question_slug": "contains-duplicate",
+        "target": "main",
+        "language": "python",
+        "code": "class Solution:\n    def containsDuplicate(self, nums: List[int]) -> bool:\n        seen = set()\n        for x in nums:\n            if x in seen:\n                return True\n            seen.add(x)\n        return False\n",
+        "passed": true,
+        "passed_count": 8,
+        "total_count": 8,
+        "created_at": "2026-10-18T16:43:12.014825"
+      },
+      {
+        "id": 29,
+        "question_slug": "contains-duplicate",
+        "target": "main",
+        "language": "python",
+        "code": "class Solution:\n    def containsDuplicate(self, nums: List[int]) -> bool:\n        seen = set()  # every value to the left of the current one\n        for x in nums:\n            if x in seen:\n                return True  # second copy found, no need to look further\n            seen.add(x)\n        return False\n",
+        "passed": true,
+        "passed_count": 8,
+        "total_count": 8,
+        "created_at": "2026-10-18T16:43:12.793523"
+      },
+      {
+        "id": 30,
+        "question_slug": "contains-duplicate",
+        "target": "main",
+        "language": "python",
+        "code": "class Solution:\n    def containsDuplicate(self, nums: List[int]) -> bool:\n        seen = set()  # every value to the left of the current one\n        for x in nums:\n            if x in seen:\n                return True  # second copy found, no need to look further\n            seen.add(x)\n        return False\n",
+        "passed": true,
+        "passed_count": 8,
+        "total_count": 8,
+        "created_at": "2026-10-18T16:43:36.931974"
+      },
+      {
+        "id": 31,
+        "question_slug": "contains-duplicate",
+        "target": "main",
+        "language": "python",
+        "code": "class Solution:\n    def containsDuplicate(self, nums: List[int]) -> bool:\n        seen = set()  # every value to the left of the current one\n        for x in nums:\n            if x in seen:\n                return True  # second copy found, no need to look further\n            seen.add(x)\n        return False\n",
+        "passed": true,
+        "passed_count": 8,
+        "total_count": 8,
+        "created_at": "2026-10-18T16:44:08.953367"
+      },
+      {
+        "id": 32,
+        "question_slug": "contains-duplicate",
+        "target": "main",
+        "language": "python",
+        "code": "class Solution:\n    def containsDuplicate(self, nums: List[int]) -> bool:\n        seen = set()\n        for x in nums:\n            if x in seen:\n                return True\n            seen.add(x)\n        return False\n",
+        "passed": true,
+        "passed_count": 8,
+        "total_count": 8,
+        "created_at": "2026-10-18T16:45:22.189275"
+      },
+      {
+        "id": 33,
+        "question_slug": "contains-duplicate",
+        "target": "main",
+        "language": "python",
+        "code": "class Solution:\n    def containsDuplicate(self, nums: List[int]) -> bool:\n        seen = set()\n        for x in nums:\n            if x in seen:\n                return True\n            seen.add(x)\n        return False\n",
+        "passed": true,
+        "passed_count": 8,
+        "total_count": 8,
+        "created_at": "2026-10-18T16:45:44.612961"
+      },
+      {
+        "id": 34,
+        "question_slug": "contains-duplicate",
+        "target": "main",
+        "language": "python",
+        "code": "class Solution:\n    def containsDuplicate(self, nums: List[int]) -> bool:\n        seen = set()\n        for x in nums:\n            if x in seen:\n                return True\n            seen.add(x)\n        return False\n",
+        "passed": true,
+        "passed_count": 8,
+        "total_count": 8,
+        "created_at": "2026-10-18T16:45:46.326632"
+      },
+      {
+        "id": 35,
+        "question_slug": "two-sum",
+        "target": "main",
+        "language": "python",
+        "code": "class Solution:\n    def twoSum(self, nums: List[int], target: int) -> List[int]:\n        seen = {}  # value -> index, for everything to the left of i\n        for i, x in enumerate(nums):\n            need = target - x\n            if need in seen:\n                return [seen[need], i]\n            seen[x] = i\n        return []\n",
+        "passed": true,
+        "passed_count": 7,
+        "total_count": 7,
+        "created_at": "2026-10-18T17:06:10.531631"
+      },
+      {
+        "id": 36,
+        "question_slug": "two-sum",
+        "target": "main",
+        "language": "python",
+        "code": "class Solution:\n    def twoSum(self, nums: List[int], target: int) -> List[int]:\n        seen = {}  # value -> index, for everything to the left of i\n        for i, x in enumerate(nums):\n            need = target - x\n            if need in seen:\n                return [seen[need], i]\n            seen[x] = i\n        return []\n",
+        "passed": true,
+        "passed_count": 7,
+        "total_count": 7,
+        "created_at": "2026-10-18T17:06:12.109914"
+      },
+      {
+        "id": 37,
+        "question_slug": "contains-duplicate",
+        "target": "main",
+        "language": "python",
+        "code": "class Solution:\n    def containsDuplicate(self, nums: List[int]) -> bool:\n        seen = set()\n        for x in nums:\n            if x in seen:\n                return True\n            seen.add(x)\n        return False\n",
+        "passed": true,
+        "passed_count": 8,
+        "total_count": 8,
+        "created_at": "2026-10-18T17:06:15.481168"
+      },
+      {
+        "id": 38,
+        "question_slug": "contains-duplicate",
+        "target": "main",
+        "language": "python",
+        "code": "class Solution:\n    def containsDuplicate(self, nums: List[int]) -> bool:\n        seen = set()\n        for x in nums:\n            if x in seen:\n                return True\n            seen.add(x)\n        return False\n",
+        "passed": true,
+        "passed_count": 8,
+        "total_count": 8,
+        "created_at": "2026-10-18T17:06:20.347739"
+      },
+      {
+        "id": 39,
+        "question_slug": "two-sum",
+        "target": "main",
+        "language": "python",
+        "code": "class Solution:\n    def twoSum(self, nums: List[int], target: int) -> List[int]:\n        seen = {}  # value -> index, for everything to the left of i\n        for i, x in enumerate(nums):\n            need = target - x\n            if need in seen:\n                return [seen[need], i]\n            seen[x] = i\n        return []\n",
+        "passed": true,
+        "passed_count": 7,
+        "total_count": 7,
+        "created_at": "2026-10-18T17:07:22.111777"
+      },
+      {
+        "id": 40,
+        "question_slug": "two-sum",
+        "target": "main",
+        "language": "python",
+        "code": "class Solution:\n    def twoSum(self, nums: List[int], target: int) -> List[int]:\n        seen = {}  # value -> index, for everything to the left of i\n        for i, x in enumerate(nums):\n            need = target - x\n            if need in seen:\n                return [seen[need], i]\n            seen[x] = i\n        return []\n",
+        "passed": true,
+        "passed_count": 7,
+        "total_count": 7,
+        "created_at": "2026-10-18T17:07:25.652759"
+      },
+      {
+        "id": 41,
+        "question_slug": "contains-duplicate",
+        "target": "main",
+        "language": "python",
+        "code": "class Solution:\n    def containsDuplicate(self, nums: List[int]) -> bool:\n        seen = set()\n        for x in nums:\n            if x in seen:\n                return True\n            seen.add(x)\n        return False\n",
+        "passed": true,
+        "passed_count": 8,
+        "total_count": 8,
+        "created_at": "2026-10-18T17:07:29.781051"
+      },
+      {
+        "id": 42,
+        "question_slug": "contains-duplicate",
+        "target": "main",
+        "language": "python",
+        "code": "class Solution:\n    def containsDuplicate(self, nums: List[int]) -> bool:\n        seen = set()\n        for x in nums:\n            if x in seen:\n                return True\n            seen.add(x)\n        return False\n",
+        "passed": true,
+        "passed_count": 8,
+        "total_count": 8,
+        "created_at": "2026-10-18T17:07:34.119678"
+      },
+      {
+        "id": 43,
+        "question_slug": "two-sum",
+        "target": "main",
+        "language": "python",
+        "code": "class Solution:\n    def twoSum(self, nums: List[int], target: int) -> List[int]:\n        seen = {}  # value -> index, for everything to the left of i\n        for i, x in enumerate(nums):\n            need = target - x\n            if need in seen:\n                return [seen[need], i]\n            seen[x] = i\n        return []\n",
+        "passed": true,
+        "passed_count": 7,
+        "total_count": 7,
+        "created_at": "2026-10-18T17:08:34.738590"
+      },
+      {
+        "id": 44,
+        "question_slug": "two-sum",
+        "target": "main",
+        "language": "python",
+        "code": "class Solution:\n    def twoSum(self, nums: List[int], target: int) -> List[int]:\n        seen = {}  # value -> index, for everything to the left of i\n        for i, x in enumerate(nums):\n            need = target - x\n            if need in seen:\n                return [seen[need], i]\n            seen[x] = i\n        return []\n",
+        "passed": true,
+        "passed_count": 7,
+        "total_count": 7,
+        "created_at": "2026-10-18T17:08:36.842460"
+      },
+      {
+        "id": 45,
+        "question_slug": "contains-duplicate",
+        "target": "main",
+        "language": "python",
+        "code": "class Solution:\n    def containsDuplicate(self, nums: List[int]) -> bool:\n        seen = set()\n        for x in nums:\n            if x in seen:\n                return True\n            seen.add(x)\n        return False\n",
+        "passed": true,
+        "passed_count": 8,
+        "total_count": 8,
+        "created_at": "2026-10-18T17:08:40.505734"
+      },
+      {
+        "id": 46,
+        "question_slug": "contains-duplicate",
+        "target": "main",
+        "language": "python",
+        "code": "class Solution:\n    def containsDuplicate(self, nums: List[int]) -> bool:\n        seen = set()\n        for x in nums:\n            if x in seen:\n                return True\n            seen.add(x)\n        return False\n",
+        "passed": true,
+        "passed_count": 8,
+        "total_count": 8,
+        "created_at": "2026-10-18T17:08:45.551206"
       }
     ]
   }

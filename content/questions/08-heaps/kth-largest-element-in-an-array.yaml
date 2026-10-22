@@ -296,5 +296,16 @@ twist:
     it in O(1) space.
 
 viz:
+  title: Kth Largest Element (Min-Heap)
+  complexity:
+    time: O(N log k)
+    space: O(k)
   heaps: [heap]
   watch: [x, k]
+  line_notes:
+    3: "Initialize min-heap of size k to track largest elements."
+    4: "Iterate through elements in nums array."
+    5: "Push element onto min-heap; sift-up restores heap order."
+    6: "Check if heap size exceeds window size k."
+    7: "Pop smallest element from root of min-heap; sift-down."
+    8: "Root of size-k min-heap is the kth largest element overall."

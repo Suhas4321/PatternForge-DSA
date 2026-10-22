@@ -360,6 +360,19 @@ twist:
     can't produce a wrong answer, and the target can be anything.
 
 viz:
+  title: 3Sum Sorted Two Pointers
+  complexity:
+    time: "O(n^2)"
+    space: "O(1)"
   arrays: [nums]
   pointers: [i, l, r]
   watch: [total]
+  line_notes:
+    3: "Sort array ascending to enable two-pointer convergence and skip duplicates."
+    7: "If fixed element nums[i] > 0, sum with subsequent elements can never be 0."
+    9: "Skip duplicate nums[i] to prevent duplicate triplet results."
+    13: "Sum fixed element nums[i] with left and right pointers."
+    15: "Total < 0: sum too small, advance left pointer l to larger value."
+    17: "Total > 0: sum too large, retreat right pointer r to smaller value."
+    19: "Triplet found: total is 0. Record [nums[i], nums[l], nums[r]]."
+    22: "Skip duplicate values on left pointer to avoid duplicate triplets."

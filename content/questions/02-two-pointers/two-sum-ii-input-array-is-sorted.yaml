@@ -330,7 +330,17 @@ twist:
     equal neighbours for i, l and r so duplicates aren't reported twice. O(N²) overall.
 
 viz:
+  title: Two Sum II Converging Two Pointers
+  complexity:
+    time: "O(n)"
+    space: "O(1)"
   arrays: [numbers]
   pointers: [l, r]
   window: [l, r]
   watch: [total, target]
+  line_notes:
+    3: "Initialize left pointer at start (smallest) and right pointer at end (largest)."
+    5: "Compute sum = numbers[l] + numbers[r] between current pointer bounds."
+    6: "Sum equals target; return 1-indexed positions [l+1, r+1]."
+    8: "Sum is too small; increment left pointer l to increase the pair sum."
+    10: "Sum is too large; decrement right pointer r to reduce the pair sum."

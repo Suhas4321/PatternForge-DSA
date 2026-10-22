@@ -314,8 +314,20 @@ twist:
     stack collapses to a counter of unclosed openers.
 
 viz:
+  title: Valid Parentheses (LIFO Stack)
+  complexity:
+    time: O(N)
+    space: O(N)
   arrays: [s]
   pointers: [i]
   stacks: [stack]
   maps: [pairs]
   watch: [ch]
+  line_notes:
+    6: "Initialize empty stack to track unclosed opening brackets."
+    7: "Scan next character in input string."
+    8: "Check if character is a closing bracket."
+    10: "Verify top of stack matches the corresponding opening bracket."
+    12: "Matched closing bracket with top of stack; pop matched opener."
+    14: "Found opening bracket; push onto stack."
+    15: "Valid iff all opened brackets have been matched (stack is empty)."

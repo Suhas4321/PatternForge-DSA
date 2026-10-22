@@ -1,10 +1,11 @@
-import { BookMarked, ChevronRight, Compass, FlaskConical, Map, Search, ShieldCheck } from 'lucide-react'
+import { ChevronRight, Compass, Flame, FlaskConical, Mountain, ScrollText, Search } from 'lucide-react'
 import { motion, useReducedMotion } from 'motion/react'
 import type { ReactNode } from 'react'
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import CommandPalette, { openCommandPalette } from './components/CommandPalette'
 import MoreMenu from './components/MoreMenu'
 import TopBarHUD from './components/TopBarHUD'
+import ApexCaliberLogo from './components/ApexCaliberLogo'
 import { ThemeToggle } from './components/effects'
 import { GlassSurface } from './components/vendor/vsrc/glass-surface'
 import { citadelForWorld, getCitadel } from './lib/citadels'
@@ -126,23 +127,20 @@ function TopBar() {
         {/* Row 1: Primary bar */}
         <div className="shell flex h-14 items-center justify-between gap-3">
           {/* Left: Brand */}
-          <Link to="/" className="flex items-center gap-2.5 shrink-0">
-            <img src="/favicon.svg" alt="" className="h-7 w-7" />
-            <span className="font-plate text-lg font-semibold tracking-tight text-chalk">
-              PatternForge
-            </span>
+          <Link to="/" className="flex items-center shrink-0 transition-opacity hover:opacity-90">
+            <ApexCaliberLogo size="sm" />
           </Link>
 
           {/* Center: Navigation (collapses on <1024px) */}
           <nav className="hidden lg:flex items-center gap-1">
             <DockItem active={onJourney}>
               <NavLink to="/" aria-label="Journey" className={() => itemClass(onJourney)}>
-                <Map size={14} /> <span>Journey</span>
+                <Mountain size={14} /> <span>Journey</span>
               </NavLink>
             </DockItem>
             <DockItem active={pathname === '/resume-grill'}>
               <NavLink to="/resume-grill" aria-label="Resume Grill" className={({ isActive }) => itemClass(isActive)}>
-                <ShieldCheck size={14} className="text-[var(--accent-ai-resume,#38BDF8)]" /> <span>Resume Grill</span>
+                <Flame size={14} /> <span>Resume Grill</span>
               </NavLink>
             </DockItem>
             <DockItem active={false}>
@@ -151,7 +149,7 @@ function TopBar() {
                 className={itemClass(false)}
                 onClick={() => openGrimoire(worldMatch ? Number(worldMatch[1]) : undefined)}
               >
-                <BookMarked size={14} /> <span>Grimoire</span>
+                <ScrollText size={14} /> <span>Grimoire</span>
               </button>
             </DockItem>
             <DockItem active={pathname === '/finder'}>

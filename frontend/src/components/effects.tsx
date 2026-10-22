@@ -2,7 +2,7 @@
  * Visual building blocks from DESIGN_REFERENCES.md (Magic UI / Aceternity patterns, implemented
  * natively): BorderBeam, ShineBorder, DotPattern, NumberTicker, MagicCard, Stage, ThemeToggle.
  */
-import { Moon, Sun } from 'lucide-react'
+import { Moon, Sun, Monitor } from 'lucide-react'
 import { animate, useInView, useReducedMotion } from 'motion/react'
 import { useEffect, useId, useRef, useState, type CSSProperties, type MouseEvent, type ReactNode } from 'react'
 import { flushSync } from 'react-dom'
@@ -128,65 +128,112 @@ export function Stage({ children, className = '', dots = true, style }: { childr
 // ------------------------------------------------------------------------------------------
 // Theme polarity
 // ------------------------------------------------------------------------------------------
+// Theme polarity (3-way: Light / Dark / System)
+// ------------------------------------------------------------------------------------------
 
-export type Theme = 'carbon-dark' | 'paper'
+export type ThemePreference = 'dark' | 'light' | 'system'
+export type ResolvedTheme = 'dark' | 'light'
+export type Theme = 'dark' | 'light' | 'carbon-dark' | 'paper' | 'studio-contrast'
 const STORAGE_KEY = 'pf-theme'
 
-export function useTheme(): [Theme, (t: Theme) => void] {
-  const [theme, setThemeState] = useState<Theme>(() => {
-    const stored = typeof localStorage !== 'undefined' ? (localStorage.getItem(STORAGE_KEY) as string | null) : null
-    if (stored === 'paper' || stored === 'studio-contrast') return 'paper'
-    if (stored === 'carbon-dark') return 'carbon-dark'
-    const docTheme = typeof document !== 'undefined' ? document.documentElement.dataset.theme : null
-    if (docTheme === 'paper' || docTheme === 'studio-contrast') return 'paper'
-    return 'carbon-dark'
+function getSystemTheme(): ResolvedTheme {
+  if (typeof window !== 'undefined' && window.matchMedia) {
+    return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark'
+  }
+  return 'dark'
+}
+
+function resolveStoredTheme(stored: string | null): { preference: ThemePreference; resolved: ResolvedTheme } {
+  if (stored === 'light' || stored === 'paper' || stored === 'studio-contrast') {
+    return { preference: 'light', resolved: 'light' }
+  }
+  if (stored === 'dark' || stored === 'carbon-dark') {
+    return { preference: 'dark', resolved: 'dark' }
+  }
+  return { preference: 'system', resolved: getSystemTheme() }
+}
+
+export function useTheme(): [ResolvedTheme, (t: ThemePreference | Theme) => void, ThemePreference] {
+  const [preference, setPreference] = useState<ThemePreference>(() => {
+    const stored = typeof localStorage !== 'undefined' ? localStorage.getItem(STORAGE_KEY) : null
+    return resolveStoredTheme(stored).preference
+  })
+
+  const [resolved, setResolvedState] = useState<ResolvedTheme>(() => {
+    if (typeof document !== 'undefined') {
+      const docTheme = document.documentElement.dataset.theme
+      if (docTheme === 'light' || docTheme === 'paper' || docTheme === 'studio-contrast') return 'light'
+      if (docTheme === 'dark' || docTheme === 'carbon-dark') return 'dark'
+    }
+    const stored = typeof localStorage !== 'undefined' ? localStorage.getItem(STORAGE_KEY) : null
+    return resolveStoredTheme(stored).resolved
   })
 
   useEffect(() => {
-    const handler = (e: Event) => {
-      const custom = e as CustomEvent<Theme>
-      if (custom.detail) {
-        setThemeState(custom.detail)
-      } else {
-        const docTheme = (document.documentElement.dataset.theme as string)
-        const current = (docTheme === 'paper' || docTheme === 'studio-contrast') ? 'paper' : 'carbon-dark'
-        setThemeState(current)
-      }
+    const handler = () => {
+      const stored = localStorage.getItem(STORAGE_KEY)
+      const res = resolveStoredTheme(stored)
+      setPreference(res.preference)
+      setResolvedState(res.resolved)
     }
     window.addEventListener('pf-theme-changed', handler)
 
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: light)')
+    const onMediaChange = (e: MediaQueryListEvent) => {
+      const currentStored = localStorage.getItem(STORAGE_KEY)
+      if (!currentStored || currentStored === 'system') {
+        const nextResolved: ResolvedTheme = e.matches ? 'light' : 'dark'
+        document.documentElement.dataset.theme = nextResolved
+        setResolvedState(nextResolved)
+        window.dispatchEvent(new CustomEvent('pf-theme-changed', { detail: { preference: 'system', resolved: nextResolved } }))
+      }
+    }
+    mediaQuery.addEventListener('change', onMediaChange)
+
     const observer = new MutationObserver(() => {
-      const docTheme = (document.documentElement.dataset.theme as string)
-      const current = (docTheme === 'paper' || docTheme === 'studio-contrast') ? 'paper' : 'carbon-dark'
-      setThemeState(current)
+      const docTheme = document.documentElement.dataset.theme
+      const curResolved: ResolvedTheme = (docTheme === 'light' || docTheme === 'paper' || docTheme === 'studio-contrast') ? 'light' : 'dark'
+      setResolvedState(curResolved)
     })
     observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] })
 
     return () => {
       window.removeEventListener('pf-theme-changed', handler)
+      mediaQuery.removeEventListener('change', onMediaChange)
       observer.disconnect()
     }
   }, [])
 
-  const setTheme = (t: Theme) => {
-    document.documentElement.dataset.theme = t
+  const setTheme = (t: ThemePreference | Theme) => {
+    let pref: ThemePreference = 'system'
+    if (t === 'light' || t === 'paper' || t === 'studio-contrast') pref = 'light'
+    else if (t === 'dark' || t === 'carbon-dark') pref = 'dark'
+    else if (t === 'system') pref = 'system'
+
+    const nextResolved: ResolvedTheme = pref === 'system' ? getSystemTheme() : pref
+    document.documentElement.dataset.theme = nextResolved
     try {
-      localStorage.setItem(STORAGE_KEY, t)
+      localStorage.setItem(STORAGE_KEY, pref)
     } catch {
-      /* private mode: theme just won't persist */
+      /* private mode: won't persist */
     }
-    setThemeState(t)
-    window.dispatchEvent(new CustomEvent('pf-theme-changed', { detail: t }))
+    setPreference(pref)
+    setResolvedState(nextResolved)
+    window.dispatchEvent(new CustomEvent('pf-theme-changed', { detail: { preference: pref, resolved: nextResolved } }))
   }
-  return [theme, setTheme]
+
+  return [resolved, setTheme, preference]
 }
 
-/** Sun/moon switch with a circular reveal from the button (View Transitions API when available). */
+/** 3-way toggle (Light / Dark / System) with circular reveal view transition */
 export function ThemeToggle() {
-  const [theme, setTheme] = useTheme()
+  const [resolved, setTheme, preference] = useTheme()
   const ref = useRef<HTMLButtonElement>(null)
   const reduce = useReducedMotion()
-  const next: Theme = theme === 'carbon-dark' ? 'paper' : 'carbon-dark'
+
+  // 3-way sequence: system -> light -> dark -> system
+  const nextPref: ThemePreference =
+    preference === 'system' ? 'light' : preference === 'light' ? 'dark' : 'system'
 
   // the command palette asks for a switch through this event
   useEffect(() => {
@@ -198,14 +245,14 @@ export function ThemeToggle() {
   const toggle = () => {
     const doc = document as Document & { startViewTransition?: (cb: () => void) => { ready: Promise<void> } }
     if (!doc.startViewTransition || reduce || !ref.current) {
-      setTheme(next)
+      setTheme(nextPref)
       return
     }
     const r = ref.current.getBoundingClientRect()
     const x = r.left + r.width / 2
     const y = r.top + r.height / 2
-    const radius = Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y))
-    const t = doc.startViewTransition(() => flushSync(() => setTheme(next)))
+    const radius = Math.hypot(Math.max(x, window.innerWidth - x), Math.max(y, window.innerHeight - y))
+    const t = doc.startViewTransition(() => flushSync(() => setTheme(nextPref)))
     t.ready.then(() => {
       document.documentElement.animate(
         { clipPath: [`circle(0px at ${x}px ${y}px)`, `circle(${radius}px at ${x}px ${y}px)`] },
@@ -214,15 +261,43 @@ export function ThemeToggle() {
     })
   }
 
+  const label =
+    preference === 'system'
+      ? `System Theme (${resolved === 'dark' ? 'Night Expedition' : 'Alpine Morning'})`
+      : preference === 'light'
+      ? 'Alpine Morning (Light Mode)'
+      : 'Night Expedition (Dark Mode)'
+
   return (
     <button
       ref={ref}
       onClick={toggle}
-      aria-label={theme === 'carbon-dark' ? 'Switch to paper light' : 'Switch to carbon dark'}
-      title={theme === 'carbon-dark' ? 'Paper light' : 'Carbon dark'}
-      className="flex h-8 w-8 items-center justify-center rounded-full border border-line bg-panel-2 text-muted transition-colors hover:text-chalk"
+      aria-label={`${label} — click to cycle theme`}
+      title={`${label} — click to cycle theme`}
+      className="flex h-8 items-center gap-1.5 rounded-full border border-line bg-panel-2 px-2 text-xs text-muted transition-colors hover:border-line-strong hover:text-chalk"
     >
-      {theme === 'carbon-dark' ? <Sun size={15} /> : <Moon size={15} />}
+      {preference === 'system' ? (
+        <>
+          <Monitor size={14} className="text-cyan shrink-0" />
+          <span className="hidden lg:inline font-mono text-[11px] font-semibold tracking-tight uppercase text-faint">
+            Auto
+          </span>
+        </>
+      ) : preference === 'light' ? (
+        <>
+          <Sun size={14} className="text-amber shrink-0" />
+          <span className="hidden lg:inline font-mono text-[11px] font-semibold tracking-tight uppercase text-amber">
+            Light
+          </span>
+        </>
+      ) : (
+        <>
+          <Moon size={14} className="text-cyan shrink-0" />
+          <span className="hidden lg:inline font-mono text-[11px] font-semibold tracking-tight uppercase text-muted">
+            Dark
+          </span>
+        </>
+      )}
     </button>
   )
 }

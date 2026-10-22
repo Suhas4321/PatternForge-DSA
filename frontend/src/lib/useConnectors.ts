@@ -49,8 +49,13 @@ export function useConnectors<K extends string | number>(pairs: [K, K][], deps: 
       const my = (y1 + y2) / 2
       out.push({ from, to, d: `M ${x1} ${y1} C ${x1} ${my}, ${x2} ${my}, ${x2} ${y2}` })
     }
-    setPaths(out)
-    setSize({ w: box.width, h: box.height })
+    setPaths((prev) => {
+      if (prev.length === out.length && prev.every((p, i) => p.from === out[i].from && p.to === out[i].to && p.d === out[i].d)) {
+        return prev
+      }
+      return out
+    })
+    setSize((prev) => (prev.w === box.width && prev.h === box.height ? prev : { w: box.width, h: box.height }))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [JSON.stringify(pairs)])
 

@@ -266,6 +266,16 @@ twist:
     Same "seen before" check, with memory limited to a window.
 
 viz:
+  title: Contains Duplicate Hash Set
+  complexity:
+    time: "O(n)"
+    space: "O(n)"
   arrays: [nums]
   maps: [seen]
   watch: [x]
+  line_notes:
+    3: "Initialize seen set to record elements visited on the left in O(1) time."
+    5: "Check if x is already in seen set; if yes, a duplicate exists."
+    6: "Duplicate confirmed on current element; early exit with True."
+    7: "Add current element x to seen set so future iterations can detect it."
+    8: "All elements checked with zero collisions; array contains only unique values."

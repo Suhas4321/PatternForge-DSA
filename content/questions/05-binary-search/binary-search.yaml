@@ -314,7 +314,18 @@ twist:
     and becomes the difference between passing and failing.
 
 viz:
+  title: Binary Search Range Halving
+  complexity:
+    time: "O(log n)"
+    space: "O(1)"
   arrays: [nums]
   pointers: [lo, hi, mid]
   window: [lo, hi]
   watch: [target]
+  line_notes:
+    3: "Initialize search interval [lo..hi] covering the full sorted array."
+    5: "Compute midpoint index mid; halves the candidate space in O(1)."
+    6: "Target matched at index mid; return location immediately."
+    8: "nums[mid] is smaller than target; eliminate the left half by setting lo = mid + 1."
+    11: "nums[mid] is larger than target; eliminate the right half by setting hi = mid - 1."
+    12: "Search interval exhausted (lo > hi); target does not exist in array."

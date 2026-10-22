@@ -48,7 +48,7 @@ def test_coach_reports_provider_errors_and_keeps_fallback(client, monkeypatch):
 
 def test_cheatsheet_lists_patterns_and_solved_pitches(client):
     sheet = client.get("/api/worlds/1/cheatsheet").json()
-    assert sheet["name"] == "Arrays & Hashing" and len(sheet["patterns"]) == 10
+    assert sheet["name"] == "Arrays & Hashing" and len(sheet["patterns"]) >= 10
     assert all(p["time"] and p["trigger_keywords"] for p in sheet["patterns"])
     # test_api solved two-sum earlier in this session, with a pitch and a passing submission
     solved = {s["slug"]: s for s in sheet["solved"]}

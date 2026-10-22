@@ -123,6 +123,20 @@ class Twist(Strict):
     why: str  # what changes and how the template adapts
 
 
+class VizComplexity(BaseModel):
+    time: str | None = None
+    space: str | None = None
+    model_config = ConfigDict(extra="forbid")
+
+
+class VizConfig(BaseModel):
+    title: str | None = None
+    complexity: VizComplexity | None = None
+    line_notes: dict[int, str] | None = None
+    style: Literal["bars", "cubes", "flat"] | None = None
+    model_config = ConfigDict(extra="allow")
+
+
 class QuestionContent(Strict):
     slug: str
     lc: int
@@ -139,7 +153,7 @@ class QuestionContent(Strict):
     solution: Solution
     pitch_script: str  # markdown, what to say out loud in the interview
     twist: Twist
-    viz: dict[str, Any] = Field(default_factory=dict)  # visualizer config hints
+    viz: VizConfig | dict[str, Any] = Field(default_factory=dict)  # visualizer config hints
     citadel_id: str | None = None
     brick_layer: int | None = None
     runner_type: str | None = None

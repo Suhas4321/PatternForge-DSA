@@ -296,7 +296,17 @@ twist:
     day-to-day differences, still one pass and O(1) space.
 
 viz:
+  title: Best Time to Buy and Sell Stock
+  complexity:
+    time: "O(n)"
+    space: "O(1)"
   arrays: [prices]
   pointers: [l, r]
   window: [l, r]
   watch: [best]
+  line_notes:
+    3: "Track buy day l as the lowest purchase price observed so far."
+    5: "Iterate sell day r through subsequent market days."
+    6: "Found a cheaper purchase price at day r; older buy days are now obsolete."
+    7: "Shift buy day l forward to r to maximize potential future spreads."
+    9: "Calculate profit = prices[r] - prices[l] and update best profit record."

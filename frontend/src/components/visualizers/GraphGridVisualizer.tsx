@@ -2,7 +2,7 @@ import { motion } from 'motion/react'
 import { useMemo, type ReactNode } from 'react'
 import type { HeapObject, TraceStep, TraceValue } from '../../api/types'
 import { asCells, formatValue, isDeque, isDict, isObj, isRef, isSet, isTuple, visibleLocals, type ScopedValue } from '../../lib/trace'
-import { ArrayRow, buildArrays, describeChange, QueueConveyor, SidePanels } from './parts'
+import { ArrayRow, buildArrays, SidePanels } from './parts'
 import type { VisualizerProps } from './types'
 
 const CELL_PAIRS: [string, string][] = [
@@ -14,14 +14,13 @@ const VISITED_NAMES = ['visited', 'seen', 'visit', 'done', 'reached']
 const NODE_NAMES = ['node', 'cur', 'curr', 'u', 'course', 'word']
 const DIST_NAMES = ['dist', 'distance', 'indegree', 'level', 'cost']
 
-/** Distinct colours for grid values: land/fresh/visited marks etc. */
 const VALUE_STYLES: Record<string, string> = {
-  '1': 'bg-verdigris/35 border-verdigris/60',
-  '0': 'bg-ink border-line',
-  '2': 'bg-rust/45 border-rust',
-  '#': 'bg-ochre/35 border-ochre/70',
-  X: 'bg-sky-500/30 border-sky-500/60',
-  O: 'bg-sky/25 border-sky/50',
+  '1': 'bg-verdigris/25 border-verdigris/60 text-emerald-200',
+  '0': 'bg-ink/80 border-line/60 text-muted/80',
+  '2': 'bg-rust/40 border-rust text-rose-200',
+  '#': 'bg-ochre/30 border-ochre/60 text-amber-200',
+  X: 'bg-sky-500/25 border-sky-500/50 text-sky-200',
+  O: 'bg-sky/20 border-sky/40 text-sky-300',
 }
 
 const toKey = (v: unknown): string => {
@@ -42,10 +41,18 @@ const pickName = (configured: unknown, names: string[], locals: Record<string, S
   [configured as string | undefined, ...names].find((n) => n && n in locals && ok(locals[n].value))
 
 // ------------------------------------------------------------------------------------------
-// Grid view
+// Upgraded Grid View with expanding BFS wave rings & responsive cell sizing
 // ------------------------------------------------------------------------------------------
 
-function GridView({ name, grid, prevGrid, cell, marks, queued, heap }: {
+function GridView({
+  name,
+  grid,
+  prevGrid,
+  cell,
+  marks,
+  queued,
+  heap,
+}: {
   name: string
   grid: unknown[][]
   prevGrid: unknown[][] | null
@@ -58,49 +65,89 @@ function GridView({ name, grid, prevGrid, cell, marks, queued, heap }: {
   const values = grid.flat().filter((v): v is number => typeof v === 'number')
   const max = Math.max(1, ...values)
   const isHeights = numeric && new Set(values).size > 3
+  const numCols = Math.max(1, ...grid.map((r) => r.length))
+
   return (
-    <div>
-      <div className="mb-1.5 font-mono text-xs text-muted">{name}</div>
-      <div className="inline-grid gap-1" style={{ gridTemplateColumns: `repeat(${Math.max(...grid.map((r) => r.length))}, 2.5rem)` }}>
-        {grid.flatMap((row, r) =>
-          row.map((v, c) => {
-            const k = `${r},${c}`
-            const current = cell && cell[0] === r && cell[1] === c
-            const changed = prevGrid && JSON.stringify(prevGrid[r]?.[c]) !== JSON.stringify(v)
-            const text = formatValue(v, heap, 1).replace(/^'|'$/g, '')
-            const style = isHeights ? 'border-line' : (VALUE_STYLES[text] ?? 'bg-panel border-line')
-            const heat = isHeights ? { backgroundColor: `rgba(129,140,248,${0.08 + (0.5 * (v as number)) / max})` } : undefined
-            return (
-              <motion.div
-                key={k}
-                initial={false}
-                animate={{ scale: changed ? [1.15, 1] : 1 }}
-                className={`relative flex h-10 w-10 items-center justify-center rounded-md border font-mono text-xs ${style} ${
-                  current ? 'ring-2 ring-forge' : ''
-                }`}
-                style={heat}
-              >
-                {text}
-                {marks.has(k) && <span className="absolute top-0.5 right-1 h-1.5 w-1.5 rounded-full bg-verdigris" />}
-                {queued.has(k) && <span className="absolute bottom-0.5 left-1 h-1.5 w-1.5 rounded-full bg-sky" />}
-              </motion.div>
-            )
-          }),
-        )}
+    <div className="flex flex-col gap-2 w-full max-w-full">
+      <div className="flex items-center justify-between font-mono text-xs">
+        <span className="font-semibold text-chalk">{name}</span>
+        <span className="text-2xs text-muted">
+          {grid.length} × {numCols} grid
+        </span>
+      </div>
+
+      <div className="w-full overflow-hidden rounded-2xl border border-line/50 bg-surface-2/40 p-4 shadow-inner">
+        <div
+          className="inline-grid gap-1.5 max-w-full"
+          style={{ gridTemplateColumns: `repeat(${numCols}, minmax(1.8rem, 2.5rem))` }}
+        >
+          {grid.flatMap((row, r) =>
+            row.map((v, c) => {
+              const k = `${r},${c}`
+              const isCurrent = cell && cell[0] === r && cell[1] === c
+              const isQueued = queued.has(k)
+              const isMarked = marks.has(k)
+              const changed = prevGrid && JSON.stringify(prevGrid[r]?.[c]) !== JSON.stringify(v)
+              const text = formatValue(v, heap, 1).replace(/^'|'$/g, '')
+              const style = isHeights ? 'border-line bg-panel' : (VALUE_STYLES[text] ?? 'bg-panel border-line')
+              const heat = isHeights ? { backgroundColor: `rgba(129,140,248,${0.08 + (0.5 * (v as number)) / max})` } : undefined
+
+              return (
+                <motion.div
+                  key={k}
+                  initial={false}
+                  animate={{
+                    scale: changed ? [1.2, 0.95, 1] : 1,
+                  }}
+                  transition={{ duration: 0.35 }}
+                  className={`relative flex h-10 w-full min-w-8 items-center justify-center rounded-lg border font-mono text-xs font-semibold shadow-sm transition-all ${style} ${
+                    isCurrent
+                      ? 'border-forge ring-2 ring-forge ring-offset-2 ring-offset-ink shadow-[0_0_16px_rgba(255,107,0,0.45)]'
+                      : isQueued
+                        ? 'border-sky-400 bg-sky-500/20 text-sky-200 ring-1 ring-sky-400/40'
+                        : isMarked
+                          ? 'border-verdigris/70 bg-verdigris/20 text-emerald-200'
+                          : ''
+                  }`}
+                  style={heat}
+                >
+                  {/* Expanding BFS Wave Ring on Current Cell */}
+                  {isCurrent && (
+                    <motion.div
+                      className="pointer-events-none absolute inset-0 rounded-lg border border-forge"
+                      initial={{ scale: 1, opacity: 0.8 }}
+                      animate={{ scale: [1, 1.45, 1], opacity: [0.8, 0, 0.8] }}
+                      transition={{ repeat: Infinity, duration: 1.6, ease: 'easeInOut' }}
+                    />
+                  )}
+
+                  <span>{text}</span>
+
+                  {/* Marker Badges */}
+                  {isMarked && (
+                    <span className="absolute top-1 right-1 h-1.5 w-1.5 rounded-full bg-verdigris shadow-[0_0_6px_rgba(16,185,129,0.8)]" />
+                  )}
+                  {isQueued && (
+                    <span className="absolute bottom-1 left-1 h-1.5 w-1.5 rounded-full bg-sky shadow-[0_0_6px_rgba(56,189,248,0.8)]" />
+                  )}
+                </motion.div>
+              )
+            }),
+          )}
+        </div>
       </div>
     </div>
   )
 }
 
 // ------------------------------------------------------------------------------------------
-// Node-link graph view
+// Upgraded Graph View with BFS Wave Rings & Responsive ViewBox
 // ------------------------------------------------------------------------------------------
 
 interface GraphModel {
   nodes: string[]
   labels: Map<string, string>
   edges: { from: string; to: string; weight?: string }[]
-  /** Optional split into two clusters (Clone Graph: originals left, copies right). */
   groups?: Map<string, 0 | 1>
 }
 
@@ -120,7 +167,6 @@ function fromAdjacency(v: unknown, heap: Record<string, HeapObject>): GraphModel
     const items = collection(list)
     if (!items) continue
     for (const item of items) {
-      // neighbours are ids, or (neighbour, weight) pairs
       const pair = isTuple(item) ? item.$tuple : Array.isArray(item) ? item : null
       const to = toKey(pair ? pair[0] : item)
       nodes.add(to)
@@ -146,10 +192,6 @@ function fromEdgeList(v: unknown, heap: Record<string, HeapObject>): GraphModel 
   return { nodes: [...nodes].sort((x, y) => Number(x) - Number(y) || x.localeCompare(y)), labels, edges }
 }
 
-/**
- * Graph made of node objects with a `neighbors` field (Clone Graph). Nodes that existed at the
- * first step are the originals; nodes created later are copies, drawn as a second cluster.
- */
 function fromObjects(heap: Record<string, HeapObject>, originals: Set<string>): GraphModel | null {
   const ids = Object.keys(heap).filter((id) => 'neighbors' in heap[id].fields)
   if (!ids.length) return null
@@ -165,7 +207,6 @@ function fromObjects(heap: Record<string, HeapObject>, originals: Set<string>): 
 }
 
 function useCircleLayout(steps: TraceStep[], nodes: string[], groups?: Map<string, 0 | 1>) {
-  // Nodes sit on a circle (or two side-by-side circles when the graph has two clusters).
   return useMemo(() => {
     const clusters: string[][] = groups
       ? [nodes.filter((id) => groups.get(id) !== 1), nodes.filter((id) => groups.get(id) === 1)]
@@ -185,74 +226,126 @@ function useCircleLayout(steps: TraceStep[], nodes: string[], groups?: Map<strin
   }, [steps, nodes.join('|'), groups ? [...groups.entries()].join('|') : ''])
 }
 
-function GraphView({ model, steps, current, visited, queued, dist, heap }: {
+function GraphView({
+  model,
+  steps,
+  current,
+  visited,
+  queued,
+  dist,
+}: {
   model: GraphModel
   steps: TraceStep[]
   current: Set<string>
   visited: Set<string>
   queued: Set<string>
   dist: Map<string, string>
-  heap: Record<string, HeapObject>
 }) {
   const { pos, size } = useCircleLayout(steps, model.nodes, model.groups)
   const pairSet = new Set(model.edges.map((e) => `${e.from}>${e.to}`))
-  const R = 16
-  void heap
+  const R = 18
+
   return (
-    <svg width={size.w} height={size.h} className="block">
-      <defs>
-        <marker id="g-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-          <path d="M 0 0 L 10 5 L 0 10 z" fill="#6B7290" />
-        </marker>
-      </defs>
-      {model.edges.map((e, i) => {
-        const a = pos.get(e.from)
-        const b = pos.get(e.to)
-        if (!a || !b || e.from === e.to) return null
-        const both = pairSet.has(`${e.to}>${e.from}`)
-        if (both && e.from > e.to) return null // undirected: draw once
-        const dx = b.x - a.x
-        const dy = b.y - a.y
-        const len = Math.hypot(dx, dy) || 1
-        const x2 = b.x - (dx / len) * (R + 3)
-        const y2 = b.y - (dy / len) * (R + 3)
-        return (
-          <g key={i}>
-            <line x1={a.x} y1={a.y} x2={x2} y2={y2} stroke="#3B4256" strokeWidth={1.4} markerEnd={both ? undefined : 'url(#g-arrow)'} />
-            {e.weight && (
-              <text x={(a.x + b.x) / 2} y={(a.y + b.y) / 2 - 4} textAnchor="middle" className="fill-ochre font-mono text-[10px]">
-                {e.weight}
+    <div className="relative w-full overflow-hidden rounded-2xl border border-line/50 bg-gradient-to-b from-surface-2/40 to-ink/60 p-4 shadow-inner">
+      <svg
+        viewBox={`0 0 ${size.w} ${size.h}`}
+        className="w-full h-auto max-w-full block select-none"
+        style={{ maxHeight: '420px' }}
+      >
+        <defs>
+          <marker id="g-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="#6B7290" />
+          </marker>
+        </defs>
+
+        {/* Graph Edges */}
+        {model.edges.map((e, i) => {
+          const a = pos.get(e.from)
+          const b = pos.get(e.to)
+          if (!a || !b || e.from === e.to) return null
+          const both = pairSet.has(`${e.to}>${e.from}`)
+          if (both && e.from > e.to) return null
+          const dx = b.x - a.x
+          const dy = b.y - a.y
+          const len = Math.hypot(dx, dy) || 1
+          const x2 = b.x - (dx / len) * (R + 4)
+          const y2 = b.y - (dy / len) * (R + 4)
+          return (
+            <g key={i}>
+              <line x1={a.x} y1={a.y} x2={x2} y2={y2} stroke="#475569" strokeWidth={1.6} markerEnd={both ? undefined : 'url(#g-arrow)'} />
+              {e.weight && (
+                <text x={(a.x + b.x) / 2} y={(a.y + b.y) / 2 - 4} textAnchor="middle" className="fill-ochre font-mono text-[10px] font-bold">
+                  {e.weight}
+                </text>
+              )}
+            </g>
+          )
+        })}
+
+        {/* Graph Nodes */}
+        {model.nodes.map((id) => {
+          const p = pos.get(id)!
+          const isCur = current.has(id)
+          const isVisited = visited.has(id)
+          const isQueued = queued.has(id)
+
+          return (
+            <g key={id}>
+              {/* Expanding Wave Ring on Current Node */}
+              {isCur && (
+                <motion.circle
+                  cx={p.x}
+                  cy={p.y}
+                  r={R + 7}
+                  fill="none"
+                  stroke="var(--viz-accent, #00f0ff)"
+                  strokeWidth={1.5}
+                  initial={{ scale: 0.9, opacity: 0.8 }}
+                  animate={{ scale: [1, 1.4, 1], opacity: [0.8, 0, 0.8] }}
+                  transition={{ repeat: Infinity, duration: 1.8, ease: 'easeInOut' }}
+                />
+              )}
+
+              {/* Node Body with Glass Depth */}
+              <circle
+                cx={p.x}
+                cy={p.y}
+                r={R}
+                fill={
+                  isCur
+                    ? 'rgba(0,240,255,0.25)'
+                    : isQueued
+                      ? 'rgba(56,189,248,0.2)'
+                      : isVisited
+                        ? 'rgba(16,185,129,0.22)'
+                        : '#131826'
+                }
+                stroke={
+                  isCur
+                    ? 'var(--viz-accent, #00f0ff)'
+                    : isQueued
+                      ? '#38bdf8'
+                      : isVisited
+                        ? 'var(--viz-sorted, #10b981)'
+                        : '#334155'
+                }
+                strokeWidth={isCur || isQueued ? 2.2 : 1.5}
+                filter="drop-shadow(0 4px 8px rgba(0,0,0,0.4))"
+              />
+
+              <text x={p.x} y={p.y + 4.5} textAnchor="middle" className="fill-chalk font-mono text-[12px] font-semibold">
+                {(model.labels.get(id) ?? id).slice(0, 5)}
               </text>
-            )}
-          </g>
-        )
-      })}
-      {model.nodes.map((id) => {
-        const p = pos.get(id)!
-        const isCur = current.has(id)
-        const isVisited = visited.has(id)
-        return (
-          <g key={id}>
-            <circle
-              cx={p.x}
-              cy={p.y}
-              r={R}
-              fill={isCur ? 'rgba(0,240,255,0.3)' : isVisited ? 'rgba(16,185,129,0.3)' : '#0F1220'}
-              stroke={isCur ? '#00F0FF' : queued.has(id) ? '#818CF8' : isVisited ? '#10B981' : '#262B3D'}
-              strokeWidth={isCur || queued.has(id) ? 2 : 1.4}
-            />
-            <text x={p.x} y={p.y + 4} textAnchor="middle" className="fill-chalk font-mono text-[11px]">
-              {(model.labels.get(id) ?? id).slice(0, 5)}
-            </text>
-            {dist.has(id) && (
-              <text x={p.x} y={p.y + R + 12} textAnchor="middle" className="fill-sky font-mono text-[10px]">
-                {dist.get(id)}
-              </text>
-            )}
-          </g>
-        )
-      })}
-    </svg>
+              {dist.has(id) && (
+                <text x={p.x} y={p.y + R + 14} textAnchor="middle" className="fill-sky font-mono text-[10px] font-bold">
+                  {dist.get(id)}
+                </text>
+              )}
+            </g>
+          )
+        })}
+      </svg>
+    </div>
   )
 }
 
@@ -267,19 +360,29 @@ export default function GraphGridVisualizer({ step, prev, steps, config }: Visua
     const rows = asCells(v)
     return !!rows && rows.length > 0 && rows.every((r) => Array.isArray(r) && r.every((x) => !Array.isArray(x) && !isObj(x)))
   }
-  const gridName = pickName(config.grid, [], locals, isGrid) ?? Object.keys(locals).find((n) => isGrid(locals[n].value) && asCells(locals[n].value)!.length > 1 && (asCells(locals[n].value)![0] as unknown[]).length > 1 && !GRAPH_NAMES.includes(n) && !EDGE_NAMES.includes(n))
+  const gridName =
+    pickName(config.grid, [], locals, isGrid) ??
+    Object.keys(locals).find(
+      (n) =>
+        isGrid(locals[n].value) &&
+        asCells(locals[n].value)!.length > 1 &&
+        (asCells(locals[n].value)![0] as unknown[]).length > 1 &&
+        !GRAPH_NAMES.includes(n) &&
+        !EDGE_NAMES.includes(n),
+    )
 
   const owned = new Set<string>()
   let content: ReactNode = null
 
-  // Highlights shared by both views
   const visitedName = pickName(undefined, [...((config.visited as string[] | undefined) ?? []), ...VISITED_NAMES], locals, (v) => collection(v) !== null)
   const visitedKeys = new Set((visitedName ? collection(locals[visitedName].value) ?? [] : []).map(toKey))
   const queueName = Object.keys(locals).find((n) => isDeque(locals[n].value) || (/queue|^q$/i.test(n) && Array.isArray(locals[n].value)))
-  const queuedKeys = new Set((queueName ? collection(locals[queueName].value) ?? [] : []).map((v) => {
-    const t = isTuple(v) ? v.$tuple : Array.isArray(v) ? v : null
-    return t && t.length >= 2 && typeof t[0] === 'number' ? `${t[0]},${t[1]}` : toKey(t ? t[0] : v)
-  }))
+  const queuedKeys = new Set(
+    (queueName ? collection(locals[queueName].value) ?? [] : []).map((v) => {
+      const t = isTuple(v) ? v.$tuple : Array.isArray(v) ? v : null
+      return t && t.length >= 2 && typeof t[0] === 'number' ? `${t[0]},${t[1]}` : toKey(t ? t[0] : v)
+    }),
+  )
 
   if (gridName) {
     owned.add(gridName)
@@ -318,7 +421,6 @@ export default function GraphGridVisualizer({ step, prev, steps, config }: Visua
         current.add(isRef(v) ? String(v.$ref) : toKey(v))
         break
       }
-      // object graphs: highlight the nodes each variable points at
       if (!graphName && !edgeName) {
         Object.entries(locals).forEach(([n, sv]) => {
           if (isRef(sv.value) && heap[String(sv.value.$ref)] && NODE_NAMES.includes(n)) current.add(String(sv.value.$ref))
@@ -333,16 +435,14 @@ export default function GraphGridVisualizer({ step, prev, steps, config }: Visua
         else asCells(v)?.forEach((x, i) => dist.set(String(i), formatValue(x, heap, 1)))
       }
       content = (
-        <div>
-          <div className="mb-1 flex flex-wrap gap-4 text-2xs text-faint">
-            {graphName && <span className="font-mono text-xs text-muted">{graphName}</span>}
-            <span><span className="text-forge">●</span> current</span>
-            <span><span className="text-verdigris">●</span> {visitedName ?? 'visited'}</span>
-            {queueName && <span><span className="text-sky">○</span> in {queueName}</span>}
-            {distName && <span className="text-sky">numbers below nodes: {distName}</span>}
-            {model.groups && <span>left: original graph, right: your copies (′)</span>}
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-wrap items-center gap-4 text-2xs text-muted/80">
+            {graphName && <span className="font-mono text-xs font-semibold text-chalk">{graphName}</span>}
+            <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-forge" /> current</span>
+            <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-verdigris" /> {visitedName ?? 'visited'}</span>
+            {queueName && <span className="flex items-center gap-1.5"><span className="h-2 w-2 rounded-full bg-sky" /> frontier</span>}
           </div>
-          <GraphView model={model} steps={steps} current={current} visited={visitedKeys} queued={queuedKeys} dist={dist} heap={heap} />
+          <GraphView model={model} steps={steps} current={current} visited={visitedKeys} queued={queuedKeys} dist={dist} />
         </div>
       )
     }
@@ -351,13 +451,22 @@ export default function GraphGridVisualizer({ step, prev, steps, config }: Visua
   if (queueName) owned.add(queueName)
   const { models, pointerNames } = buildArrays(locals, prevLocals, { ...config, window: null }, owned, false)
   const queueItems = queueName ? (collection(locals[queueName].value) ?? []) : []
-  const prevQueue = queueName && prevLocals[queueName] ? collection(prevLocals[queueName].value) : null
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-6 w-full max-w-full">
       {content ?? <p className="text-sm text-muted">No grid or graph in scope at this step.</p>}
       {queueName && (
-        <QueueConveyor name={queueName} items={queueItems} change={describeChange(prevQueue, queueItems, heap, true)} heap={heap} />
+        <div className="flex flex-col gap-2">
+          <div className="font-mono text-xs text-muted">BFS Frontier Queue ({queueName}):</div>
+          <div className="flex items-center gap-2 overflow-x-auto p-2.5 rounded-xl border border-line/60 bg-surface-2/60">
+            {queueItems.map((item, i) => (
+              <span key={i} className="rounded-lg border border-sky/40 bg-sky/15 px-2.5 py-1 font-mono text-xs text-sky font-semibold shadow-sm">
+                {formatValue(item, heap, 1)}
+              </span>
+            ))}
+            {queueItems.length === 0 && <span className="font-mono text-xs text-muted/60">Frontier Empty</span>}
+          </div>
+        </div>
       )}
       {models.map((m) => (
         <ArrayRow key={m.name} model={m} heap={heap} />

@@ -362,6 +362,22 @@ twist:
     what's left with this exact solution.
 
 viz:
+  title: Number of Islands (Grid DFS / Sink)
+  complexity:
+    time: O(M·N)
+    space: O(M·N)
   grid: grid
   cell: [r, c]
   watch: [count]
+  line_notes:
+    6: "Bounds check: verify coordinates remain within grid boundaries."
+    8: "Check if current cell is unvisited land ('1')."
+    10: "Sink land: mark cell as water ('0') to prevent revisiting."
+    11: "Recurse into down neighbor (r + 1, c)."
+    12: "Recurse into up neighbor (r - 1, c)."
+    13: "Recurse into right neighbor (r, c + 1)."
+    14: "Recurse into left neighbor (r, c - 1)."
+    19: "Found unvisited island cell ('1')."
+    20: "Increment total island count."
+    21: "Trigger DFS to sink all connected land in this island."
+    22: "Return total number of discovered islands."

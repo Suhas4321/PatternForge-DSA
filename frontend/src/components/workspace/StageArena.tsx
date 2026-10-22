@@ -1,6 +1,10 @@
 import {
+  AlertTriangle,
+  BookOpen,
   Bot,
   Check,
+  ChevronDown,
+  ChevronUp,
   Columns2,
   Copy,
   Database,
@@ -8,20 +12,24 @@ import {
   LayoutGrid,
   Lightbulb,
   Maximize2,
-  Play,
   RotateCcw,
+  Sparkles,
+  Zap,
 } from 'lucide-react'
 import confetti from 'canvas-confetti'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { api } from '../../api/client'
 import type { Progress, QuestionDetail, RunResult, TestCase } from '../../api/types'
+import { precomputeTraceNarration } from '../../lib/narrator/index.ts'
 import { useCoachStatus } from '../../lib/useCoach'
 import { useDraft } from '../../lib/useDraft'
 import CodeEditor from '../CodeEditor'
 import RunResults from '../RunResults'
 import { Button, ErrorNote, Kbd, Markdown } from '../ui'
-import TracePlayer from '../visualizers/TracePlayer'
+import { usePlayback } from '../visualizers/stage/usePlayback'
 import VisualizerHost from '../visualizers/VisualizerHost'
+import { ShimmerButton } from '../vendor/magicui/shimmer-button'
+import { PlayIcon } from '../vendor/lucide-animated'
 import OrbitRing from './OrbitRing'
 import XpRewardToast, { type RewardPayload } from './XpRewardToast'
 
@@ -120,21 +128,57 @@ export default function StageArena({ question, progress, blind, onProgress, onCo
     }
   }
 
+  // Problem Spec collapsible toggle state (default open so user always sees the question)
+  const [isProblemOpen, setIsProblemOpen] = useState(() => {
+    try {
+      const s = localStorage.getItem('pf-arena-problem-open')
+      if (s !== null) return s === 'true'
+    } catch {
+      /* noop */
+    }
+    return true
+  })
+
+  const toggleProblemOpen = useCallback(() => {
+    setIsProblemOpen((prev) => {
+      const next = !prev
+      try {
+        localStorage.setItem('pf-arena-problem-open', String(next))
+      } catch {
+        /* noop */
+      }
+      return next
+    })
+  }, [])
+
+  // Alt+P toggles Problem Statement & Spec
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.altKey && (e.key === 'p' || e.key === 'P')) {
+        e.preventDefault()
+        toggleProblemOpen()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [toggleProblemOpen])
+
   const run = useCallback(
-    async (opts: { traceIndex?: number; custom?: unknown } = {}) => {
+    async (opts: { traceIndex?: number; custom?: unknown; codeOverride?: string } = {}) => {
+      const codeToRun = opts.codeOverride ?? code
       setRunning(true)
       setError(null)
       setPlaying(false)
       try {
         const r = await api.run(question.slug, {
-          code,
+          code: codeToRun,
           target: 'main',
           visualize: true,
           trace_test_index: opts.traceIndex,
           custom_args: opts.custom,
         })
         setResult(r)
-        setTracedCode(code)
+        setTracedCode(codeToRun)
         setResultTests(r.custom ? [{ args: opts.custom, expected: r.results[0]?.expected, note: 'Your custom input' }] : content.tests)
         onProgress(r.progress)
         setStepIndex(0)
@@ -170,6 +214,46 @@ export default function StageArena({ question, progress, blind, onProgress, onCo
     [code, question.slug, question.title, content.tests, onProgress, progress.solved],
   )
 
+  const handleAssembleSolution = useCallback(() => {
+    if (!content.solution?.code) return
+    setCode(content.solution.code)
+    setError(null)
+    run({ codeOverride: content.solution.code })
+  }, [content.solution?.code, run, setCode])
+
+  const drillCount = content.drills?.length ?? 0
+  const hasCompletedDrills = progress.drills_passed.length >= drillCount && drillCount > 0
+  const isStarterCode =
+    code === content.starter_code ||
+    code.trim().endsWith('pass') ||
+    code.trim().endsWith('see')
+  const showAssembleBanner = !blind && hasCompletedDrills && isStarterCode && Boolean(content.solution?.code)
+
+  // Auto-trace on mount if valid code is present, or auto-assemble if user completed drills with blank/starter code
+  const hasMountedRef = useRef(false)
+  useEffect(() => {
+    if (hasMountedRef.current) return
+    hasMountedRef.current = true
+
+    const isStarterOrEmpty =
+      !code ||
+      code === content.starter_code ||
+      code.trim().endsWith('pass')
+
+    if (!blind && hasCompletedDrills && isStarterOrEmpty && content.solution?.code) {
+      setCode(content.solution.code)
+      run({ codeOverride: content.solution.code })
+    } else if (
+      code &&
+      code !== content.starter_code &&
+      !code.trim().endsWith('pass') &&
+      !code.trim().endsWith('see')
+    ) {
+      run({ codeOverride: code })
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   const runCustom = () => {
     let parsed: unknown
     try {
@@ -200,84 +284,68 @@ export default function StageArena({ question, progress, blind, onProgress, onCo
   const firstFailed = result?.results.findIndex((r) => !r.passed) ?? -1
   const errorLine = result?.compile_error?.line ?? (firstFailed >= 0 ? null : null)
 
+  const playback = usePlayback({
+    trace: trace ?? null,
+    index: stepIndex,
+    onIndex: setStepIndex,
+    playing,
+    onPlaying: setPlaying,
+    speed,
+    onSpeed: setSpeed,
+  })
+
+  // Precompute trace-wide semantic narration for O(1) synchronized playback & telemetry
+  const narrations = useMemo(() => {
+    if (!trace?.steps || trace.steps.length === 0) return []
+    return precomputeTraceNarration(trace.steps, trace.line_info, content.viz, question.visualizer)
+  }, [trace, content.viz, question.visualizer])
+
+  const currentNarration = narrations[stepIndex]
+
   // ----------------------------------------------------------------------------------------
-  // Visualizer Section with Pinned Playback Controls
-  // ----------------------------------------------------------------------------------------
-  // ----------------------------------------------------------------------------------------
-  // Visualizer Section with Professional Transport Controls
+  // Visualizer Section with Universal StageShell Architecture
   // ----------------------------------------------------------------------------------------
   const visualizerSection = (
-    <section className="pf-glass-panel flex min-h-[420px] flex-col overflow-hidden rounded-2xl border border-line shadow-2xl">
-      {/* Pinned Playback Header */}
-      <header className="sticky top-0 z-20 flex flex-wrap items-center justify-between border-b border-line bg-panel-2/95 backdrop-blur px-3.5 py-2.5 gap-2">
-        <div className="flex items-center gap-2.5 min-w-0">
-          <div className="flex items-center gap-1.5">
-            <span className="h-2 w-2 rounded-full bg-cyan pf-beacon shrink-0" />
-            <span className="font-plate text-xs font-bold uppercase tracking-wider text-chalk">
-              State & Memory Visualizer
-            </span>
-          </div>
-          {trace && !result?.custom && (
-            <span className="font-mono text-2xs text-muted truncate border border-line/60 bg-panel px-2 py-0.5 rounded-md">
-              Test {trace.test_index + 1} ({steps.length} frames)
-            </span>
-          )}
-          {result?.custom && (
-            <span className="font-mono text-2xs text-cyan border border-cyan/40 bg-cyan/15 px-2 py-0.5 rounded-md">
-              Custom Execution Trace
-            </span>
-          )}
-        </div>
-
-        <div className="flex items-center gap-2 text-2xs text-faint font-mono">
-          <span className="hidden sm:inline">Archetype:</span>
-          <span className="rounded border border-line/50 bg-panel px-1.5 py-0.5 text-muted uppercase">
-            {question.visualizer.replace(/_/g, ' ')}
-          </span>
-        </div>
-      </header>
-
-      {/* Embedded TracePlayer transport bar */}
-      {trace && steps.length > 0 && (
-        <div className="border-b border-line bg-panel/60 p-2 sm:p-2.5">
-          <TracePlayer
-            trace={trace}
-            index={Math.min(stepIndex, steps.length - 1)}
-            onIndex={setStepIndex}
-            playing={playing}
-            onPlaying={setPlaying}
-            speed={speed}
-            onSpeed={setSpeed}
-          />
-        </div>
-      )}
-
-      {/* Internal Scrollable Canvas Container */}
-      <div className="flex-1 overflow-x-auto overflow-y-auto p-4 sm:p-5 max-w-full">
-        <div className="inline-block min-w-full">
-          {step ? (
-            <VisualizerHost
-              kind={question.visualizer}
-              step={step}
-              prev={steps[stepIndex - 1]}
-              steps={steps}
-              index={stepIndex}
-              config={content.viz}
-              code={tracedCode}
-            />
-          ) : (
-            <div className="flex min-h-[280px] flex-col items-center justify-center text-center text-sm text-muted">
-              <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-line bg-panel-2/50 text-cyan mb-3 shadow-md">
-                <Play size={20} className="fill-cyan/20 ml-0.5" />
-              </div>
-              <p className="max-w-md leading-relaxed px-4 text-xs font-mono">
-                Press <strong className="text-chalk font-semibold">Ctrl + Enter</strong> to execute your code and record the step-by-step memory, stack, or database state.
-              </p>
-            </div>
-          )}
-          {trace?.error && !steps.length && <ErrorNote message={`${trace.error.type}: ${trace.error.message}`} />}
-        </div>
-      </div>
+    <section className="flex flex-col w-full min-h-[420px]">
+      <VisualizerHost
+        kind={question.visualizer}
+        title={content.viz?.title || question.title}
+        description={question.world_name ? `${question.world_name} · ${question.patterns.join(', ')}` : undefined}
+        timeComplexity={content.viz?.complexity?.time || content.solution?.time}
+        spaceComplexity={content.viz?.complexity?.space || content.solution?.space}
+        caption={currentNarration?.caption}
+        why={currentNarration?.why}
+        comparisons={currentNarration?.counters.comparisons}
+        swaps={currentNarration?.counters.swaps}
+        writes={currentNarration?.counters.writes}
+        narration={currentNarration}
+        lineInfo={trace?.line_info}
+        step={
+          step || {
+            event: 'line',
+            line: 1,
+            func: 'ready',
+            depth: 0,
+            frames: [],
+            heap: {},
+          }
+        }
+        prev={steps[stepIndex - 1]}
+        steps={steps}
+        index={stepIndex}
+        config={content.viz}
+        code={tracedCode || code}
+        playing={playing}
+        onTogglePlay={playback.togglePlay}
+        onStepForward={playback.stepForward}
+        onStepBackward={playback.stepBackward}
+        onJumpFirst={playback.jumpFirst}
+        onJumpLast={playback.jumpLast}
+        onSeek={setStepIndex}
+        speed={speed}
+        onSpeedChange={setSpeed}
+      />
+      {trace?.error && !steps.length && <ErrorNote message={`${trace.error.type}: ${trace.error.message}`} />}
     </section>
   )
 
@@ -286,6 +354,26 @@ export default function StageArena({ question, progress, blind, onProgress, onCo
   // ----------------------------------------------------------------------------------------
   const editorSection = (
     <section className="flex flex-col gap-3">
+      {/* Assemble from Drills Alert Banner (shown when user passed drills but has starter or incomplete code) */}
+      {showAssembleBanner && (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-emerald/30 bg-emerald/[0.08] px-3.5 py-2.5 text-xs text-chalk shadow-xs">
+          <div className="flex items-center gap-2 min-w-0">
+            <Sparkles size={15} className="text-emerald shrink-0" />
+            <span className="text-2xs sm:text-xs">
+              You forged <strong>{progress.drills_passed.length} of {drillCount} parts</strong> in Stage 2! Load the assembled solution into the editor to trace it immediately.
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={handleAssembleSolution}
+            className="flex items-center gap-1.5 rounded-lg bg-emerald hover:bg-emerald-hi px-3 py-1 font-mono text-2xs font-bold text-void transition-colors shadow-xs shrink-0"
+          >
+            <Zap size={12} className="fill-current text-void" />
+            <span>Assemble & Trace</span>
+          </button>
+        </div>
+      )}
+
       <div
         className={`pf-glass-panel min-h-[380px] h-[440px] overflow-hidden rounded-2xl border border-line shadow-2xl flex flex-col transition-all duration-300 ${
           shakeFailed ? 'animate-shake pulse-red' : ''
@@ -321,6 +409,18 @@ export default function StageArena({ question, progress, blind, onProgress, onCo
 
           {/* Header Action Tools */}
           <div className="flex items-center gap-1.5 shrink-0">
+            {content.solution?.code && (
+              <button
+                type="button"
+                onClick={handleAssembleSolution}
+                className="flex items-center gap-1 px-2.5 py-1 rounded-md text-2xs font-semibold text-emerald bg-emerald/10 hover:bg-emerald/20 transition-colors border border-emerald/30 shadow-xs"
+                title="Assemble canonical solution from drills"
+              >
+                <Sparkles size={12} className="text-emerald" />
+                <span>Assemble Solution</span>
+              </button>
+            )}
+
             <button
               type="button"
               onClick={copyCode}
@@ -376,20 +476,24 @@ export default function StageArena({ question, progress, blind, onProgress, onCo
             traceLine={step && step.event !== 'call' ? step.line : null}
             errorLine={errorLine}
             onRun={() => run()}
+            step={step}
+            prevStep={steps[stepIndex - 1]}
           />
         </div>
 
         {/* Bottom Editor Toolbar with Primary Action & Floating Keyboard Shortcut Badges */}
         <div className="flex flex-wrap items-center justify-between border-t border-line bg-panel-2/90 px-3.5 py-2.5 gap-2">
           <div className="flex items-center gap-2">
-            <Button
+            <ShimmerButton
               onClick={() => run()}
               disabled={running}
-              className="h-8 text-xs px-4 flex items-center gap-2 bg-forge text-void hover:bg-forge/90 font-semibold shadow-[0_0_16px_rgba(110,231,183,0.35)]"
+              background="var(--peak-accent, #6EE7B7)"
+              shimmerColor="#FFFFFF"
+              className="h-8 text-xs px-4 flex items-center gap-2 font-mono font-bold text-void shadow-[0_0_16px_rgba(110,231,183,0.35)]"
             >
-              {running ? <OrbitRing size={13} /> : <Play size={13} className="fill-current" />}
-              <span>{running ? 'Running...' : 'Run & Trace'}</span>
-            </Button>
+              {running ? <OrbitRing size={13} /> : <PlayIcon size={14} className="fill-current text-void" />}
+              <span>{running ? 'Tracing…' : 'Run & Trace'}</span>
+            </ShimmerButton>
 
             {/* Floating Keyboard Shortcut Badges */}
             <span className="hidden sm:inline-flex items-center gap-1.5 text-2xs font-mono text-muted bg-panel px-2.5 py-1 rounded-md border border-line shadow-xs">
@@ -432,6 +536,24 @@ export default function StageArena({ question, progress, blind, onProgress, onCo
   const resultsSection = (
     <section className="card rounded-2xl border border-line p-4">
       {error && <ErrorNote message={error} />}
+      {content.solution?.code && (error || result?.compile_error || (result && !result.passed) || (trace?.error && !steps.length)) && (
+        <div className="mb-3 mt-1 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber/30 bg-amber/10 p-3 text-xs text-amber shadow-xs">
+          <div className="flex items-center gap-2 min-w-0">
+            <AlertTriangle size={15} className="shrink-0 text-amber" />
+            <span className="text-2xs sm:text-xs">
+              Execution encountered an error. Load the verified solution assembled from your Stage 2 drills to fix it immediately.
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={handleAssembleSolution}
+            className="flex items-center gap-1.5 rounded-lg bg-amber/20 hover:bg-amber/30 px-3 py-1 font-mono text-2xs font-bold text-chalk border border-amber/40 transition-colors shrink-0 shadow-xs"
+          >
+            <Sparkles size={12} className="text-amber" />
+            <span>Fix with Assembled Solution</span>
+          </button>
+        </div>
+      )}
       {result ? (
         <>
           <RunResults
@@ -566,14 +688,149 @@ export default function StageArena({ question, progress, blind, onProgress, onCo
         </div>
       </div>
 
+      {/* Problem Statement & Spec Panel */}
+      {content.statement && (
+        <div className="pf-glass-panel rounded-2xl border border-line overflow-hidden transition-all duration-300 shadow-md">
+          <button
+            type="button"
+            onClick={toggleProblemOpen}
+            className="w-full flex items-center justify-between px-4 py-3 bg-panel-2/90 hover:bg-panel transition-colors text-left"
+            aria-expanded={isProblemOpen}
+          >
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-cyan/40 bg-cyan/10 text-cyan shadow-xs">
+                <BookOpen size={16} />
+              </div>
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="font-plate text-sm font-semibold text-chalk">
+                    {question.title}
+                  </span>
+                  <span className="rounded-full border border-line bg-panel px-2 py-0.5 text-2xs font-mono text-muted">
+                    #{question.lc}
+                  </span>
+                  <span className="rounded-full border border-emerald/30 bg-emerald/10 px-2 py-0.5 text-2xs font-semibold text-emerald">
+                    {question.difficulty}
+                  </span>
+                  <span className="rounded-full border border-line bg-panel-2 px-2 py-0.5 font-mono text-2xs text-muted">
+                    Target: {content.solution?.time || 'O(N)'} time · {content.solution?.space || 'O(N)'} space
+                  </span>
+                </div>
+                {!isProblemOpen && (
+                  <p className="text-2xs text-muted truncate mt-0.5">
+                    {content.statement.clean.replace(/\n+/g, ' ')}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 shrink-0 text-xs text-muted ml-3">
+              <span className="hidden sm:inline-flex items-center gap-1 font-mono text-2xs text-faint">
+                <Kbd keys={['Alt', 'P']} /> toggle
+              </span>
+              <span className="flex items-center gap-1 text-xs font-semibold text-cyan hover:text-cyan-hi transition-colors">
+                <span>{isProblemOpen ? 'Hide Problem' : 'View Problem & Examples'}</span>
+                {isProblemOpen ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
+              </span>
+            </div>
+          </button>
+
+          {isProblemOpen && (
+            <div className="border-t border-line bg-void/70 p-4 sm:p-5 flex flex-col gap-4">
+              {/* Problem Description */}
+              <div className="flex flex-col gap-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-2xs font-mono uppercase tracking-wider font-semibold text-faint">
+                    Problem Description
+                  </span>
+                  {content.function?.returns && (
+                    <span className="text-2xs font-mono text-muted">
+                      Returns: <code className="text-cyan font-semibold">{content.function.returns}</code>
+                    </span>
+                  )}
+                </div>
+                <div className="text-xs text-chalk leading-relaxed prose prose-invert max-w-none">
+                  <Markdown>{content.statement.clean}</Markdown>
+                </div>
+              </div>
+
+              {/* Examples Grid */}
+              {content.statement.examples && content.statement.examples.length > 0 && (
+                <div className="flex flex-col gap-2">
+                  <span className="text-2xs font-mono uppercase tracking-wider font-semibold text-faint">
+                    Examples
+                  </span>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {content.statement.examples.slice(0, 3).map((ex, i) => (
+                      <div
+                        key={i}
+                        className="rounded-xl border border-line bg-panel-2/80 p-3 flex flex-col gap-1.5 text-xs shadow-xs"
+                      >
+                        <div className="flex items-center justify-between border-b border-line/60 pb-1">
+                          <span className="font-mono text-2xs font-bold text-cyan">
+                            Example {i + 1}
+                          </span>
+                        </div>
+                        <div className="font-mono text-2xs bg-void/80 rounded-md p-1.5 border border-line">
+                          <span className="text-muted">Input: </span>
+                          <span className="text-chalk">{ex.input}</span>
+                        </div>
+                        <div className="font-mono text-2xs bg-void/80 rounded-md p-1.5 border border-line">
+                          <span className="text-muted">Output: </span>
+                          <span className="text-emerald font-semibold">{ex.output}</span>
+                        </div>
+                        {ex.explanation && (
+                          <p className="text-2xs text-muted italic mt-0.5 leading-normal">
+                            {ex.explanation}
+                          </p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Constraints and Targets Footer */}
+              <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-line/60 text-2xs">
+                {content.statement.constraints && content.statement.constraints.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="font-mono text-faint uppercase tracking-wider">Constraints:</span>
+                    {content.statement.constraints.map((c, i) => (
+                      <span
+                        key={i}
+                        className="rounded-md border border-line bg-panel px-2 py-0.5 font-mono text-muted shadow-2xs"
+                      >
+                        {c}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                <div className="flex items-center gap-3 font-mono text-muted ml-auto">
+                  <div className="flex items-center gap-1">
+                    <span className="text-faint">Optimal:</span>
+                    <span className="text-cyan font-bold">{content.solution?.time || 'O(N)'}</span>
+                    <span className="text-faint">time</span>
+                  </div>
+                  <span>·</span>
+                  <div className="flex items-center gap-1">
+                    <span className="text-cyan font-bold">{content.solution?.space || 'O(N)'}</span>
+                    <span className="text-faint">space</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Render Selected Layout Structure */}
       {effectiveLayout === 'split' ? (
         <>
-          <div className="grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
+          <div className="grid gap-4 xl:grid-cols-[58fr_42fr]">
             {visualizerSection}
             {editorSection}
           </div>
-          <div className="grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
+          <div className="grid gap-4 xl:grid-cols-[58fr_42fr]">
             {resultsSection}
             {hintsSection}
           </div>

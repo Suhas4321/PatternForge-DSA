@@ -315,6 +315,16 @@ twist:
     maximising an area.
 
 viz:
+  title: Container With Most Water
+  complexity:
+    time: "O(n)"
+    space: "O(1)"
   arrays: [height]
   pointers: [l, r]
   watch: [area, best]
+  line_notes:
+    3: "Start with maximum container width between indices 0 and n-1."
+    6: "Water capacity is limited by the shorter line multiplied by the distance."
+    7: "Record maximum area seen across all container widths."
+    9: "The shorter line height[l] is the bottleneck; move l inward to seek a taller wall."
+    12: "The shorter line height[r] is the bottleneck; move r inward to seek a taller wall."

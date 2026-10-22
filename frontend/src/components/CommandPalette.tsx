@@ -105,7 +105,7 @@ export default function CommandPalette() {
       { id: 'finder', group: 'Actions', label: 'Pattern Finder', detail: 'Which pattern is this problem?', icon: <Compass size={16} />, haystack: 'pattern finder which pattern flowchart decide', run: close(() => navigate('/finder')) },
       { id: 'grimoire', group: 'Actions', label: 'Open the Grimoire', detail: 'Revision sheets', icon: <BookMarked size={16} />, haystack: 'grimoire cheat sheet revision notes pitch', run: close(() => openGrimoire()) },
       { id: 'playground', group: 'Actions', label: 'Playground', detail: 'Trace any code', icon: <FlaskConical size={16} />, haystack: 'playground trace visualize code', run: close(() => navigate('/playground')) },
-      { id: 'theme', group: 'Actions', label: 'Switch theme', detail: 'Dark / paper light', icon: <Moon size={16} />, haystack: 'theme dark light mode carbon paper', run: close(() => window.dispatchEvent(new Event('pf-toggle-theme'))) },
+      { id: 'theme', group: 'Actions', label: 'Switch theme', detail: 'Cycle theme (Dark / Light / System)', icon: <Moon size={16} />, haystack: 'theme dark light mode system night expedition alpine morning', run: close(() => window.dispatchEvent(new Event('pf-toggle-theme'))) },
     ]
     const worldItems: Item[] = (worlds ?? []).map((w) => ({
       id: `world-${w.id}`,

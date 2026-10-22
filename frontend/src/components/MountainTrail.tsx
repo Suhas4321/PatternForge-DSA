@@ -303,7 +303,7 @@ function TrailPaths({
   height: number
 }) {
   const [theme] = useTheme()
-  const isPaper = theme === 'paper'
+  const isPaper = theme === 'light'
   if (pts.length <= 1) return null
   const segs = smoothSegments(pts)
   const full = trailPart(pts, segs, 0, pts.length - 1)

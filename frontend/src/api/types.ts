@@ -139,6 +139,10 @@ export interface QuestionContent {
 }
 
 export interface VizConfig {
+  title?: string
+  complexity?: { time?: string; space?: string }
+  line_notes?: Record<number | string, string | { caption?: string; why?: string }>
+  style?: 'bars' | 'cubes' | 'flat'
   arrays?: string[]
   pointers?: string[]
   window?: [string, string] | null
@@ -230,11 +234,17 @@ export interface TraceStep {
   blueprint_state?: any
   title?: string
   description?: string
+  focus?: number[]
 }
 
 export interface Trace {
   test_index: number
   steps: TraceStep[]
+  line_info?: Record<string, {
+    text: string
+    kinds: string[]
+    subscripts: string[]
+  }>
   truncated: boolean
   error: RunError | null
 }

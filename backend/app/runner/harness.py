@@ -9,6 +9,7 @@ Writes its result to a file rather than stdout so that anything the user's code 
 corrupt the result.
 """
 
+import ast
 import bisect
 import collections
 import copy
@@ -451,14 +452,121 @@ class Snapshotter:
         return out
 
 
+class CodeAnalyzer:
+    def __init__(self, code: str):
+        self.code_lines = code.splitlines()
+        self.line_info = {}
+        self.slice_nodes_by_line = {}
+        self._analyze(code)
+
+    def _analyze(self, code: str):
+        if not code:
+            return
+        try:
+            tree = ast.parse(code)
+        except Exception:
+            return
+
+        type_names = {"list", "dict", "tuple", "set", "Optional", "Union", "Any", "Callable"}
+
+        for node in ast.walk(tree):
+            if not hasattr(node, "lineno"):
+                continue
+            line = node.lineno
+            if line not in self.line_info:
+                text = self.code_lines[line - 1].strip() if 0 < line <= len(self.code_lines) else ""
+                self.line_info[line] = {"text": text, "kinds": set(), "subscripts": []}
+                self.slice_nodes_by_line[line] = []
+
+            info = self.line_info[line]
+
+            if isinstance(node, ast.Compare):
+                info["kinds"].add("compare")
+            elif isinstance(node, ast.Return):
+                info["kinds"].add("return")
+            elif isinstance(node, ast.Assign):
+                if len(node.targets) == 1 and isinstance(node.targets[0], ast.Tuple) and isinstance(node.value, ast.Tuple):
+                    if len(node.targets[0].elts) == len(node.value.elts):
+                        info["kinds"].add("swap")
+                if any(isinstance(t, ast.Subscript) for t in node.targets):
+                    info["kinds"].add("write")
+            elif isinstance(node, ast.AugAssign):
+                info["kinds"].add("write")
+            elif isinstance(node, ast.Call):
+                func_name = ""
+                if isinstance(node.func, ast.Name):
+                    func_name = node.func.id
+                elif isinstance(node.func, ast.Attribute):
+                    func_name = node.func.attr
+                if func_name in ("append", "pop", "push", "heappush", "heappop", "enqueue", "dequeue"):
+                    info["kinds"].add(func_name)
+
+            if isinstance(node, ast.Subscript):
+                if isinstance(node.value, ast.Name) and node.value.id in type_names:
+                    continue
+                try:
+                    s_str = ast.unparse(node)
+                except Exception:
+                    s_str = ""
+                if s_str and s_str not in info["subscripts"]:
+                    info["subscripts"].append(s_str)
+                    self.slice_nodes_by_line[line].append(node.slice)
+
+    def resolve_focus(self, line: int, f_locals: dict):
+        slices = self.slice_nodes_by_line.get(line, [])
+        if not slices:
+            return []
+        focus = []
+        for s in slices:
+            val = self._eval_whitelist(s, f_locals)
+            if isinstance(val, int) and 0 <= val < 1000 and val not in focus:
+                focus.append(val)
+        return focus[:6]
+
+    def _eval_whitelist(self, node, f_locals):
+        if isinstance(node, ast.Constant):
+            if isinstance(node.value, int):
+                return node.value
+        elif isinstance(node, ast.Name):
+            val = f_locals.get(node.id)
+            if isinstance(val, int):
+                return val
+        elif isinstance(node, ast.BinOp):
+            l = self._eval_whitelist(node.left, f_locals)
+            r = self._eval_whitelist(node.right, f_locals)
+            if l is not None and r is not None:
+                if isinstance(node.op, ast.Add): return l + r
+                elif isinstance(node.op, ast.Sub): return l - r
+                elif isinstance(node.op, ast.Mult): return l * r
+                elif isinstance(node.op, ast.FloorDiv) and r != 0: return l // r
+                elif isinstance(node.op, ast.Mod) and r != 0: return l % r
+        elif isinstance(node, ast.UnaryOp):
+            op = self._eval_whitelist(node.operand, f_locals)
+            if op is not None:
+                if isinstance(node.op, ast.USub): return -op
+                elif isinstance(node.op, ast.UAdd): return op
+        return None
+
+    def line_info_for_json(self):
+        return {
+            str(line): {
+                "text": data["text"],
+                "kinds": sorted(list(data["kinds"])),
+                "subscripts": data["subscripts"][:10],
+            }
+            for line, data in sorted(self.line_info.items())
+        }
+
+
 class Tracer:
-    def __init__(self, max_steps):
+    def __init__(self, max_steps, code=""):
         self.max_steps = max_steps
         self.steps = []
         self.frames = []  # stack of (frame_obj, frame_id)
         self.next_frame_id = 1
         self.snap = Snapshotter()
         self.truncated = False
+        self.analyzer = CodeAnalyzer(code)
 
     def _record(self, event, frame, extra=None):
         if len(self.steps) >= self.max_steps:
@@ -489,7 +597,11 @@ class Tracer:
 
     def local_trace(self, frame, event, arg):
         if event == "line":
-            self._record("line", frame)
+            extra = {}
+            focus = self.analyzer.resolve_focus(frame.f_lineno, frame.f_locals)
+            if focus:
+                extra["focus"] = focus
+            self._record("line", frame, extra if extra else None)
         elif event == "return":
             heap = {}
             self._record("return", frame, {"return_value": self.snap.value(arg, heap), "return_heap": heap})
@@ -636,8 +748,14 @@ def run(payload):
     if trace_cfg is not None and tests:
         idx = trace_cfg.get("test_index", 0)
         idx = idx if 0 <= idx < len(tests) else 0
-        tracer = Tracer(int(trace_cfg.get("max_steps", 1500)))
-        trace = {"test_index": idx, "steps": tracer.steps, "truncated": False, "error": None}
+        tracer = Tracer(int(trace_cfg.get("max_steps", 1500)), code=payload.get("code", ""))
+        trace = {
+            "test_index": idx,
+            "steps": tracer.steps,
+            "line_info": tracer.analyzer.line_info_for_json(),
+            "truncated": False,
+            "error": None,
+        }
         signal.setitimer(signal.ITIMER_REAL, per_test_timeout * 3)
         try:
             call_once(ns, spec, tests[idx]["args"], tracer)

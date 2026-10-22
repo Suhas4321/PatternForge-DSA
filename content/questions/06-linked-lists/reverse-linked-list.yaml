@@ -315,4 +315,17 @@ twist:
     reconnections: the node before the segment points to `prev` (the segment's new head), and
     the segment's old first node points to `cur` (the first node after the segment).
 
-viz: {}
+viz:
+  title: Reverse Linked List
+  complexity:
+    time: O(N)
+    space: O(1)
+  line_notes:
+    3: "Initialize prev to None (the tail of the reversed list)."
+    4: "Initialize cur to head of input list."
+    5: "Traverse list until all nodes have their pointers reversed."
+    6: "Save next pointer before breaking the link."
+    7: "Rewire cur.next to point backwards to prev."
+    8: "Advance prev pointer forward to current node."
+    9: "Advance cur pointer forward to saved next node."
+    10: "Return prev, which is the new head of the reversed list."

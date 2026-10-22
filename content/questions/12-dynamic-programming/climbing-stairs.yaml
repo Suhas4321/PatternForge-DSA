@@ -342,5 +342,16 @@ twist:
     stairs with 1-, 2- or 3-steps, apart from the base cases.
 
 viz:
+  title: Climbing Stairs (1D DP Table)
+  complexity:
+    time: O(N)
+    space: O(N)
   table: dp
   watch: [i, n]
+  line_notes:
+    4: "Initialize DP table with size n + 1 (all zeros)."
+    5: "Base case: 1 way to stand on step 0 (ground level: do nothing)."
+    6: "Base case: 1 way to reach step 1 (single 1-step)."
+    7: "Iterate from step 2 up to target step n."
+    9: "Recurrence: dp[i] = dp[i - 1] + dp[i - 2] (reach from 1 step or 2 steps below)."
+    10: "Return total distinct ways to reach step n."

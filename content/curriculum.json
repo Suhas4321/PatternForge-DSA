@@ -3,7 +3,7 @@
     {
       "id": "dsa",
       "numeral": "I",
-      "name": "DSA Pattern Forge",
+      "name": "DSA Apex Mastery",
       "short_name": "DSA",
       "accent": "var(--color-cyan)",
       "tagline": "12 Worlds \u00b7 115 Core Patterns",
@@ -476,6 +476,18 @@
           "patterns": [
             "array-scan-from-right",
             "in-place-reverse"
+          ],
+          "world_id": 1
+        },
+        {
+          "slug": "bubble-sort",
+          "lc": 9010,
+          "title": "Bubble Sort",
+          "difficulty": "Easy",
+          "visualizer": "array_pointer",
+          "patterns": [
+            "sorting",
+            "adjacent-swap"
           ],
           "world_id": 1
         }

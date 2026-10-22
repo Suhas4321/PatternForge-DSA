@@ -294,7 +294,17 @@ twist:
     and fail the moment a count goes negative, and the length check changes from == to <=.
 
 viz:
+  title: Valid Anagram Frequency Counter
+  complexity:
+    time: "O(n)"
+    space: "O(1)"
   arrays: [s, t]
   pointers: [i, "j:t"]
   maps: [count]
   watch: [ch]
+  line_notes:
+    3: "Compare string lengths; different lengths can never balance out as anagrams."
+    7: "Tally character frequency in string s into hash table."
+    9: "Check if string t demands more copies of character ch than s provided."
+    11: "Decrement matching character count as consumed by string t."
+    12: "All character frequencies balanced perfectly; strings are valid anagrams."

@@ -1,6 +1,6 @@
 import { CalendarClock, Check, ChevronDown, Compass, Crown, Flame, Lock, Sparkles } from 'lucide-react'
 import { motion, useReducedMotion } from 'motion/react'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { api } from '../api/client'
 import type { ReviewQueue, World } from '../api/types'
@@ -9,7 +9,7 @@ import DailyQuestCard from '../components/DailyQuestCard'
 import PracticeCard from '../components/PracticeCard'
 import Sky from '../components/Sky'
 import WorldPreviewPopover from '../components/WorldPreviewPopover'
-import { BorderBeam, MagicCard, NumberTicker, ShineBorder, useTheme } from '../components/effects'
+import { BorderBeam, MagicCard, NumberTicker, ShineBorder } from '../components/effects'
 import { Button, DifficultyBadge, ErrorNote, LeetCodeLink, ProgressRing, Skeleton, formatRelative } from '../components/ui'
 import { CITADELS, getCitadel, type Citadel } from '../lib/citadels'
 import { currentQuest, isRusting, questUrl, rankFor, worldState, type WorldState } from '../lib/journey'
@@ -92,14 +92,6 @@ export default function Dashboard() {
       className="relative min-h-screen w-full flex flex-col pb-20 bg-void text-chalk"
       style={{ backgroundColor: 'var(--color-void, #090A0F)' }}
     >
-      {/* 3. Fixed Single Galaxy Sky for the entire page */}
-      <div
-        className="fixed inset-0 pointer-events-none z-0"
-        style={{ backgroundColor: 'var(--color-void, #090A0F)' }}
-      >
-        <Sky variant="galaxy" accent={activeCitadel.themeColor} />
-      </div>
-
       {/* Chapter Intro modal: shown the first time a peak is visited */}
       <ChapterIntroModal citadel={activeCitadel} />
 
@@ -148,13 +140,20 @@ export default function Dashboard() {
         <PeakSwitcherRibbon activeCitadel={activeCitadel} allWorlds={worlds} />
       </div>
 
-      {/* 4. Soft gradient transition between top cards and the full-bleed map */}
-      <div className="relative z-10 w-full h-8 bg-gradient-to-b from-transparent via-surface-0/40 to-transparent pointer-events-none" />
+      {/* 5. Full-bleed Constellation Skill Mountain (Always Night Zone) */}
+      <section
+        data-zone="night"
+        className="relative w-full overflow-hidden mt-8 border-t border-line/60 shadow-[inset_0_12px_24px_rgba(0,0,0,0.45)]"
+        style={{ backgroundColor: '#090A0F', color: '#F8FAFC' }}
+      >
+        {/* 5-Layer Cinematic Sky Background */}
+        <Sky peak={activeCitadel.id} accent={activeCitadel.themeColor} />
 
-      {/* 5. Full-bleed Constellation Skill Mountain */}
-      <div className="relative z-10 w-full">
-        <Constellation worlds={displayWorlds} citadel={activeCitadel} />
-      </div>
+        {/* Constellation Stage Canvas */}
+        <div className="relative z-10 w-full">
+          <Constellation worlds={displayWorlds} citadel={activeCitadel} />
+        </div>
+      </section>
 
       {/* 7. Floating Jump to Current Camp Button */}
       <button
@@ -420,28 +419,72 @@ const STATE_COLOR: Record<WorldState, string> = {
 }
 
 function Constellation({ worlds, citadel }: { worlds: World[]; citadel: Citadel }) {
-  const [theme] = useTheme()
-  const isPaper = theme === 'paper'
   const reduceMotion = useReducedMotion()
   const quest = currentQuest(worlds)
   const questWorld = quest?.question.world_id ?? null
-  const byId = new Map(worlds.map((w) => [w.id, w]))
-  const states = new Map(worlds.map((w) => [w.id, worldState(w, worlds, questWorld, citadel.edges)]))
+  const byId = useMemo(() => new Map(worlds.map((w) => [w.id, w])), [worlds])
+  const states = useMemo(
+    () => new Map(worlds.map((w) => [w.id, worldState(w, worlds, questWorld, citadel.edges)])),
+    [worlds, questWorld, citadel.edges],
+  )
 
   const edges = citadel.edges
   // Filter tiers to include only worlds present
-  const tiers = citadel.tiers
-    .map((row) => row.filter((id) => byId.has(id)))
-    .filter((row) => row.length > 0)
+  const rawTiers = useMemo(
+    () =>
+      citadel.tiers
+        .map((row) => row.filter((id) => byId.has(id)))
+        .filter((row) => row.length > 0),
+    [citadel.tiers, byId],
+  )
+
+  // Barycentre heuristic: sort nodes within each tier by the average index of their parents before drawing lines
+  const sortedTiers = useMemo(() => {
+    const parentMap = new Map<number, number[]>()
+    for (const [parent, child] of edges) {
+      if (!parentMap.has(child)) parentMap.set(child, [])
+      parentMap.get(child)!.push(parent)
+    }
+
+    const result: number[][] = []
+    for (let t = 0; t < rawTiers.length; t++) {
+      const rawTier = rawTiers[t]
+      if (t === 0) {
+        result.push([...rawTier])
+        continue
+      }
+      const prevTier = result[t - 1]
+      const prevPos = new Map<number, number>(prevTier.map((id, idx) => [id, idx]))
+
+      const sorted = [...rawTier].sort((a, b) => {
+        const parentsA = (parentMap.get(a) || []).filter((p) => prevPos.has(p))
+        const parentsB = (parentMap.get(b) || []).filter((p) => prevPos.has(p))
+
+        const baryA =
+          parentsA.length > 0
+            ? parentsA.reduce((sum, p) => sum + prevPos.get(p)!, 0) / parentsA.length
+            : rawTier.indexOf(a)
+        const baryB =
+          parentsB.length > 0
+            ? parentsB.reduce((sum, p) => sum + prevPos.get(p)!, 0) / parentsB.length
+            : rawTier.indexOf(b)
+
+        if (baryA !== baryB) return baryA - baryB
+        return rawTier.indexOf(a) - rawTier.indexOf(b)
+      })
+      result.push(sorted)
+    }
+    return result
+  }, [rawTiers, edges])
 
   // Reverse tiers for rendering so tier 0 (Base Camp) is at the bottom, Summit at the top
-  const tiersBottomToTop = tiers
+  const tiersBottomToTop = sortedTiers
     .map((tier, originalIdx) => ({ tier, originalIdx }))
     .reverse()
 
   const mapHeight = tiersBottomToTop.length * 170 + 160
 
-  const { containerRef, register, paths, size } = useConnectors<number>(edges, [worlds, citadel.id])
+  const { containerRef, register, paths, size } = useConnectors<number>(edges, [citadel.id])
   const navigate = useNavigate()
   const [selectedWorld, setSelectedWorld] = useState<World | null>(null)
   const [launching, setLaunching] = useState<number | null>(null)
@@ -460,7 +503,7 @@ function Constellation({ worlds, citadel }: { worlds: World[]; citadel: Citadel 
   }
 
   return (
-    <section className="relative w-full flex flex-col justify-between py-6">
+    <section className="relative w-full flex flex-col justify-between pt-16 pb-12">
       {/* Mountain Header: Aligned to .shell */}
       <div className="shell mx-auto w-full mb-6 flex flex-wrap items-end justify-between gap-4">
         <div>
@@ -473,10 +516,10 @@ function Constellation({ worlds, citadel }: { worlds: World[]; citadel: Citadel 
               Citadel {citadel.numeral} Mountain Ascent
             </span>
           </div>
-          <h2 className="font-plate text-2xl font-semibold text-chalk">{citadel.name}</h2>
-          <p className="text-sm text-muted">{citadel.description}</p>
+          <h2 className="font-plate text-2xl font-bold text-white drop-shadow-sm">{citadel.name}</h2>
+          <p className="text-sm text-slate-300">{citadel.description}</p>
         </div>
-        <div className="flex flex-wrap items-center gap-4 text-[13px] text-muted">
+        <div className="flex flex-wrap items-center gap-4 text-[13px] text-slate-300">
           {(['mastered', 'active', 'open', 'fog'] as WorldState[]).map((st) => (
             <Legend key={st} color={STATE_COLOR[st]} label={STATE_LABEL[st]} />
           ))}
@@ -487,7 +530,7 @@ function Constellation({ worlds, citadel }: { worlds: World[]; citadel: Citadel 
       {/* Full-bleed Constellation Stage Canvas: Height driven by tiers, no inner scroll */}
       <div className="relative w-full" style={{ height: `${mapHeight}px` }}>
         <div ref={containerRef} className="relative w-full h-full flex flex-col justify-around py-3">
-          {/* SVG Connector Paths: lit paths are static glow; unlit paths are crisp and clearly visible in dark mode */}
+          {/* SVG Connector Paths: solid 2px stroke behind node cards with glow & pulse beams */}
           <svg className="pointer-events-none absolute inset-0 z-0" width={size.w} height={size.h} aria-hidden="true">
             {paths.map((p) => {
               const parent = states.get(p.from)
@@ -495,30 +538,56 @@ function Constellation({ worlds, citadel }: { worlds: World[]; citadel: Citadel 
               const childWorld = byId.get(p.to)
               const isLiveEdge = parentWorld?.status !== 'coming_soon' && childWorld?.status !== 'coming_soon'
               const lit = (parent === 'mastered' || parent === 'active') && isLiveEdge
-              const tone = parent === 'mastered' ? 'var(--color-emerald-hi, #10B981)' : 'var(--color-cyan, #38BDF8)'
 
               return (
                 <g key={`${p.from}-${p.to}`}>
-                  {/* Subtle laser halo behind all lines for depth and ambient lighting */}
-                  <path
-                    d={p.d}
-                    fill="none"
-                    stroke={lit ? tone : isPaper ? 'rgba(14, 116, 144, 0.18)' : 'rgba(56, 189, 248, 0.22)'}
-                    strokeOpacity={lit ? 0.45 : 0.3}
-                    strokeWidth={lit ? 7 : 5}
-                    strokeLinecap="round"
-                  />
-                  {/* Core connector line: glowing solid for lit edges; crisp, high-contrast dashed for unlit edges */}
-                  <path
-                    d={p.d}
-                    fill="none"
-                    stroke={lit ? tone : isPaper ? 'rgba(68, 64, 60, 0.65)' : 'rgba(148, 163, 184, 0.75)'}
-                    strokeOpacity={lit ? 1 : isLiveEdge ? 0.95 : 0.5}
-                    strokeWidth={lit ? 3 : 2.2}
-                    strokeDasharray={lit ? undefined : isLiveEdge ? '6 5' : '4 4'}
-                    strokeLinecap="round"
-                    style={lit ? { filter: `drop-shadow(0 0 8px ${tone})` } : undefined}
-                  />
+                  {lit ? (
+                    <>
+                      {/* Depth ambient glow halo */}
+                      <path
+                        d={p.d}
+                        fill="none"
+                        stroke={citadel.themeColor}
+                        strokeOpacity={0.22}
+                        strokeWidth={4.5}
+                        strokeLinecap="round"
+                      />
+                      {/* Core solid line with soft 4px glow filter */}
+                      <path
+                        d={p.d}
+                        fill="none"
+                        stroke={citadel.themeColor}
+                        strokeOpacity={0.9}
+                        strokeWidth={2}
+                        strokeLinecap="round"
+                        style={{ filter: `drop-shadow(0 0 4px ${citadel.themeColor})` }}
+                      />
+                      {/* Moving pulse beam */}
+                      {!reduceMotion && (
+                        <path
+                          d={p.d}
+                          fill="none"
+                          stroke={citadel.themeColor}
+                          strokeOpacity={0.95}
+                          strokeWidth={2.5}
+                          strokeLinecap="round"
+                          strokeDasharray="16 140"
+                          className="animate-pulse-beam"
+                        />
+                      )}
+                    </>
+                  ) : (
+                    /* Locked connector: solid 2px stroke, var(--color-text-2) at 55%, no dash */
+                    <path
+                      d={p.d}
+                      fill="none"
+                      stroke="var(--color-text-2, #94A3B8)"
+                      strokeOpacity={0.55}
+                      strokeWidth={2}
+                      strokeLinecap="round"
+                    />
+                  )}
+
                   {launching === p.to && !reduceMotion && (
                     <motion.path
                       d={p.d}
@@ -541,12 +610,12 @@ function Constellation({ worlds, citadel }: { worlds: World[]; citadel: Citadel 
           <ol className="relative z-10 flex flex-col justify-around h-full py-2 w-full">
             {tiersBottomToTop.map(({ tier, originalIdx }) => (
               <li key={originalIdx} className="relative py-2 w-full">
-                {/* Altitude Elevation Line & Label at left edge with 24px padding (pl-6) */}
+                {/* Altitude Elevation Line & Label styled like a topo map */}
                 <div className="pointer-events-none absolute inset-x-0 top-1/2 -translate-y-1/2 flex items-center gap-3 z-0 pl-6 pr-6">
-                  <span className="font-mono text-2xs text-muted font-medium tracking-wider select-none shrink-0">
-                    {getTierAltitude(originalIdx, tiers.length)}
+                  <span className="font-mono text-[13px] uppercase tracking-wider text-slate-400 font-medium select-none shrink-0">
+                    {getTierAltitude(originalIdx, sortedTiers.length)}
                   </span>
-                  <div className="h-px flex-1 border-t border-dashed border-line-strong/50" />
+                  <div className="h-px flex-1 border-t border-dotted border-[rgba(255,255,255,0.14)]" />
                 </div>
 
                 {/* World Nodes in Tier: Spread across the full viewport width */}
@@ -555,6 +624,7 @@ function Constellation({ worlds, citadel }: { worlds: World[]; citadel: Citadel 
                     <WorldNode
                       key={id}
                       world={byId.get(id)!}
+                      citadel={citadel}
                       state={states.get(id) ?? 'fog'}
                       hasQuest={questWorld === id}
                       final={id === Math.max(...citadel.worldIds)}
@@ -592,15 +662,9 @@ function Legend({ color, label }: { color: string; label: string }) {
   )
 }
 
-const NODE_FRAME: Record<WorldState, { box: string; bg: string }> = {
-  mastered: { box: 'border-emerald/70 hover:border-emerald', bg: 'var(--color-panel-2)' },
-  active: { box: 'border-cyan', bg: 'var(--color-panel-2)' },
-  open: { box: 'border-line hover:border-cyan/70 shadow-sm', bg: 'var(--color-panel)' },
-  fog: { box: 'border-line/70 hover:border-line shadow-sm', bg: 'var(--color-panel)' },
-}
-
 function WorldNode({
   world: w,
+  citadel,
   state,
   hasQuest,
   final,
@@ -609,6 +673,7 @@ function WorldNode({
   nodeRef,
 }: {
   world: World
+  citadel: Citadel
   state: WorldState
   hasQuest: boolean
   final: boolean
@@ -621,9 +686,11 @@ function WorldNode({
   const rusting = !isComingSoon && isRusting(w)
   const rustColor = w.rust === 'rusted' ? 'var(--color-crimson)' : 'var(--color-amber)'
   const color = isComingSoon ? 'var(--color-faint)' : STATE_COLOR[state]
-  const frame = isComingSoon
-    ? { box: 'border-dashed border-line-strong hover:border-line', bg: 'var(--color-panel)' }
-    : NODE_FRAME[state]
+
+  // 1px hairline border: unlocked = peak accent @ 35%, locked = border-subtle (rgba(255,255,255,0.10))
+  const borderColor = isLocked || isComingSoon
+    ? 'rgba(255, 255, 255, 0.10)'
+    : `color-mix(in srgb, ${citadel.themeColor} 35%, transparent)`
 
   return (
     <div
@@ -645,11 +712,10 @@ function WorldNode({
       } ${launching ? 'scale-[1.04] ring-2 ring-cyan' : ''}`}
     >
       <MagicCard
-        className={`relative flex items-center gap-3 rounded-2xl border p-3 transition-colors ${frame.box} ${
-          final && state !== 'mastered' && !isComingSoon ? 'border-amber/70' : ''
-        }`}
+        className="relative flex items-center gap-3 rounded-2xl p-3 transition-colors backdrop-blur-md"
         style={{
-          backgroundColor: frame.bg,
+          backgroundColor: 'rgba(15, 18, 32, 0.82)',
+          border: `1px solid ${borderColor}`,
           ...(rusting ? { boxShadow: `0 0 24px -4px ${rustColor}` } : {}),
         }}
         spotlight={isComingSoon ? 'transparent' : state === 'active' ? 'rgba(34, 211, 238, 0.16)' : 'rgba(129, 140, 248, 0.12)'}
@@ -678,23 +744,23 @@ function WorldNode({
         ) : state === 'fog' ? (
           /* State 4: Locked (readable) */
           <span className="relative shrink-0">
-            <ProgressRing value={0} total={1} size={44} stroke={4} color="var(--color-line-strong)">
-              <span className="font-plate text-xs font-semibold text-muted">{w.id}</span>
+            <ProgressRing value={0} total={1} size={44} stroke={4} color="rgba(255, 255, 255, 0.14)">
+              <span className="font-plate text-xs font-semibold text-slate-400">{w.id}</span>
             </ProgressRing>
           </span>
         ) : (
           /* State 3 & 5: Active or Next up progress ring */
           <span className="relative shrink-0">
             <ProgressRing value={w.solved} total={w.total || 1} size={44} stroke={4} color={color}>
-              <span className="font-plate text-xs font-semibold text-chalk">{w.id}</span>
+              <span className="font-plate text-xs font-semibold text-slate-100">{w.id}</span>
             </ProgressRing>
           </span>
         )}
 
         <div className="relative min-w-0 flex-1">
           {/* Header row: World number + status badge */}
-          <div className="flex items-center justify-between gap-1 text-2xs text-muted mb-0.5">
-            <span className="font-mono text-2xs uppercase tracking-wider font-semibold text-faint flex items-center gap-1">
+          <div className="flex items-center justify-between gap-1 text-2xs text-slate-400 mb-0.5">
+            <span className="font-mono text-2xs uppercase tracking-wider font-semibold text-slate-400 flex items-center gap-1">
               {final ? 'Citadel Boss' : `World ${w.id}`}
               {hasQuest && !isComingSoon && (
                 <span title="Current Quest Target">
@@ -704,23 +770,23 @@ function WorldNode({
             </span>
 
             {isComingSoon ? (
-              <span className="inline-flex items-center rounded-full border border-dashed border-line bg-panel-2 px-1.5 py-px text-caption text-faint">
+              <span className="inline-flex items-center rounded-full border border-white/10 bg-white/[0.05] px-1.5 py-px text-caption text-slate-400">
                 Coming soon
               </span>
             ) : isLocked ? (
-              <span className="inline-flex items-center gap-0.5 rounded-full border border-line bg-panel px-1.5 py-px text-caption text-muted">
+              <span className="inline-flex items-center gap-0.5 rounded-full border border-white/10 bg-white/[0.08] px-1.5 py-px text-caption font-medium text-slate-300">
                 <Lock size={9} /> Locked
               </span>
             ) : state === 'mastered' ? (
-              <span className="inline-flex items-center gap-0.5 rounded-full px-1.5 py-px text-caption font-semibold text-emerald bg-emerald/10">
+              <span className="inline-flex items-center gap-0.5 rounded-full px-1.5 py-px text-caption font-semibold text-emerald bg-emerald/15 border border-emerald/30">
                 Mastered
               </span>
             ) : state === 'active' ? (
-              <span className="inline-flex items-center rounded-full px-1.5 py-px text-caption font-semibold text-cyan bg-cyan/15">
+              <span className="inline-flex items-center rounded-full px-1.5 py-px text-caption font-semibold text-cyan bg-cyan/15 border border-cyan/30">
                 In progress
               </span>
             ) : (
-              <span className="inline-flex items-center gap-1 rounded-full px-1.5 py-px text-caption font-medium text-sky bg-sky/10">
+              <span className="inline-flex items-center gap-1 rounded-full px-1.5 py-px text-caption font-medium text-sky bg-sky/15 border border-sky/30">
                 <span className="h-1.5 w-1.5 rounded-full bg-sky" />
                 Next up
               </span>
@@ -728,17 +794,17 @@ function WorldNode({
           </div>
 
           {/* Title: 2 lines */}
-          <div className="line-clamp-2 font-plate text-xs leading-snug font-semibold text-chalk break-words">
+          <div className="line-clamp-2 font-plate text-xs leading-snug font-semibold text-slate-100 break-words">
             {w.name.replace(/ — .*/, '')}
           </div>
 
           {/* Solved stats & rust */}
-          <div className="mt-1 flex items-center justify-between gap-1 text-2xs text-muted">
+          <div className="mt-1 flex items-center justify-between gap-1 text-2xs text-slate-400">
             {isComingSoon ? (
-              <span className="text-faint text-caption">In development</span>
+              <span className="text-slate-500 text-caption">In development</span>
             ) : (
               <>
-                <span className="font-mono text-caption">
+                <span className="font-mono text-caption text-slate-400">
                   {w.solved}/{w.total} solved
                 </span>
                 {rusting && (
