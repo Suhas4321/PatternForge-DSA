@@ -1,9 +1,10 @@
-// Bundle Monaco locally (no CDN) so the editor works offline. Only Python and Java syntax are
+// Bundle Monaco locally (no CDN) so the editor works offline. Only Python, SQL, and Java syntax are
 // registered to keep the bundle small.
 import { loader } from '@monaco-editor/react'
 import * as monaco from 'monaco-editor/editor/editor.api'
 import EditorWorker from 'monaco-editor/editor/editor.worker?worker'
 import 'monaco-editor/languages/definitions/python/register'
+import 'monaco-editor/languages/definitions/sql/register'
 import 'monaco-editor/languages/definitions/java/register'
 
 self.MonacoEnvironment = {

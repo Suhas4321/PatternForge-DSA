@@ -7,6 +7,7 @@ dir). It is NOT a security sandbox: it's meant for running your own code on your
 import json
 import os
 import resource
+import signal
 import subprocess
 import sys
 import tempfile
@@ -40,12 +41,24 @@ def _limits(memory_mb: int, cpu_seconds: int):
             _set_rlimit(resource.RLIMIT_CPU, (cpu_seconds, cpu_seconds + 1))
         if hasattr(resource, "RLIMIT_FSIZE"):
             _set_rlimit(resource.RLIMIT_FSIZE, (50 * 1024 * 1024,) * 2)
+        if hasattr(resource, "RLIMIT_NOFILE"):
+            _set_rlimit(resource.RLIMIT_NOFILE, (64, 64))
         try:
             os.setsid()
         except OSError:
             pass
 
     return apply
+
+
+def _kill_process_group(proc: subprocess.Popen) -> None:
+    try:
+        os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+    except (ProcessLookupError, PermissionError, OSError):
+        try:
+            proc.kill()
+        except OSError:
+            pass
 
 
 def run_python(
@@ -72,25 +85,35 @@ def run_python(
         payload_path = Path(tmp) / "payload.json"
         result_path = Path(tmp) / "result.json"
         payload_path.write_text(json.dumps(payload))
+        proc: subprocess.Popen | None = None
         try:
-            proc = subprocess.run(
+            proc = subprocess.Popen(
                 [sys.executable, "-I", str(HARNESS), str(payload_path), str(result_path)],
                 cwd=tmp,
                 env={"PATH": "/usr/bin:/bin", "PYTHONHASHSEED": "0", "PYTHONIOENCODING": "utf-8"},
-                capture_output=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
                 text=True,
-                timeout=wall_timeout,
                 preexec_fn=_limits(settings.run_memory_mb, int(wall_timeout) + 1),
             )
+            _, stderr_text = proc.communicate(timeout=wall_timeout)
         except subprocess.TimeoutExpired:
+            if proc is not None:
+                _kill_process_group(proc)
+                proc.wait(timeout=1.0)
             return _fatal(tests, "TimeLimitExceeded", "Your code took too long to run.")
         except subprocess.SubprocessError as exc:
+            if proc is not None:
+                _kill_process_group(proc)
             return _fatal(tests, "RunnerError", f"Failed to start code runner: {exc}")
+        finally:
+            if proc is not None and proc.poll() is None:
+                _kill_process_group(proc)
 
         if not result_path.exists():
-            stderr = (proc.stderr or "").strip().splitlines()
-            if proc.returncode < 0 or "MemoryError" in (proc.stderr or ""):
-                return _fatal(tests, "MemoryLimitExceeded" if "MemoryError" in (proc.stderr or "")
+            stderr = (stderr_text or "").strip().splitlines()
+            if proc.returncode < 0 or "MemoryError" in (stderr_text or ""):
+                return _fatal(tests, "MemoryLimitExceeded" if "MemoryError" in (stderr_text or "")
                               else "Crashed", stderr[-1] if stderr else f"signal {-proc.returncode}")
             detail = stderr[-1] if stderr else f"exit {proc.returncode}"
             return _fatal(tests, "RunnerError", f"Code runner failed ({detail})")

@@ -5,7 +5,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
-from sqlalchemy import func, select
+from sqlalchemy import func, inspect, select, text
 
 from app.config import PROJECT_DIR, settings
 from app.db import Base, SessionLocal, engine
@@ -24,12 +24,11 @@ def startup() -> None:
     Base.metadata.create_all(engine)
     try:
         with engine.connect() as conn:
-            cursor = conn.exec_driver_sql("PRAGMA table_info(progress)")
-            cols = {row[1] for row in cursor.fetchall()}
+            cols = {col["name"] for col in inspect(conn).get_columns("progress")}
             if "first_try_pass" not in cols:
-                conn.exec_driver_sql("ALTER TABLE progress ADD COLUMN first_try_pass BOOLEAN")
+                conn.execute(text("ALTER TABLE progress ADD COLUMN first_try_pass BOOLEAN"))
             if "time_spent_seconds" not in cols:
-                conn.exec_driver_sql("ALTER TABLE progress ADD COLUMN time_spent_seconds INTEGER")
+                conn.execute(text("ALTER TABLE progress ADD COLUMN time_spent_seconds INTEGER"))
             conn.commit()
     except Exception as e:
         log.warning("Column migration check: %s", e)

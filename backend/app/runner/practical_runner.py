@@ -1,19 +1,78 @@
 """Practical Python Runner for Citadels II, IV, V, and VI.
 
 Executes real Python code involving Pandas DataFrames, XML DOM trees, JSON parsing,
-asyncio coroutines, multithreading locks, and custom OOP classes.
-Serializes complex data structures into frontend-consumable JSON visualizer traces.
+asyncio coroutines, multithreading locks, and custom OOP classes inside an isolated
+subprocess with resource limits and AST security validation.
 """
 
 from __future__ import annotations
 
+import ast
 import asyncio
 import io
 import json
+import os
+import resource
+import signal
+import subprocess
 import sys
+import tempfile
 import time
 import traceback
+from pathlib import Path
 from typing import Any
+
+PRACTICAL_FORBIDDEN_MODULES = frozenset({
+    "subprocess", "socket", "shutil", "ctypes", "pty", "fcntl",
+    "urllib", "http", "webbrowser", "ftplib", "telnetlib", "resource",
+})
+
+PRACTICAL_FORBIDDEN_BUILTINS = frozenset({
+    "open", "eval", "exec", "compile", "input", "breakpoint",
+})
+
+PRACTICAL_FORBIDDEN_DUNDERS = frozenset({
+    "__subclasses__", "__globals__", "__builtins__", "__code__", "__closure__",
+})
+
+
+def _validate_practical_ast(code: str) -> dict[str, Any] | None:
+    try:
+        tree = ast.parse(code, "<user_code>")
+    except SyntaxError:
+        return None
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                root = alias.name.split(".")[0]
+                if root in PRACTICAL_FORBIDDEN_MODULES:
+                    return {
+                        "type": "SecurityError",
+                        "message": f"Import of module '{root}' is not allowed in the sandbox",
+                        "line": getattr(node, "lineno", 1),
+                    }
+        elif isinstance(node, ast.ImportFrom):
+            root = (node.module or "").split(".")[0]
+            if root in PRACTICAL_FORBIDDEN_MODULES:
+                return {
+                    "type": "SecurityError",
+                    "message": f"Import from module '{root}' is not allowed in the sandbox",
+                    "line": getattr(node, "lineno", 1),
+                }
+        elif isinstance(node, ast.Attribute) and node.attr in PRACTICAL_FORBIDDEN_DUNDERS:
+            return {
+                "type": "SecurityError",
+                "message": f"Access to restricted attribute '{node.attr}' is not allowed",
+                "line": getattr(node, "lineno", 1),
+            }
+        elif isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
+            if node.func.id in PRACTICAL_FORBIDDEN_BUILTINS:
+                return {
+                    "type": "SecurityError",
+                    "message": f"Call to restricted builtin '{node.func.id}()' is not allowed",
+                    "line": getattr(node, "lineno", 1),
+                }
+    return None
 
 
 def _serialize_practical_val(val: Any) -> Any:
@@ -84,12 +143,21 @@ def _compare_practical(actual: Any, expected: Any) -> bool:
     return actual == expected
 
 
-def run_practical(
+def _run_practical_worker(
     code: str,
     function: dict[str, Any],
     tests: list[dict[str, Any]],
     trace_test_index: int | None = None,
 ) -> dict[str, Any]:
+    ast_err = _validate_practical_ast(code)
+    if ast_err is not None:
+        return {
+            "compile_error": ast_err,
+            "fatal_error": None,
+            "results": [],
+            "trace": None,
+        }
+
     func_name = function.get("name", "solve")
     results = []
     compile_error = None
@@ -262,3 +330,131 @@ def run_practical(
         "results": results,
         "trace": trace,
     }
+
+
+def _practical_limits(memory_mb: int, cpu_seconds: int):
+    def apply():
+        # Note: pandas/numpy load shared libraries, so give generous virtual address headroom (2GB)
+        mem = max(memory_mb, 2048) * 1024 * 1024
+        if sys.platform != "darwin" and hasattr(resource, "RLIMIT_AS"):
+            try:
+                resource.setrlimit(resource.RLIMIT_AS, (mem, mem))
+            except (ValueError, OSError):
+                pass
+        if hasattr(resource, "RLIMIT_CPU"):
+            try:
+                resource.setrlimit(resource.RLIMIT_CPU, (cpu_seconds, cpu_seconds + 1))
+            except (ValueError, OSError):
+                pass
+        try:
+            os.setsid()
+        except OSError:
+            pass
+
+    return apply
+
+
+def _kill_proc_group(proc: subprocess.Popen) -> None:
+    try:
+        os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+    except (ProcessLookupError, PermissionError, OSError):
+        try:
+            proc.kill()
+        except OSError:
+            pass
+
+
+def run_practical(
+    code: str,
+    function: dict[str, Any],
+    tests: list[dict[str, Any]],
+    trace_test_index: int | None = None,
+    timeout_seconds: float = 6.0,
+) -> dict[str, Any]:
+    ast_err = _validate_practical_ast(code)
+    if ast_err is not None:
+        return {
+            "compile_error": ast_err,
+            "fatal_error": None,
+            "results": [],
+            "trace": None,
+        }
+
+    payload = {
+        "code": code,
+        "function": function,
+        "tests": tests,
+        "trace_test_index": trace_test_index,
+    }
+
+    with tempfile.TemporaryDirectory(prefix="pf-prac-") as tmp:
+        payload_path = Path(tmp) / "payload.json"
+        result_path = Path(tmp) / "result.json"
+        payload_path.write_text(json.dumps(payload))
+        proc: subprocess.Popen | None = None
+        try:
+            proc = subprocess.Popen(
+                [sys.executable, str(Path(__file__).resolve()), str(payload_path), str(result_path)],
+                cwd=tmp,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                preexec_fn=_practical_limits(2048, int(timeout_seconds) + 2),
+            )
+            _, stderr_text = proc.communicate(timeout=timeout_seconds)
+        except subprocess.TimeoutExpired:
+            if proc is not None:
+                _kill_proc_group(proc)
+                proc.wait(timeout=1.0)
+            return {
+                "compile_error": None,
+                "fatal_error": {"type": "TimeLimitExceeded", "message": "Practical execution timed out.", "line": None},
+                "results": [
+                    {
+                        "index": i,
+                        "passed": False,
+                        "expected": t.get("expected"),
+                        "actual": None,
+                        "error": {"type": "TimeLimitExceeded", "message": "Execution timed out.", "line": None},
+                        "stdout": "",
+                        "runtime_ms": 0,
+                    }
+                    for i, t in enumerate(tests)
+                ],
+                "trace": None,
+            }
+        except subprocess.SubprocessError as exc:
+            if proc is not None:
+                _kill_proc_group(proc)
+            return {
+                "compile_error": None,
+                "fatal_error": {"type": "RunnerError", "message": str(exc), "line": None},
+                "results": [],
+                "trace": None,
+            }
+        finally:
+            if proc is not None and proc.poll() is None:
+                _kill_proc_group(proc)
+
+        if not result_path.exists():
+            detail = (stderr_text or "").strip().splitlines()
+            msg = detail[-1] if detail else "Practical worker exited unexpectedly"
+            return {
+                "compile_error": None,
+                "fatal_error": {"type": "RunnerError", "message": msg, "line": None},
+                "results": [],
+                "trace": None,
+            }
+        return json.loads(result_path.read_text())
+
+
+if __name__ == "__main__":
+    p_in, p_out = sys.argv[1], sys.argv[2]
+    req = json.loads(Path(p_in).read_text())
+    out = _run_practical_worker(
+        code=req["code"],
+        function=req["function"],
+        tests=req["tests"],
+        trace_test_index=req.get("trace_test_index"),
+    )
+    Path(p_out).write_text(json.dumps(out))

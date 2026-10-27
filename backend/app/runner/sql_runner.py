@@ -66,13 +66,28 @@ def run_sql(
     fatal_error = None
     trace = None
 
-    # Step 1: Pre-validate user SQL syntax
+    # Step 1: Pre-validate user SQL syntax and register security authorizer
     test_conn = sqlite3.connect(":memory:")
+
+    def _sql_authorizer(action, arg1, _arg2, _dbname, _source):
+        # Block file attachment and dangerous pragma mutations
+        if action in (sqlite3.SQLITE_ATTACH, sqlite3.SQLITE_DETACH):
+            return sqlite3.SQLITE_DENY
+        if action == sqlite3.SQLITE_PRAGMA and arg1 and arg1.lower() not in (
+            "table_info",
+            "index_list",
+            "index_info",
+            "foreign_key_list",
+        ):
+            return sqlite3.SQLITE_DENY
+        return sqlite3.SQLITE_OK
+
     try:
         if schema_sql:
             test_conn.executescript(schema_sql)
         if seed_sql:
             test_conn.executescript(seed_sql)
+        test_conn.set_authorizer(_sql_authorizer)
     except Exception as exc:
         fatal_error = {"type": "SchemaError", "message": f"Failed to seed database schema: {exc}", "line": 1}
         return {

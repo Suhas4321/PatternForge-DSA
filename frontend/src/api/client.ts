@@ -1,4 +1,4 @@
-import type { ActivityEvent, CheatSheet, CoachReply, CoachStatus, Pitch, Progress, QuestionDetail, ReviewQueue, RunResult, StatsResponse, World } from './types'
+import type { ActivityEvent, CheatSheet, CoachReply, CoachStatus, Pitch, Progress, QuestionDetail, ReviewQueue, RunResult, StatsResponse, Trace, World } from './types'
 
 export class ApiError extends Error {
   status: number
@@ -37,6 +37,8 @@ export const api = {
   worlds: () => request<World[]>('/api/worlds'),
   review: () => request<ReviewQueue>('/api/review'),
   question: (slug: string) => request<QuestionDetail>(`/api/questions/${slug}`),
+  demoTrace: (slug: string) =>
+    request<{ slug: string; test_index: number; trace: Trace | null }>(`/api/questions/${slug}/demo-trace`),
   run: (
     slug: string,
     body: { code: string; target: string; visualize?: boolean; trace_test_index?: number; custom_args?: unknown },

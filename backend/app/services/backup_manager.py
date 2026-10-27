@@ -50,14 +50,23 @@ def _dict_to_row(model, data: dict):
     return model(**kwargs)
 
 
+MAX_BACKUP_SUBMISSIONS = 500
+
+
 def export_user_data(session: Session) -> dict:
+    tables_out: dict[str, list[dict]] = {}
+    for name, model in USER_TABLES.items():
+        if name == "submissions":
+            # Keep the most recent submissions plus at least all passing submissions up to MAX_BACKUP_SUBMISSIONS
+            stmt = select(Submission).order_by(Submission.id.desc()).limit(MAX_BACKUP_SUBMISSIONS)
+            rows = list(reversed(session.scalars(stmt).all()))
+            tables_out[name] = [_row_to_dict(r) for r in rows]
+        else:
+            tables_out[name] = [_row_to_dict(r) for r in session.scalars(select(model))]
     return {
         "format_version": FORMAT_VERSION,
         "exported_at": utcnow().isoformat(),
-        "tables": {
-            name: [_row_to_dict(r) for r in session.scalars(select(model))]
-            for name, model in USER_TABLES.items()
-        },
+        "tables": tables_out,
     }
 
 

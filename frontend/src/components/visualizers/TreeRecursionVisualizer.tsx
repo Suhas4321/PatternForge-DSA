@@ -54,8 +54,16 @@ function layoutTrees(steps: TraceStep[]) {
 /**
  * Responsive Scaled Tree with concentric entering/returning pulse rings.
  */
-function DataTree({ step, frameNodes }: { step: TraceStep; frameNodes: Map<string, string[]> }) {
-  const layout = useMemo(() => layoutTrees([step]), [step])
+function DataTree({
+  step,
+  steps,
+  frameNodes,
+}: {
+  step: TraceStep
+  steps: TraceStep[]
+  frameNodes: Map<string, string[]>
+}) {
+  const layout = useMemo(() => layoutTrees(steps.length ? steps : [step]), [steps, step])
   const heap = step.heap
   const ids = Object.keys(heap).filter((id) => isTreeNode(heap[id]) && layout.has(id))
   if (!ids.length) return null
@@ -400,7 +408,7 @@ export default function TreeRecursionVisualizer({
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-6 items-start">
         <div className="flex flex-col gap-5 w-full overflow-hidden">
-          {hasTree && <DataTree step={step} frameNodes={frameNodes} />}
+          {hasTree && <DataTree step={step} steps={steps} frameNodes={frameNodes} />}
           {heapNames.map((n) => (
             <HeapTree key={n} name={n} items={locals[n].value as TraceValue[]} heap={heap} />
           ))}

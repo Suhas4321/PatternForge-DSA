@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Link } from 'react-router-dom'
 import { api } from '../api/client'
-import type { CheatSheet } from '../api/types'
+import type { CheatSheet, World } from '../api/types'
 import { Button, ConfidenceStars, DifficultyBadge, ErrorNote, LeetCodeLink, Markdown, Spinner } from './ui'
 
 const WORLD_NAMES = [
@@ -37,8 +37,14 @@ interface Props {
 
 export default function WorldCheatSheet({ worldId, onWorldChange, onClose }: Props) {
   const [sheet, setSheet] = useState<CheatSheet | null>(null)
+  const [worlds, setWorlds] = useState<World[]>([])
   const [error, setError] = useState<string | null>(null)
   const open = worldId !== null
+
+  useEffect(() => {
+    if (!open) return
+    api.worlds().then(setWorlds).catch(() => {})
+  }, [open])
 
   useEffect(() => {
     if (worldId === null) return
@@ -84,14 +90,20 @@ export default function WorldCheatSheet({ worldId, onWorldChange, onClose }: Pro
               <select
                 value={worldId ?? 1}
                 onChange={(e) => onWorldChange(Number(e.target.value))}
-                className="ml-2 rounded-lg border border-chalk/[0.12] bg-chalk/[0.04] px-2 py-1 text-sm text-chalk"
+                className="ml-2 max-w-[16rem] truncate rounded-lg border border-chalk/[0.12] bg-chalk/[0.04] px-2 py-1 text-sm text-chalk"
                 aria-label="World"
               >
-                {WORLD_NAMES.map((n, i) => (
-                  <option key={n} value={i + 1}>
-                    {i + 1}. {n}
-                  </option>
-                ))}
+                {worlds.length > 0
+                  ? worlds.map((w) => (
+                      <option key={w.id} value={w.id}>
+                        {w.id}. {w.name.replace(/ — .*/, '')} ({w.solved}/{w.total})
+                      </option>
+                    ))
+                  : WORLD_NAMES.map((n, i) => (
+                      <option key={n} value={i + 1}>
+                        {i + 1}. {n}
+                      </option>
+                    ))}
               </select>
               <div className="ml-auto flex items-center gap-1">
                 <Button variant="glass" onClick={() => window.print()} disabled={!sheet}>

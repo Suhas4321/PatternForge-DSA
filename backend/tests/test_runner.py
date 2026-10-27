@@ -121,3 +121,21 @@ def test_infinity_is_json_safe_in_trace():
     code = "class Solution:\n    def f(self):\n        best = float('inf')\n        return 1\n"
     r = run_python(code, {"name": "f"}, [{"args": [], "expected": 1}], trace_test_index=0)
     assert any(s["frames"][-1]["locals"].get("best") == {"$inf": 1} for s in r["trace"]["steps"] if s["frames"])
+
+
+def test_sandbox_blocks_forbidden_imports_and_builtins():
+    bad_import = "import os\nclass Solution:\n    def f(self):\n        return 1\n"
+    r1 = run_python(bad_import, {"name": "f"}, [{"args": [], "expected": 1}])
+    assert r1["compile_error"] is not None
+    assert r1["compile_error"]["type"] == "SecurityError"
+
+    bad_open = "class Solution:\n    def f(self):\n        return open('/etc/passwd').read()\n"
+    r2 = run_python(bad_open, {"name": "f"}, [{"args": [], "expected": 1}])
+    assert r2["compile_error"] is not None
+    assert r2["compile_error"]["type"] == "SecurityError"
+
+    bad_dunder = "class Solution:\n    def f(self):\n        return ().__class__.__bases__[0].__subclasses__()\n"
+    r3 = run_python(bad_dunder, {"name": "f"}, [{"args": [], "expected": 1}])
+    assert r3["compile_error"] is not None
+    assert r3["compile_error"]["type"] == "SecurityError"
+

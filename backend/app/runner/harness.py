@@ -615,12 +615,75 @@ class Tracer:
 
 
 # ---------------------------------------------------------------------------------------------
-# Execution
+# Execution & Sandbox Security Gate
 # ---------------------------------------------------------------------------------------------
+
+FORBIDDEN_MODULES = frozenset({
+    "os", "sys", "subprocess", "socket", "shutil", "pathlib", "ctypes",
+    "multiprocessing", "signal", "resource", "importlib", "builtins",
+    "urllib", "http", "pty", "fcntl", "tempfile", "webbrowser", "pickle",
+    "marshal", "shelve", "dbm", "sqlite3", "ssl", "ftplib", "telnetlib",
+})
+
+FORBIDDEN_BUILTINS = frozenset({
+    "open", "eval", "exec", "compile", "__import__", "input", "breakpoint",
+    "help", " credits", "license", "quit", "exit",
+})
+
+FORBIDDEN_DUNDERS = frozenset({
+    "__subclasses__", "__globals__", "__builtins__", "__code__",
+    "__closure__", "__loader__", "__spec__", "__import__",
+})
+
+
+class SecurityError(Exception):
+    def __init__(self, message: str, lineno: int | None = None):
+        super().__init__(message)
+        self.lineno = lineno
+
+
+def validate_ast_safety(code: str) -> None:
+    try:
+        tree = ast.parse(code, SOLUTION_FILE)
+    except SyntaxError:
+        return  # handled by compile()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                root_mod = alias.name.split(".")[0]
+                if root_mod in FORBIDDEN_MODULES:
+                    raise SecurityError(f"Import of module '{root_mod}' is not allowed in the sandbox", getattr(node, "lineno", 1))
+        elif isinstance(node, ast.ImportFrom):
+            root_mod = (node.module or "").split(".")[0]
+            if root_mod in FORBIDDEN_MODULES:
+                raise SecurityError(f"Import from module '{root_mod}' is not allowed in the sandbox", getattr(node, "lineno", 1))
+        elif isinstance(node, ast.Attribute):
+            if node.attr in FORBIDDEN_DUNDERS:
+                raise SecurityError(f"Access to restricted attribute '{node.attr}' is not allowed", getattr(node, "lineno", 1))
+        elif isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
+            if node.func.id in FORBIDDEN_BUILTINS:
+                raise SecurityError(f"Call to restricted builtin '{node.func.id}()' is not allowed", getattr(node, "lineno", 1))
+
+
+_REAL_BUILTINS = __builtins__ if isinstance(__builtins__, dict) else vars(__builtins__)
+_REAL_IMPORT = _REAL_BUILTINS["__import__"]
+
+
+def _safe_import(name, globals=None, locals=None, fromlist=(), level=0):
+    root_mod = name.split(".")[0]
+    if root_mod in FORBIDDEN_MODULES:
+        raise ImportError(f"Module '{root_mod}' is disabled in the PatternForge sandbox")
+    return _REAL_IMPORT(name, globals, locals, fromlist, level)
+
+
+def _make_safe_builtins() -> dict:
+    safe = {k: v for k, v in _REAL_BUILTINS.items() if k not in FORBIDDEN_BUILTINS}
+    safe["__import__"] = _safe_import
+    return safe
 
 
 def make_namespace(function_spec):
-    ns = {"__name__": "__solution__", "__builtins__": __builtins__}
+    ns = {"__name__": "__solution__", "__builtins__": _make_safe_builtins()}
     for name in typing.__all__:
         ns[name] = getattr(typing, name)
     ns.update({
@@ -640,7 +703,7 @@ def make_namespace(function_spec):
 
 
 def error_info(exc, tb=None):
-    line = None
+    line = getattr(exc, "lineno", None)
     for frame_summary in traceback.extract_tb(tb or exc.__traceback__):
         if frame_summary.filename == SOLUTION_FILE:
             line = frame_summary.lineno
@@ -715,7 +778,8 @@ def run(payload):
 
     try:
         compiled = compile(code, SOLUTION_FILE, "exec")
-    except SyntaxError as exc:
+        validate_ast_safety(code)
+    except (SyntaxError, SecurityError) as exc:
         result["compile_error"] = error_info(exc)
         return result
 

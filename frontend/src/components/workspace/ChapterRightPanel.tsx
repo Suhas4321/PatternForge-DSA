@@ -195,17 +195,33 @@ export default function ChapterRightPanel({
         {activeChapter === 5 && (
           <div className="space-y-3">
             <span className="text-2xs font-mono font-semibold uppercase text-faint flex items-center gap-1.5">
-              <Lightbulb size={12} className="text-gold" /> Pattern Deduction Rule
+              <Lightbulb size={12} className="text-gold" /> Pattern Deduction Signals
             </span>
-            <div className="rounded-xl border border-line bg-panel-2/50 p-3 text-xs text-muted space-y-2 leading-relaxed">
-              <p>
-                <strong className="text-chalk">Why Hash Map?</strong>
-                <br />
-                We want <code className="text-cyan font-mono">sum(i..j) = k</code>. Since <code className="text-cyan font-mono">sum(i..j) = P[j] - P[i-1]</code>, we require <code className="text-cyan font-mono">P[i-1] = P[j] - k</code>.
-              </p>
-              <p>
-                Instead of searching all previous prefixes in O(N) time, a Hash Map answers "Have we seen <code className="text-cyan font-mono">P[j] - k</code>?" in O(1) time!
-              </p>
+            <div className="rounded-xl border border-line bg-panel-2/50 p-3 text-xs text-muted space-y-2.5 leading-relaxed">
+              <div>
+                <strong className="text-chalk block mb-1">Trigger Phrases Spotted:</strong>
+                <div className="flex flex-wrap gap-1.5">
+                  {st.trigger_keywords.map((kw) => (
+                    <span
+                      key={kw}
+                      className="rounded-full border border-cyan/30 bg-cyan/10 px-2 py-0.5 font-mono text-2xs text-cyan"
+                    >
+                      {kw}
+                    </span>
+                  ))}
+                </div>
+              </div>
+              <div className="border-t border-line/40 pt-2">
+                <strong className="text-chalk block mb-1">Why Brute Force Fails:</strong>
+                <p className="font-mono text-2xs text-amber mb-1">{c.brute_force_complexity}</p>
+                <Markdown>{c.brute_force}</Markdown>
+              </div>
+              <div className="border-t border-line/40 pt-2">
+                <strong className="text-chalk block mb-1">Target Complexity Goal:</strong>
+                <p className="font-mono text-2xs text-emerald">
+                  Time: {content.solution.time.split(' — ')[0]} · Space: {content.solution.space.split(' — ')[0]}
+                </p>
+              </div>
             </div>
           </div>
         )}

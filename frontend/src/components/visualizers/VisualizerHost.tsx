@@ -12,6 +12,7 @@ import TreeRecursionVisualizer from './TreeRecursionVisualizer'
 import type { VisualizerHostProps } from './types'
 import { StageShell } from './stage/StageShell'
 import { formatValue } from '../../lib/trace'
+import ErrorBoundary from '../ErrorBoundary'
 
 /**
  * Universal host routing across all 11 system & algorithm visualizers,
@@ -103,7 +104,9 @@ export default function VisualizerHost({
       speed={speed}
       onSpeedChange={onSpeedChange}
     >
-      {renderVisualizer()}
+      <ErrorBoundary fallbackTitle="Visualizer failed to render this step">
+        {renderVisualizer()}
+      </ErrorBoundary>
     </StageShell>
   )
 }

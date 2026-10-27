@@ -92,6 +92,53 @@ export default function MountainTrail({
   const narrow = width < NARROW
   const n = qs.length
 
+  // Node positions, bottom (index 0) to top (index n-1)
+  const layout = useMemo(() => {
+    if (!width || n === 0) return null
+    const cardW = narrow ? width - 88 : Math.min(300, Math.max(180, (width - 130 - 88) / 2))
+    const heights = qs.map((_, i) => (i === active ? (narrow ? 230 : 210) : narrow ? 116 : cardW < 240 ? 122 : 104))
+
+    // Handle 1 to 3 lessons with generous spacing
+    const minHeight = n <= 3 ? 500 : 600
+    const gaps = qs.slice(1).map((_, i) => (heights[i] + heights[i + 1]) / 2 + (narrow ? 28 : 36))
+    const computedTotal = SUMMIT_SPACE + gaps.reduce((a, b) => a + b, 0) + BASE_SPACE + heights[0] / 2 + heights[n - 1] / 2
+    const total = Math.max(minHeight, computedTotal)
+
+    const center = width / 2
+    const swing = (width - 2 * (cardW + 44)) / 2
+    const pts: Point[] = []
+    let y = total - BASE_SPACE - heights[0] / 2
+
+    for (let i = 0; i < n; i++) {
+      if (i > 0) y -= gaps[i - 1] ?? (total / (n + 1))
+      const t = n <= 1 ? 0.5 : i / (n - 1)
+      let x: number
+      if (narrow) {
+        x = 36
+      } else if (n === 1) {
+        x = center - 60
+      } else if (n <= 3) {
+        x = center + (i % 2 === 0 ? -1 : 1) * Math.min(swing, 120)
+      } else if (i === n - 1) {
+        x = center
+      } else {
+        x = center + (i % 2 === 0 ? -1 : 1) * swing * (1 - 0.45 * t)
+      }
+      pts.push({ x, y })
+    }
+    return { pts, heights, total, cardW }
+  }, [width, narrow, qs, active, n])
+
+  const hasLayout = layout !== null
+  useLayoutEffect(() => {
+    if (!hasLayout || active <= 0) return
+    const t = window.setTimeout(
+      () => activeRef.current?.scrollIntoView({ block: 'center', behavior: reduce ? 'auto' : 'smooth' }),
+      700,
+    )
+    return () => window.clearTimeout(t)
+  }, [hasLayout, active, reduce])
+
   // Case 0: Empty world (coming_soon)
   if (n === 0) {
     return (
@@ -141,52 +188,6 @@ export default function MountainTrail({
       </div>
     )
   }
-
-  // Node positions, bottom (index 0) to top (index n-1)
-  const layout = useMemo(() => {
-    if (!width || n === 0) return null
-    const cardW = narrow ? width - 88 : Math.min(300, Math.max(180, (width - 130 - 88) / 2))
-    const heights = qs.map((_, i) => (i === active ? (narrow ? 230 : 210) : narrow ? 116 : cardW < 240 ? 122 : 104))
-
-    // Handle 1 to 3 lessons with generous spacing
-    const minHeight = n <= 3 ? 500 : 600
-    const gaps = qs.slice(1).map((_, i) => (heights[i] + heights[i + 1]) / 2 + (narrow ? 28 : 36))
-    const computedTotal = SUMMIT_SPACE + gaps.reduce((a, b) => a + b, 0) + BASE_SPACE + heights[0] / 2 + heights[n - 1] / 2
-    const total = Math.max(minHeight, computedTotal)
-
-    const center = width / 2
-    const swing = (width - 2 * (cardW + 44)) / 2
-    const pts: Point[] = []
-    let y = total - BASE_SPACE - heights[0] / 2
-
-    for (let i = 0; i < n; i++) {
-      if (i > 0) y -= gaps[i - 1] ?? (total / (n + 1))
-      const t = n <= 1 ? 0.5 : i / (n - 1)
-      let x: number
-      if (narrow) {
-        x = 36
-      } else if (n === 1) {
-        x = center - 60
-      } else if (n <= 3) {
-        x = center + (i % 2 === 0 ? -1 : 1) * Math.min(swing, 120)
-      } else if (i === n - 1) {
-        x = center
-      } else {
-        x = center + (i % 2 === 0 ? -1 : 1) * swing * (1 - 0.45 * t)
-      }
-      pts.push({ x, y })
-    }
-    return { pts, heights, total, cardW }
-  }, [width, narrow, qs, active, n])
-
-  useLayoutEffect(() => {
-    if (!layout || active <= 0) return
-    const t = window.setTimeout(
-      () => activeRef.current?.scrollIntoView({ block: 'center', behavior: reduce ? 'auto' : 'smooth' }),
-      700,
-    )
-    return () => window.clearTimeout(t)
-  }, [!!layout])
 
   let lastSolved = -1
   qs.forEach((q, i) => q.progress.solved && (lastSolved = i))

@@ -5,6 +5,7 @@ import { useTheme } from './effects'
 import type { TraceStep } from '../api/types'
 import { formatValue, visibleLocals, changedNames } from '../lib/trace'
 import { Code2, Variable, Cpu } from 'lucide-react'
+import MemoryStage from './visualizers/memory/MemoryStage'
 
 type IEditor = Parameters<OnMount>[0]
 
@@ -220,36 +221,8 @@ export default function CodeEditor({
           </div>
         )}
 
-        {/* Memory View Tab (Phase V4 Stub) */}
-        {activeTab === 'memory' && (
-          <div className="h-full overflow-y-auto p-4 font-mono text-xs space-y-3">
-            <div className="flex items-center justify-between border-b border-line pb-2">
-              <span className="text-2xs font-semibold uppercase text-orchid font-bold">
-                Heap & Stack Inspector
-              </span>
-              <span className="text-2xs text-faint">Phase V4 Engine</span>
-            </div>
-            <p className="text-2xs text-muted leading-relaxed">
-              Live inspection of Python stack frames and heap-allocated objects (`ListNode`, `TreeNode`, dictionaries, instances).
-            </p>
-            {step && Object.keys(step.heap).length > 0 ? (
-              <div className="space-y-2">
-                {Object.entries(step.heap).map(([id, obj]) => (
-                  <div key={id} className="rounded-lg border border-line bg-panel-2 p-2.5">
-                    <div className="flex items-center justify-between text-2xs mb-1">
-                      <span className="text-cyan font-bold">Object #{id} ({obj.type})</span>
-                    </div>
-                    <pre className="text-2xs text-slate-300 overflow-x-auto">
-                      {JSON.stringify(obj.fields, null, 2)}
-                    </pre>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-faint text-2xs">No heap objects allocated in this step.</p>
-            )}
-          </div>
-        )}
+        {/* Memory View Tab (Python Tutor Stack -> Heap DAG) */}
+        {activeTab === 'memory' && <MemoryStage step={step} prevStep={prevStep} />}
       </div>
     </div>
   )

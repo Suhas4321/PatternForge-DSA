@@ -215,11 +215,20 @@ def _latest_main_code(session: Session, slug: str) -> str:
     return draft.code if draft else ""
 
 
-def _first_failure(content: dict, code: str) -> str:
+def _first_failure(question: Question, content: dict, code: str) -> str:
     """One-paragraph summary of how the learner's code currently does on the tests."""
     if not code.strip():
         return "The learner hasn't written any code yet."
-    result = run_python(code, content["function"], content["tests"])
+    runner_type = question.runner_type or content.get("runner_type", "python_trace")
+    result = dispatch_run(
+        runner_type=runner_type,
+        code=code,
+        content=content,
+        spec=content["function"],
+        tests=content["tests"],
+        reference_code=content["solution"]["code"],
+        visualize=False,
+    )
     if result.get("compile_error"):
         e = result["compile_error"]
         return f"It doesn't compile: {e['type']} on line {e.get('line')}: {e['message']}"
@@ -235,6 +244,40 @@ def _first_failure(content: dict, code: str) -> str:
     return f"All {len(result['results'])} tests pass. The learner wants to understand or improve it."
 
 
+_DEMO_TRACE_CACHE: dict[str, dict] = {}
+
+
+@router.get("/{slug}/demo-trace")
+def get_demo_trace(slug: str, session: Session = Depends(get_session)):
+    """Returns a cached execution trace of the reference solution on the default visualize_test."""
+    if slug in _DEMO_TRACE_CACHE:
+        return _DEMO_TRACE_CACHE[slug]
+    question = _question(session, slug)
+    content = _content(question)
+    runner_type = question.runner_type or content.get("runner_type", "python_trace")
+    spec = content["function"]
+    tests = content["tests"]
+    trace_index = content.get("visualize_test", 0)
+    result = dispatch_run(
+        runner_type=runner_type,
+        code=content["solution"]["code"],
+        content=content,
+        spec=spec,
+        tests=tests,
+        reference_code=content["solution"]["code"],
+        trace_test_index=trace_index,
+        visualize=True,
+    )
+    payload = {
+        "slug": slug,
+        "test_index": trace_index,
+        "trace": result.get("trace"),
+    }
+    if result.get("trace"):
+        _DEMO_TRACE_CACHE[slug] = payload
+    return payload
+
+
 @router.post("/{slug}/ask-coach", response_model=CoachOut)
 def ask_coach(slug: str, body: CoachIn, session: Session = Depends(get_session)):
     question = _question(session, slug)
@@ -245,7 +288,7 @@ def ask_coach(slug: str, body: CoachIn, session: Session = Depends(get_session))
         return out
     try:
         if body.mode == "hint":
-            prompt = ai_coach.hint_prompt(content, question.title, body.code, _first_failure(content, body.code))
+            prompt = ai_coach.hint_prompt(content, question.title, body.code, _first_failure(question, content, body.code))
             out.reply = ai_coach.ask(ai_coach.HINT_SYSTEM, prompt)
         else:
             pitch = (body.pitch or PitchIn()).model_dump()

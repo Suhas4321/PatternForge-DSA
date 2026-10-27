@@ -151,3 +151,13 @@ def test_playground_linked_list_preset(client):
     assert body["output"] == [5, 4, 3, 2, 1]
     assert body["trace"]["steps"]
 
+
+def test_demo_trace_endpoint(client):
+    res = client.get("/api/questions/two-sum/demo-trace")
+    assert res.status_code == 200
+    body = res.json()
+    assert body["slug"] == "two-sum"
+    assert body["trace"] is not None
+    assert len(body["trace"]["steps"]) > 0
+
+

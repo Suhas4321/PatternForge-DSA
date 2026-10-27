@@ -3,6 +3,7 @@ import { motion, useReducedMotion } from 'motion/react'
 import type { ReactNode } from 'react'
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import CommandPalette, { openCommandPalette } from './components/CommandPalette'
+import ErrorBoundary from './components/ErrorBoundary'
 import MoreMenu from './components/MoreMenu'
 import TopBarHUD from './components/TopBarHUD'
 import ApexCaliberLogo from './components/ApexCaliberLogo'
@@ -205,7 +206,9 @@ export default function App() {
         <TopBar />
         <CommandPalette />
         <main>
-          <Outlet />
+          <ErrorBoundary fallbackTitle="Workspace encountered an unexpected error">
+            <Outlet />
+          </ErrorBoundary>
         </main>
       </div>
     </GrimoireProvider>
