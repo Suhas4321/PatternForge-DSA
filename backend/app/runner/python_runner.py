@@ -22,13 +22,28 @@ class RunnerError(Exception):
     pass
 
 
+def _set_rlimit(limit: int, value: tuple[int, int]) -> None:
+    try:
+        resource.setrlimit(limit, value)
+    except (ValueError, OSError):
+        pass
+
+
 def _limits(memory_mb: int, cpu_seconds: int):
     def apply():
         mem = memory_mb * 1024 * 1024
-        resource.setrlimit(resource.RLIMIT_AS, (mem, mem))
-        resource.setrlimit(resource.RLIMIT_CPU, (cpu_seconds, cpu_seconds + 1))
-        resource.setrlimit(resource.RLIMIT_FSIZE, (50 * 1024 * 1024,) * 2)
-        os.setsid()
+        # On macOS (darwin), RLIMIT_AS either fails with ValueError/EINVAL or starves dyld's
+        # multi-GB shared cache mapping before the Python interpreter can start.
+        if sys.platform != "darwin" and hasattr(resource, "RLIMIT_AS"):
+            _set_rlimit(resource.RLIMIT_AS, (mem, mem))
+        if hasattr(resource, "RLIMIT_CPU"):
+            _set_rlimit(resource.RLIMIT_CPU, (cpu_seconds, cpu_seconds + 1))
+        if hasattr(resource, "RLIMIT_FSIZE"):
+            _set_rlimit(resource.RLIMIT_FSIZE, (50 * 1024 * 1024,) * 2)
+        try:
+            os.setsid()
+        except OSError:
+            pass
 
     return apply
 
@@ -69,13 +84,16 @@ def run_python(
             )
         except subprocess.TimeoutExpired:
             return _fatal(tests, "TimeLimitExceeded", "Your code took too long to run.")
+        except subprocess.SubprocessError as exc:
+            return _fatal(tests, "RunnerError", f"Failed to start code runner: {exc}")
 
         if not result_path.exists():
             stderr = (proc.stderr or "").strip().splitlines()
             if proc.returncode < 0 or "MemoryError" in (proc.stderr or ""):
                 return _fatal(tests, "MemoryLimitExceeded" if "MemoryError" in (proc.stderr or "")
                               else "Crashed", stderr[-1] if stderr else f"signal {-proc.returncode}")
-            raise RunnerError(f"harness failed (exit {proc.returncode}): {proc.stderr[-2000:]}")
+            detail = stderr[-1] if stderr else f"exit {proc.returncode}"
+            return _fatal(tests, "RunnerError", f"Code runner failed ({detail})")
         return json.loads(result_path.read_text())
 
 

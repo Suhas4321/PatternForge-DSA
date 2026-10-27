@@ -120,3 +120,34 @@ def test_spaced_repetition_rules():
     assert rust_level(now - timedelta(days=6), now) == "dusty"
     assert rust_level(now - timedelta(days=12), now) == "rusting"
     assert rust_level(now - timedelta(days=30), now) == "rusted"
+
+
+def test_playground_linked_list_preset(client):
+    code = (
+        "class Solution:\n"
+        "    def reverseList(self, head: Optional[ListNode]) -> Optional[ListNode]:\n"
+        "        prev, cur = None, head\n"
+        "        while cur:\n"
+        "            nxt = cur.next\n"
+        "            cur.next = prev\n"
+        "            prev, cur = cur, nxt\n"
+        "        return prev\n"
+    )
+    res = client.post(
+        "/api/playground/run",
+        json={
+            "code": code,
+            "function_name": "reverseList",
+            "args": [[1, 2, 3, 4, 5]],
+            "arg_types": ["ListNode"],
+            "returns": "ListNode",
+        },
+    )
+    assert res.status_code == 200
+    body = res.json()
+    assert body["compile_error"] is None
+    assert body["fatal_error"] is None
+    assert body["error"] is None
+    assert body["output"] == [5, 4, 3, 2, 1]
+    assert body["trace"]["steps"]
+

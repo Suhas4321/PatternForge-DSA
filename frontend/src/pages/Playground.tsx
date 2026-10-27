@@ -258,16 +258,36 @@ export default function Playground() {
           returns,
         }),
       })
-      const body = await res.json()
-      if (!res.ok) throw new Error(typeof body.detail === 'string' ? body.detail : 'Check the argument types.')
+      const raw = await res.text()
+      let body: {
+        detail?: unknown
+        compile_error?: RunError | null
+        fatal_error?: RunError | null
+        error?: RunError | null
+        output?: unknown
+        stdout?: string
+        trace?: Trace | null
+      } | null = null
+      try {
+        body = raw ? JSON.parse(raw) : null
+      } catch {
+        throw new Error(
+          res.ok
+            ? 'Backend returned an invalid JSON response.'
+            : `Backend error (${res.status} ${res.statusText}): ${raw.slice(0, 200) || 'Check that the backend is running on port 8010.'}`,
+        )
+      }
+      if (!res.ok || !body) {
+        throw new Error(typeof body?.detail === 'string' ? body.detail : 'Check the argument types.')
+      }
       if (body.compile_error) {
         setError(`${body.compile_error.type} on line ${body.compile_error.line}: ${body.compile_error.message}`)
         setTrace(null)
         return
       }
-      setTrace(body.trace)
+      setTrace(body.trace ?? null)
       setTracedCode(code)
-      setOutput({ value: body.output, error: body.error ?? body.fatal_error, stdout: body.stdout })
+      setOutput({ value: body.output, error: body.error ?? body.fatal_error ?? null, stdout: body.stdout ?? '' })
       setIndex(0)
       setPlaying(!!body.trace?.steps.length)
     } catch (e) {
