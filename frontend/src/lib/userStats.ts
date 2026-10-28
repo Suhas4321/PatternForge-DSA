@@ -10,6 +10,8 @@ export interface UserStats {
   xpToday: number
   solvesToday: number
   drillsToday: number
+  totalSolved: number
+  totalQuestions: number
   readinessScore: number
   isDailyComplete: boolean
   isDailyClaimed: boolean
@@ -28,6 +30,8 @@ export function useUserStats(worlds?: World[] | null): UserStats {
   const todayKey = getTodayKey()
   const [events, setEvents] = useState<ActivityEvent[]>([])
   const [readinessScore, setReadinessScore] = useState<number>(0)
+  const [serverSolved, setServerSolved] = useState<number | null>(null)
+  const [serverTotal, setServerTotal] = useState<number>(193)
   const [isDailyClaimed, setIsDailyClaimed] = useState<boolean>(() => {
     try {
       return localStorage.getItem(DAILY_CLAIMED_KEY_PREFIX + todayKey) === 'true'
@@ -41,7 +45,11 @@ export function useUserStats(worlds?: World[] | null): UserStats {
       .then((res) => setEvents(res.events || []))
       .catch(() => {})
     api.stats()
-      .then((s) => setReadinessScore(s.readiness_score ?? 0))
+      .then((s) => {
+        setReadinessScore(s.readiness_score ?? 0)
+        setServerSolved(s.total_solved ?? 0)
+        setServerTotal(s.total_questions || 193)
+      })
       .catch(() => {})
   }, [])
 
@@ -58,10 +66,10 @@ export function useUserStats(worlds?: World[] | null): UserStats {
     }
   })
 
-  const solvesToday = todayEvents.filter((e) => e.kind === 'solve' && e.passed).length
+  const solvesToday = new Set(todayEvents.filter((e) => e.kind === 'solve' && e.passed).map((e) => e.slug)).size
   const drillsToday = todayEvents.filter((e) => e.kind === 'drill' && e.passed).length
 
-  // Overall solved and drills from worlds if provided
+  // Overall unique solved questions and drills (never double-count repeated test runs!)
   let totalSolved = 0
   let totalDrills = 0
   if (worlds) {
@@ -71,9 +79,12 @@ export function useUserStats(worlds?: World[] | null): UserStats {
         totalDrills += q.progress.drills_passed?.length || 0
       }
     }
+  } else if (serverSolved !== null) {
+    totalSolved = serverSolved
+    totalDrills = new Set(events.filter((e) => e.kind === 'drill' && e.passed).map((e) => `${e.slug}:${e.t.slice(0, 10)}`)).size
   } else {
-    totalSolved = events.filter((e) => e.kind === 'solve' && e.passed).length
-    totalDrills = events.filter((e) => e.kind === 'drill' && e.passed).length
+    totalSolved = new Set(events.filter((e) => e.kind === 'solve' && e.passed).map((e) => e.slug)).size
+    totalDrills = new Set(events.filter((e) => e.kind === 'drill' && e.passed).map((e) => e.slug)).size
   }
 
   // XP calculations: 50 XP per solved lesson, 15 XP per drill, +50 XP for daily completion if claimed
@@ -116,6 +127,8 @@ export function useUserStats(worlds?: World[] | null): UserStats {
     xpToday,
     solvesToday,
     drillsToday,
+    totalSolved,
+    totalQuestions: serverTotal,
     readinessScore,
     isDailyComplete,
     isDailyClaimed,

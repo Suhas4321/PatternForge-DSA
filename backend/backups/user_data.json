@@ -1,6 +1,6 @@
 {
   "format_version": 1,
-  "exported_at": "2026-10-28T08:54:23.166463",
+  "exported_at": "2026-10-28T12:00:33.522533",
   "tables": {
     "progress": [
       {
@@ -52,6 +52,14 @@
         "intuition": "",
         "complexity": "",
         "updated_at": "2026-10-18T16:35:44.033948"
+      },
+      {
+        "question_slug": "valid-anagram",
+        "brute_force": "",
+        "trigger": "",
+        "intuition": "",
+        "complexity": "",
+        "updated_at": "2026-10-28T12:00:33.508565"
       }
     ],
     "drafts": [

@@ -283,14 +283,54 @@ html[data-theme='studio-contrast'] {
   --viz-glow-done:    0 0 12px rgba(5, 150, 105, 0.22);
 }
 
-/* ---- Zone 3: theater stage ----------------------- */
+/* ---- Zone 3 & Night Zone: always-dark stages, sky banners & visualizers ---- */
+
+.stage,
+[data-zone='night'] {
+  color-scheme: dark;
+  --surface-0: #090D16;
+  --surface-1: #0F1624;
+  --surface-2: #161F33;
+  --surface-3: #1E2942;
+  --line: rgba(241, 245, 249, 0.10);
+  --line-strong: rgba(241, 245, 249, 0.18);
+  --text-1: #F8FAFC;
+  --text-2: #CBD5E1;
+  --text-3: #94A3B8;
+  --code: #F8FAFC;
+
+  --color-surface-0: #090D16;
+  --color-surface-1: #0F1624;
+  --color-surface-2: #161F33;
+  --color-surface-3: #1E2942;
+  --color-void: #090D16;
+  --color-panel: #0F1624;
+  --color-panel-2: #161F33;
+  --color-panel-3: #1E2942;
+  --color-ink: #161F33;
+  --color-line: rgba(241, 245, 249, 0.10);
+  --color-line-strong: rgba(241, 245, 249, 0.18);
+  --color-text-1: #F8FAFC;
+  --color-text-2: #CBD5E1;
+  --color-text-3: #94A3B8;
+  --color-chalk: #F8FAFC;
+  --color-muted: #CBD5E1;
+  --color-faint: #94A3B8;
+  --color-code: #F8FAFC;
+  --color-cyan: #38BDF8;
+  --color-emerald: #34D399;
+  --color-emerald-hi: #34D399;
+  --color-amber: #FBBF24;
+  --color-crimson: #FB7185;
+  --color-sky: #38BDF8;
+}
 
 .stage {
-  background-color: var(--stage-bg);
-  background-image: radial-gradient(var(--line-strong) 1px, transparent 1px);
+  background-color: #070A12;
+  background-image: radial-gradient(rgba(241, 245, 249, 0.10) 1px, transparent 1px);
   background-size: 20px 20px;
-  color: var(--text-1);
-  border: 1px solid var(--stage-frame);
+  color: #F8FAFC;
+  border: 1px solid rgba(241, 245, 249, 0.12);
   border-radius: 20px;
   box-shadow: var(--stage-glow);
 }

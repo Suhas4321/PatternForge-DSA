@@ -124,7 +124,7 @@ function TopBar() {
         fallbackBlur: 12,
       }}
     >
-      <header className="no-print sticky top-0 z-40 w-full border-b border-line bg-panel/80 shadow-sm backdrop-blur-xl">
+      <header className="no-print sticky top-0 z-40 w-full !overflow-visible border-b border-line bg-panel/85 shadow-sm backdrop-blur-xl">
         {/* Row 1: Primary bar */}
         <div className="shell flex h-14 items-center justify-between gap-3">
           {/* Left: Brand */}

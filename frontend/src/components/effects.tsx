@@ -2,7 +2,7 @@
  * Visual building blocks from DESIGN_REFERENCES.md (Magic UI / Aceternity patterns, implemented
  * natively): BorderBeam, ShineBorder, DotPattern, NumberTicker, MagicCard, Stage, ThemeToggle.
  */
-import { Moon, Sun, Monitor } from 'lucide-react'
+import { Moon, Sun } from 'lucide-react'
 import { animate, useInView, useReducedMotion } from 'motion/react'
 import { useEffect, useId, useRef, useState, type CSSProperties, type MouseEvent, type ReactNode } from 'react'
 import { flushSync } from 'react-dom'
@@ -225,15 +225,14 @@ export function useTheme(): [ResolvedTheme, (t: ThemePreference | Theme) => void
   return [resolved, setTheme, preference]
 }
 
-/** 3-way toggle (Light / Dark / System) with circular reveal view transition */
+/** Clean 2-way toggle (Dark 🌙 <-> Light ☀️) with circular reveal view transition (no confusing Auto step) */
 export function ThemeToggle() {
-  const [resolved, setTheme, preference] = useTheme()
+  const [resolved, setTheme] = useTheme()
   const ref = useRef<HTMLButtonElement>(null)
   const reduce = useReducedMotion()
 
-  // 3-way sequence: system -> light -> dark -> system
-  const nextPref: ThemePreference =
-    preference === 'system' ? 'light' : preference === 'light' ? 'dark' : 'system'
+  // Direct 2-way toggle: dark <-> light
+  const nextPref: ThemePreference = resolved === 'dark' ? 'light' : 'dark'
 
   // the command palette asks for a switch through this event
   useEffect(() => {
@@ -261,29 +260,17 @@ export function ThemeToggle() {
     })
   }
 
-  const label =
-    preference === 'system'
-      ? `System Theme (${resolved === 'dark' ? 'Night Expedition' : 'Alpine Morning'})`
-      : preference === 'light'
-      ? 'Alpine Morning (Light Mode)'
-      : 'Night Expedition (Dark Mode)'
+  const label = resolved === 'light' ? 'Light Mode (Click for Dark)' : 'Dark Mode (Click for Light)'
 
   return (
     <button
       ref={ref}
       onClick={toggle}
-      aria-label={`${label} — click to cycle theme`}
-      title={`${label} — click to cycle theme`}
-      className="flex h-8 items-center gap-1.5 rounded-full border border-line bg-panel-2 px-2 text-xs text-muted transition-colors hover:border-line-strong hover:text-chalk"
+      aria-label={label}
+      title={label}
+      className="flex h-8 items-center gap-1.5 rounded-full border border-line bg-panel-2 px-2.5 text-xs text-muted transition-colors hover:border-line-strong hover:text-chalk"
     >
-      {preference === 'system' ? (
-        <>
-          <Monitor size={14} className="text-cyan shrink-0" />
-          <span className="hidden lg:inline font-mono text-[11px] font-semibold tracking-tight uppercase text-faint">
-            Auto
-          </span>
-        </>
-      ) : preference === 'light' ? (
+      {resolved === 'light' ? (
         <>
           <Sun size={14} className="text-amber shrink-0" />
           <span className="hidden lg:inline font-mono text-[11px] font-semibold tracking-tight uppercase text-amber">
@@ -293,7 +280,7 @@ export function ThemeToggle() {
       ) : (
         <>
           <Moon size={14} className="text-cyan shrink-0" />
-          <span className="hidden lg:inline font-mono text-[11px] font-semibold tracking-tight uppercase text-muted">
+          <span className="hidden lg:inline font-mono text-[11px] font-semibold tracking-tight uppercase text-cyan">
             Dark
           </span>
         </>

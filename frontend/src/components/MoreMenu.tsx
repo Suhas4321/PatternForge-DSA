@@ -5,7 +5,6 @@ import { Link, useLocation } from 'react-router-dom'
 import { api } from '../api/client'
 import { useBackgroundEffects, type BackgroundEffectLevel } from './effects'
 import { Button } from './ui'
-import { GlassSurface } from './vendor/vsrc/glass-surface'
 
 type Status = Awaited<ReturnType<typeof api.backupStatus>>
 
@@ -75,14 +74,13 @@ export default function MoreMenu({ onOpenGrimoire }: MoreMenuProps) {
 
       <AnimatePresence>
         {open && (
-          <GlassSurface asChild glass={{ scale: -64, mapBlur: 10, blur: 16 }}>
-            <motion.div
-              initial={{ opacity: 0, y: 6, scale: 0.97 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: 4, scale: 0.97 }}
-              transition={{ duration: 0.15, ease: 'easeOut' }}
-              className="absolute right-0 top-full mt-2 z-50 w-76 rounded-2xl border border-line bg-panel/90 p-3 shadow-2xl backdrop-blur-xl"
-            >
+          <motion.div
+            initial={{ opacity: 0, y: 6, scale: 0.97 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 4, scale: 0.97 }}
+            transition={{ duration: 0.15, ease: 'easeOut' }}
+            className="absolute right-0 top-full mt-2 z-[100] w-72 rounded-2xl border border-line-strong bg-panel p-3.5 text-chalk shadow-2xl"
+          >
               {/* Mobile / Tablet nav links (hidden on desktop lg: >=1024px) */}
               <div className="lg:hidden flex flex-col gap-1 pb-2 border-b border-line mb-2">
                 <span className="px-2 py-1 text-2xs font-semibold uppercase tracking-wider text-faint">
@@ -189,9 +187,8 @@ export default function MoreMenu({ onOpenGrimoire }: MoreMenuProps) {
               {message && <p className="px-2 text-2xs text-cyan">{message}</p>}
             </div>
           </motion.div>
-        </GlassSurface>
-      )}
-    </AnimatePresence>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

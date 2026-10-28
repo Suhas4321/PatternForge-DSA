@@ -21,6 +21,7 @@ import { Spinner } from './components/ui'
 const QuestionPage = lazy(() => import('./pages/QuestionPage'))
 const Playground = lazy(() => import('./pages/Playground'))
 const ResumeGrill = lazy(() => import('./pages/ResumeGrill'))
+const SystemDesignPage = lazy(() => import('./pages/SystemDesignPage'))
 const StatsPage = lazy(() => import('./pages/StatsPage'))
 
 const withSpinner = (el: ReactNode) => (
@@ -39,6 +40,7 @@ const router = createBrowserRouter([
       { path: 'playground', element: withSpinner(<Playground />) },
       { path: 'finder', element: <PatternFinder /> },
       { path: 'resume-grill', element: withSpinner(<ResumeGrill />) },
+      { path: 'system-design', element: withSpinner(<SystemDesignPage />) },
       { path: 'stats', element: withSpinner(<StatsPage />) },
       { path: '*', element: <NotFound /> },
     ],

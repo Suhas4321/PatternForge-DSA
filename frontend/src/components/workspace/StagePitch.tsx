@@ -120,7 +120,7 @@ export default function StagePitch({ question, progress, onProgress }: Props) {
   const content = question.content!
   const [pitch, setPitch] = useState<Pitch>(question.pitch)
   const [saved, setSaved] = useState(true)
-  const [viewMode, setViewMode] = useState<'sideBySide' | 'teleprompter' | 'seniorOnly'>('sideBySide')
+  const [viewMode, setViewMode] = useState<'sideBySide' | 'teleprompter' | 'seniorOnly'>('seniorOnly')
   const [showSolution, setShowSolution] = useState(false)
   const firstRender = useRef(true)
   const coach = useCoachStatus()
@@ -174,27 +174,6 @@ export default function StagePitch({ question, progress, onProgress }: Props) {
     return () => window.clearTimeout(id)
   }, [timerRunning, timerSec])
 
-  // Live 4-Point Staff Rubric Evaluation
-  const rubricChecks = [
-    {
-      label: '1. Baseline Bound',
-      ok: /o\s*\(|loop|brute|every|nested|exponential/i.test(pitch.brute_force) && pitch.brute_force.trim().length >= 12,
-    },
-    {
-      label: '2. Trigger Signal',
-      ok: pitch.trigger.trim().length >= 10,
-    },
-    {
-      label: '3. Core Invariant',
-      ok: pitch.intuition.trim().length >= 20,
-    },
-    {
-      label: '4. Time & Space O(…)',
-      ok: /o\s*\(/i.test(pitch.complexity) && /space|time|memory/i.test(pitch.complexity),
-    },
-  ]
-  const rubricPassedCount = rubricChecks.filter((r) => r.ok).length
-
   const rate = async (confidence: number) => {
     onProgress(await api.rate(question.slug, confidence))
   }
@@ -225,20 +204,20 @@ export default function StagePitch({ question, progress, onProgress }: Props) {
           </div>
         </div>
 
-        {/* View mode toggle */}
+        {/* View mode toggle: Study Mode (Default) vs Delivery Practice */}
         <div className="flex items-center gap-2 text-xs font-mono">
           <div className="flex items-center rounded-xl border border-line bg-panel p-1">
             <button
               type="button"
-              onClick={() => setViewMode('sideBySide')}
+              onClick={() => setViewMode('seniorOnly')}
               className={`flex items-center gap-1.5 px-3 py-1 rounded-lg transition-colors ${
-                viewMode === 'sideBySide'
+                viewMode === 'seniorOnly'
                   ? 'bg-cyan/20 text-cyan font-bold border border-cyan/40 shadow-xs'
                   : 'text-muted hover:text-chalk'
               }`}
             >
-              <Columns2 size={13} />
-              <span>Side-by-Side Diff</span>
+              <ShieldCheck size={13} />
+              <span>📖 Study Mode (Senior Script)</span>
             </button>
             <button
               type="button"
@@ -250,19 +229,19 @@ export default function StagePitch({ question, progress, onProgress }: Props) {
               }`}
             >
               <FileText size={13} />
-              <span>Your Pitch</span>
+              <span>🎙️ Delivery Practice</span>
             </button>
             <button
               type="button"
-              onClick={() => setViewMode('seniorOnly')}
+              onClick={() => setViewMode('sideBySide')}
               className={`flex items-center gap-1.5 px-3 py-1 rounded-lg transition-colors ${
-                viewMode === 'seniorOnly'
+                viewMode === 'sideBySide'
                   ? 'bg-cyan/20 text-cyan font-bold border border-cyan/40 shadow-xs'
                   : 'text-muted hover:text-chalk'
               }`}
             >
-              <ShieldCheck size={13} />
-              <span>Senior Model Script</span>
+              <Columns2 size={13} />
+              <span>Side-by-Side</span>
             </button>
           </div>
         </div>
@@ -299,24 +278,39 @@ export default function StagePitch({ question, progress, onProgress }: Props) {
             </button>
           </div>
           <span className="text-2xs text-muted font-mono">
-            Rubric Score: <strong className="text-chalk">{rubricPassedCount}/4</strong> Staff Criteria Met
+            Pacing Budget: <strong className="text-chalk">110–130 words</strong> (~60s at 130 WPM)
           </span>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          {rubricChecks.map((r) => (
-            <span
-              key={r.label}
-              className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 font-mono text-2xs transition-colors ${
-                r.ok
-                  ? 'border-emerald/40 bg-emerald/15 text-emerald font-semibold'
-                  : 'border-line bg-panel-2 text-faint'
-              }`}
-            >
-              {r.ok ? <Check size={11} strokeWidth={3} /> : <span className="h-1.5 w-1.5 rounded-full bg-current" />}
-              <span>{r.label}</span>
-            </span>
-          ))}
+        {/* 3-Zone Pacing Teleprompter Rhythm Tracker */}
+        <div className="flex flex-wrap items-center gap-2 text-2xs font-mono">
+          <span
+            className={`rounded-lg border px-2.5 py-1 transition-all ${
+              timerRunning && timerSec > 45
+                ? 'border-cyan bg-cyan/20 text-cyan font-bold'
+                : 'border-line bg-panel-2 text-muted'
+            }`}
+          >
+            0–15s: Hook & Invariant
+          </span>
+          <span
+            className={`rounded-lg border px-2.5 py-1 transition-all ${
+              timerRunning && timerSec <= 45 && timerSec > 20
+                ? 'border-emerald bg-emerald/20 text-emerald font-bold'
+                : 'border-line bg-panel-2 text-muted'
+            }`}
+          >
+            15–40s: Algorithmic Flow
+          </span>
+          <span
+            className={`rounded-lg border px-2.5 py-1 transition-all ${
+              timerRunning && timerSec <= 20 && timerSec > 0
+                ? 'border-amber bg-amber/20 text-amber font-bold'
+                : 'border-line bg-panel-2 text-muted'
+            }`}
+          >
+            40–60s: Trade-offs & Defense
+          </span>
         </div>
       </div>
 

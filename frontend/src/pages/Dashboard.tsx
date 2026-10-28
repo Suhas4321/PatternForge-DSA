@@ -100,29 +100,7 @@ export default function Dashboard() {
       <ChapterIntroModal citadel={activeCitadel} />
 
       {/* Top Cards Section: Floating over the colorful sky */}
-      <div className="shell relative z-10 flex flex-col gap-6 pt-6 w-full">
-        {/* Morning Greeting & Streak Shield */}
-        <section className="flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <p className="font-mono mb-1 text-[10px] uppercase tracking-[.24em] text-slate-300/80">
-              {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
-            </p>
-            <h1 className="text-3xl font-bold tracking-[-.04em] sm:text-4xl text-white drop-shadow-[0_2px_16px_rgba(0,0,0,0.6)]">
-              Good morning, Suhas.
-            </h1>
-            <p className="mt-1 text-sm text-slate-300">
-              Your next breakthrough is one focused session away.
-            </p>
-          </div>
-          <div className="flex items-center gap-2 rounded-full border border-amber/40 bg-amber/15 backdrop-blur-md px-3.5 py-1.5 text-xs font-semibold text-amber shadow-lg">
-            <Flame size={14} className="fill-amber/40" />
-            <span>Streak Shield active</span>
-            <span className="ml-1 rounded-full bg-slate-950/70 px-2 py-0.5 text-[10px] font-mono text-white border border-white/15">
-              +1 freeze
-            </span>
-          </div>
-        </section>
-
+      <div className="shell relative z-10 flex flex-col gap-5 pt-5 w-full">
         {/* 1. Dashboard Header: Slim ~120px Row */}
         <CommandHud worlds={displayWorlds} review={review} citadel={activeCitadel} />
 
@@ -189,7 +167,7 @@ function PeakSwitcherRibbon({
         </span>
       </div>
 
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-7">
         {CITADELS.map((cit) => {
           const isActive = cit.id === activeCitadel.id
           const citWorlds = allWorlds.filter((w) => cit.worldIds.includes(w.id))
@@ -247,6 +225,30 @@ function PeakSwitcherRibbon({
             </button>
           )
         })}
+
+        {/* Citadel VII: Interactive System Design (OOP/SOLID -> LLD -> 10 HLD) */}
+        <button
+          type="button"
+          onClick={() => navigate('/system-design')}
+          className="group relative flex flex-col justify-between rounded-xl border border-violet-400/40 bg-[#131B2E]/80 p-2.5 text-left transition-all backdrop-blur-md hover:border-violet-400 hover:bg-[#19233C]"
+        >
+          <div className="flex items-start justify-between gap-1">
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5">
+                <span className="font-plate text-xs font-bold text-violet-300">VII</span>
+                <span className="font-plate text-xs font-semibold text-chalk truncate">
+                  System Design
+                </span>
+              </div>
+            </div>
+            <span className="font-mono text-2xs text-violet-300 shrink-0">
+              LLD+HLD
+            </span>
+          </div>
+          <div className="mt-2 h-1 w-full overflow-hidden rounded-full bg-line">
+            <div className="h-full w-full rounded-full bg-violet-400/80" />
+          </div>
+        </button>
       </div>
     </div>
   )

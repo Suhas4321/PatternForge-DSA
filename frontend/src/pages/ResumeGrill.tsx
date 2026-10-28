@@ -20,7 +20,6 @@ import { useState } from 'react'
 import Sky from '../components/Sky'
 import { ChatComposer } from '../components/vendor/chat/chat-composer'
 import { ChatMessage } from '../components/vendor/chat/chat-message'
-import { GlassSurface } from '../components/vendor/vsrc/glass-surface'
 
 // ========================================================================================
 // DEFENSE SCENARIOS (All 8 scenarios with complete original text and WisdomBot additions)
@@ -430,10 +429,8 @@ export default function ResumeGrill() {
   const [activeId, setActiveId] = useState<string>(DEFENSE_SCENARIOS[0].id)
 
   // Conversational step inside Screen 2:
-  // 1 = Interviewer question 1 + composer 1
-  // 2 = Answer 1 revealed + Interviewer follow-up trap + composer 2
-  // 3 = Answer 2 revealed + Senior engineer spoken script + 5 Whys/Arch/Code tabs + Rating
-  const [step, setStep] = useState<1 | 2 | 3>(1)
+  // Default to step = 3 (Study Mode: immediately shows Senior Script, 5 Whys, Architecture & Code without empty-box fatigue!)
+  const [step, setStep] = useState<1 | 2 | 3>(3)
   const [candidateAnswer1, setCandidateAnswer1] = useState<string>('')
   const [candidateAnswer2, setCandidateAnswer2] = useState<string>('')
 
@@ -495,7 +492,7 @@ export default function ResumeGrill() {
 
   const handleSelectScenario = (id: string) => {
     setActiveId(id)
-    setStep(1)
+    setStep(3)
     setCandidateAnswer1('')
     setCandidateAnswer2('')
     setIsScriptHidden(false)
@@ -527,32 +524,35 @@ export default function ResumeGrill() {
   if (screen === 'rounds') {
     return (
       <div className="shell max-w-7xl mx-auto px-4 sm:px-6 py-6 w-full flex flex-col gap-6">
-        {/* Compact Hero (200px) with Sky Galaxy */}
-        <GlassSurface className="relative h-[200px] w-full overflow-hidden rounded-3xl border border-line p-6 sm:p-8 flex flex-col justify-between shadow-2xl">
+        {/* Compact Hero (200px) with Sky Galaxy — Always dark surface with crisp white text */}
+        <div
+          data-zone="night"
+          className="relative h-[200px] w-full overflow-hidden rounded-3xl border border-line p-6 sm:p-8 flex flex-col justify-between shadow-2xl bg-[#05070E] text-white"
+        >
           <Sky variant="galaxy" accent="#38BDF8" />
           <div className="relative z-10 flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2">
-              <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-sky-500/15 text-sky-400 border border-sky-500/30">
+              <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-sky-500/20 text-sky-300 border border-sky-400/30">
                 <ShieldCheck size={18} />
               </span>
-              <span className="font-plate text-xs font-bold uppercase tracking-wider text-sky-400">
+              <span className="font-plate text-xs font-bold uppercase tracking-wider text-sky-300">
                 Citadel VI Special Simulation
               </span>
             </div>
-            <span className="rounded-full bg-emerald/15 px-2.5 py-0.5 text-2xs font-semibold text-emerald border border-emerald/30">
+            <span className="rounded-full bg-emerald-500/20 px-2.5 py-0.5 text-2xs font-semibold text-emerald-300 border border-emerald-400/30">
               8 Scenarios · 100% Resume Mapped
             </span>
           </div>
 
           <div className="relative z-10">
-            <h1 className="font-plate text-2xl sm:text-3xl font-bold text-chalk tracking-tight">
+            <h1 className="font-plate text-2xl sm:text-3xl font-bold text-white tracking-tight drop-shadow-md">
               Resume Grill & Systems Defense Simulator
             </h1>
-            <p className="text-xs sm:text-sm text-muted mt-1 max-w-2xl leading-relaxed">
+            <p className="text-xs sm:text-sm text-slate-200 mt-1 max-w-2xl leading-relaxed drop-shadow-xs">
               Master the exact high-pressure technical follow-ups and trap questions interviewers ask about your production architectures.
             </p>
           </div>
-        </GlassSurface>
+        </div>
 
         {/* 8 Scenario Cards in a responsive 3/2/1 grid */}
         <section aria-label="Available Interview Rounds" className="w-full">
@@ -683,6 +683,28 @@ export default function ResumeGrill() {
             </select>
           </div>
 
+          {/* Study Mode vs Delivery Practice Mode Switcher */}
+          <div className="inline-flex rounded-xl border border-line bg-panel-2 p-0.5 text-xs">
+            <button
+              type="button"
+              onClick={() => setStep(3)}
+              className={`rounded-lg px-2.5 py-1 font-semibold transition-colors ${
+                step === 3 ? 'bg-cyan/20 text-cyan border border-cyan/40' : 'text-muted hover:text-chalk'
+              }`}
+            >
+              📖 Study Mode
+            </button>
+            <button
+              type="button"
+              onClick={() => setStep(1)}
+              className={`rounded-lg px-2.5 py-1 font-semibold transition-colors ${
+                step < 3 ? 'bg-amber/20 text-amber border border-amber/40' : 'text-muted hover:text-chalk'
+              }`}
+            >
+              🎙️ Delivery Drill
+            </button>
+          </div>
+
           <button
             type="button"
             onClick={() => setRightPanelOpen(!rightPanelOpen)}
@@ -770,7 +792,7 @@ export default function ResumeGrill() {
                 }}
               />
             </div>
-          ) : (
+          ) : candidateAnswer1.trim() ? (
             <ChatMessage
               role="candidate"
               senderName="You (Candidate)"
@@ -781,7 +803,7 @@ export default function ResumeGrill() {
                 {candidateAnswer1}
               </p>
             </ChatMessage>
-          )}
+          ) : null}
 
           {/* 3. Follow-Up Trap (Revealed in Step 2 & 3) */}
           {step >= 2 && (
@@ -818,7 +840,7 @@ export default function ResumeGrill() {
             </div>
           )}
 
-          {step >= 3 && (
+          {step >= 3 && candidateAnswer2.trim() && (
             <ChatMessage
               role="candidate"
               senderName="You (Candidate)"
