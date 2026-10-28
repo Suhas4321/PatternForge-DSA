@@ -80,44 +80,44 @@ html[data-theme='dark'],
 html[data-theme='carbon-dark'] {
   color-scheme: dark;
 
-  /* Surfaces: Nebula Plum (Night Expedition) */
-  --surface-0: #0D0A14;
-  --surface-1: #16111F;
-  --surface-2: #1F1830;
-  --surface-3: #2A2140;
-  --line: rgba(237, 233, 246, 0.08);
-  --line-strong: rgba(237, 233, 246, 0.16);
-  --surface-line: rgba(237, 233, 246, 0.08);
-  --surface-line-strong: rgba(237, 233, 246, 0.16);
+  /* Surfaces: Deep Cosmic Void (Linear / Vercel / Raycast precision) */
+  --surface-0: #090D16;
+  --surface-1: #0F1624;
+  --surface-2: #161F33;
+  --surface-3: #1E2942;
+  --line: rgba(241, 245, 249, 0.08);
+  --line-strong: rgba(241, 245, 249, 0.16);
+  --surface-line: rgba(241, 245, 249, 0.08);
+  --surface-line-strong: rgba(241, 245, 249, 0.16);
 
-  /* Text tokens (Clean Plum Slate) */
-  --text-1: #EDE9F6;
-  --text-2: #A89FC0; /* >= 4.5:1 on surface-1 */
-  --text-3: #74698E; /* metadata / faint */
-  --code: #F5F3FA;
-  --reward: #F5C451;
+  /* Text tokens (WCAG AAA / AA+ Slate) */
+  --text-1: #F1F5F9;
+  --text-2: #94A3B8; /* 6.8:1 on surface-1 */
+  --text-3: #64748B; /* 4.5:1 metadata / faint */
+  --code: #F8FAFC;
+  --reward: #FBBF24;
 
   /* Direct Tailwind color variable mappings */
-  --color-surface-0: #0D0A14;
-  --color-surface-1: #16111F;
-  --color-surface-2: #1F1830;
-  --color-surface-3: #2A2140;
-  --color-void: #0D0A14;
-  --color-panel: #16111F;
-  --color-panel-2: #1F1830;
-  --color-panel-3: #2A2140;
-  --color-ink: #1F1830;
-  --color-line: rgba(237, 233, 246, 0.08);
-  --color-line-strong: rgba(237, 233, 246, 0.16);
-  --color-fog: #2A2140;
-  --color-text-1: #EDE9F6;
-  --color-text-2: #A89FC0;
-  --color-text-3: #74698E;
-  --color-chalk: #EDE9F6;
-  --color-muted: #A89FC0;
-  --color-faint: #74698E;
-  --color-code: #F5F3FA;
-  --color-reward: #F5C451;
+  --color-surface-0: #090D16;
+  --color-surface-1: #0F1624;
+  --color-surface-2: #161F33;
+  --color-surface-3: #1E2942;
+  --color-void: #090D16;
+  --color-panel: #0F1624;
+  --color-panel-2: #161F33;
+  --color-panel-3: #1E2942;
+  --color-ink: #161F33;
+  --color-line: rgba(241, 245, 249, 0.08);
+  --color-line-strong: rgba(241, 245, 249, 0.16);
+  --color-fog: #1E2942;
+  --color-text-1: #F1F5F9;
+  --color-text-2: #94A3B8;
+  --color-text-3: #64748B;
+  --color-chalk: #F1F5F9;
+  --color-muted: #94A3B8;
+  --color-faint: #64748B;
+  --color-code: #F8FAFC;
+  --color-reward: #FBBF24;
 
   /* Type scale */
   --text-caption: 13px;   --lh-caption: 1.4;   /* metadata labels, keycaps, counters ONLY */
@@ -162,13 +162,13 @@ html[data-theme='carbon-dark'] {
   --color-action-hi: color-mix(in srgb, var(--peak-accent, #6EE7B7) 88%, white);
   --color-success: #10B981;
 
-  /* Card elevation: deep plum-black tint, soft, 24px blur */
-  --page-dot: #1F1830;
-  --card-shadow: 0 4px 24px -2px rgba(8, 5, 14, 0.65), 0 1px 2px -1px rgba(8, 5, 14, 0.5);
-  --card-highlight: inset 0 1px 0 rgba(237, 233, 246, 0.06);
-  --stage-bg: #0D0A14;
-  --stage-frame: rgba(237, 233, 246, 0.08);
-  --stage-glow: inset 0 2px 14px -4px rgba(0, 0, 0, 0.8);
+  /* Card elevation: deep cosmic navy-black tint, soft 24px blur + 1px light-catcher border */
+  --page-dot: #161F33;
+  --card-shadow: 0 8px 28px -4px rgba(2, 6, 23, 0.65), 0 1px 2px -1px rgba(2, 6, 23, 0.5);
+  --card-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  --stage-bg: #070A12;
+  --stage-frame: rgba(241, 245, 249, 0.09);
+  --stage-glow: inset 0 2px 16px -4px rgba(0, 0, 0, 0.85);
 
   /* Semantic Visualizer Tokens (Dark) */
   --viz-compare: #67E8F9;

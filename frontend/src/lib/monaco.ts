@@ -11,32 +11,32 @@ self.MonacoEnvironment = {
   getWorker: () => new EditorWorker(),
 }
 
-// 1. Dark Theme — "Night Expedition" (Nebula Plum surfaces with neon syntax)
+// 1. Dark Theme — "Night Expedition" (Deep Cosmic Void surfaces with neon syntax)
 monaco.editor.defineTheme('forge-dark', {
   base: 'vs-dark',
   inherit: true,
   rules: [
-    { token: 'comment', foreground: '74698E', fontStyle: 'italic' },
-    { token: 'keyword', foreground: '67E8F9', fontStyle: 'bold' },
-    { token: 'string', foreground: '6EE7B7' },
-    { token: 'number', foreground: 'F2B866' },
-    { token: 'type', foreground: 'A78BFA' },
-    { token: 'identifier', foreground: 'EDE9F6' },
-    { token: 'delimiter', foreground: 'A89FC0' },
-    { token: 'operator', foreground: '67E8F9' },
+    { token: 'comment', foreground: '64748B', fontStyle: 'italic' },
+    { token: 'keyword', foreground: '38BDF8', fontStyle: 'bold' },
+    { token: 'string', foreground: '34D399' },
+    { token: 'number', foreground: 'FBBF24' },
+    { token: 'type', foreground: '818CF8' },
+    { token: 'identifier', foreground: 'F1F5F9' },
+    { token: 'delimiter', foreground: '94A3B8' },
+    { token: 'operator', foreground: '38BDF8' },
   ],
   colors: {
-    'editor.background': '#0D0A14',
-    'editor.lineHighlightBackground': '#16111F',
-    'editorLineNumber.foreground': '#74698E',
-    'editorLineNumber.activeForeground': '#EDE9F6',
-    'editorGutter.background': '#0D0A14',
-    'editor.selectionBackground': '#2A2140',
-    'editorIndentGuide.background1': '#1F1830',
-    'editorIndentGuide.activeBackground1': '#2A2140',
-    'editorCursor.foreground': '#6EE7B7',
-    'editorBracketMatch.background': '#2A2140',
-    'editorBracketMatch.border': '#67E8F9',
+    'editor.background': '#090D16',
+    'editor.lineHighlightBackground': '#0F1624',
+    'editorLineNumber.foreground': '#64748B',
+    'editorLineNumber.activeForeground': '#F1F5F9',
+    'editorGutter.background': '#090D16',
+    'editor.selectionBackground': '#1E2942',
+    'editorIndentGuide.background1': '#161F33',
+    'editorIndentGuide.activeBackground1': '#1E2942',
+    'editorCursor.foreground': '#34D399',
+    'editorBracketMatch.background': '#1E2942',
+    'editorBracketMatch.border': '#38BDF8',
   },
 })
 

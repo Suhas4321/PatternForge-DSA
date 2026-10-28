@@ -5,7 +5,8 @@ import { Link } from 'react-router-dom'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { api } from '../../api/client'
-import type { Progress, QuestionContent } from '../../api/types'
+import type { Progress, QuestionContent, Trace, VisualizerKind } from '../../api/types'
+import { precomputeTraceNarration } from '../../lib/narrator/index.ts'
 import { Button, Markdown } from '../ui'
 import VisualizerHost from '../visualizers/VisualizerHost'
 import ConstraintsCheatWidget from './ConstraintsCheatWidget'
@@ -13,6 +14,7 @@ import Quiz from './Quiz'
 
 interface Props {
   slug: string
+  visualizer?: VisualizerKind
   content: QuestionContent
   progress: Progress
   onProgress: (p: Progress) => void
@@ -25,6 +27,7 @@ interface Props {
 
 export default function StageConcept({
   slug,
+  visualizer,
   content,
   progress,
   onProgress,
@@ -126,16 +129,49 @@ export default function StageConcept({
   const chapterContainerRef = useRef<HTMLDivElement>(null)
   const chapterRefs = useRef<Record<number, HTMLElement | null>>({})
 
-  // Determine visualizer
-  const vizKind = content.viz?.kind || (content as any).visualizer
-  const showConceptVisualizer = Boolean(
-    content.concept_trace ||
-      content.visual_demo ||
-      (vizKind &&
-        ['sql_pipeline', 'dataframe_pipeline', 'concurrency_timeline', 'http_lifecycle', 'system_blueprint'].includes(
-          vizKind,
-        )),
+  // Determine visualizer & fetch live demo trace for DSA lessons
+  const vizKind: VisualizerKind =
+    (content.viz?.kind as VisualizerKind | undefined) ||
+    visualizer ||
+    ((content as unknown as { visualizer?: VisualizerKind }).visualizer ?? 'array_pointer')
+
+  const [demoTrace, setDemoTrace] = useState<Trace | null>(null)
+  const [demoIndex, setDemoIndex] = useState(0)
+  const [demoPlaying, setDemoPlaying] = useState(false)
+  const [demoSpeed, setDemoSpeed] = useState(1)
+
+  useEffect(() => {
+    setDemoTrace(null)
+    setDemoIndex(0)
+    setDemoPlaying(false)
+    if (content.concept_trace) return
+    api
+      .demoTrace(slug)
+      .then((res) => {
+        if (res.trace && res.trace.steps && res.trace.steps.length > 0) {
+          setDemoTrace(res.trace)
+        }
+      })
+      .catch(() => {})
+  }, [slug, content.concept_trace])
+
+  const demoSteps = demoTrace?.steps ?? []
+  const demoNarration = useMemo(
+    () => (demoSteps.length > 0 ? precomputeTraceNarration(demoSteps, demoTrace?.line_info, content.viz, vizKind) : []),
+    [demoSteps, demoTrace?.line_info, content.viz, vizKind],
   )
+
+  useEffect(() => {
+    if (!demoPlaying || demoSteps.length === 0) return
+    if (demoIndex >= demoSteps.length - 1) {
+      setDemoPlaying(false)
+      return
+    }
+    const id = window.setTimeout(() => setDemoIndex((i) => Math.min(demoSteps.length - 1, i + 1)), Math.round(700 / demoSpeed))
+    return () => window.clearTimeout(id)
+  }, [demoPlaying, demoIndex, demoSteps.length, demoSpeed])
+
+  const showConceptVisualizer = Boolean(content.concept_trace || content.visual_demo || demoSteps.length > 0)
 
   // Save progress when both quizzes are solved
   useEffect(() => {
@@ -779,7 +815,7 @@ export default function StageConcept({
             </div>
           </div>
 
-          {/* Interactive Visual Simulator if configured */}
+          {/* Interactive Visual Simulator if configured or Demo Trace loaded */}
           {showConceptVisualizer && (
             <div className="rounded-2xl border border-line bg-panel p-5 space-y-3">
               <div className="flex items-center justify-between text-xs text-muted">
@@ -788,27 +824,60 @@ export default function StageConcept({
                 </span>
                 <span className="text-2xs font-mono">Stage 1: Visualize First, Code Second</span>
               </div>
-              <div className="stage h-[400px] rounded-xl overflow-hidden border border-line">
-                <VisualizerHost
-                  kind={vizKind || 'sql_pipeline'}
-                  step={{
-                    event: 'pipeline_step',
-                    line: 1,
-                    func: 'concept_demo',
-                    depth: 0,
-                    frames: [],
-                    heap: {},
-                    sql_state: content.concept_trace?.sql_state,
-                    df_state: content.concept_trace?.df_state,
-                    concurrency_state: content.concept_trace?.concurrency_state,
-                    http_state: content.concept_trace?.http_state,
-                    blueprint_state: content.concept_trace?.blueprint_state,
-                  }}
-                  steps={[]}
-                  index={0}
-                  config={content.viz || {}}
-                  code={content.solution?.code || ''}
-                />
+              <div className="stage rounded-xl overflow-hidden border border-line">
+                {demoSteps.length > 0 ? (
+                  <VisualizerHost
+                    kind={vizKind}
+                    title={content.viz?.title || 'Optimal Pattern Execution Preview'}
+                    timeComplexity={content.viz?.complexity?.time || content.solution?.time?.split(' — ')[0]}
+                    spaceComplexity={content.viz?.complexity?.space || content.solution?.space?.split(' — ')[0]}
+                    step={demoSteps[demoIndex] ?? demoSteps[0]}
+                    prev={demoIndex > 0 ? demoSteps[demoIndex - 1] : undefined}
+                    steps={demoSteps}
+                    index={demoIndex}
+                    config={content.viz || {}}
+                    code={content.solution?.code || ''}
+                    narration={demoNarration[demoIndex]}
+                    caption={demoNarration[demoIndex]?.caption}
+                    why={demoNarration[demoIndex]?.why}
+                    comparisons={demoNarration[demoIndex]?.counters.comparisons}
+                    swaps={demoNarration[demoIndex]?.counters.swaps}
+                    writes={demoNarration[demoIndex]?.counters.writes}
+                    playing={demoPlaying}
+                    onTogglePlay={() => {
+                      if (demoIndex >= demoSteps.length - 1 && !demoPlaying) setDemoIndex(0)
+                      setDemoPlaying((p) => !p)
+                    }}
+                    onStepForward={() => setDemoIndex((i) => Math.min(demoSteps.length - 1, i + 1))}
+                    onStepBackward={() => setDemoIndex((i) => Math.max(0, i - 1))}
+                    onJumpFirst={() => setDemoIndex(0)}
+                    onJumpLast={() => setDemoIndex(Math.max(0, demoSteps.length - 1))}
+                    onSeek={setDemoIndex}
+                    speed={demoSpeed}
+                    onSpeedChange={setDemoSpeed}
+                  />
+                ) : (
+                  <VisualizerHost
+                    kind={vizKind || 'sql_pipeline'}
+                    step={{
+                      event: 'pipeline_step',
+                      line: 1,
+                      func: 'concept_demo',
+                      depth: 0,
+                      frames: [],
+                      heap: {},
+                      sql_state: content.concept_trace?.sql_state,
+                      df_state: content.concept_trace?.df_state,
+                      concurrency_state: content.concept_trace?.concurrency_state,
+                      http_state: content.concept_trace?.http_state,
+                      blueprint_state: content.concept_trace?.blueprint_state,
+                    }}
+                    steps={[]}
+                    index={0}
+                    config={content.viz || {}}
+                    code={content.solution?.code || ''}
+                  />
+                )}
               </div>
             </div>
           )}

@@ -1,4 +1,4 @@
-import { Flame } from 'lucide-react'
+import { Flame, ShieldCheck } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useUserStats } from '../lib/userStats'
 import CountUp from './vendor/react-bits/CountUp'
@@ -9,10 +9,22 @@ export default function TopBarHUD() {
   return (
     <Link
       to="/stats"
-      aria-label="User stats and level progress"
-      title={`Level ${stats.level} · ${stats.streak} Day Streak · +${stats.xpToday} XP Today`}
-      className="hidden sm:flex items-center gap-3 rounded-lg border border-line bg-panel-2 px-2.5 py-1 text-xs transition-colors hover:border-line-strong hover:bg-panel-3"
+      aria-label="User stats, Interview Readiness Score, and level progress"
+      title={`IRS ${stats.readinessScore}/100 · Level ${stats.level} · ${stats.streak} Day Streak · +${stats.xpToday} XP Today`}
+      className="hidden sm:flex items-center gap-2.5 rounded-lg border border-line bg-panel-2/90 px-2.5 py-1 text-xs transition-colors hover:border-line-strong hover:bg-panel-3"
     >
+      {/* 0. Interview Readiness Score (IRS) Pill */}
+      <div
+        className="flex items-center gap-1 rounded-md border border-cyan/30 bg-cyan/10 px-1.5 py-0.5 font-mono text-[11px] font-bold text-cyan"
+        title="Interview Readiness Score (0–100) based on solved patterns, confidence, and rust decay"
+      >
+        <ShieldCheck size={12} className="text-cyan shrink-0" />
+        <span>IRS</span>
+        <CountUp to={stats.readinessScore} duration={0.8} />
+      </div>
+
+      <div className="h-3 w-px bg-line" />
+
       {/* 1. Level badge with mini XP bar */}
       <div className="flex items-center gap-1.5">
         <span className="font-plate text-xs font-bold text-chalk">

@@ -10,6 +10,7 @@ export interface UserStats {
   xpToday: number
   solvesToday: number
   drillsToday: number
+  readinessScore: number
   isDailyComplete: boolean
   isDailyClaimed: boolean
   claimDailyReward: () => void
@@ -26,6 +27,7 @@ function getTodayKey(): string {
 export function useUserStats(worlds?: World[] | null): UserStats {
   const todayKey = getTodayKey()
   const [events, setEvents] = useState<ActivityEvent[]>([])
+  const [readinessScore, setReadinessScore] = useState<number>(0)
   const [isDailyClaimed, setIsDailyClaimed] = useState<boolean>(() => {
     try {
       return localStorage.getItem(DAILY_CLAIMED_KEY_PREFIX + todayKey) === 'true'
@@ -37,9 +39,10 @@ export function useUserStats(worlds?: World[] | null): UserStats {
   useEffect(() => {
     api.activity()
       .then((res) => setEvents(res.events || []))
-      .catch(() => {
-        // Fallback to empty if offline
-      })
+      .catch(() => {})
+    api.stats()
+      .then((s) => setReadinessScore(s.readiness_score ?? 0))
+      .catch(() => {})
   }, [])
 
   // Calculate today's activity
@@ -113,6 +116,7 @@ export function useUserStats(worlds?: World[] | null): UserStats {
     xpToday,
     solvesToday,
     drillsToday,
+    readinessScore,
     isDailyComplete,
     isDailyClaimed,
     claimDailyReward,

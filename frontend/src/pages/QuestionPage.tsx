@@ -328,6 +328,7 @@ export default function QuestionPage() {
           <main className="flex-1 min-w-0 max-w-[68ch] mx-auto w-full">
             <StageConcept
               slug={slug}
+              visualizer={question.visualizer}
               content={content}
               progress={progress}
               onProgress={onProgress}

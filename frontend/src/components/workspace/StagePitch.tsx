@@ -160,6 +160,41 @@ export default function StagePitch({ question, progress, onProgress }: Props) {
   const totalWords = FIELDS.reduce((sum, f) => sum + pitch[f.key].trim().split(/\s+/).filter(Boolean).length, 0)
   const estimatedSeconds = Math.round((totalWords / 130) * 60) // ~130 words per minute conversational pace
 
+  // 60-Second Spoken Rehearsal Countdown Timer
+  const [timerSec, setTimerSec] = useState(60)
+  const [timerRunning, setTimerRunning] = useState(false)
+
+  useEffect(() => {
+    if (!timerRunning) return
+    if (timerSec <= 0) {
+      setTimerRunning(false)
+      return
+    }
+    const id = window.setTimeout(() => setTimerSec((s) => Math.max(0, s - 1)), 1000)
+    return () => window.clearTimeout(id)
+  }, [timerRunning, timerSec])
+
+  // Live 4-Point Staff Rubric Evaluation
+  const rubricChecks = [
+    {
+      label: '1. Baseline Bound',
+      ok: /o\s*\(|loop|brute|every|nested|exponential/i.test(pitch.brute_force) && pitch.brute_force.trim().length >= 12,
+    },
+    {
+      label: '2. Trigger Signal',
+      ok: pitch.trigger.trim().length >= 10,
+    },
+    {
+      label: '3. Core Invariant',
+      ok: pitch.intuition.trim().length >= 20,
+    },
+    {
+      label: '4. Time & Space O(…)',
+      ok: /o\s*\(/i.test(pitch.complexity) && /space|time|memory/i.test(pitch.complexity),
+    },
+  ]
+  const rubricPassedCount = rubricChecks.filter((r) => r.ok).length
+
   const rate = async (confidence: number) => {
     onProgress(await api.rate(question.slug, confidence))
   }
@@ -230,6 +265,58 @@ export default function StagePitch({ question, progress, onProgress }: Props) {
               <span>Senior Model Script</span>
             </button>
           </div>
+        </div>
+      </div>
+
+      {/* Live 60-Second Spoken Rehearsal Timer & 4-Point Staff Interviewer Rubric Bar */}
+      <div className="card rounded-2xl border border-line bg-panel p-4 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-2 rounded-xl border border-line bg-panel-2 px-3 py-1.5 font-mono text-xs">
+            <Clock size={14} className={timerRunning ? 'text-amber animate-pulse' : 'text-cyan'} />
+            <span className="font-bold text-chalk tabular-nums">
+              00:{String(timerSec).padStart(2, '0')}
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                if (timerSec === 0) setTimerSec(60)
+                setTimerRunning((r) => !r)
+              }}
+              className="ml-1 rounded-md bg-cyan/15 border border-cyan/30 px-2 py-0.5 text-2xs font-bold text-cyan hover:bg-cyan/25 transition-colors"
+            >
+              {timerRunning ? 'Pause' : timerSec < 60 && timerSec > 0 ? 'Resume' : 'Start 60s Drill'}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setTimerRunning(false)
+                setTimerSec(60)
+              }}
+              className="p-1 text-muted hover:text-chalk transition-colors"
+              title="Reset 60s timer"
+            >
+              <RotateCcw size={12} />
+            </button>
+          </div>
+          <span className="text-2xs text-muted font-mono">
+            Rubric Score: <strong className="text-chalk">{rubricPassedCount}/4</strong> Staff Criteria Met
+          </span>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          {rubricChecks.map((r) => (
+            <span
+              key={r.label}
+              className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 font-mono text-2xs transition-colors ${
+                r.ok
+                  ? 'border-emerald/40 bg-emerald/15 text-emerald font-semibold'
+                  : 'border-line bg-panel-2 text-faint'
+              }`}
+            >
+              {r.ok ? <Check size={11} strokeWidth={3} /> : <span className="h-1.5 w-1.5 rounded-full bg-current" />}
+              <span>{r.label}</span>
+            </span>
+          ))}
         </div>
       </div>
 
