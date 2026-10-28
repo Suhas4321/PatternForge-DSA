@@ -199,18 +199,28 @@ function TopBar() {
   )
 }
 
+function AppShell() {
+  const { pathname } = useLocation()
+  // Hide the website header on full-screen IDE routes (/q/:slug and /playground)
+  const isFullscreenIde = pathname.startsWith('/q/') || pathname === '/playground'
+
+  return (
+    <div className={isFullscreenIde ? 'h-screen w-screen overflow-hidden bg-void text-chalk' : 'min-h-screen bg-void text-chalk'}>
+      {!isFullscreenIde && <TopBar />}
+      <CommandPalette />
+      <main className={isFullscreenIde ? 'h-full w-full overflow-hidden' : ''}>
+        <ErrorBoundary fallbackTitle="Workspace encountered an unexpected error">
+          <Outlet />
+        </ErrorBoundary>
+      </main>
+    </div>
+  )
+}
+
 export default function App() {
   return (
     <GrimoireProvider>
-      <div className="min-h-screen bg-void text-chalk">
-        <TopBar />
-        <CommandPalette />
-        <main>
-          <ErrorBoundary fallbackTitle="Workspace encountered an unexpected error">
-            <Outlet />
-          </ErrorBoundary>
-        </main>
-      </div>
+      <AppShell />
     </GrimoireProvider>
   )
 }

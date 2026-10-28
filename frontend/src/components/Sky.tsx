@@ -28,6 +28,8 @@ export interface SkyProps {
   variant?: 'peak' | 'galaxy' | 'aurora'
   /** Toggle mountain silhouettes (default: true) */
   showMountains?: boolean
+  /** Lock sky to full viewport (fixed inset-0) so aurora/stars fill the whole screen top-to-bottom */
+  fixed?: boolean
 }
 
 const VALID_PEAKS = new Set([
@@ -54,6 +56,7 @@ export default function Sky({
   accent = 'var(--accent-dsa, #6EE7B7)',
   className = '',
   showMountains = true,
+  fixed = false,
 }: SkyProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const mountainRef1 = useRef<SVGSVGElement>(null)
@@ -133,25 +136,23 @@ export default function Sky({
     <div
       ref={containerRef}
       aria-hidden="true"
-      className={`pointer-events-none absolute inset-0 overflow-hidden select-none ${className}`}
+      className={`pointer-events-none ${fixed ? 'fixed' : 'absolute'} inset-0 overflow-hidden select-none ${className}`}
       style={{ zIndex: 0, backgroundColor: '#05070E' }}
     >
       {/* 1. Procedural WebGL Sky (Nebula, Aurora curtains, Twinkling Stars & Shooting Star) */}
       <ProceduralSky
         peak={cleanPeak}
         accent={resolvedAccent}
-        level={level}
+        level="full"
         className="absolute inset-0"
       />
 
-      {/* 2. Dark Overlay Gradient for Readability & High Contrast */}
+      {/* 2. Subtle Bottom Vignette (keeps upper aurora bright and vivid!) */}
       <div
         className="absolute inset-0 pointer-events-none"
         style={{
-          background: `
-            linear-gradient(to bottom, rgba(9, 10, 15, 0.0) 0%, rgba(9, 10, 15, 0.50) 100%),
-            radial-gradient(ellipse 90% 42% at 50% 0%, rgba(9, 10, 15, 0.40) 0%, transparent 100%)
-          `,
+          background:
+            'linear-gradient(to bottom, rgba(5, 7, 14, 0.0) 0%, rgba(5, 7, 14, 0.15) 65%, rgba(5, 7, 14, 0.45) 100%)',
         }}
       />
 

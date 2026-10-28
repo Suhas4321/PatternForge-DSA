@@ -89,31 +89,35 @@ export default function Dashboard() {
 
   return (
     <div
-      className="relative min-h-screen w-full flex flex-col pb-20 bg-void text-chalk"
-      style={{ backgroundColor: 'var(--color-void, #090A0F)' }}
+      data-zone="night"
+      className="relative min-h-screen w-full flex flex-col pb-20 overflow-x-hidden"
+      style={{ backgroundColor: '#05070E', color: '#F8FAFC' }}
     >
+      {/* Full-Page Lively Procedural Sky (Aurora Curtains + Nebula + Twinkling Stars + Mountain Peaks) */}
+      <Sky peak={activeCitadel.id} accent={activeCitadel.themeColor} fixed />
+
       {/* Chapter Intro modal: shown the first time a peak is visited */}
       <ChapterIntroModal citadel={activeCitadel} />
 
-      {/* Top Cards Section: Aligned to .shell */}
+      {/* Top Cards Section: Floating over the colorful sky */}
       <div className="shell relative z-10 flex flex-col gap-6 pt-6 w-full">
-        {/* Morning Greeting & Streak Shield (inspired by v0) */}
+        {/* Morning Greeting & Streak Shield */}
         <section className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <p className="font-mono mb-1 text-[10px] uppercase tracking-[.24em] text-muted">
+            <p className="font-mono mb-1 text-[10px] uppercase tracking-[.24em] text-slate-300/80">
               {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
             </p>
-            <h1 className="text-3xl font-bold tracking-[-.04em] sm:text-4xl text-chalk">
+            <h1 className="text-3xl font-bold tracking-[-.04em] sm:text-4xl text-white drop-shadow-[0_2px_16px_rgba(0,0,0,0.6)]">
               Good morning, Suhas.
             </h1>
-            <p className="mt-1 text-sm text-muted">
+            <p className="mt-1 text-sm text-slate-300">
               Your next breakthrough is one focused session away.
             </p>
           </div>
-          <div className="flex items-center gap-2 rounded-full border border-amber/30 bg-amber/10 px-3.5 py-1.5 text-xs font-semibold text-amber">
+          <div className="flex items-center gap-2 rounded-full border border-amber/40 bg-amber/15 backdrop-blur-md px-3.5 py-1.5 text-xs font-semibold text-amber shadow-lg">
             <Flame size={14} className="fill-amber/40" />
             <span>Streak Shield active</span>
-            <span className="ml-1 rounded-full bg-panel px-2 py-0.5 text-[10px] font-mono text-chalk border border-line">
+            <span className="ml-1 rounded-full bg-slate-950/70 px-2 py-0.5 text-[10px] font-mono text-white border border-white/15">
               +1 freeze
             </span>
           </div>
@@ -122,16 +126,16 @@ export default function Dashboard() {
         {/* 1. Dashboard Header: Slim ~120px Row */}
         <CommandHud worlds={displayWorlds} review={review} citadel={activeCitadel} />
 
-        {/* 2. Collapsible Activity & Practice Heatmap (collapsed by default) */}
-        <details className="group rounded-2xl border border-line bg-panel/90 backdrop-blur-sm transition-colors overflow-hidden">
-          <summary className="flex cursor-pointer items-center justify-between px-4 py-3 text-xs font-semibold text-muted hover:text-chalk transition-colors select-none">
+        {/* 2. Collapsible Activity & Practice Heatmap */}
+        <details className="group rounded-2xl border border-white/12 bg-[#0D1220]/70 backdrop-blur-md transition-colors overflow-hidden shadow-xl">
+          <summary className="flex cursor-pointer items-center justify-between px-4 py-3 text-xs font-semibold text-slate-300 hover:text-white transition-colors select-none">
             <div className="flex items-center gap-2">
-              <CalendarClock size={15} className="text-muted" />
+              <CalendarClock size={15} className="text-cyan" />
               <span>Activity & Practice Heatmap</span>
             </div>
             <ChevronDown size={14} className="transition-transform duration-200 group-open:rotate-180" />
           </summary>
-          <div className="border-t border-line p-4">
+          <div className="border-t border-white/10 p-4">
             <PracticeCard />
           </div>
         </details>
@@ -140,16 +144,8 @@ export default function Dashboard() {
         <PeakSwitcherRibbon activeCitadel={activeCitadel} allWorlds={worlds} />
       </div>
 
-      {/* 5. Full-bleed Constellation Skill Mountain (Always Night Zone) */}
-      <section
-        data-zone="night"
-        className="relative w-full overflow-hidden mt-8 border-t border-line/60 shadow-[inset_0_12px_24px_rgba(0,0,0,0.45)]"
-        style={{ backgroundColor: '#090A0F', color: '#F8FAFC' }}
-      >
-        {/* 5-Layer Cinematic Sky Background */}
-        <Sky peak={activeCitadel.id} accent={activeCitadel.themeColor} />
-
-        {/* Constellation Stage Canvas */}
+      {/* 5. Full-bleed Constellation Skill Mountain over the Unified Colorful Sky */}
+      <section className="relative w-full overflow-hidden mt-4">
         <div className="relative z-10 w-full">
           <Constellation worlds={displayWorlds} citadel={activeCitadel} />
         </div>
@@ -206,10 +202,10 @@ function PeakSwitcherRibbon({
             <button
               key={cit.id}
               onClick={() => navigate(cit.id === 'dsa' ? '/' : `/citadel/${cit.id}`)}
-              className={`group relative flex flex-col justify-between rounded-xl border p-2.5 text-left transition-all ${
+              className={`group relative flex flex-col justify-between rounded-xl border p-2.5 text-left transition-all backdrop-blur-md ${
                 isActive
-                  ? 'bg-panel-2'
-                  : 'border-line bg-panel hover:border-line-strong hover:bg-panel-2'
+                  ? 'bg-[#131B2E]/85 shadow-lg'
+                  : 'border-white/10 bg-[#0D1220]/65 hover:border-white/25 hover:bg-[#131B2E]/80'
               }`}
               style={
                 isActive
@@ -273,7 +269,7 @@ function CommandHud({ worlds, review, citadel }: { worlds: World[]; review: Revi
   return (
     <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[1.35fr_1.15fr_0.85fr_0.85fr]">
       {/* 1. Current quest card — The ONLY card with BorderBeam on screen */}
-      <div className="card relative flex min-h-[115px] flex-col justify-between rounded-2xl p-4 border border-line bg-panel overflow-hidden">
+      <div className="card relative flex min-h-[115px] flex-col justify-between rounded-2xl p-4 border border-white/12 bg-[#0D1220]/70 backdrop-blur-md overflow-hidden shadow-xl">
         <BorderBeam />
         <div className="flex items-center justify-between gap-2">
           <p className={`flex items-center gap-1.5 text-2xs font-semibold uppercase tracking-wider ${quest?.reason === 'review' ? 'text-amber' : 'text-sky-400'}`}>
@@ -325,7 +321,7 @@ function CommandHud({ worlds, review, citadel }: { worlds: World[]; review: Revi
       <DailyQuestCard />
 
       {/* 2. Mastery card (No BorderBeam) */}
-      <div className="card flex min-h-[115px] items-center gap-4 rounded-2xl p-4 border border-line bg-panel">
+      <div className="card flex min-h-[115px] items-center gap-4 rounded-2xl p-4 border border-white/12 bg-[#0D1220]/70 backdrop-blur-md shadow-xl">
         <ProgressRing value={solved} total={all.length || 1} size={58} stroke={6} color={citadel.themeColor || "var(--accent-dsa)"}>
           <span className="font-plate text-xs font-bold text-chalk">
             <NumberTicker value={pct} />%
@@ -366,7 +362,7 @@ function RustRadar({ worlds, review }: { worlds: World[]; review: ReviewQueue })
   const arc = Math.PI * r
 
   return (
-    <div className="card flex min-h-[115px] items-center gap-3.5 rounded-2xl p-4 border border-line bg-panel">
+    <div className="card flex min-h-[115px] items-center gap-3.5 rounded-2xl p-4 border border-white/12 bg-[#0D1220]/70 backdrop-blur-md shadow-xl">
       <svg width="64" height="38" viewBox="0 0 64 38" aria-hidden="true" className="shrink-0">
         <path d="M 6 34 A 26 26 0 0 1 58 34" fill="none" stroke="var(--color-line)" strokeWidth="5" strokeLinecap="round" />
         <path
@@ -714,7 +710,7 @@ function WorldNode({
       <MagicCard
         className="relative flex items-center gap-3 rounded-2xl p-3 transition-colors backdrop-blur-md"
         style={{
-          backgroundColor: 'rgba(15, 18, 32, 0.82)',
+          backgroundColor: 'rgba(13, 18, 32, 0.78)',
           border: `1px solid ${borderColor}`,
           ...(rusting ? { boxShadow: `0 0 24px -4px ${rustColor}` } : {}),
         }}

@@ -238,10 +238,16 @@ const FRAGMENT_SHADER = `
     float curtainRays = fbm3(vec2(auroraDomain.x * 4.5 - u_time * 0.025, auroraDomain.y * 1.4));
     float aurora = auroraBand * smoothstep(0.20, 0.75, curtainRays);
 
-    // Deep-space cosmic chromatic color mix
-    vec3 deepTint = mix(vec3(0.08, 0.12, 0.28), u_accent, 0.55);
-    col += deepTint * nebulaMask * 0.35 * detailWeight;
-    col += u_accent * aurora * 0.50 * detailWeight;
+    // Deep-space cosmic chromatic color mix (lively aurora + dual-tone nebula)
+    vec3 secondaryAurora = vec3(0.38, 0.45, 0.98); // vibrant indigo-violet complement
+    vec3 cyanGlow = vec3(0.15, 0.82, 0.96);
+    vec3 deepTint = mix(secondaryAurora, u_accent, 0.55);
+    col += deepTint * nebulaMask * 0.52 * detailWeight;
+    col += mix(u_accent, cyanGlow, 0.35) * aurora * 0.72 * detailWeight;
+
+    // Upper-canopy aurora glow so top of screen is rich and colorful
+    float topCanopy = smoothstep(0.15, 0.95, uv.y) * smoothstep(0.25, 0.85, n1);
+    col += mix(secondaryAurora, u_accent, uv.x) * topCanopy * 0.38 * detailWeight;
 
     // 3. PROCEDURAL MULTI-OCTAVE STARFIELD
     // Layer A: Crisp 1px pinpoint micro-stars

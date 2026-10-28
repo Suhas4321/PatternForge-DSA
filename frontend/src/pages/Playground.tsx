@@ -1,9 +1,12 @@
-import { Play } from 'lucide-react'
+import { ArrowLeft, Play } from 'lucide-react'
 import { useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import type { RunError, Trace, VisualizerKind } from '../api/types'
 import CodeEditor from '../components/CodeEditor'
+import { ThemeToggle } from '../components/effects'
 import { Button, ErrorNote } from '../components/ui'
 import VisualizerHost from '../components/visualizers/VisualizerHost'
+import ResizableSplit from '../components/workspace/ResizableSplit'
 import { precomputeTraceNarration } from '../lib/narrator/index.ts'
 
 const KINDS: { kind: VisualizerKind; label: string }[] = [
@@ -307,151 +310,173 @@ export default function Playground() {
   const currentNarration = narrations[index]
 
   return (
-    <div className="shell flex flex-col gap-4 py-6">
-      <header className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="font-plate text-2xl font-semibold">Playground</h1>
-          <p className="text-sm text-muted">Paste any LeetCode-style solution, give it an input, and watch it run.</p>
-        </div>
-        <label className="flex items-center gap-2 text-sm text-muted">
-          Start from
+    <div className="flex h-screen w-screen flex-col overflow-hidden bg-void text-chalk">
+      {/* 44px Fullscreen IDE Top Bar */}
+      <header className="flex h-11 shrink-0 items-center justify-between gap-3 border-b border-line bg-panel px-3 select-none">
+        <div className="flex items-center gap-2.5">
+          <Link
+            to="/"
+            className="flex items-center gap-1 rounded-lg border border-line bg-panel-2 px-2.5 py-1 text-xs font-medium text-muted hover:text-chalk"
+          >
+            <ArrowLeft size={13} />
+            <span>Home</span>
+          </Link>
+          <h1 className="font-plate text-sm font-bold text-chalk sm:text-base">Playground</h1>
           <select
             value={preset}
             onChange={(e) => load(Number(e.target.value))}
-            className="rounded-md border border-line bg-panel px-2 py-1.5 text-chalk"
+            className="rounded-lg border border-line bg-panel-2 px-2 py-1 text-xs text-chalk"
+            aria-label="Preset"
           >
             {PRESETS.map((p, i) => (
               <option key={p.name} value={i}>
-                {p.name}
+                Preset: {p.name}
               </option>
             ))}
           </select>
-        </label>
+          <select
+            value={kind}
+            onChange={(e) => setKind(e.target.value as VisualizerKind)}
+            className="hidden rounded-lg border border-line bg-panel-2 px-2 py-1 text-xs text-chalk sm:block"
+            aria-label="Visualizer"
+          >
+            {KINDS.map((k) => (
+              <option key={k.kind} value={k.kind}>
+                Visualizer: {k.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Button className="h-7 px-3 text-xs font-semibold" onClick={run} disabled={running}>
+            <Play size={13} />
+            <span>{running ? 'Running…' : 'Run & Visualize'}</span>
+          </Button>
+          <ThemeToggle />
+        </div>
       </header>
-
-      <div className="grid gap-4 xl:grid-cols-2">
-        <section className="stage flex min-h-[30rem] flex-col overflow-hidden rounded-3xl">
-          <header className="flex items-center justify-between gap-3 border-b border-line px-4 py-2">
-            <h3 className="text-sm font-semibold">Visualizer</h3>
-            <select
-              value={kind}
-              onChange={(e) => setKind(e.target.value as VisualizerKind)}
-              className="rounded border border-line bg-ink px-2 py-1 text-xs text-chalk"
-              aria-label="Visualizer"
-            >
-              {KINDS.map((k) => (
-                <option key={k.kind} value={k.kind}>
-                  {k.label}
-                </option>
-              ))}
-            </select>
-          </header>
-          <div className="flex-1 w-full min-h-[420px] p-2">
-            <VisualizerHost
-              kind={kind}
-              title={KINDS.find((k) => k.kind === kind)?.label || 'Playground Visualizer'}
-              description="Interactive Custom Code Execution"
-              caption={currentNarration?.caption}
-              why={currentNarration?.why}
-              comparisons={currentNarration?.counters.comparisons}
-              swaps={currentNarration?.counters.swaps}
-              writes={currentNarration?.counters.writes}
-              narration={currentNarration}
-              lineInfo={trace?.line_info}
-              step={
-                step || {
-                  event: 'line',
-                  line: 1,
-                  func: 'ready',
-                  depth: 0,
-                  frames: [],
-                  heap: {},
+      <div className="flex-1 min-h-0 w-full overflow-hidden">
+        <ResizableSplit
+          direction="horizontal"
+          initialPrimaryPct={48}
+          minPrimaryPct={25}
+          maxPrimaryPct={75}
+          storageKey="pf-pg-split-x"
+          first={
+            <div className="flex h-full w-full flex-col overflow-hidden bg-panel p-2">
+              <VisualizerHost
+                kind={kind}
+                title={KINDS.find((k) => k.kind === kind)?.label || 'Playground Visualizer'}
+                description="Interactive Custom Code Execution"
+                caption={currentNarration?.caption}
+                why={currentNarration?.why}
+                comparisons={currentNarration?.counters.comparisons}
+                swaps={currentNarration?.counters.swaps}
+                writes={currentNarration?.counters.writes}
+                narration={currentNarration}
+                lineInfo={trace?.line_info}
+                step={
+                  step || {
+                    event: 'line',
+                    line: 1,
+                    func: 'ready',
+                    depth: 0,
+                    frames: [],
+                    heap: {},
+                  }
                 }
-              }
-              prev={steps[index - 1]}
-              steps={steps}
-              index={index}
-              config={{}}
-              code={tracedCode || code}
-              playing={playing}
-              onTogglePlay={() => setPlaying(!playing)}
-              onStepForward={() => setIndex(Math.min(steps.length - 1, index + 1))}
-              onStepBackward={() => setIndex(Math.max(0, index - 1))}
-              onJumpFirst={() => setIndex(0)}
-              onJumpLast={() => setIndex(Math.max(0, steps.length - 1))}
-              onSeek={setIndex}
-              speed={speed}
-              onSpeedChange={setSpeed}
-            />
-          </div>
-        </section>
-
-        <section className="flex flex-col gap-3">
-          <div className="stage h-[22rem] overflow-hidden rounded-3xl">
-            <CodeEditor
-              value={code}
-              onChange={setCode}
-              traceLine={step && step.event !== 'call' ? step.line : null}
-              onRun={run}
-              step={step}
-              prevStep={steps[index - 1]}
-            />
-          </div>
-          <label className="flex flex-col gap-1 text-sm text-muted">
-            Arguments (JSON list, one per parameter)
-            <input
-              value={args}
-              onChange={(e) => setArgs(e.target.value)}
-              className="rounded-md border border-line bg-ink px-3 py-1.5 font-mono text-xs text-chalk"
-            />
-          </label>
-          <div className="flex flex-wrap gap-3">
-            <label className="flex flex-1 flex-col gap-1 text-sm text-muted">
-              Parameter types, comma separated
-              <input
-                value={types}
-                onChange={(e) => setTypes(e.target.value)}
-                placeholder="any, ListNode, TreeNode…"
-                className="rounded-md border border-line bg-ink px-3 py-1.5 font-mono text-xs text-chalk"
+                prev={steps[index - 1]}
+                steps={steps}
+                index={index}
+                config={{}}
+                code={tracedCode || code}
+                playing={playing}
+                onTogglePlay={() => setPlaying(!playing)}
+                onStepForward={() => setIndex(Math.min(steps.length - 1, index + 1))}
+                onStepBackward={() => setIndex(Math.max(0, index - 1))}
+                onJumpFirst={() => setIndex(0)}
+                onJumpLast={() => setIndex(Math.max(0, steps.length - 1))}
+                onSeek={setIndex}
+                speed={speed}
+                onSpeedChange={setSpeed}
               />
-            </label>
-            <label className="flex flex-col gap-1 text-sm text-muted">
-              Return type
-              <select
-                value={returns}
-                onChange={(e) => setReturns(e.target.value)}
-                className="rounded-md border border-line bg-ink px-2 py-1.5 text-xs text-chalk"
-              >
-                {TYPES.map((t) => (
-                  <option key={t}>{t}</option>
-                ))}
-              </select>
-            </label>
-          </div>
-          <div className="flex items-center gap-3">
-            <Button onClick={run} disabled={running}>
-              <Play size={15} /> {running ? 'Running' : 'Run and visualize'}
-            </Button>
-            <span className="text-xs text-faint">Lists, trees and graphs use LeetCode's input formats.</span>
-          </div>
-          {error && <ErrorNote message={error} />}
-          {output && (
-            <div className="card rounded-xl p-3 font-mono text-xs">
-              {output.error ? (
-                <span className="text-oxide">
-                  {output.error.type}
-                  {output.error.line ? ` (line ${output.error.line})` : ''}: {output.error.message}
-                </span>
-              ) : (
-                <span>
-                  <span className="font-sans text-muted">Returned </span>
-                  {JSON.stringify(output.value)}
-                </span>
-              )}
-              {output.stdout && <pre className="mt-2 whitespace-pre-wrap text-muted">{output.stdout}</pre>}
             </div>
-          )}
-        </section>
+          }
+          second={
+            <ResizableSplit
+              direction="vertical"
+              initialPrimaryPct={68}
+              minPrimaryPct={30}
+              maxPrimaryPct={88}
+              storageKey="pf-pg-split-y"
+              first={
+                <div className="h-full w-full overflow-hidden">
+                  <CodeEditor
+                    value={code}
+                    onChange={setCode}
+                    traceLine={step && step.event !== 'call' ? step.line : null}
+                    onRun={run}
+                    step={step}
+                    prevStep={steps[index - 1]}
+                  />
+                </div>
+              }
+              second={
+                <div className="flex h-full w-full flex-col gap-3 overflow-y-auto bg-panel p-3.5 text-xs">
+                  <div className="grid gap-3 sm:grid-cols-[1fr_auto_auto]">
+                    <label className="flex flex-col gap-1 text-muted">
+                      <span>Arguments (JSON list, one per parameter)</span>
+                      <input
+                        value={args}
+                        onChange={(e) => setArgs(e.target.value)}
+                        className="rounded-lg border border-line bg-void px-3 py-1.5 font-mono text-xs text-chalk"
+                      />
+                    </label>
+                    <label className="flex flex-col gap-1 text-muted">
+                      <span>Parameter types</span>
+                      <input
+                        value={types}
+                        onChange={(e) => setTypes(e.target.value)}
+                        placeholder="any, ListNode, TreeNode…"
+                        className="rounded-lg border border-line bg-void px-3 py-1.5 font-mono text-xs text-chalk"
+                      />
+                    </label>
+                    <label className="flex flex-col gap-1 text-muted">
+                      <span>Return type</span>
+                      <select
+                        value={returns}
+                        onChange={(e) => setReturns(e.target.value)}
+                        className="rounded-lg border border-line bg-void px-2 py-1.5 font-mono text-xs text-chalk"
+                      >
+                        {TYPES.map((t) => (
+                          <option key={t}>{t}</option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
+                  {error && <ErrorNote message={error} />}
+                  {output && (
+                    <div className="rounded-xl border border-line bg-void p-3 font-mono text-xs">
+                      {output.error ? (
+                        <span className="text-crimson">
+                          {output.error.type}
+                          {output.error.line ? ` (line ${output.error.line})` : ''}: {output.error.message}
+                        </span>
+                      ) : (
+                        <span>
+                          <span className="font-sans text-muted">Returned: </span>
+                          <span className="font-bold text-emerald">{JSON.stringify(output.value)}</span>
+                        </span>
+                      )}
+                      {output.stdout && <pre className="mt-2 whitespace-pre-wrap text-muted">{output.stdout}</pre>}
+                    </div>
+                  )}
+                </div>
+              }
+            />
+          }
+        />
       </div>
     </div>
   )

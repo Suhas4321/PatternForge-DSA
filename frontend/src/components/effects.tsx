@@ -20,7 +20,7 @@ export function useBackgroundEffects(): { level: BackgroundEffectLevel; setLevel
       const stored = localStorage.getItem(BG_KEY)
       if (stored === 'off' || stored === 'subtle' || stored === 'full') return stored
     } catch { /* noop */ }
-    return 'subtle'
+    return 'full'
   })
 
   const setLevel = (l: BackgroundEffectLevel) => {
