@@ -742,11 +742,14 @@ def call_once(ns, spec, test_args, tracer=None):
             actual = results
         else:
             sol_cls = ns.get("Solution")
-            if sol_cls is None:
-                raise NameError("class Solution is not defined")
-            method = getattr(sol_cls(), spec["name"], None)
-            if method is None:
-                raise NameError(f"Solution.{spec['name']} is not defined")
+            if sol_cls is not None:
+                method = getattr(sol_cls(), spec["name"], None)
+                if method is None:
+                    raise NameError(f"Solution.{spec['name']} is not defined")
+            else:
+                method = ns.get(spec["name"])
+                if not callable(method):
+                    raise NameError("class Solution is not defined")
             params = spec.get("params", [])
             args = [to_python(copy.deepcopy(a), p.get("type", "any")) for a, p in zip(test_args, params)]
             args += copy.deepcopy(test_args[len(params):])

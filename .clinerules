@@ -1,0 +1,19 @@
+# PatternForge / ApexCaliber Engineering & UI Rules (.clinerules)
+
+1. **Zero "AI Box Slop"**:
+   - Never nest a bordered card (`border rounded-2xl`) inside another bordered card.
+   - Prefer connected hairline grids (`divide-x`, `divide-y`, `border-b border-line`) over floating rounded rectangles.
+   - Use sharp architectural radii (`rounded-md` for controls/badges, `rounded-lg` or `rounded-xl` for panels).
+
+2. **Strict Light / Dark Mode Contrast**:
+   - Any dark stage or `<Sky />` container MUST have `data-zone="night"` or `.stage` and use crisp white/silver text (`#F8FAFC` / `#CBD5E1`).
+   - Never place `text-chalk` on an unscoped dark background in Light Mode, and never place hardcoded `text-white` on a light card (`bg-panel`) in Light Mode.
+
+3. **Zero Empty-Textarea Busywork**:
+   - Do not force learners to fill out ungraded empty essay boxes (`Brute Force`, `Trigger`, etc.).
+   - Always present structured **Study Exemplars** first: Clarifying Questions to Ask, Step-by-Step Spoken Walkthrough, and First-Principles Time/Space Complexity Derivation.
+
+4. **3-Step Question Pedagogical Flow (`/q/:slug`)**:
+   - Step 1 (`1. Learn DS & Pattern`): Teach the underlying Data Structure (`Array`, `Hash Map / dict`, `Set`, etc.), Python idioms, and complexity math *before* coding.
+   - Step 2 (`2. Code in Terminal`): Fullscreen `100dvh` LeetCode draggable split-pane IDE.
+   - Step 3 (`3. Interview Answer Guide`): Full-width structured interview answer playbook unlocked/shown after solving or via top-bar tab.

@@ -17,6 +17,8 @@ import { ThemeToggle } from '../components/effects'
 import { Button, DifficultyBadge, ErrorNote, LeetCodeLink, Spinner } from '../components/ui'
 import VictoryModal from '../components/VictoryModal'
 import { usePlayback } from '../components/visualizers/stage/usePlayback'
+import DataStructurePrimer from '../components/workspace/DataStructurePrimer'
+import InterviewAnswerPlaybook from '../components/workspace/InterviewAnswerPlaybook'
 import LeetCodeLeftPanel, { type LeftTab } from '../components/workspace/LeetCodeLeftPanel'
 import LeetCodeRightPanel from '../components/workspace/LeetCodeRightPanel'
 import ResizableSplit from '../components/workspace/ResizableSplit'
@@ -40,8 +42,13 @@ export default function QuestionPage() {
   const [leftTab, setLeftTab] = useState<LeftTab>(() => {
     const st = Number(search.get('stage'))
     if (st === 2) return 'drills'
-    if (st === 4) return 'pitch'
     return 'description'
+  })
+  const [workspaceStep, setWorkspaceStep] = useState<'learn' | 'code' | 'interview'>(() => {
+    const st = Number(search.get('stage'))
+    if (st === 1) return 'learn'
+    if (st === 4) return 'interview'
+    return 'code'
   })
   const [leftCollapsed, setLeftCollapsed] = useState(false)
   const [activeTarget, setActiveTarget] = useState<string>('main')
@@ -245,23 +252,59 @@ export default function QuestionPage() {
         </div>
 
         <div className="flex items-center gap-2">
-          <Button
-            className="h-7 px-3 text-xs font-semibold"
-            onClick={() => runCode(undefined, false)}
-            disabled={running}
-          >
-            <Play size={13} />
-            <span>{running ? 'Running…' : 'Run'}</span>
-          </Button>
-          <Button
-            variant="outline"
-            className="hidden h-7 border-cyan/40 bg-cyan/10 px-3 text-xs font-semibold text-cyan hover:bg-cyan/20 sm:inline-flex"
-            onClick={() => runCode(undefined, true)}
-            disabled={running}
-          >
-            <Eye size={13} />
-            <span>Run & Visualize</span>
-          </Button>
+          {/* 3-Step Pedagogical Switcher: 1. Data Structure & Concept -> 2. Code Terminal -> 3. Interview Guide */}
+          <div className="inline-flex items-center rounded-md border border-line bg-panel-2 p-0.5 text-xs">
+            <button
+              type="button"
+              onClick={() => setWorkspaceStep('learn')}
+              className={`rounded px-3 py-1 font-medium transition-colors ${
+                workspaceStep === 'learn' ? 'bg-panel-3 text-chalk font-semibold' : 'text-muted hover:text-chalk'
+              }`}
+            >
+              1. Data Structure & Concept
+            </button>
+            <button
+              type="button"
+              onClick={() => setWorkspaceStep('code')}
+              className={`rounded px-3 py-1 font-medium transition-colors ${
+                workspaceStep === 'code' ? 'bg-panel-3 text-chalk font-semibold' : 'text-muted hover:text-chalk'
+              }`}
+            >
+              2. Code Terminal
+            </button>
+            <button
+              type="button"
+              onClick={() => setWorkspaceStep('interview')}
+              className={`rounded px-3 py-1 font-medium transition-colors ${
+                workspaceStep === 'interview' ? 'bg-panel-3 text-chalk font-semibold' : 'text-muted hover:text-chalk'
+              }`}
+            >
+              3. Interview Guide
+            </button>
+          </div>
+
+
+          {workspaceStep === 'code' && (
+            <>
+              <Button
+                className="h-7 px-3 text-xs font-semibold"
+                onClick={() => runCode(undefined, false)}
+                disabled={running}
+              >
+                <Play size={13} />
+                <span>{running ? 'Running…' : 'Run'}</span>
+              </Button>
+              <Button
+                variant="outline"
+                className="hidden h-7 border-cyan/40 bg-cyan/10 px-3 text-xs font-semibold text-cyan hover:bg-cyan/20 sm:inline-flex"
+                onClick={() => runCode(undefined, true)}
+                disabled={running}
+              >
+                <Eye size={13} />
+                <span>Run & Visualize</span>
+              </Button>
+            </>
+          )}
         </div>
 
         <div className="flex items-center gap-1.5">
@@ -290,7 +333,36 @@ export default function QuestionPage() {
         <div className="p-8">
           <ErrorNote message="This question's content is not yet available." />
         </div>
+      ) : workspaceStep === 'learn' ? (
+        <div className="flex-1 min-h-0 w-full overflow-y-auto bg-void">
+          <DataStructurePrimer
+            question={question}
+            steps={steps}
+            stepIndex={stepIndex}
+            onSeek={setStepIndex}
+            playing={playing}
+            onTogglePlay={playback.togglePlay}
+            onStepForward={playback.stepForward}
+            onStepBackward={playback.stepBackward}
+            onJumpFirst={playback.jumpFirst}
+            onJumpLast={playback.jumpLast}
+            speed={speed}
+            onSpeedChange={setSpeed}
+            narration={narrations[stepIndex]}
+            onProceedToCode={() => setWorkspaceStep('code')}
+          />
+        </div>
+      ) : workspaceStep === 'interview' ? (
+        <div className="flex-1 min-h-0 w-full overflow-y-auto bg-void">
+          <InterviewAnswerPlaybook
+            question={question}
+            progress={progress}
+            onProgress={onProgress}
+            onOpenTerminal={() => setWorkspaceStep('code')}
+          />
+        </div>
       ) : (
+
         <div className="flex-1 min-h-0 w-full overflow-hidden">
           <ResizableSplit
             direction="horizontal"
@@ -322,6 +394,7 @@ export default function QuestionPage() {
                 narration={narrations[stepIndex]}
                 tracedCode={tracedCode}
                 currentCode={code}
+                onOpenInterviewGuide={() => setWorkspaceStep('interview')}
               />
             }
             second={

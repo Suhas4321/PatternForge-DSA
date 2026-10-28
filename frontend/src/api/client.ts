@@ -63,4 +63,19 @@ export const api = {
     request<CoachReply>(`/api/questions/${slug}/ask-coach`, { method: 'POST', body: json(body) }),
   backupRestore: () => request<{ restored: Record<string, number> }>('/api/backup/restore', { method: 'POST' }),
   stats: () => request<StatsResponse>('/api/stats'),
+  playgroundRun: (body: {
+    code: string
+    function_name: string
+    args: unknown[]
+    arg_types?: string[]
+    returns?: string
+  }) =>
+    request<{
+      compile_error?: { type: string; message: string; line?: number | null } | null
+      fatal_error?: { type: string; message: string; line?: number | null } | null
+      error?: { type: string; message: string; line?: number | null } | null
+      output?: unknown
+      stdout?: string
+      trace?: Trace | null
+    }>('/api/playground/run', { method: 'POST', body: json(body) }),
 }

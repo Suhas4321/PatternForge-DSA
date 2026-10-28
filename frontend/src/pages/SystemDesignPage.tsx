@@ -1,538 +1,701 @@
-import {
-  AlertTriangle,
-  ArrowLeft,
-  ArrowRight,
-  ExternalLink,
-  ShieldCheck,
-  Zap,
-} from 'lucide-react'
+import { ArrowLeft, ArrowRight, CheckCircle2, ExternalLink } from 'lucide-react'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import Sky from '../components/Sky'
+import SystemDesignAssignment from '../components/workspace/SystemDesignAssignment'
+import { SYSTEM_DESIGN_ASSIGNMENTS } from '../lib/systemDesignAssignments'
 import {
   HLD_PROBLEMS,
   LLD_PROBLEMS,
   SOLID_PLAYBOOK,
-  type HldProblem,
 } from '../lib/systemDesignData'
 
-type PyramidLevel = 'solid' | 'lld' | 'hld'
-type HldStage = 1 | 2 | 3 | 4
+type SelectedItem =
+  | { kind: 'solid'; index: number }
+  | { kind: 'lld'; index: number }
+  | { kind: 'hld'; index: number }
+  | null
+
+const COMPLETED_STORAGE_KEY = 'pf_sysdesign_completed_v1'
 
 export default function SystemDesignPage() {
-  const [level, setLevel] = useState<PyramidLevel>('hld')
-  const [activeSolidIdx, setActiveSolidIdx] = useState(0)
-  const [activeLldIdx, setActiveLldIdx] = useState(0)
-  const [activeHldId, setActiveHldId] = useState<string>(HLD_PROBLEMS[0].id)
-  const [hldStage, setHldStage] = useState<HldStage>(1)
+  const [selected, setSelected] = useState<SelectedItem>(null)
   const [activeNodeIdx, setActiveNodeIdx] = useState(0)
-  const [activeChaosIdx, setActiveChaosIdx] = useState<number>(0)
+  const [completedIds, setCompletedIds] = useState<string[]>(() => {
+    try {
+      const raw = localStorage.getItem(COMPLETED_STORAGE_KEY)
+      return raw ? JSON.parse(raw) : []
+    } catch {
+      return []
+    }
+  })
 
-  const hld: HldProblem = HLD_PROBLEMS.find((p) => p.id === activeHldId) ?? HLD_PROBLEMS[0]
-  const solid = SOLID_PLAYBOOK[activeSolidIdx] ?? SOLID_PLAYBOOK[0]
-  const lld = LLD_PROBLEMS[activeLldIdx] ?? LLD_PROBLEMS[0]
+  const markCompleted = (id: string) => {
+    setCompletedIds((prev) => {
+      if (prev.includes(id)) return prev
+      const next = [...prev, id]
+      try {
+        localStorage.setItem(COMPLETED_STORAGE_KEY, JSON.stringify(next))
+      } catch {
+        /* ignore */
+      }
+      return next
+    })
+  }
 
-  const selectHld = (id: string) => {
-    setActiveHldId(id)
-    setHldStage(1)
+  const openItem = (next: SelectedItem) => {
+    setSelected(next)
     setActiveNodeIdx(0)
-    setActiveChaosIdx(0)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   return (
-    <div className="shell max-w-7xl mx-auto px-4 sm:px-6 py-6 w-full flex flex-col gap-6">
-      {/* Dark Sky Banner — Always crisp white text in both Light & Dark Mode */}
-      <div
-        data-zone="night"
-        className="relative min-h-[180px] w-full overflow-hidden rounded-3xl border border-line p-6 sm:p-8 flex flex-col justify-between shadow-2xl bg-[#05070E] text-white"
-      >
-        <Sky variant="galaxy" accent="#A78BFA" />
-        <div className="relative z-10 flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-2.5">
-            <Link
-              to="/"
-              className="inline-flex items-center gap-1 rounded-xl border border-white/15 bg-white/10 px-3 py-1 text-xs font-semibold text-white hover:bg-white/20 transition-colors"
-            >
-              <ArrowLeft size={13} />
-              <span>All Citadels</span>
-            </Link>
-            <span className="font-plate text-xs font-bold uppercase tracking-wider text-violet-300">
-              Citadel VII · Bottom-to-Top Architecture Studio
-            </span>
-          </div>
-          <span className="rounded-full bg-emerald-500/20 px-2.5 py-0.5 text-2xs font-semibold text-emerald-300 border border-emerald-400/30">
-            5 SOLID · 5 LLD · 10 HLD Systems
-          </span>
-        </div>
-
-        <div className="relative z-10 mt-3">
-          <h1 className="font-plate text-2xl sm:text-3xl font-bold text-white tracking-tight drop-shadow-md">
-            Interactive System Design: OOP & SOLID ➔ LLD ➔ HLD at Scale
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-200 mt-1 max-w-3xl leading-relaxed">
-            Start from single-file OOP & SOLID principles, bridge into company Low-Level Design (LLD) machine coding, and scale up to 10 High-Level Distributed Systems (HLD) with interactive Chaos Mode.
-          </p>
-        </div>
-      </div>
-
-      {/* Bottom-to-Top Pyramid Level Switcher */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-        <button
-          type="button"
-          onClick={() => setLevel('solid')}
-          className={`flex items-center gap-3 rounded-2xl border p-4 text-left transition-all ${
-            level === 'solid' ? 'border-cyan bg-cyan/10 shadow-md' : 'border-line bg-panel hover:bg-panel-2'
-          }`}
-        >
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-cyan/15 text-cyan font-mono font-bold">
-            L1
-          </span>
-          <div>
-            <div className="text-2xs font-mono uppercase text-cyan font-semibold">Level 1 · Foundation</div>
-            <div className="font-plate text-sm font-bold text-chalk">OOP & Practical SOLID Playbook</div>
-            <div className="text-2xs text-muted">When to use vs. When NOT to use (YAGNI)</div>
-          </div>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setLevel('lld')}
-          className={`flex items-center gap-3 rounded-2xl border p-4 text-left transition-all ${
-            level === 'lld' ? 'border-amber bg-amber/10 shadow-md' : 'border-line bg-panel hover:bg-panel-2'
-          }`}
-        >
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber/15 text-amber font-mono font-bold">
-            L2
-          </span>
-          <div>
-            <div className="text-2xs font-mono uppercase text-amber font-semibold">Level 2 · Machine Coding</div>
-            <div className="font-plate text-sm font-bold text-chalk">5 Low-Level Design (LLD) Classics</div>
-            <div className="text-2xs text-muted">Parking Lot, Splitwise, BookMyShow, Elevator</div>
-          </div>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setLevel('hld')}
-          className={`flex items-center gap-3 rounded-2xl border p-4 text-left transition-all ${
-            level === 'hld' ? 'border-emerald bg-emerald/10 shadow-md' : 'border-line bg-panel hover:bg-panel-2'
-          }`}
-        >
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald/15 text-emerald font-mono font-bold">
-            L3
-          </span>
-          <div>
-            <div className="text-2xs font-mono uppercase text-emerald font-semibold">Level 3 · Distributed Scale</div>
-            <div className="font-plate text-sm font-bold text-chalk">10 High-Level Systems (HLD) + Chaos</div>
-            <div className="text-2xs text-muted">1,000-User Code Runner, Rate Limiter, Uber H3</div>
-          </div>
-        </button>
-      </div>
-      {level === 'solid' && (
-        <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-5">
-          <aside className="flex flex-col gap-2 rounded-2xl border border-line bg-panel p-3 h-fit">
-            <div className="px-2 py-1 text-2xs font-mono uppercase text-muted font-bold">SOLID Principles (5)</div>
-            {SOLID_PLAYBOOK.map((sp, i) => (
-              <button
-                key={sp.letter}
-                type="button"
-                onClick={() => setActiveSolidIdx(i)}
-                className={`flex items-center gap-2.5 rounded-xl p-2.5 text-left text-xs transition-all ${
-                  activeSolidIdx === i ? 'border border-cyan/40 bg-cyan/10 text-chalk font-semibold' : 'text-muted hover:bg-panel-2 hover:text-chalk'
-                }`}
+    <div className="mx-auto max-w-[1040px] px-4 sm:px-6 py-9 w-full text-chalk">
+      {/* SCREEN 1: CLEAN SYLLABUS INDEX (GeeksforGeeks / LeetCode Study Plan Table) */}
+      {selected === null && (
+        <div className="space-y-7">
+          <div className="border-b border-line pb-6">
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+              <Link
+                to="/"
+                className="inline-flex items-center gap-1.5 text-xs font-medium text-muted hover:text-chalk transition-colors"
               >
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-cyan/15 font-mono font-bold text-cyan">
-                  {sp.letter}
-                </span>
-                <span className="truncate">{sp.name.replace(/ \(.*\)/, '')}</span>
-              </button>
-            ))}
-          </aside>
-
-          <div className="card rounded-2xl border border-line bg-panel p-5 flex flex-col gap-4">
-            <div>
-              <span className="font-mono text-2xs uppercase text-cyan font-bold">Practical Company Playbook</span>
-              <h2 className="font-plate text-xl font-bold text-chalk mt-0.5">{solid.name}</h2>
-              <p className="text-sm text-muted mt-1">{solid.tagline}</p>
+                <ArrowLeft size={13} />
+                <span>Back to Dashboard</span>
+              </Link>
+              <span className="font-mono text-xs text-muted">
+                {completedIds.length} / 20 Assignments Completed · Bottom-to-Top Track
+              </span>
             </div>
-
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="rounded-xl border border-line bg-panel-2 p-3.5 text-xs">
-                <strong className="text-cyan block mb-1">💡 Real-World Analogy</strong>
-                <p className="text-chalk leading-relaxed">{solid.analogy}</p>
-              </div>
-              <div className="rounded-xl border border-line bg-panel-2 p-3.5 text-xs">
-                <strong className="text-amber block mb-1">🏢 Real Company Bug It Fixes</strong>
-                <p className="text-chalk leading-relaxed">{solid.companyScenario}</p>
-              </div>
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-2">
-              <div className="rounded-xl border border-emerald/30 bg-emerald/5 p-3.5 text-xs">
-                <strong className="text-emerald block mb-1.5">✅ WHEN TO USE IT (Trigger Signals)</strong>
-                <ul className="list-disc list-inside space-y-1 text-chalk">
-                  {solid.whenToUse.map((w, i) => (
-                    <li key={i}>{w}</li>
-                  ))}
-                </ul>
-              </div>
-              <div className="rounded-xl border border-crimson/30 bg-crimson/5 p-3.5 text-xs">
-                <strong className="text-crimson block mb-1.5">❌ WHEN NOT TO USE IT (Avoid Over-Engineering)</strong>
-                <ul className="list-disc list-inside space-y-1 text-chalk">
-                  {solid.whenNotToUse.map((w, i) => (
-                    <li key={i}>{w}</li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-2 font-mono text-xs">
-              <div className="rounded-xl border border-line bg-panel-2 p-3">
-                <div className="text-2xs text-crimson font-bold mb-1.5">❌ Violation (Brittle Code)</div>
-                <pre className="overflow-x-auto text-chalk">{solid.badCode}</pre>
-              </div>
-              <div className="rounded-xl border border-line bg-panel-2 p-3">
-                <div className="text-2xs text-emerald font-bold mb-1.5">✓ Clean SOLID Refactor</div>
-                <pre className="overflow-x-auto text-chalk">{solid.goodCode}</pre>
-              </div>
-            </div>
+            <h1 className="font-sans text-2xl sm:text-3xl font-bold tracking-tight text-chalk">
+              System Design Track (OOP & SOLID → LLD → HLD)
+            </h1>
+            <p className="mt-1.5 text-sm text-muted">
+              Structured step-by-step curriculum. Study the worked example in each lesson and pass its hands-on coding assignment to complete the module.
+            </p>
           </div>
-        </div>
-      )}
-      {level === 'lld' && (
-        <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-5">
-          <aside className="flex flex-col gap-2 rounded-2xl border border-line bg-panel p-3 h-fit">
-            <div className="px-2 py-1 text-2xs font-mono uppercase text-muted font-bold">LLD Machine Coding (5)</div>
-            {LLD_PROBLEMS.map((p, i) => (
-              <button
-                key={p.id}
-                type="button"
-                onClick={() => setActiveLldIdx(i)}
-                className={`rounded-xl p-2.5 text-left text-xs transition-all ${
-                  activeLldIdx === i ? 'border border-amber/40 bg-amber/10 text-chalk font-semibold' : 'text-muted hover:bg-panel-2 hover:text-chalk'
-                }`}
-              >
-                {p.title}
-              </button>
-            ))}
-          </aside>
 
-          <div className="card rounded-2xl border border-line bg-panel p-5 flex flex-col gap-4">
-            <div>
-              <div className="flex flex-wrap gap-1.5 mb-2">
-                {lld.patterns.map((pat) => (
-                  <span key={pat} className="rounded-full border border-amber/30 bg-amber/10 px-2.5 py-0.5 font-mono text-2xs text-amber">
-                    {pat}
-                  </span>
-                ))}
+
+          {/* MODULE 1: OOP & SOLID */}
+          <section className="overflow-hidden rounded-lg border border-line bg-panel">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line bg-panel-2 px-5 py-4">
+              <div>
+                <h2 className="text-base font-semibold text-chalk">
+                  Module 1: OOP & SOLID Principles in Production
+                </h2>
+                <p className="text-xs text-muted mt-0.5">
+                  Learn what each principle means, real company code-review scenarios, when to use it, and when NOT to use it.
+                </p>
               </div>
-              <h2 className="font-plate text-xl font-bold text-chalk">{lld.title}</h2>
-              <p className="text-sm text-muted mt-1">{lld.coreChallenge}</p>
+              <span className="font-mono text-xs text-muted">{SOLID_PLAYBOOK.length} Lessons</span>
             </div>
 
-            <div className="grid gap-3 sm:grid-cols-2">
-              {lld.classes.map((cls) => (
-                <div key={cls.name} className="rounded-xl border border-line bg-panel-2 p-3 text-xs">
-                  <div className="font-mono font-bold text-cyan mb-1">class {cls.name}</div>
-                  <p className="text-muted">{cls.role}</p>
-                </div>
-              ))}
+            <div className="divide-y divide-line">
+              {SOLID_PLAYBOOK.map((sp, idx) => {
+                const done = completedIds.includes(`solid-${sp.letter}`)
+                return (
+                  <button
+                    key={sp.letter}
+                    type="button"
+                    onClick={() => openItem({ kind: 'solid', index: idx })}
+                    className="grid w-full grid-cols-1 md:grid-cols-[44px_1.4fr_1.6fr_100px_130px] items-center gap-3 px-5 py-3.5 text-left text-sm transition-colors hover:bg-panel-2"
+                  >
+                    <span className="font-mono text-xs text-muted">0{idx + 1}</span>
+                    <span className="font-medium text-chalk">{sp.name}</span>
+                    <span className="text-xs text-muted line-clamp-1">{sp.tagline}</span>
+                    <span className="text-xs text-muted">Fundamental</span>
+                    <span className="text-right text-xs font-medium text-chalk inline-flex items-center justify-end gap-1">
+                      {done && <CheckCircle2 size={13} className="text-emerald" />}
+                      <span>{done ? 'Completed →' : 'Lesson + Lab →'}</span>
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+          </section>
+
+          {/* MODULE 2: LOW-LEVEL DESIGN (LLD) */}
+          <section className="overflow-hidden rounded-lg border border-line bg-panel">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line bg-panel-2 px-5 py-4">
+              <div>
+                <h2 className="text-base font-semibold text-chalk">
+                  Module 2: Low-Level Design (LLD / Machine Coding Rounds)
+                </h2>
+                <p className="text-xs text-muted mt-0.5">
+                  How to design clean classes, interfaces, and concurrency locks inside a single service.
+                </p>
+              </div>
+              <span className="font-mono text-xs text-muted">{LLD_PROBLEMS.length} Problems</span>
             </div>
 
-            <div className="rounded-xl border border-emerald/30 bg-emerald/5 p-3.5 text-xs">
-              <strong className="text-emerald block mb-1">🔒 Core Concurrency & Domain Invariant:</strong>
-              <p className="font-mono text-chalk">{lld.invariant}</p>
-            </div>
-
-            <div className="rounded-xl border border-line bg-panel-2 p-3.5 font-mono text-xs">
-              <div className="text-2xs text-muted mb-1.5">Production Python Skeleton</div>
-              <pre className="overflow-x-auto text-chalk">{lld.codeSnippet}</pre>
-            </div>
-          </div>
-        </div>
-      )}
-      {level === 'hld' && (
-        <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-5">
-          <aside className="flex flex-col gap-3 rounded-2xl border border-line bg-panel p-3 h-fit">
-            {([1, 2, 3] as const).map((tierNum) => (
-              <div key={tierNum} className="flex flex-col gap-1">
-                <div className="px-2 py-1 text-[10px] font-mono uppercase tracking-wider text-emerald font-bold">
-                  {tierNum === 1 ? 'Tier 1 · Core & DevTools' : tierNum === 2 ? 'Tier 2 · Real-Time & Cache' : 'Tier 3 · Global Scale'}
-                </div>
-                {HLD_PROBLEMS.filter((p) => p.tier === tierNum).map((p) => (
+            <div className="divide-y divide-line">
+              {LLD_PROBLEMS.map((p, idx) => {
+                const done = completedIds.includes(p.id)
+                return (
                   <button
                     key={p.id}
                     type="button"
-                    onClick={() => selectHld(p.id)}
-                    className={`rounded-xl p-2 text-left text-xs transition-all ${
-                      activeHldId === p.id ? 'border border-emerald/40 bg-emerald/10 text-chalk font-semibold' : 'text-muted hover:bg-panel-2 hover:text-chalk'
-                    }`}
+                    onClick={() => openItem({ kind: 'lld', index: idx })}
+                    className="grid w-full grid-cols-1 md:grid-cols-[44px_1.4fr_1.6fr_100px_130px] items-center gap-3 px-5 py-3.5 text-left text-sm transition-colors hover:bg-panel-2"
                   >
-                    <div className="line-clamp-2 leading-snug">{p.title}</div>
-                  </button>
-                ))}
-              </div>
-            ))}
-          </aside>
-
-          <div className="card rounded-2xl border border-line bg-panel p-5 flex flex-col gap-5">
-            <div className="flex flex-wrap items-start justify-between gap-3 border-b border-line pb-4">
-              <div>
-                <div className="flex flex-wrap items-center gap-1.5 mb-1.5">
-                  <span className="rounded-md bg-emerald/15 px-2 py-0.5 font-mono text-[10px] font-bold text-emerald">
-                    Tier {hld.tier} · {hld.difficulty}
-                  </span>
-                  {hld.companies.map((co) => (
-                    <span key={co} className="rounded-md border border-line bg-panel-2 px-2 py-0.5 font-mono text-[10px] text-muted">
-                      {co}
+                    <span className="font-mono text-xs text-muted">0{idx + 1}</span>
+                    <span className="font-medium text-chalk">{p.title}</span>
+                    <span className="text-xs text-muted line-clamp-1">{p.patterns.join(' · ')}</span>
+                    <span className="text-xs text-muted">{idx < 2 ? 'Medium' : 'Hard'}</span>
+                    <span className="text-right text-xs font-medium text-chalk inline-flex items-center justify-end gap-1">
+                      {done && <CheckCircle2 size={13} className="text-emerald" />}
+                      <span>{done ? 'Completed →' : 'LLD + Lab →'}</span>
                     </span>
-                  ))}
-                </div>
-                <h2 className="font-plate text-xl font-bold text-chalk">{hld.title}</h2>
-              </div>
-
-              <div className="flex flex-wrap gap-1 rounded-xl border border-line bg-panel-2 p-1 text-xs">
-                {[
-                  { id: 1, label: '1. Scope & Math' },
-                  { id: 2, label: '2. Naive Failure' },
-                  { id: 3, label: '3. Flow & Chaos' },
-                  { id: 4, label: '4. Senior Pitch' },
-                ].map((st) => (
-                  <button
-                    key={st.id}
-                    type="button"
-                    onClick={() => setHldStage(st.id as HldStage)}
-                    className={`rounded-lg px-2.5 py-1 font-medium ${
-                      hldStage === st.id ? 'bg-panel-3 text-cyan font-bold border border-cyan/40' : 'text-muted hover:text-chalk'
-                    }`}
-                  >
-                    {st.label}
                   </button>
-                ))}
-              </div>
+                )
+              })}
             </div>
-            {hldStage === 1 && (
-              <div className="flex flex-col gap-4">
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 font-mono text-xs">
-                  <div className="rounded-xl border border-line bg-panel-2 p-3">
-                    <div className="text-[10px] uppercase text-muted">Daily Active Users</div>
-                    <div className="text-base font-bold text-chalk mt-1">{hld.scale.dau}</div>
-                  </div>
-                  <div className="rounded-xl border border-line bg-panel-2 p-3">
-                    <div className="text-[10px] uppercase text-muted">Peak Concurrency</div>
-                    <div className="text-base font-bold text-cyan mt-1">{hld.scale.peakRps}</div>
-                  </div>
-                  <div className="rounded-xl border border-line bg-panel-2 p-3">
-                    <div className="text-[10px] uppercase text-muted">Latency SLA</div>
-                    <div className="text-base font-bold text-emerald mt-1">{hld.scale.latency}</div>
-                  </div>
-                  <div className="rounded-xl border border-line bg-panel-2 p-3">
-                    <div className="text-[10px] uppercase text-muted">Traffic Profile</div>
-                    <div className="text-base font-bold text-amber mt-1">{hld.scale.ratio}</div>
-                  </div>
-                </div>
-                <div className="flex justify-end">
+          </section>
+
+          {/* MODULE 3: HIGH-LEVEL SYSTEM DESIGN (HLD) */}
+          <section className="overflow-hidden rounded-lg border border-line bg-panel">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line bg-panel-2 px-5 py-4">
+              <div>
+                <h2 className="text-base font-semibold text-chalk">
+                  Module 3: High-Level Distributed System Design (HLD)
+                </h2>
+                <p className="text-xs text-muted mt-0.5">
+                  From single-server failure to scaled distributed architectures with interactive hop-by-hop flow diagrams.
+                </p>
+              </div>
+              <span className="font-mono text-xs text-muted">{HLD_PROBLEMS.length} Systems</span>
+            </div>
+
+            <div className="divide-y divide-line">
+              {HLD_PROBLEMS.map((p, idx) => {
+                const done = completedIds.includes(p.id)
+                return (
                   <button
+                    key={p.id}
                     type="button"
-                    onClick={() => setHldStage(2)}
-                    className="inline-flex items-center gap-1.5 rounded-xl bg-cyan px-4 py-2 text-xs font-bold text-slate-950"
+                    onClick={() => openItem({ kind: 'hld', index: idx })}
+                    className="grid w-full grid-cols-1 md:grid-cols-[44px_1.4fr_1.6fr_100px_130px] items-center gap-3 px-5 py-3.5 text-left text-sm transition-colors hover:bg-panel-2"
                   >
-                    <span>Next: Watch Naive Prototype Fail</span>
-                    <ArrowRight size={14} />
+                    <span className="font-mono text-xs text-muted">{String(idx + 1).padStart(2, '0')}</span>
+                    <span className="font-medium text-chalk">{p.title}</span>
+                    <span className="text-xs text-muted line-clamp-1">
+                      {p.scale.peakRps} · {p.architectureNodes.map((n) => n.label.split(' ')[0]).slice(0, 4).join(' → ')}
+                    </span>
+                    <span className="text-xs text-muted">{p.difficulty}</span>
+                    <span className="text-right text-xs font-medium text-chalk inline-flex items-center justify-end gap-1">
+                      {done && <CheckCircle2 size={13} className="text-emerald" />}
+                      <span>{done ? 'Completed →' : 'HLD + Lab →'}</span>
+                    </span>
                   </button>
-                </div>
-              </div>
-            )}
+                )
+              })}
+            </div>
+          </section>
 
-            {hldStage === 2 && (
-              <div className="flex flex-col gap-4">
-                <div className="rounded-xl border border-line bg-panel-2 p-4 text-xs">
-                  <strong className="text-chalk block mb-1">1. The Naive Monolith Setup:</strong>
-                  <p className="text-muted">{hld.naiveFailure.setup}</p>
-                </div>
-                <div className="rounded-xl border border-crimson/40 bg-crimson/10 p-4 text-xs">
-                  <div className="flex items-center gap-1.5 font-bold text-crimson mb-2">
-                    <AlertTriangle size={15} />
-                    <span>2. The Breaking Point: {hld.naiveFailure.breakingPoint}</span>
-                  </div>
-                  <ul className="list-disc list-inside space-y-1.5 text-chalk">
-                    {hld.naiveFailure.crashes.map((cr, idx) => (
-                      <li key={idx}>{cr}</li>
-                    ))}
-                  </ul>
-                </div>
-                <div className="flex justify-end">
-                  <button
-                    type="button"
-                    onClick={() => setHldStage(3)}
-                    className="inline-flex items-center gap-1.5 rounded-xl bg-emerald px-4 py-2 text-xs font-bold text-slate-950"
-                  >
-                    <span>Next: Scaled Architecture & Chaos Simulator</span>
-                    <ArrowRight size={14} />
-                  </button>
-                </div>
-              </div>
-            )}
-            {hldStage === 3 && (
-              <div className="flex flex-col gap-5">
-                <div className="stage p-5 flex flex-col gap-4">
-                  <div className="flex items-center justify-between text-xs font-mono text-slate-300">
-                    <span>⚡ Interactive Packet Scrubber (Click any node or Step Next)</span>
-                    <span className="text-cyan">
-                      Hop {activeNodeIdx + 1} of {hld.architectureNodes.length}
-                    </span>
-                  </div>
-
-                  <div className="flex flex-wrap items-center justify-center gap-2.5 py-4">
-                    {hld.architectureNodes.map((node, idx) => {
-                      const isCurrent = activeNodeIdx === idx
-                      return (
-                        <div key={node.id} className="flex items-center gap-2">
-                          <button
-                            type="button"
-                            onClick={() => setActiveNodeIdx(idx)}
-                            className={`flex flex-col items-center justify-center rounded-2xl border p-3 w-44 text-center transition-all ${
-                              isCurrent ? 'scale-105 border-white shadow-lg' : 'border-white/15 bg-[#101420] opacity-75 hover:opacity-100'
-                            }`}
-                            style={{
-                              borderColor: isCurrent ? node.color : undefined,
-                              backgroundColor: isCurrent ? `${node.color}22` : undefined,
-                            }}
-                          >
-                            <span className="font-mono text-[10px] font-bold uppercase" style={{ color: node.color }}>
-                              {node.metric}
-                            </span>
-                            <span className="font-plate text-xs font-bold text-white mt-1 leading-snug">
-                              {node.label}
-                            </span>
-                          </button>
-                          {idx < hld.architectureNodes.length - 1 && (
-                            <ArrowRight size={15} className="text-slate-400 shrink-0" />
-                          )}
-                        </div>
-                      )
-                    })}
-                  </div>
-
-                  <div className="rounded-xl border border-white/15 bg-[#101626] p-4 text-xs">
-                    <div className="flex items-center justify-between mb-1">
-                      <strong className="text-white text-sm">{hld.architectureNodes[activeNodeIdx]?.label}</strong>
-                      <div className="flex gap-2">
-                        <button
-                          type="button"
-                          onClick={() => setActiveNodeIdx((i) => Math.max(0, i - 1))}
-                          className="rounded border border-white/15 px-2 py-0.5 text-slate-300 hover:text-white"
-                        >
-                          ← Prev Hop
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setActiveNodeIdx((i) => (i + 1) % hld.architectureNodes.length)}
-                          className="rounded border border-cyan/40 bg-cyan/15 px-2 py-0.5 text-cyan font-semibold"
-                        >
-                          Next Hop →
-                        </button>
-                      </div>
-                    </div>
-                    <p className="text-slate-200 leading-relaxed">{hld.architectureNodes[activeNodeIdx]?.role}</p>
-                  </div>
-                </div>
-
-                <div className="rounded-2xl border border-amber/40 bg-panel-2 p-4 flex flex-col gap-3">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-amber">
-                      <Zap size={14} /> Chaos Mode Injection (Stress-Test Your Design)
-                    </span>
-                    <div className="flex flex-wrap gap-1.5">
-                      {hld.chaosScenarios.map((cs, i) => (
-                        <button
-                          key={cs.id}
-                          type="button"
-                          onClick={() => setActiveChaosIdx(i)}
-                          className={`rounded-lg border px-2.5 py-1 text-2xs font-mono ${
-                            activeChaosIdx === i ? 'border-amber bg-amber/20 text-amber font-bold' : 'border-line bg-panel text-muted hover:text-chalk'
-                          }`}
-                        >
-                          💥 {cs.name}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {hld.chaosScenarios[activeChaosIdx] && (
-                    <div className="grid gap-3 md:grid-cols-2 text-xs">
-                      <div className="rounded-xl border border-crimson/30 bg-crimson/10 p-3">
-                        <strong className="text-crimson block mb-1">Without Defense ({hld.chaosScenarios[activeChaosIdx].trigger}):</strong>
-                        <p className="text-chalk">{hld.chaosScenarios[activeChaosIdx].brokenWithoutDefense}</p>
-                      </div>
-                      <div className="rounded-xl border border-emerald/30 bg-emerald/10 p-3">
-                        <strong className="text-emerald block mb-1">✓ Resilient Defense Mechanism:</strong>
-                        <p className="text-chalk">{hld.chaosScenarios[activeChaosIdx].defenseMechanism}</p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-            {hldStage === 4 && (
-              <div className="flex flex-col gap-4">
-                <div className="rounded-xl border border-cyan/30 bg-cyan/5 p-4 space-y-3 text-xs">
-                  <div className="flex items-center justify-between">
-                    <span className="flex items-center gap-1.5 font-bold uppercase text-cyan">
-                      <ShieldCheck size={15} /> 60-Second Senior Interview Talk Track (Study Mode)
-                    </span>
-                    <span className="font-mono text-2xs text-muted">~130 WPM Pacing</span>
-                  </div>
-                  <div className="grid gap-3 md:grid-cols-2">
-                    <div className="rounded-lg border border-line bg-panel p-3">
-                      <strong className="text-cyan block mb-1">1. Hook & Core Invariant (0–15s)</strong>
-                      <p className="text-chalk leading-relaxed">"{hld.seniorPitch.hook}"</p>
-                    </div>
-                    <div className="rounded-lg border border-line bg-panel p-3">
-                      <strong className="text-emerald block mb-1">2. End-to-End Data Flow (15–40s)</strong>
-                      <p className="text-chalk leading-relaxed">"{hld.seniorPitch.flow}"</p>
-                    </div>
-                    <div className="rounded-lg border border-line bg-panel p-3">
-                      <strong className="text-amber block mb-1">3. Trade-offs & Edge Cases (40–50s)</strong>
-                      <p className="text-chalk leading-relaxed">"{hld.seniorPitch.tradeoffs}"</p>
-                    </div>
-                    <div className="rounded-lg border border-line bg-panel p-3">
-                      <strong className="text-crimson block mb-1">4. Interviewer Defense (50–60s)</strong>
-                      <p className="text-chalk leading-relaxed">"{hld.seniorPitch.defense}"</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div>
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-muted mb-2">
-                    📚 Curated Deep-Dive Engineering References
-                  </h4>
-                  <div className="grid gap-2.5 sm:grid-cols-2">
-                    {hld.references.map((ref) => (
-                      <a
-                        key={ref.title}
-                        href={ref.url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="flex flex-col justify-between rounded-xl border border-line bg-panel-2 p-3 text-xs hover:border-cyan transition-colors"
-                      >
-                        <div>
-                          <div className="flex items-center justify-between gap-2 font-semibold text-chalk">
-                            <span>{ref.title}</span>
-                            <ExternalLink size={12} className="text-cyan shrink-0" />
-                          </div>
-                          <span className="text-2xs font-mono text-cyan">{ref.author}</span>
-                        </div>
-                        <p className="text-2xs text-muted mt-1.5">{ref.takeaway}</p>
-                      </a>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
         </div>
       )}
+
+      {/* SCREEN 2A: DEDICATED ARTICLE VIEW — OOP & SOLID */}
+      {selected?.kind === 'solid' && (() => {
+        const solid = SOLID_PLAYBOOK[selected.index] ?? SOLID_PLAYBOOK[0]
+        return (
+          <div className="mx-auto max-w-[820px] space-y-0">
+            <div className="border-b border-line pb-7">
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                <button
+                  type="button"
+                  onClick={() => openItem(null)}
+                  className="inline-flex items-center gap-1.5 rounded-md border border-line bg-panel px-3 py-1.5 text-xs font-medium text-chalk hover:bg-panel-2"
+                >
+                  <ArrowLeft size={13} />
+                  <span>Back to System Design Syllabus</span>
+                </button>
+                <div className="flex items-center gap-1.5 text-xs">
+                  <button
+                    type="button"
+                    disabled={selected.index === 0}
+                    onClick={() => openItem({ kind: 'solid', index: selected.index - 1 })}
+                    className="rounded border border-line bg-panel px-2.5 py-1 text-muted hover:text-chalk disabled:opacity-40"
+                  >
+                    ← Prev
+                  </button>
+                  <button
+                    type="button"
+                    disabled={selected.index >= SOLID_PLAYBOOK.length - 1}
+                    onClick={() => openItem({ kind: 'solid', index: selected.index + 1 })}
+                    className="rounded border border-line bg-panel px-2.5 py-1 text-muted hover:text-chalk disabled:opacity-40"
+                  >
+                    Next →
+                  </button>
+                </div>
+              </div>
+              <div className="font-mono text-xs font-semibold uppercase tracking-wider text-muted mb-1">
+                Module 1 · OOP & SOLID Principles · Lesson 0{selected.index + 1}
+              </div>
+              <h1 className="font-sans text-2xl sm:text-3xl font-bold tracking-tight text-chalk">{solid.name}</h1>
+              <p className="mt-2 text-sm sm:text-[15px] leading-relaxed text-muted">{solid.tagline}</p>
+            </div>
+
+            <section className="border-b border-line py-7 space-y-3">
+              <h2 className="flex items-center gap-2.5 text-lg font-semibold text-chalk">
+                <span className="inline-flex h-6 w-6 items-center justify-center rounded bg-panel-3 font-mono text-xs">1</span>
+                <span>Core Concept & Real Company Scenario</span>
+              </h2>
+              <p className="text-sm leading-relaxed text-muted">
+                <strong className="font-semibold text-chalk">Mental Model:</strong> {solid.analogy}
+              </p>
+              <blockquote className="rounded-r-md border-l-[3px] border-muted/60 bg-panel px-4 py-3.5 text-sm leading-relaxed text-chalk">
+                <strong className="block text-xs font-mono uppercase tracking-wider text-muted mb-1">
+                  Production Code Review Scenario
+                </strong>
+                {solid.companyScenario}
+              </blockquote>
+            </section>
+
+
+            <section className="border-b border-line py-7 space-y-3">
+              <h2 className="flex items-center gap-2.5 text-lg font-semibold text-chalk">
+                <span className="inline-flex h-6 w-6 items-center justify-center rounded bg-panel-3 font-mono text-xs">2</span>
+                <span>When to Use vs. When NOT to Use (Avoiding Over-Engineering)</span>
+              </h2>
+              <div className="overflow-hidden rounded-md border border-line">
+                <table className="w-full border-collapse text-left text-sm">
+                  <thead>
+                    <tr className="border-b border-line bg-panel text-xs font-semibold text-muted">
+                      <th className="py-2.5 px-4 w-1/2">When to Apply {solid.letter}</th>
+                      <th className="py-2.5 px-4 w-1/2">When NOT to Apply (YAGNI)</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-line text-sm">
+                    <tr>
+                      <td className="py-3 px-4 align-top text-chalk">
+                        <ul className="list-disc list-inside space-y-1.5 text-muted">
+                          {solid.whenToUse.map((w, i) => (
+                            <li key={i}>{w}</li>
+                          ))}
+                        </ul>
+                      </td>
+                      <td className="py-3 px-4 align-top text-chalk">
+                        <ul className="list-disc list-inside space-y-1.5 text-muted">
+                          {solid.whenNotToUse.map((w, i) => (
+                            <li key={i}>{w}</li>
+                          ))}
+                        </ul>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </section>
+
+            <section className="py-7 space-y-4">
+              <h2 className="flex items-center gap-2.5 text-lg font-semibold text-chalk">
+                <span className="inline-flex h-6 w-6 items-center justify-center rounded bg-panel-3 font-mono text-xs">3</span>
+                <span>Before vs. After Production Python Refactor</span>
+              </h2>
+              <div className="space-y-4">
+                <div>
+                  <div className="text-xs font-mono uppercase tracking-wider text-muted mb-1.5">
+                    Before (Brittle Coupling / Violation)
+                  </div>
+                  <pre className="overflow-x-auto rounded-md border border-line bg-panel p-4 font-mono text-xs leading-relaxed text-chalk">
+                    {solid.badCode}
+                  </pre>
+                </div>
+                <div>
+                  <div className="text-xs font-mono uppercase tracking-wider text-muted mb-1.5">
+                    After (Clean Production Refactor)
+                  </div>
+                  <pre className="overflow-x-auto rounded-md border border-line bg-panel p-4 font-mono text-xs leading-relaxed text-chalk">
+                    {solid.goodCode}
+                  </pre>
+                </div>
+              </div>
+            </section>
+
+            {SYSTEM_DESIGN_ASSIGNMENTS[`solid-${solid.letter}`] && (
+              <SystemDesignAssignment
+                key={`solid-${solid.letter}`}
+                spec={SYSTEM_DESIGN_ASSIGNMENTS[`solid-${solid.letter}`]}
+                stepNumber={4}
+                isCompleted={completedIds.includes(`solid-${solid.letter}`)}
+                onCompleted={markCompleted}
+                onNextLesson={() => {
+                  if (selected.index < SOLID_PLAYBOOK.length - 1) {
+                    openItem({ kind: 'solid', index: selected.index + 1 })
+                  } else {
+                    openItem({ kind: 'lld', index: 0 })
+                  }
+                }}
+              />
+            )}
+          </div>
+        )
+      })()}
+
+
+      {/* SCREEN 2B: DEDICATED ARTICLE VIEW — LOW-LEVEL DESIGN (LLD) */}
+      {selected?.kind === 'lld' && (() => {
+        const lld = LLD_PROBLEMS[selected.index] ?? LLD_PROBLEMS[0]
+        return (
+          <div className="mx-auto max-w-[820px] space-y-0">
+            <div className="border-b border-line pb-7">
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                <button
+                  type="button"
+                  onClick={() => openItem(null)}
+                  className="inline-flex items-center gap-1.5 rounded-md border border-line bg-panel px-3 py-1.5 text-xs font-medium text-chalk hover:bg-panel-2"
+                >
+                  <ArrowLeft size={13} />
+                  <span>Back to System Design Syllabus</span>
+                </button>
+                <div className="flex items-center gap-1.5 text-xs">
+                  <button
+                    type="button"
+                    disabled={selected.index === 0}
+                    onClick={() => openItem({ kind: 'lld', index: selected.index - 1 })}
+                    className="rounded border border-line bg-panel px-2.5 py-1 text-muted hover:text-chalk disabled:opacity-40"
+                  >
+                    ← Prev
+                  </button>
+                  <button
+                    type="button"
+                    disabled={selected.index >= LLD_PROBLEMS.length - 1}
+                    onClick={() => openItem({ kind: 'lld', index: selected.index + 1 })}
+                    className="rounded border border-line bg-panel px-2.5 py-1 text-muted hover:text-chalk disabled:opacity-40"
+                  >
+                    Next →
+                  </button>
+                </div>
+              </div>
+              <div className="font-mono text-xs font-semibold uppercase tracking-wider text-muted mb-1">
+                Module 2 · Low-Level Design · {lld.patterns.join(' · ')}
+              </div>
+              <h1 className="font-sans text-2xl sm:text-3xl font-bold tracking-tight text-chalk">{lld.title}</h1>
+              <p className="mt-2 text-sm sm:text-[15px] leading-relaxed text-muted">{lld.coreChallenge}</p>
+            </div>
+
+            <section className="border-b border-line py-7 space-y-4">
+              <h2 className="flex items-center gap-2.5 text-lg font-semibold text-chalk">
+                <span className="inline-flex h-6 w-6 items-center justify-center rounded bg-panel-3 font-mono text-xs">1</span>
+                <span>Class & Interface Responsibilities</span>
+              </h2>
+              <div className="overflow-hidden rounded-md border border-line">
+                <table className="w-full border-collapse text-left text-sm">
+                  <thead>
+                    <tr className="border-b border-line bg-panel text-xs font-semibold text-muted">
+                      <th className="py-2.5 px-4 w-56">Class / Protocol</th>
+                      <th className="py-2.5 px-4">Single Responsibility & Role</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-line text-sm">
+                    {lld.classes.map((cls) => (
+                      <tr key={cls.name}>
+                        <td className="py-2.5 px-4 font-mono text-xs font-semibold text-chalk">class {cls.name}</td>
+                        <td className="py-2.5 px-4 text-muted">{cls.role}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+
+            <section className="border-b border-line py-7 space-y-3">
+              <h2 className="flex items-center gap-2.5 text-lg font-semibold text-chalk">
+                <span className="inline-flex h-6 w-6 items-center justify-center rounded bg-panel-3 font-mono text-xs">2</span>
+                <span>Core Concurrency & Domain Invariant</span>
+              </h2>
+              <blockquote className="rounded-r-md border-l-[3px] border-muted/60 bg-panel px-4 py-3.5 font-mono text-xs leading-relaxed text-chalk">
+                {lld.invariant}
+              </blockquote>
+            </section>
+
+            <section className="py-7 space-y-3">
+              <h2 className="flex items-center gap-2.5 text-lg font-semibold text-chalk">
+                <span className="inline-flex h-6 w-6 items-center justify-center rounded bg-panel-3 font-mono text-xs">3</span>
+                <span>Production Python Implementation</span>
+              </h2>
+              <pre className="overflow-x-auto rounded-md border border-line bg-panel p-4 font-mono text-xs leading-relaxed text-chalk">
+                {lld.codeSnippet}
+              </pre>
+            </section>
+
+            {SYSTEM_DESIGN_ASSIGNMENTS[lld.id] && (
+              <SystemDesignAssignment
+                key={lld.id}
+                spec={SYSTEM_DESIGN_ASSIGNMENTS[lld.id]}
+                stepNumber={4}
+                isCompleted={completedIds.includes(lld.id)}
+                onCompleted={markCompleted}
+                onNextLesson={() => {
+                  if (selected.index < LLD_PROBLEMS.length - 1) {
+                    openItem({ kind: 'lld', index: selected.index + 1 })
+                  } else {
+                    openItem({ kind: 'hld', index: 0 })
+                  }
+                }}
+              />
+            )}
+          </div>
+        )
+      })()}
+
+
+      {/* SCREEN 2C: DEDICATED ARTICLE VIEW — HIGH-LEVEL SYSTEM DESIGN (HLD) */}
+      {selected?.kind === 'hld' && (() => {
+        const hld = HLD_PROBLEMS[selected.index] ?? HLD_PROBLEMS[0]
+        return (
+          <div className="mx-auto max-w-[820px] space-y-0">
+            <div className="border-b border-line pb-7">
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                <button
+                  type="button"
+                  onClick={() => openItem(null)}
+                  className="inline-flex items-center gap-1.5 rounded-md border border-line bg-panel px-3 py-1.5 text-xs font-medium text-chalk hover:bg-panel-2"
+                >
+                  <ArrowLeft size={13} />
+                  <span>Back to System Design Syllabus</span>
+                </button>
+                <div className="flex items-center gap-1.5 text-xs">
+                  <button
+                    type="button"
+                    disabled={selected.index === 0}
+                    onClick={() => openItem({ kind: 'hld', index: selected.index - 1 })}
+                    className="rounded border border-line bg-panel px-2.5 py-1 text-muted hover:text-chalk disabled:opacity-40"
+                  >
+                    ← Prev
+                  </button>
+                  <button
+                    type="button"
+                    disabled={selected.index >= HLD_PROBLEMS.length - 1}
+                    onClick={() => openItem({ kind: 'hld', index: selected.index + 1 })}
+                    className="rounded border border-line bg-panel px-2.5 py-1 text-muted hover:text-chalk disabled:opacity-40"
+                  >
+                    Next →
+                  </button>
+                </div>
+              </div>
+              <div className="font-mono text-xs font-semibold uppercase tracking-wider text-muted mb-1">
+                Module 3 · High-Level System Design · {hld.difficulty} · {hld.companies.join(', ')}
+              </div>
+              <h1 className="font-sans text-2xl sm:text-3xl font-bold tracking-tight text-chalk">{hld.title}</h1>
+            </div>
+
+            {/* Section 1: Scale & Capacity Requirements Table */}
+            <section className="border-b border-line py-7 space-y-4">
+              <h2 className="flex items-center gap-2.5 text-lg font-semibold text-chalk">
+                <span className="inline-flex h-6 w-6 items-center justify-center rounded bg-panel-3 font-mono text-xs">1</span>
+                <span>Scale Targets & Back-of-the-Envelope Estimates</span>
+              </h2>
+              <div className="overflow-hidden rounded-md border border-line">
+                <table className="w-full border-collapse text-left text-sm">
+                  <thead>
+                    <tr className="border-b border-line bg-panel text-xs font-semibold text-muted">
+                      <th className="py-2.5 px-4">Daily Active Scale</th>
+                      <th className="py-2.5 px-4">Peak Concurrency / RPS</th>
+                      <th className="py-2.5 px-4">Latency SLA</th>
+                      <th className="py-2.5 px-4">Workload Profile</th>
+                    </tr>
+                  </thead>
+                  <tbody className="text-sm">
+                    <tr>
+                      <td className="py-3 px-4 font-mono text-xs text-chalk">{hld.scale.dau}</td>
+                      <td className="py-3 px-4 font-mono text-xs text-chalk">{hld.scale.peakRps}</td>
+                      <td className="py-3 px-4 font-mono text-xs text-chalk">{hld.scale.latency}</td>
+                      <td className="py-3 px-4 font-mono text-xs text-muted">{hld.scale.ratio}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </section>
+
+
+            {/* Section 2: Why the Naive Single-Server Design Fails */}
+            <section className="border-b border-line py-7 space-y-3">
+              <h2 className="flex items-center gap-2.5 text-lg font-semibold text-chalk">
+                <span className="inline-flex h-6 w-6 items-center justify-center rounded bg-panel-3 font-mono text-xs">2</span>
+                <span>Why a Single-Server Monolith Fails</span>
+              </h2>
+              <p className="text-sm leading-relaxed text-muted">
+                <strong className="font-semibold text-chalk">Naive Prototype:</strong> {hld.naiveFailure.setup}
+              </p>
+              <blockquote className="rounded-r-md border-l-[3px] border-muted/60 bg-panel px-4 py-3.5 text-sm leading-relaxed text-chalk space-y-2">
+                <div className="font-mono text-xs uppercase tracking-wider text-muted">
+                  Breaking Point: {hld.naiveFailure.breakingPoint}
+                </div>
+                <ul className="list-disc list-inside space-y-1 text-muted">
+                  {hld.naiveFailure.crashes.map((cr, idx) => (
+                    <li key={idx}>{cr}</li>
+                  ))}
+                </ul>
+              </blockquote>
+            </section>
+
+            {/* Section 3: Scaled Architecture & Interactive Hop-by-Hop Flow */}
+            <section className="border-b border-line py-7 space-y-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h2 className="flex items-center gap-2.5 text-lg font-semibold text-chalk">
+                  <span className="inline-flex h-6 w-6 items-center justify-center rounded bg-panel-3 font-mono text-xs">3</span>
+                  <span>Scaled Distributed Architecture (Hop-by-Hop Request Flow)</span>
+                </h2>
+                <span className="font-mono text-xs text-muted">
+                  Hop {activeNodeIdx + 1} of {hld.architectureNodes.length}
+                </span>
+              </div>
+
+              <div className="rounded-md border border-line bg-panel p-5 space-y-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  {hld.architectureNodes.map((node, idx) => {
+                    const isCurrent = activeNodeIdx === idx
+                    return (
+                      <div key={node.id} className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setActiveNodeIdx(idx)}
+                          className={`flex flex-col items-start rounded-md border px-3 py-2 text-left transition-colors ${
+                            isCurrent
+                              ? 'border-chalk bg-panel-3 text-chalk'
+                              : 'border-line bg-panel-2 text-muted hover:text-chalk'
+                          }`}
+                        >
+                          <span className="font-mono text-[10px] uppercase text-muted">
+                            0{idx + 1} · {node.metric}
+                          </span>
+                          <span className="text-xs font-semibold text-chalk mt-0.5">{node.label}</span>
+                        </button>
+                        {idx < hld.architectureNodes.length - 1 && (
+                          <ArrowRight size={13} className="text-muted shrink-0" />
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+
+                <div className="rounded-md border border-line bg-panel-2 p-4 text-sm">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <strong className="font-semibold text-chalk">
+                      Hop 0{activeNodeIdx + 1}: {hld.architectureNodes[activeNodeIdx]?.label}
+                    </strong>
+                    <div className="flex gap-1.5 text-xs">
+                      <button
+                        type="button"
+                        onClick={() => setActiveNodeIdx((i) => Math.max(0, i - 1))}
+                        className="rounded border border-line bg-panel px-2 py-0.5 text-muted hover:text-chalk"
+                      >
+                        ← Prev Hop
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setActiveNodeIdx((i) => (i + 1) % hld.architectureNodes.length)}
+                        className="rounded border border-line bg-panel px-2 py-0.5 text-chalk font-medium"
+                      >
+                        Next Hop →
+                      </button>
+                    </div>
+                  </div>
+                  <p className="text-muted leading-relaxed">{hld.architectureNodes[activeNodeIdx]?.role}</p>
+                </div>
+              </div>
+            </section>
+
+
+            {/* Section 4: Production Failure Modes & Defenses Table */}
+            <section className="border-b border-line py-7 space-y-4">
+              <h2 className="flex items-center gap-2.5 text-lg font-semibold text-chalk">
+                <span className="inline-flex h-6 w-6 items-center justify-center rounded bg-panel-3 font-mono text-xs">4</span>
+                <span>Failure Modes, Bottlenecks & Resilient Defenses</span>
+              </h2>
+              <div className="overflow-hidden rounded-md border border-line">
+                <table className="w-full border-collapse text-left text-sm">
+                  <thead>
+                    <tr className="border-b border-line bg-panel text-xs font-semibold text-muted">
+                      <th className="py-2.5 px-4 w-48">Failure Scenario</th>
+                      <th className="py-2.5 px-4">What Breaks Without Defense</th>
+                      <th className="py-2.5 px-4">Production Mitigation</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-line text-sm">
+                    {hld.chaosScenarios.map((cs) => (
+                      <tr key={cs.id}>
+                        <td className="py-3 px-4 align-top">
+                          <div className="font-medium text-chalk">{cs.name}</div>
+                          <div className="font-mono text-xs text-muted mt-0.5">{cs.trigger}</div>
+                        </td>
+                        <td className="py-3 px-4 align-top text-muted">{cs.brokenWithoutDefense}</td>
+                        <td className="py-3 px-4 align-top text-chalk">{cs.defenseMechanism}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+
+            {/* Section 5: How to Present This in an Interview + References */}
+            <section className="py-7 space-y-5">
+              <h2 className="flex items-center gap-2.5 text-lg font-semibold text-chalk">
+                <span className="inline-flex h-6 w-6 items-center justify-center rounded bg-panel-3 font-mono text-xs">5</span>
+                <span>Interview Summary & Engineering References</span>
+              </h2>
+
+              <div className="space-y-3 text-sm leading-relaxed text-muted">
+                <p>
+                  <strong className="font-semibold text-chalk">1. Core Architectural Thesis:</strong> "{hld.seniorPitch.hook}"
+                </p>
+                <p>
+                  <strong className="font-semibold text-chalk">2. End-to-End Request Lifecycle:</strong> "{hld.seniorPitch.flow}"
+                </p>
+                <p>
+                  <strong className="font-semibold text-chalk">3. Key Trade-offs:</strong> "{hld.seniorPitch.tradeoffs}"
+                </p>
+                <p>
+                  <strong className="font-semibold text-chalk">4. Edge-Case Defense:</strong> "{hld.seniorPitch.defense}"
+                </p>
+              </div>
+
+              <div className="pt-2">
+                <div className="text-xs font-mono uppercase tracking-wider text-muted mb-2.5">
+                  Further Reading & Engineering Blogs
+                </div>
+                <div className="divide-y divide-line rounded-md border border-line bg-panel">
+                  {hld.references.map((ref) => (
+                    <a
+                      key={ref.title}
+                      href={ref.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex items-center justify-between gap-4 px-4 py-3 text-sm transition-colors hover:bg-panel-2"
+                    >
+                      <div>
+                        <div className="font-medium text-chalk">
+                          {ref.title} <span className="font-mono text-xs text-muted">· {ref.author}</span>
+                        </div>
+                        <div className="text-xs text-muted mt-0.5">{ref.takeaway}</div>
+                      </div>
+                      <ExternalLink size={14} className="text-muted shrink-0" />
+                    </a>
+                  ))}
+                </div>
+              </div>
+            </section>
+
+            {SYSTEM_DESIGN_ASSIGNMENTS[hld.id] && (
+              <SystemDesignAssignment
+                key={hld.id}
+                spec={SYSTEM_DESIGN_ASSIGNMENTS[hld.id]}
+                stepNumber={6}
+                isCompleted={completedIds.includes(hld.id)}
+                onCompleted={markCompleted}
+                onNextLesson={
+                  selected.index < HLD_PROBLEMS.length - 1
+                    ? () => openItem({ kind: 'hld', index: selected.index + 1 })
+                    : () => openItem(null)
+                }
+              />
+            )}
+          </div>
+        )
+      })()}
     </div>
   )
 }
+
+

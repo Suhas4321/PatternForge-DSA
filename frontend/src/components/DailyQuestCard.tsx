@@ -44,7 +44,7 @@ export default function DailyQuestCard() {
     : '0/1 lessons · 0/3 drills'
 
   return (
-    <div className="card flex min-h-[115px] flex-col justify-between rounded-2xl p-4 border border-white/12 bg-[#0D1220]/70 backdrop-blur-md relative overflow-hidden shadow-xl">
+    <div className="flex min-h-[112px] flex-col justify-between p-4 relative overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between gap-2">
         <p className="flex items-center gap-1.5 text-2xs font-semibold uppercase tracking-wider text-reward">

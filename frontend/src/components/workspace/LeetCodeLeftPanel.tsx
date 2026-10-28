@@ -1,4 +1,4 @@
-import { BookOpen, Bot, CheckCircle2, Cpu, Eye, Lightbulb, Mic, Play, Sparkles } from 'lucide-react'
+import { BookOpen, Bot, CheckCircle2, Cpu, Eye, Lightbulb, Play, Sparkles } from 'lucide-react'
 import { useState, type ReactNode } from 'react'
 import { api } from '../../api/client'
 import type { CoachReply, Drill, Progress, QuestionDetail, TraceStep } from '../../api/types'
@@ -8,7 +8,6 @@ import { Button, ErrorNote, Markdown } from '../ui'
 import VisualizerHost from '../visualizers/VisualizerHost'
 import ConstraintsCheatWidget from './ConstraintsCheatWidget'
 import Quiz from './Quiz'
-import StagePitch from './StagePitch'
 
 export type LeftTab = 'description' | 'visualizer' | 'drills' | 'pitch'
 
@@ -34,6 +33,7 @@ export interface LeftPanelProps {
   narration?: NarratorResult
   tracedCode: string
   currentCode: string
+  onOpenInterviewGuide?: () => void
 }
 
 export default function LeetCodeLeftPanel(props: LeftPanelProps) {
@@ -59,6 +59,7 @@ export default function LeetCodeLeftPanel(props: LeftPanelProps) {
     narration,
     tracedCode,
     currentCode,
+    onOpenInterviewGuide,
   } = props
   const content = question.content!
   const st = content.statement
@@ -129,7 +130,7 @@ export default function LeetCodeLeftPanel(props: LeftPanelProps) {
               {progress.drills_passed.length}/{drills.length}
             </span>,
           )}
-        {tabBtn('pitch', 'Hints & Pitch', <Mic size={13} className="text-indigo" />)}
+        {tabBtn('pitch', 'Hints', <Lightbulb size={13} className="text-amber" />)}
       </div>
       <div className="flex-1 min-h-0 overflow-y-auto p-4 sm:p-5">
         {activeTab === 'description' && (
@@ -375,7 +376,17 @@ export default function LeetCodeLeftPanel(props: LeftPanelProps) {
               )}
             </div>
 
-            <StagePitch question={question} progress={progress} onProgress={onProgress} />
+            {onOpenInterviewGuide && (
+              <div className="rounded-lg border border-emerald/30 bg-emerald/5 p-4 flex items-center justify-between gap-3 text-xs">
+                <div>
+                  <strong className="text-emerald block">Ready for the Full Interview Answer Playbook?</strong>
+                  <span className="text-muted">View clarifying questions, spoken script, and complexity proof in full screen.</span>
+                </div>
+                <Button className="h-8 px-3 text-xs shrink-0" onClick={onOpenInterviewGuide}>
+                  Open Step 3 Guide →
+                </Button>
+              </div>
+            )}
           </div>
         )}
       </div>

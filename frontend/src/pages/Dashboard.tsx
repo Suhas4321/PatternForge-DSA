@@ -1,4 +1,4 @@
-import { CalendarClock, Check, ChevronDown, Compass, Crown, Flame, Lock, Sparkles } from 'lucide-react'
+import { CalendarClock, Check, ChevronDown, Compass, Crown, Lock, Sparkles } from 'lucide-react'
 import { motion, useReducedMotion } from 'motion/react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
@@ -269,9 +269,9 @@ function CommandHud({ worlds, review, citadel }: { worlds: World[]; review: Revi
     quest?.reason === 'review' ? 'Blind re-solve due' : quest?.reason === 'continue' ? 'Next quest' : 'Current quest'
 
   return (
-    <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[1.35fr_1.15fr_0.85fr_0.85fr]">
-      {/* 1. Current quest card — The ONLY card with BorderBeam on screen */}
-      <div className="card relative flex min-h-[115px] flex-col justify-between rounded-2xl p-4 border border-white/12 bg-[#0D1220]/70 backdrop-blur-md overflow-hidden shadow-xl">
+    <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-[1.35fr_1.15fr_0.85fr_0.85fr] divide-y sm:divide-y-0 lg:divide-x divide-white/10 rounded-lg border border-white/15 bg-[#0D1220]/75 backdrop-blur-md overflow-hidden shadow-2xl">
+      {/* 1. Current quest cell */}
+      <div className="relative flex min-h-[112px] flex-col justify-between p-4 overflow-hidden">
         <BorderBeam />
         <div className="flex items-center justify-between gap-2">
           <p className={`flex items-center gap-1.5 text-2xs font-semibold uppercase tracking-wider ${quest?.reason === 'review' ? 'text-amber' : 'text-sky-400'}`}>
@@ -279,7 +279,7 @@ function CommandHud({ worlds, review, citadel }: { worlds: World[]; review: Revi
             {questLabel}
           </p>
           <span
-            className="rounded-full px-2 py-0.5 text-2xs font-plate font-bold border"
+            className="rounded-md px-2 py-0.5 text-2xs font-plate font-bold border"
             style={{
               color: citadel.themeColor,
               borderColor: `color-mix(in srgb, ${citadel.themeColor} 30%, transparent)`,
@@ -319,11 +319,11 @@ function CommandHud({ worlds, review, citadel }: { worlds: World[]; review: Revi
         )}
       </div>
 
-      {/* 2. Daily Quest card on the Range */}
+      {/* 2. Daily Quest cell */}
       <DailyQuestCard />
 
-      {/* 2. Mastery card (No BorderBeam) */}
-      <div className="card flex min-h-[115px] items-center gap-4 rounded-2xl p-4 border border-white/12 bg-[#0D1220]/70 backdrop-blur-md shadow-xl">
+      {/* 3. Mastery & Rank cell */}
+      <div className="flex min-h-[112px] items-center gap-4 p-4">
         <ProgressRing value={solved} total={all.length || 1} size={58} stroke={6} color={citadel.themeColor || "var(--accent-dsa)"}>
           <span className="font-plate text-xs font-bold text-chalk">
             <NumberTicker value={pct} />%
@@ -347,7 +347,7 @@ function CommandHud({ worlds, review, citadel }: { worlds: World[]; review: Revi
         </div>
       </div>
 
-      {/* 3. Rust Radar card (No BorderBeam) */}
+      {/* 4. Rust Radar cell */}
       <RustRadar worlds={worlds} review={review} />
     </section>
   )
@@ -364,7 +364,7 @@ function RustRadar({ worlds, review }: { worlds: World[]; review: ReviewQueue })
   const arc = Math.PI * r
 
   return (
-    <div className="card flex min-h-[115px] items-center gap-3.5 rounded-2xl p-4 border border-white/12 bg-[#0D1220]/70 backdrop-blur-md shadow-xl">
+    <div className="flex min-h-[112px] items-center gap-3.5 p-4">
       <svg width="64" height="38" viewBox="0 0 64 38" aria-hidden="true" className="shrink-0">
         <path d="M 6 34 A 26 26 0 0 1 58 34" fill="none" stroke="var(--color-line)" strokeWidth="5" strokeLinecap="round" />
         <path
@@ -475,10 +475,8 @@ function Constellation({ worlds, citadel }: { worlds: World[]; citadel: Citadel 
     return result
   }, [rawTiers, edges])
 
-  // Reverse tiers for rendering so tier 0 (Base Camp) is at the bottom, Summit at the top
-  const tiersBottomToTop = sortedTiers
-    .map((tier, originalIdx) => ({ tier, originalIdx }))
-    .reverse()
+  // Render tiers top-to-bottom starting from Tier 0 (World 1 Base Camp) so active camp is immediately in view!
+  const tiersBottomToTop = sortedTiers.map((tier, originalIdx) => ({ tier, originalIdx }))
 
   const mapHeight = tiersBottomToTop.length * 170 + 160
 

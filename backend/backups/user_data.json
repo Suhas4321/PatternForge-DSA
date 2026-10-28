@@ -1,6 +1,6 @@
 {
   "format_version": 1,
-  "exported_at": "2026-10-28T12:00:33.522533",
+  "exported_at": "2026-10-28T17:12:09.952800",
   "tables": {
     "progress": [
       {
@@ -38,10 +38,10 @@
         "confidence": 1,
         "first_try_pass": false,
         "time_spent_seconds": null,
-        "review_count": 0,
-        "last_practiced_at": "2026-10-18T17:08:45.549696",
-        "next_review_at": "2026-10-21T16:38:17.486384",
-        "updated_at": "2026-10-18T17:08:45.550594"
+        "review_count": 3,
+        "last_practiced_at": "2026-10-28T17:12:09.945243",
+        "next_review_at": "2026-10-31T17:12:09.945243",
+        "updated_at": "2026-10-28T17:12:09.945672"
       }
     ],
     "pitch_notes": [
