@@ -14,6 +14,7 @@ import { Button, DifficultyBadge, ErrorNote, LeetCodeLink, ProgressRing, Skeleto
 import { CITADELS, getCitadel, type Citadel } from '../lib/citadels'
 import { currentQuest, isRusting, questUrl, rankFor, worldState, type WorldState } from '../lib/journey'
 import { useConnectors } from '../lib/useConnectors'
+import { useSystemDesignProgress } from '../lib/systemDesignProgress'
 
 const PEAK_NAMES: Record<string, string> = {
   dsa: 'DSA',
@@ -155,6 +156,7 @@ function PeakSwitcherRibbon({
   allWorlds: World[]
 }) {
   const navigate = useNavigate()
+  const { solved: sysSolved, total: sysTotal, pct: sysPct } = useSystemDesignProgress()
 
   return (
     <div className="flex flex-col gap-2">
@@ -180,10 +182,10 @@ function PeakSwitcherRibbon({
             <button
               key={cit.id}
               onClick={() => navigate(cit.id === 'dsa' ? '/' : `/citadel/${cit.id}`)}
-              className={`group relative flex flex-col justify-between rounded-xl border p-2.5 text-left transition-all backdrop-blur-md ${
+              className={`group relative flex flex-col justify-between overflow-hidden rounded-xl border p-2.5 text-left transition-all duration-200 backdrop-blur-md ${
                 isActive
-                  ? 'bg-[#131B2E]/85 shadow-lg'
-                  : 'border-white/10 bg-[#0D1220]/65 hover:border-white/25 hover:bg-[#131B2E]/80'
+                  ? 'bg-[#131B2E]/90 shadow-lg'
+                  : 'border-white/10 bg-[#0D1220]/70 hover:border-white/30 hover:bg-[#131B2E]/85'
               }`}
               style={
                 isActive
@@ -230,23 +232,26 @@ function PeakSwitcherRibbon({
         <button
           type="button"
           onClick={() => navigate('/system-design')}
-          className="group relative flex flex-col justify-between rounded-xl border border-violet-400/40 bg-[#131B2E]/80 p-2.5 text-left transition-all backdrop-blur-md hover:border-violet-400 hover:bg-[#19233C]"
+          className="group relative flex flex-col justify-between overflow-hidden rounded-xl border border-violet-400/40 bg-[#0D1220]/70 p-2.5 text-left transition-all duration-200 backdrop-blur-md hover:border-violet-400 hover:bg-[#131B2E]/90 hover:shadow-[0_0_16px_-4px_rgba(167,139,250,0.4)]"
         >
           <div className="flex items-start justify-between gap-1">
             <div className="min-w-0">
               <div className="flex items-center gap-1.5">
-                <span className="font-plate text-xs font-bold text-violet-300">VII</span>
+                <span className="font-plate text-xs font-bold text-violet-400">VII</span>
                 <span className="font-plate text-xs font-semibold text-chalk truncate">
                   System Design
                 </span>
               </div>
             </div>
-            <span className="font-mono text-2xs text-violet-300 shrink-0">
-              LLD+HLD
+            <span className="font-mono text-2xs text-violet-300 shrink-0 font-medium">
+              {sysSolved}/{sysTotal}
             </span>
           </div>
           <div className="mt-2 h-1 w-full overflow-hidden rounded-full bg-line">
-            <div className="h-full w-full rounded-full bg-violet-400/80" />
+            <div
+              className="h-full rounded-full bg-violet-400 transition-all duration-300"
+              style={{ width: `${sysPct}%` }}
+            />
           </div>
         </button>
       </div>

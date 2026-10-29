@@ -1,8 +1,20 @@
-import { ArrowRight, CheckCircle2, HelpCircle, Play, RotateCcw, XCircle } from 'lucide-react'
+import {
+  ArrowRight,
+  CheckCircle2,
+  Code2,
+  HelpCircle,
+  Maximize2,
+  Play,
+  RotateCcw,
+  XCircle,
+} from 'lucide-react'
 import { useState } from 'react'
 import { api } from '../../api/client'
 import type { SystemDesignAssignmentSpec } from '../../lib/systemDesignAssignments'
+import { markSystemDesignCompleted } from '../../lib/systemDesignProgress'
+import ChatGPTCodeBlock from '../ChatGPTCodeBlock'
 import CodeEditor from '../CodeEditor'
+import SystemDesignFullscreenIDE from './SystemDesignFullscreenIDE'
 
 interface Props {
   spec: SystemDesignAssignmentSpec
@@ -41,6 +53,7 @@ export default function SystemDesignAssignment({
   const [showHint, setShowHint] = useState(false)
   const [outcomes, setOutcomes] = useState<TestRunOutcome[] | null>(null)
   const [compileErr, setCompileErr] = useState<string | null>(null)
+  const [isFullscreen, setIsFullscreen] = useState(false)
 
   const handleCodeChange = (next: string) => {
     setCode(next)
@@ -90,6 +103,7 @@ export default function SystemDesignAssignment({
       setOutcomes(results)
       if (allPassed && results.length > 0) {
         onCompleted(spec.id)
+        markSystemDesignCompleted(spec.id)
       }
     } catch (e) {
       setCompileErr((e as Error).message)
@@ -99,57 +113,111 @@ export default function SystemDesignAssignment({
   }
 
   const allCurrentPassed = outcomes !== null && outcomes.length > 0 && outcomes.every((o) => o.passed)
+  const hasPassed = isCompleted || allCurrentPassed
+
+  if (isFullscreen) {
+    return (
+      <SystemDesignFullscreenIDE
+        spec={spec}
+        stepNumber={stepNumber}
+        code={code}
+        onCodeChange={handleCodeChange}
+        running={running}
+        onRunTests={runAssignmentTests}
+        outcomes={outcomes}
+        compileErr={compileErr}
+        hasPassed={hasPassed}
+        onClose={() => setIsFullscreen(false)}
+        onNextLesson={onNextLesson}
+        onReset={() => {
+          handleCodeChange(spec.starterCode)
+          setOutcomes(null)
+        }}
+      />
+    )
+  }
 
   return (
-    <section className="py-7 space-y-6 border-t border-line">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="flex items-center gap-2.5 text-lg font-semibold text-chalk">
-          <span className="inline-flex h-6 w-6 items-center justify-center rounded bg-panel-3 font-mono text-xs">
+    <section className="py-8 space-y-6 border-t border-line">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-2.5">
+          <span className="inline-flex h-6 w-6 items-center justify-center rounded bg-violet-500/15 font-mono text-xs font-semibold text-violet-600 dark:text-violet-400">
             {stepNumber}
           </span>
-          <span>Hands-On Lab: Worked Example → Your Coding Assignment</span>
-        </h2>
+          <div>
+            <h2 className="text-lg font-semibold text-chalk">
+              Hands-On Lab: Worked Example → Your Coding Assignment
+            </h2>
+            <p className="text-xs text-muted mt-0.5">
+              Implement the architectural pattern in Python. Pass all unit verification tests to complete the lesson.
+            </p>
+          </div>
+        </div>
 
-        <span
-          className={`rounded border px-2.5 py-0.5 font-mono text-xs font-medium ${
-            isCompleted || allCurrentPassed
-              ? 'border-emerald/40 bg-emerald/10 text-emerald'
-              : 'border-line bg-panel text-muted'
-          }`}
-        >
-          {isCompleted || allCurrentPassed ? '✓ Assignment Completed' : 'Assignment Required to Complete Lesson'}
-        </span>
+        <div className="flex items-center gap-2">
+          <span
+            className={`rounded-full border px-3 py-0.5 font-mono text-xs font-semibold ${
+              hasPassed
+                ? 'border-emerald/40 bg-emerald/10 text-emerald'
+                : 'border-line bg-panel text-muted'
+            }`}
+          >
+            {hasPassed ? '✓ Lesson Completed' : 'Pending Verification'}
+          </span>
+          <button
+            type="button"
+            onClick={() => setIsFullscreen(true)}
+            className="inline-flex items-center gap-1.5 rounded-md border border-line bg-panel-2 px-3 py-1 text-xs font-medium text-chalk hover:bg-panel-3 hover:border-violet-400/40 transition-colors"
+            title="Expand into Fullscreen Split IDE"
+          >
+            <Maximize2 size={13} className="text-violet-600 dark:text-violet-400" />
+            <span>Fullscreen IDE</span>
+          </button>
+        </div>
       </div>
 
-      {/* PART A: SCENARIO 1 (WORKED EXAMPLE) */}
-      <div className="rounded-md border border-line bg-panel p-5 space-y-3">
-        <div className="font-mono text-xs font-semibold uppercase tracking-wider text-muted">
-          Part A · {spec.workedExampleTitle}
+      {/* PART A: SCENARIO 1 (WORKED EXAMPLE with ChatGPT Code Block) */}
+      <div className="space-y-2.5 pt-2">
+        <div className="flex items-center justify-between">
+          <span className="font-mono text-2xs uppercase tracking-wider font-semibold text-muted">
+            Part A · {spec.workedExampleTitle}
+          </span>
+          <span className="text-2xs text-muted font-mono">Reference Pattern</span>
         </div>
         <p className="text-sm leading-relaxed text-muted">{spec.workedExampleExplanation}</p>
-        <pre className="overflow-x-auto rounded-md border border-line bg-panel-2 p-3.5 font-mono text-xs leading-relaxed text-chalk">
-          {spec.workedExampleCode}
-        </pre>
+        <ChatGPTCodeBlock
+          code={spec.workedExampleCode}
+          language="python"
+          title="Worked Reference Pattern"
+        />
       </div>
 
-      {/* PART B: SCENARIO 2 (USER HANDS-ON ASSIGNMENT) */}
-      <div className="rounded-md border border-line bg-panel p-5 space-y-4">
-        <div className="space-y-1">
-          <div className="font-mono text-xs font-semibold uppercase tracking-wider text-chalk">
-            Part B · {spec.scenarioTitle}
+      {/* PART B: SCENARIO 2 (USER CODING ASSIGNMENT) */}
+      <div className="space-y-4 pt-4 border-t border-line">
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between">
+            <span className="font-mono text-2xs uppercase tracking-wider font-semibold text-violet-600 dark:text-violet-400">
+              Part B · {spec.scenarioTitle}
+            </span>
+            <span className="font-mono text-2xs text-muted">
+              Target: <code className="text-chalk font-semibold">{spec.functionName}()</code>
+            </span>
           </div>
           <p className="text-sm leading-relaxed text-muted">{spec.scenarioPrompt}</p>
         </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line pb-2.5 text-xs">
-          <span className="font-mono text-muted">
-            Function under test: <code className="text-chalk">{spec.functionName}()</code>
-          </span>
+        {/* Toolbar */}
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-t-lg border-x border-t border-line bg-panel-2 px-3.5 py-2 text-xs">
+          <div className="flex items-center gap-2 text-muted font-mono">
+            <Code2 size={13} className="text-violet-400" />
+            <span>Python 3 Workspace</span>
+          </div>
+
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
               onClick={() => setShowHint((h) => !h)}
-              className="inline-flex items-center gap-1 rounded border border-line bg-panel-2 px-2.5 py-1 text-muted hover:text-chalk"
+              className="inline-flex items-center gap-1 rounded border border-line bg-panel px-2.5 py-1 text-muted hover:text-chalk"
             >
               <HelpCircle size={12} />
               <span>{showHint ? 'Hide Hint' : 'Hint'}</span>
@@ -157,7 +225,7 @@ export default function SystemDesignAssignment({
             <button
               type="button"
               onClick={() => handleCodeChange(spec.solutionCode)}
-              className="rounded border border-line bg-panel-2 px-2.5 py-1 text-muted hover:text-chalk"
+              className="rounded border border-line bg-panel px-2.5 py-1 text-muted hover:text-chalk"
             >
               Load Reference Solution
             </button>
@@ -167,55 +235,66 @@ export default function SystemDesignAssignment({
                 handleCodeChange(spec.starterCode)
                 setOutcomes(null)
               }}
-              className="inline-flex items-center gap-1 rounded border border-line bg-panel-2 px-2.5 py-1 text-muted hover:text-chalk"
+              className="inline-flex items-center gap-1 rounded border border-line bg-panel px-2.5 py-1 text-muted hover:text-chalk"
             >
               <RotateCcw size={12} />
               <span>Reset</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsFullscreen(true)}
+              className="inline-flex items-center gap-1 rounded border border-violet-500/30 bg-violet-500/10 px-2.5 py-1 text-violet-700 dark:text-violet-300 hover:bg-violet-500/20"
+            >
+              <Maximize2 size={12} />
+              <span>Fullscreen</span>
             </button>
           </div>
         </div>
 
         {showHint && (
-          <blockquote className="rounded-r-md border-l-[3px] border-muted/60 bg-panel-2 px-3.5 py-2.5 text-xs text-chalk">
-            <strong className="font-semibold">Hint:</strong> {spec.hint}
+          <blockquote className="border-l-[3px] border-amber-500 bg-amber-500/10 px-4 py-3 text-xs leading-relaxed text-amber-900 dark:text-amber-200 shadow-xs">
+            <strong className="font-semibold text-amber-700 dark:text-amber-400 block mb-0.5">Architecture Hint:</strong>
+            {spec.hint}
           </blockquote>
         )}
 
-        <div className="overflow-hidden rounded-md border border-line">
-          <CodeEditor value={code} onChange={handleCodeChange} height={210} />
+        {/* Generous 460px Editor (No tiny 210px box!) */}
+        <div className="overflow-hidden rounded-b-lg border border-line shadow-inner">
+          <CodeEditor value={code} onChange={handleCodeChange} height={460} />
         </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-3">
+        {/* Actions */}
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
           <button
             type="button"
             disabled={running}
             onClick={runAssignmentTests}
-            className="inline-flex items-center gap-1.5 rounded-md bg-chalk px-4 py-2 text-xs font-semibold text-void hover:opacity-90 disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-md bg-emerald px-5 py-2.5 text-xs font-semibold text-white shadow-md hover:brightness-110 active:scale-95 disabled:opacity-50"
           >
-            <Play size={13} />
-            <span>{running ? 'Running Automated Tests…' : 'Run & Verify Assignment'}</span>
+            <Play size={14} />
+            <span>{running ? 'Running Automated Verification…' : 'Run & Verify Assignment'}</span>
           </button>
 
-          {(isCompleted || allCurrentPassed) && onNextLesson && (
+          {hasPassed && onNextLesson && (
             <button
               type="button"
               onClick={onNextLesson}
-              className="inline-flex items-center gap-1.5 rounded-md border border-chalk bg-panel-2 px-4 py-2 text-xs font-semibold text-chalk hover:bg-panel-3"
+              className="inline-flex items-center gap-2 rounded-md bg-violet-600 px-5 py-2.5 text-xs font-semibold text-white shadow-md hover:bg-violet-500 active:scale-95 transition-all"
             >
-              <span>Complete & Continue to Next Lesson</span>
-              <ArrowRight size={13} />
+              <span>Lesson Solved! Continue to Next Lesson</span>
+              <ArrowRight size={14} />
             </button>
           )}
         </div>
 
         {compileErr && (
-          <div className="rounded-md border border-crimson/40 bg-crimson/10 p-3 font-mono text-xs text-crimson">
+          <div className="rounded-md border border-crimson/40 bg-crimson/10 p-3.5 font-mono text-xs text-crimson">
             {compileErr}
           </div>
         )}
 
         {outcomes && (
-          <div className="overflow-hidden rounded-md border border-line">
+          <div className="overflow-hidden rounded-md border border-line bg-panel">
             <table className="w-full border-collapse text-left text-xs">
               <thead>
                 <tr className="border-b border-line bg-panel-2 font-semibold text-muted">

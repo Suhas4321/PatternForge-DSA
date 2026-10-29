@@ -3,14 +3,16 @@ import { ChevronDown, ShieldCheck } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { CITADELS, getCitadel } from '../lib/citadels'
+import { useSystemDesignProgress } from '../lib/systemDesignProgress'
 
 export default function CitadelSwitcher() {
   const [open, setOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
   const { pathname } = useLocation()
   const navigate = useNavigate()
+  const { solved: sysSolved, total: sysTotal } = useSystemDesignProgress()
 
-  // Match /citadel/:id or fallback to current
+  const isSystemDesign = pathname === '/system-design'
   const match = /^\/citadel\/([^/]+)/.exec(pathname)
   const currentCitadelId = match ? match[1] : 'dsa'
   const activeCitadel = getCitadel(currentCitadelId)
@@ -34,12 +36,12 @@ export default function CitadelSwitcher() {
         aria-label="Switch Citadel Realm"
         className="flex h-8 items-center gap-1.5 rounded-full border border-line bg-panel-2 px-2.5 text-xs font-medium text-chalk transition-all hover:border-cyan hover:bg-panel shadow-sm"
       >
-        <span className="text-sm">{activeCitadel.icon}</span>
+        <span className="text-sm">{isSystemDesign ? '🏛️' : activeCitadel.icon}</span>
         <span className="font-plate font-semibold tracking-wide text-xs">
-          Citadel {activeCitadel.numeral}:
+          Citadel {isSystemDesign ? 'VII' : activeCitadel.numeral}:
         </span>
         <span className="hidden sm:inline font-medium text-muted max-w-[130px] truncate">
-          {activeCitadel.shortName}
+          {isSystemDesign ? 'System Design' : activeCitadel.shortName}
         </span>
         <ChevronDown size={12} className={`text-muted transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
       </button>
@@ -57,14 +59,14 @@ export default function CitadelSwitcher() {
               <span className="text-2xs font-semibold uppercase tracking-wider text-muted">
                 Select Engineering Citadel
               </span>
-              <span className="text-2xs rounded-full bg-cyan/10 px-2 py-0.5 font-medium text-cyan">
-                6 Realms Active
+              <span className="text-2xs rounded-full bg-violet-500/15 px-2 py-0.5 font-medium text-violet-300">
+                7 Realms Active
               </span>
             </div>
 
-            <div className="flex flex-col gap-1 max-h-[360px] overflow-y-auto p-0.5">
+            <div className="flex flex-col gap-1 max-h-[380px] overflow-y-auto p-0.5">
               {CITADELS.map((citadel) => {
-                const isActive = citadel.id === activeCitadel.id
+                const isActive = !isSystemDesign && citadel.id === activeCitadel.id
                 return (
                   <button
                     key={citadel.id}
@@ -100,6 +102,45 @@ export default function CitadelSwitcher() {
                   </button>
                 )
               })}
+
+              {/* Realm VII: System Design */}
+              <button
+                type="button"
+                onClick={() => {
+                  setOpen(false)
+                  navigate('/system-design')
+                }}
+                className={`flex items-start gap-3 rounded-xl p-2.5 text-left transition-all ${
+                  isSystemDesign
+                    ? 'border border-violet-400/50 bg-violet-500/10 shadow-sm'
+                    : 'border border-transparent hover:border-line hover:bg-panel-2'
+                }`}
+              >
+                <span className="text-xl p-1 rounded-lg bg-panel-2 border border-line">
+                  🏛️
+                </span>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-1">
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-plate text-xs font-bold text-violet-400">
+                        Realm VII
+                      </span>
+                      <span className="font-plate text-sm font-semibold text-chalk truncate">
+                        System Design & Architecture
+                      </span>
+                    </div>
+                    <span className="font-mono text-2xs text-violet-300">
+                      {sysSolved}/{sysTotal}
+                    </span>
+                  </div>
+                  <p className="text-2xs text-muted truncate mt-0.5">
+                    OOP/SOLID → Low-Level Design → 10 Distributed Systems
+                  </p>
+                </div>
+                {isSystemDesign && (
+                  <span className="h-2 w-2 rounded-full bg-violet-400 shadow-[0_0_8px_rgba(167,139,250,0.8)] mt-2 mr-1" />
+                )}
+              </button>
             </div>
 
             <div className="mt-2 pt-2 border-t border-line flex flex-col gap-1">
